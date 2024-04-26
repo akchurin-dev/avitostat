@@ -13,7 +13,7 @@ client_id = os.getenv('AVITO_CLIENT_ID')
 client_secret = os.getenv('AVITO_CLIENT_SECRET')
 
 
-def get_avito_tokens(code: str) -> JsonResponse | Any:
+def get_avito_tokens(code: str):  # Если использованный токен -должен быть ексепшн, просто обновить код надо
     url = 'https://api.avito.ru/token/'
     data = {
         'grant_type': 'authorization_code',
@@ -43,7 +43,7 @@ def get_avito_account_info(access_token: str):
         raise HTTPException(status_code=response.status_code, detail=response.text)
 
 
-def create_or_update_avito_account(code: str):
+def create_or_update_avito_account(code: str) -> AvitoAccount:
     # try:
     token_data = get_avito_tokens(code)
     access_token = token_data.get('access_token')
@@ -59,8 +59,7 @@ def create_or_update_avito_account(code: str):
     avito_account.profile_url = account_info.get('profile_url')
     avito_account.save()
 
-    # except HTTPException as e:
-    #     return Response(e.detail, status=e.status_code)
+    return avito_account
 
 
 def refresh_token(avito_account_id: int):
