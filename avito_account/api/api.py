@@ -36,4 +36,5 @@ def get_item_info(access_token: str, user_id: str, item_id: str) -> dict:
     response = requests.get(url, headers=headers)
     return response.json()
 
+def get_statistics(avito_account: AvitoAccount) -> dict:
 

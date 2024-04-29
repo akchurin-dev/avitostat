@@ -3,9 +3,15 @@ from django.contrib.admin import site
 from avito_account.models import AvitoAccount, Item, ServiceType, Operation
 
 
+class OperationInline(admin.TabularInline):
+    model = Operation
+    extra = 0
+
+
 class ItemAdmin(admin.ModelAdmin):
     list_display = ('title', 'price', 'status', 'address', 'category', 'url')
     list_filter = ('avito_account', 'status')
+    inlines = [OperationInline, ]
 
 
 site.register(AvitoAccount)
