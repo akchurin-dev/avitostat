@@ -27,7 +27,7 @@ class CallbackView(View):
 class Test(View):
     def get(self, request, *args, **kwargs):
         start_date = "2024-01-01T00:00:00"
-        end_date = "2024-01-14T23:59:59"
+        end_date = "2024-01-31T23:59:59"
         avito_account: AvitoAccount = AvitoAccount.objects.filter(id=359794245).last()
 
         operations = get_statistics_for_range(avito_account.access_token, start_date, end_date)
@@ -39,7 +39,7 @@ class Test(View):
                     service_id=operation.get("serviceId"),
                 )
 
-                Operation.objects.create(
+                Operation.objects.get_or_create(
                     amount_bonus=operation.get("amountBonus"),
                     amount_rub=operation.get("amountRub"),
                     amount_total=operation.get("amountTotal"),
@@ -47,7 +47,7 @@ class Test(View):
                     name=operation.get("operationName"),
                     type=operation.get("operationType"),
                     service_id=service_type.id,
-                    updated_at=operation.get("amountBonus"),
+                    updated_at=operation.get("updatedAt"),
                 )
 
         return JsonResponse(status=200, data={"message": "Test success"})

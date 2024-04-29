@@ -45,4 +45,10 @@ class Operation(models.Model):
     name = models.CharField(max_length=255, null=True)
     type = models.CharField(max_length=255, null=True)
     service = models.ForeignKey(ServiceType, on_delete=models.CASCADE)
-    updated_at = models.DateTimeField(auto_now=True)
+    updated_at = models.DateTimeField()
+
+    def __str__(self):
+        return self.name
+
+    class Meta:
+        unique_together = ['updated_at', 'name']
