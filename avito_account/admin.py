@@ -1,6 +1,7 @@
 from django.contrib import admin
 from django.contrib.admin import site
-from avito_account.models import AvitoAccount, Item, ServiceType, Operation
+from avito_account.models import AvitoAccount, Item
+from conversion.models import ServiceType, Operation
 
 
 class OperationInline(admin.TabularInline):

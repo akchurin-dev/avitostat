@@ -1,6 +1,7 @@
-from avito_account.api.api import get_items_list
+from avito_account.api.api import get_items_list, get_statistics
 from avito_account.api.get_operations import get_operations_for_range
-from avito_account.models import AvitoAccount, Item, ServiceType, Operation
+from avito_account.models import AvitoAccount, Item
+from conversion.models import ServiceType, Operation, Statistic
 
 
 def items_to_db(avito_account: AvitoAccount):
@@ -48,4 +49,19 @@ def operations_to_db():
                 updated_at=operation.get("updatedAt"),
             )
 
+
+def statistic_to_db(avito_account: AvitoAccount):
+    # TODO Проверить изначальный респонс посчитать не теряются ли статистики
+    statistics = get_statistics(avito_account)
+    if statistics:
+        for statistic in statistics:
+            item_id = statistic.get("itemId", )
+            for date in statistic.get("stats"):
+                Statistic.objects.get_or_create(
+                    item_id=item_id,
+                    date=date.get("date"),
+                    uniq_contacts=date.get("uniqContacts"),
+                    uniq_favorites=date.get("uniqFavorites"),
+                    uniq_views=date.get("uniqViews"),
+                )
 

@@ -4,6 +4,7 @@ from avito_account.models import AvitoAccount
 
 
 def get_items_list(avito_account: AvitoAccount) -> list[dict] | None:
+    # TODO Добавить функционал если в БД нет таких айтемов чтобы сразу добавились
     url = f"https://api.avito.ru/core/v1/items"
     headers = {
         'authorization': f"Bearer {avito_account.access_token}"
@@ -36,33 +37,27 @@ def get_item_info(access_token: str, user_id: str, item_id: str) -> dict:
     return response.json()
 
 
-import requests
-from pprint import pprint
-
-
-def statistic(avito_account: AvitoAccount):
+def get_statistics(avito_account: AvitoAccount):
     url = f"https://api.avito.ru/stats/v1/accounts/{avito_account.id}/items"
     headers = {
         'authorization': f"Bearer {avito_account.access_token}",
         'content-type': 'application/json',
     }
+
+    items = get_items_list(avito_account)
+    item_ids = [item.get('id') for item in items]
     params = {
-        'dateFrom': "2024-01-01",
-        'dateTo': "2024-04-01",
+        'dateFrom': "2021-01-01",
+        'dateTo': "2021-08-01",
         # 'fields': 'uniqViews, uniqContacts, uniqFavorites',
-        'itemIds': [3456191202, 3359934271],
+        'itemIds': item_ids,
         'periodGrouping': "month"
     }
 
     response = requests.post(url, headers=headers, json=params)
-    return response.json()
+    if response.status_code == 200:
+        statistic_for_all_items = response.json().get("result").get("items")
+        statistics_correct = [item for item in statistic_for_all_items if len(item["stats"]) > 0]
+        return statistics_correct
 
 
-def main():
-    avito_account = AvitoAccount.objects.get(id=359794245).lost()
-    info = statistic(avito_account=avito_account)
-    pprint(info)
-
-
-if __name__ == "__main__":
-    main()
