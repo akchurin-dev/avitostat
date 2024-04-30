@@ -2,7 +2,10 @@ from django.http import JsonResponse
 from django.utils.decorators import method_decorator
 from django.views import View
 from django.views.decorators.csrf import csrf_exempt
+
+from avito_account.api.api import statistic
 from avito_account.dao import items_to_db, operations_to_db
+from avito_account.models import AvitoAccount
 from avito_account.oauth_utils import create_or_update_avito_account
 
 
@@ -21,5 +24,6 @@ class CallbackView(View):
 @method_decorator(csrf_exempt, name='dispatch')
 class Test(View):
     def get(self, request, *args, **kwargs):
-        operations_to_db()
+        avito_account = AvitoAccount.objects.filter(id=359794245).last()
+        statistics = statistic(avito_account)
         return JsonResponse(status=200, data={"message": "Test success"})
