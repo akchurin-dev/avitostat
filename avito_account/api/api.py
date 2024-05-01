@@ -37,27 +37,4 @@ def get_item_info(access_token: str, user_id: str, item_id: str) -> dict:
     return response.json()
 
 
-def get_statistics(avito_account: AvitoAccount):
-    url = f"https://api.avito.ru/stats/v1/accounts/{avito_account.id}/items"
-    headers = {
-        'authorization': f"Bearer {avito_account.access_token}",
-        'content-type': 'application/json',
-    }
-
-    items = get_items_list(avito_account)
-    item_ids = [item.get('id') for item in items]
-    params = {
-        'dateFrom': "2021-01-01",
-        'dateTo': "2021-08-01",
-        # 'fields': 'uniqViews, uniqContacts, uniqFavorites',
-        'itemIds': item_ids,
-        'periodGrouping': "month"
-    }
-
-    response = requests.post(url, headers=headers, json=params)
-    if response.status_code == 200:
-        statistic_for_all_items = response.json().get("result").get("items")
-        statistics_correct = [item for item in statistic_for_all_items if len(item["stats"]) > 0]
-        return statistics_correct
-
 

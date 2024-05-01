@@ -1,5 +1,5 @@
-from avito_account.api.api import get_items_list, get_statistics
-from avito_account.api.get_operations import get_operations_for_range
+from avito_account.api.api import get_items_list
+from avito_account.api.get_operations import get_operations_for_period
 from avito_account.models import AvitoAccount, Item
 from conversion.models import ServiceType, Operation, Statistic
 
@@ -29,7 +29,7 @@ def operations_to_db():
     end_date = "2024-01-31T23:59:59"
     avito_account: AvitoAccount = AvitoAccount.objects.filter(id=359794245).last()
 
-    operations = get_operations_for_range(avito_account.access_token, start_date, end_date)
+    operations = get_operations_for_period(avito_account.access_token, start_date, end_date)
     if len(operations) > 0:
         for operation in operations:
             service_type, create = ServiceType.objects.get_or_create(
@@ -49,9 +49,8 @@ def operations_to_db():
                 updated_at=operation.get("updatedAt"),
             )
 
-
+#  ПОКА ПРОБУЮ ФОРМИРОВАТЬ ОТЧЁТЫ БЕЗ ЗАПИСИ В БД
 def statistic_to_db(avito_account: AvitoAccount):
-    # TODO Проверить изначальный респонс посчитать не теряются ли статистики
     statistics = get_statistics(avito_account)
     if statistics:
         for statistic in statistics:

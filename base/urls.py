@@ -21,7 +21,8 @@ import avito_account
 
 urlpatterns = [
     path('admin/', admin.site.urls),
-    path("oauth/", include("avito_account.urls"))
+    path("oauth/", include("avito_account.urls")),
+    path("conversion/", include("conversion.urls")),
 ]
 
 # if settings.DEBUG:

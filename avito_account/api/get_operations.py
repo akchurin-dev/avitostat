@@ -1,6 +1,7 @@
 from datetime import datetime, timedelta
-from pprint import pprint
 import requests
+
+from avito_account.models import AvitoAccount
 
 
 def operations(access_token: str, start_date: str, end_date: str) -> dict:
@@ -20,7 +21,7 @@ def operations(access_token: str, start_date: str, end_date: str) -> dict:
     return response.json()
 
 
-def get_operations_for_period(access_token: str, start_date: str, end_date: str) -> dict:
+def get_operations_splitted_by_week(access_token: str, start_date: str, end_date: str) -> dict:
     # Максимальный период для запроса - не более одной недели
     if (datetime.fromisoformat(end_date) - datetime.fromisoformat(start_date)).days > 7:
         raise ValueError("Period should not exceed 7 days")
@@ -28,16 +29,31 @@ def get_operations_for_period(access_token: str, start_date: str, end_date: str)
     return operations(access_token, start_date, end_date)
 
 
-def get_operations_for_range(access_token: str, start_date: str, end_date: str) -> list:
+def get_operations_for_period(avito_account: AvitoAccount, period: str) -> list:
+    valid_periods = ['month', 'week', 'day']
+    if period not in valid_periods:
+        raise ValueError("Invalid period. Please choose from 'month', 'week', or 'day'.")
+
+    # Определяем диапазон дат в зависимости от выбранного периода
+    today = datetime.now()
+    date_to = today.strftime("%Y-%m-%d")
+    if period == 'month':
+        date_from = (today - timedelta(days=30)).strftime("%Y-%m-%d")
+    elif period == 'week':
+        date_from = (today - timedelta(days=7)).strftime("%Y-%m-%d")
+    else:  # Период 'day'
+        date_from = (today - timedelta(days=1)).strftime("%Y-%m-%d")
+
     # Разбиваем заданный период на отрезки по 7 дней
-    current_start = datetime.fromisoformat(start_date)
-    end_date_dt = datetime.fromisoformat(end_date)
+    current_start = datetime.fromisoformat(date_from)
+    end_date_dt = datetime.fromisoformat(date_to)
     current_end = min(current_start + timedelta(days=7), end_date_dt)
     all_statistics = {}
 
     while current_start < end_date_dt:
         # Получаем статистику для текущего отрезка
-        statistics = get_operations_for_period(access_token, current_start.isoformat(), current_end.isoformat())
+        statistics = get_operations_splitted_by_week(avito_account.access_token, current_start.isoformat(),
+                                                     current_end.isoformat())
         # Обновляем словарь статистики
         all_statistics[current_start.isoformat()] = statistics
 

@@ -1,8 +1,5 @@
 import os
-from typing import Any
-
 import requests
-from django.http import JsonResponse
 from dotenv import load_dotenv
 
 from avito_account.models import AvitoAccount
@@ -14,6 +11,7 @@ client_secret = os.getenv('AVITO_CLIENT_SECRET')
 
 
 def get_avito_tokens(code: str):  # Если использованный токен -должен быть ексепшн, просто обновить код надо
+    #TODO добавить сроки просрочки и проверку вынести в отдельный миксин перед отправкой запросов
     url = 'https://api.avito.ru/token/'
     data = {
         'grant_type': 'authorization_code',
@@ -62,9 +60,7 @@ def create_or_update_avito_account(code: str) -> AvitoAccount:
     return avito_account
 
 
-def refresh_token(avito_account_id: int):
-    avito_account = AvitoAccount.objects.get(id=avito_account_id)
-
+def refresh_token(avito_account: AvitoAccount):
     url = 'https://api.avito.ru/token/'
     data = {
         'grant_type': 'refresh_token',

@@ -42,3 +42,12 @@ class Statistic(models.Model):
 
     class Meta:
         unique_together = ['item', 'date']
+
+
+class Conversion(models.Model):
+    item = models.ForeignKey(Item, on_delete=models.CASCADE, null=True)
+    date = models.DateTimeField()
+    amount = models.IntegerField()
+
+    # TODO подумать как именно считать конверсию
+    # TODO все показатели в кучу или поотельности
