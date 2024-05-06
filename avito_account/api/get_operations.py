@@ -1,7 +1,10 @@
-from datetime import datetime, timedelta
+import re
 import requests
+from datetime import datetime, timedelta
 
 from avito_account.models import AvitoAccount
+from conversion.utils import dates_for_period
+from exceptions import HTTPException
 
 
 def operations(access_token: str, start_date: str, end_date: str) -> dict:
@@ -16,9 +19,11 @@ def operations(access_token: str, start_date: str, end_date: str) -> dict:
     }
 
     response = requests.post(url, headers=headers, json=params)
-    response.raise_for_status()
 
-    return response.json()
+    if response.status_code == 200 and len(response.json().get("result").get("operations")) != 0:
+        return response.json()
+    else:
+        raise HTTPException(status_code=response.status_code, detail=response.text)
 
 
 def get_operations_splitted_by_week(access_token: str, start_date: str, end_date: str) -> dict:
@@ -29,20 +34,31 @@ def get_operations_splitted_by_week(access_token: str, start_date: str, end_date
     return operations(access_token, start_date, end_date)
 
 
-def get_operations_for_period(avito_account: AvitoAccount, period: str) -> list:
-    valid_periods = ['month', 'week', 'day']
-    if period not in valid_periods:
-        raise ValueError("Invalid period. Please choose from 'month', 'week', or 'day'.")
+def add_custom_calculations(operations_list: list) -> list:
+    for operation in operations_list:
+        updated_at = operation.get('updatedAt')
+        date = datetime.fromisoformat(updated_at)
+        if operation.get('serviceId') == 111:
+            pattern = r'\d+'
+            amount, duration = re.findall(pattern, operation.get('operationName'))
+            finish_at = date + timedelta(days=int(duration))
+            operation |= {
+                'amount_per_day': int(amount),
+                'duration': int(duration),
+                'finishAt': finish_at.isoformat(),
+            }
+        elif operation.get('serviceId') == 16:
+            finish_at = date + timedelta(days=7)
+            operation |= {
+                'amount_per_day': operation.get('amountRub') / 7,
+                'duration_days': 7,
+                'finishAt': finish_at.isoformat(),
+            }
+    return operations_list
 
-    # Определяем диапазон дат в зависимости от выбранного периода
-    today = datetime.now()
-    date_to = today.strftime("%Y-%m-%d")
-    if period == 'month':
-        date_from = (today - timedelta(days=30)).strftime("%Y-%m-%d")
-    elif period == 'week':
-        date_from = (today - timedelta(days=7)).strftime("%Y-%m-%d")
-    else:  # Период 'day'
-        date_from = (today - timedelta(days=1)).strftime("%Y-%m-%d")
+
+def get_operations_for_period(avito_account: AvitoAccount, period: str) -> list:
+    date_from, date_to = dates_for_period(period=period)
 
     # Разбиваем заданный период на отрезки по 7 дней
     current_start = datetime.fromisoformat(date_from)
@@ -65,4 +81,6 @@ def get_operations_for_period(avito_account: AvitoAccount, period: str) -> list:
     operations_list = []
     for week in operations_splitted_by_weeks:
         operations_list.extend(week)
-    return operations_list
+
+    new_operations_list = add_custom_calculations(operations_list)
+    return new_operations_list

@@ -11,7 +11,7 @@ class AvitoAccount(models.Model):
     refresh_token = models.CharField(max_length=255, null=True)
 
     def __str__(self):
-        return self.name
+        return f"{self.name}, {self.id}"
 
 
 class Item(models.Model):
