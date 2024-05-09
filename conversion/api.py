@@ -4,13 +4,13 @@ import requests
 from avito_account.api.api import get_items_list
 from avito_account.models import AvitoAccount
 from avito_account.oauth_utils import refresh_token
-from conversion.utils import dates_for_period
+from conversion.utils import dates_for_period_with_extra_reserve
 from exceptions import HTTPException
 
 
 def get_statistics_for_period(avito_account: AvitoAccount, period: str):
     # TODO проверить на аккаунте Абу Закарии пишет 429 -ту мани реквестс (может слишком много объявлений?)
-    date_from, date_to = dates_for_period(period=period)
+    date_from, date_to = dates_for_period_with_extra_reserve(period=period)
     items = get_items_list(avito_account)
     item_ids = [item.get('id') for item in items]
 

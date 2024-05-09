@@ -1,4 +1,3 @@
-from pprint import pprint
 import requests
 from avito_account.models import AvitoAccount
 
