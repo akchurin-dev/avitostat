@@ -61,7 +61,8 @@ def active_services_for_period_filtering(period: str, operations: list) -> list:
             # If there are active days, add the service to the list
             if active_days > 0:
                 operation |= {
-                    "days_active_in_period": active_days,
+                    "period_days_active": active_days,
+                    "period_coast": active_days * operation.get("amount_per_day"),
                 }
                 active_services.append(operation)
 
