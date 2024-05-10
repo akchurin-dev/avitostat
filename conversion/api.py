@@ -1,6 +1,4 @@
-from datetime import datetime, timedelta
 import requests
-
 from avito_account.api.api import get_items_list
 from avito_account.models import AvitoAccount
 from avito_account.oauth_utils import refresh_token
