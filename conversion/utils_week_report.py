@@ -49,6 +49,7 @@ def get_conversions_for_week(statistics, operations: list) -> dict:
                         uniq_favorites = statistic.get("stats")[week_number].get("uniqFavorites")
                         uniq_views = statistic.get("stats")[week_number].get("uniqViews")
 
+                        conversions[itemId]["coast"] = coast
                         if uniq_contacts != 0:
                             conversions[itemId]["amount_per_contact"] = math.floor(coast / uniq_contacts)
                         if uniq_favorites != 0:
