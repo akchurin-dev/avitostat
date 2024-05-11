@@ -3,8 +3,9 @@ from django.contrib.auth.models import User
 
 
 class AvitoAccount(models.Model):
-    company = models.ForeignKey(User, on_delete=models.CASCADE, null=True)
+    company = models.ForeignKey(User, on_delete=models.CASCADE, null=True, blank=True)
     name = models.CharField(max_length=255, null=True)
+    telegram_id = models.CharField(max_length=255, null=True, blank=True)
     phone = models.CharField(max_length=255, null=True)
     profile_url = models.CharField(max_length=255, null=True)
     access_token = models.CharField(max_length=255, null=True)

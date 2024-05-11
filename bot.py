@@ -3,7 +3,7 @@ import logging
 import os
 import sys
 
-from aiogram import Bot, Dispatcher, types, Router
+from aiogram import Bot, Dispatcher, Router
 from aiogram.types import Message
 from dotenv import load_dotenv
 
@@ -18,10 +18,19 @@ logging.basicConfig(level=logging.INFO)
 router = Router()
 
 
+async def week_report(message: Message):
+    await message.answer(
+        "wait minet i will send you info"
+    )
+
+
 @router.message()
 async def echo(message: Message, cleaner):
     msg = message.text.lower()
-    await message.answer(msg)
+    if msg == "week":
+        await week_report(message=message)
+    else:
+        await message.answer(msg)
 
 
 async def main() -> None:
