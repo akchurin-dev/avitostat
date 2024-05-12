@@ -4,9 +4,11 @@ import os
 import sys
 
 from aiogram import Bot, Dispatcher, Router
+from aiogram.enums import ParseMode
 from aiogram.types import Message
 from dotenv import load_dotenv
 
+from telegram_bot.api.week_report import get_week_report
 from telegram_bot.cleaner.cleaner import Cleaner
 from telegram_bot.cleaner.cleaner_middleware import CleanerMiddleware
 
@@ -20,7 +22,46 @@ router = Router()
 
 async def week_report(message: Message):
     await message.answer(
-        "wait minet i will send you info"
+        "Ожидайте, формируется отчёт..."
+    )
+
+    week_report_data = get_week_report()
+    avito_account_name = week_report_data.get("avito_account_name")
+    text = (f"Еженедельный отчёт: \n\n"
+            f"Аккаунт - <b>{avito_account_name}</b>\n")
+
+    statistics_total = ""
+    conversions = week_report_data.get("conversions")
+    for item in conversions:
+        itemTitle = conversions.get(item).get("itemTitle", 0)
+        uniqContacts = conversions.get(item).get("uniqContacts", 0)
+        uniqFavorites = conversions.get(item).get("uniqFavorites", 0)
+        uniqViews = conversions.get(item).get("uniqViews", 0)
+        coast = conversions.get(item).get("coast", 0)
+        amount_per_contact = conversions.get(item).get("amount_per_contact", 0)
+        amount_per_view = conversions.get(item).get("amount_per_view", 0)
+
+        statistics_text = (f"\n Объявление №{item}\n"
+                           f"Название - {itemTitle}\n")
+
+        if uniqContacts > 0:
+            statistics_text += f"Запрошен контакт - {uniqContacts}\n"
+        if uniqFavorites > 0:
+            statistics_text += f"Доб. в избранные - {uniqFavorites}\n"
+        if uniqViews > 0:
+            statistics_text += f"Просмотры - {uniqViews}\n"
+        if coast > 0:
+            statistics_text += f"Затраты - {coast}\n"
+        if amount_per_contact > 0:
+            statistics_text += f"Цена контакта - {amount_per_contact}\n"
+        if amount_per_view > 0:
+            statistics_text += f"Цена просмотра - {amount_per_view}\n"
+
+        statistics_total += statistics_text
+
+    await message.answer(
+        text + statistics_total,
+        parse_mode=ParseMode.HTML,
     )
 
 

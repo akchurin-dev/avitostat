@@ -7,7 +7,6 @@ from exceptions import HTTPException
 
 
 def get_statistics_for_period(avito_account: AvitoAccount, period: str) -> list | None:
-    # TODO проверить на аккаунте Абу Закарии пишет 429 -ту мани реквестс (может слишком много объявлений?)
     date_from, date_to = dates_for_period_without_extra_reserve(period=period)
     date_from = date_from.strftime("%Y-%m-%d")
     date_to = date_to.strftime("%Y-%m-%d")

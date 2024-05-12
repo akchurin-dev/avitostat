@@ -3,7 +3,7 @@ import datetime
 import math
 
 from avito_account.api.get_operations import get_active_operations_for_period
-from avito_account.models import AvitoAccount
+from avito_account.models import AvitoAccount, Item
 from conversion.api import get_statistics_for_period
 
 
@@ -34,13 +34,17 @@ def get_conversions_for_week(statistics, operations: list) -> dict:
         for statistic in statistics:
             itemId = statistic.get("itemId", None)
             if itemId:
+                item = Item.objects.filter(id=itemId).last()
                 conversion_item = conversions.get(itemId, None)
                 if conversion_item is None:
-                    conversions[itemId] = {
-                        'uniqContacts': statistic.get("stats")[week_number].get("uniqContacts"),
-                        'uniqFavorites': statistic.get("stats")[week_number].get("uniqFavorites"),
-                        'uniqViews': statistic.get("stats")[week_number].get("uniqViews"),
-                    }
+                    stats = statistic.get("stats")
+                    if stats and len(stats) > week_number and stats[week_number] is not None:
+                        conversions[itemId] = {
+                            'itemTitle': item.title,
+                            'uniqContacts': statistic.get("stats")[week_number].get("uniqContacts"),
+                            'uniqFavorites': statistic.get("stats")[week_number].get("uniqFavorites"),
+                            'uniqViews': statistic.get("stats")[week_number].get("uniqViews"),
+                        }
 
                     coast = costs_merged.get(itemId)
 
@@ -60,8 +64,12 @@ def get_conversions_for_week(statistics, operations: list) -> dict:
 
 
 def get_week_report():
+    conversions = {}
     avito_account = AvitoAccount.objects.filter(id=203199629).last()
     statistics = get_statistics_for_period(avito_account, period="week")  # Здесь токен рефрешится если он просрочен
     operations = get_active_operations_for_period(avito_account, period="week")
-    conversions = get_conversions_for_week(statistics=statistics, operations=operations)
+
+    conversions["avito_account_name"] = avito_account.name
+    conversions["telegram_id"] = avito_account.telegram_id
+    conversions["conversions"] = get_conversions_for_week(statistics=statistics, operations=operations)
     return conversions
