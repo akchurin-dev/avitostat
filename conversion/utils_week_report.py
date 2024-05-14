@@ -49,23 +49,25 @@ def get_conversions_for_week(statistics, operations: list) -> dict:
                     coast = costs_merged.get(itemId)
 
                     if coast:
-                        uniq_contacts = statistic.get("stats")[week_number].get("uniqContacts")
-                        uniq_favorites = statistic.get("stats")[week_number].get("uniqFavorites")
-                        uniq_views = statistic.get("stats")[week_number].get("uniqViews")
+                        stats = statistic.get("stats")
+                        if stats and len(stats) > week_number and stats[week_number] is not None:
+                            uniq_contacts = statistic.get("stats")[week_number].get("uniqContacts")
+                            uniq_favorites = statistic.get("stats")[week_number].get("uniqFavorites")
+                            uniq_views = statistic.get("stats")[week_number].get("uniqViews")
 
-                        conversions[itemId]["coast"] = coast
-                        if uniq_contacts != 0:
-                            conversions[itemId]["amount_per_contact"] = math.floor(coast / uniq_contacts)
-                        if uniq_favorites != 0:
-                            conversions[itemId]["amount_per_favorite"] = math.floor(coast / uniq_favorites)
-                        if uniq_views != 0:
-                            conversions[itemId]["amount_per_view"] = math.floor(coast / uniq_views)
+                            conversions[itemId]["coast"] = coast
+                            if uniq_contacts != 0:
+                                conversions[itemId]["amount_per_contact"] = math.floor(coast / uniq_contacts)
+                            if uniq_favorites != 0:
+                                conversions[itemId]["amount_per_favorite"] = math.floor(coast / uniq_favorites)
+                            if uniq_views != 0:
+                                conversions[itemId]["amount_per_view"] = math.floor(coast / uniq_views)
     return conversions
 
 
-def get_week_report():
+def get_week_report(telegram_id: str):
     conversions = {}
-    avito_account = AvitoAccount.objects.filter(id=203199629).last()
+    avito_account = AvitoAccount.objects.filter(telegram_id=telegram_id).last()
     statistics = get_statistics_for_period(avito_account, period="week")  # Здесь токен рефрешится если он просрочен
     operations = get_active_operations_for_period(avito_account, period="week")
 

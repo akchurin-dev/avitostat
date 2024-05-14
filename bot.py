@@ -8,7 +8,7 @@ from aiogram.enums import ParseMode
 from aiogram.types import Message
 from dotenv import load_dotenv
 
-from telegram_bot.api.week_report import get_week_report
+from telegram_bot.api.week_report import get_week_report_by_telegram_id
 from telegram_bot.cleaner.cleaner import Cleaner
 from telegram_bot.cleaner.cleaner_middleware import CleanerMiddleware
 
@@ -25,7 +25,7 @@ async def week_report(message: Message):
         "Ожидайте, формируется отчёт..."
     )
 
-    week_report_data = get_week_report()
+    week_report_data = get_week_report_by_telegram_id(telegram_chat_id=message.chat.id)
     avito_account_name = week_report_data.get("avito_account_name")
     text = (f"Еженедельный отчёт: \n\n"
             f"Аккаунт - <b>{avito_account_name}</b>\n")

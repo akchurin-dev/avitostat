@@ -10,7 +10,7 @@ BASE_URL = 'http://' + os.getenv('LOCALHOST_IP')
 
 
 # WORKER
-def get_week_report():
-    url = f"{BASE_URL}/conversion/week_report"
+def get_week_report_by_telegram_id(telegram_chat_id: int):
+    url = f"{BASE_URL}/conversion/week_report/{telegram_chat_id}"
     response = requests.get(url=url)
     return response.json()
