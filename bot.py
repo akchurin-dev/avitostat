@@ -20,7 +20,7 @@ logging.basicConfig(level=logging.INFO)
 router = Router()
 
 
-async def week_report(message: Message):
+async def get_week_report_text(message: Message):
     await message.answer(
         "Ожидайте, формируется отчёт..."
     )
@@ -58,20 +58,19 @@ async def week_report(message: Message):
             statistics_text += f"Цена просмотра - {amount_per_view}\n"
 
         statistics_total += statistics_text
-
-    await message.answer(
-        text + statistics_total,
-        parse_mode=ParseMode.HTML,
-    )
+    return text + statistics_total
 
 
 @router.message()
 async def echo(message: Message, cleaner):
     msg = message.text.lower()
     if msg == "week":
-        await week_report(message=message)
+        text = await get_week_report_text(message=message)
+        while text:
+            await message.answer(text=text[:4000], parse_mode=ParseMode.HTML)
+            text = text[4000:]
     else:
-        await message.answer(msg)
+        pass
 
 
 async def main() -> None:

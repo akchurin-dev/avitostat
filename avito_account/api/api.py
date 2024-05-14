@@ -18,12 +18,12 @@ def get_items_list(avito_account: AvitoAccount) -> list[dict] | None:
     }
     response = requests.get(url, headers=headers, params=params)
 
-    all_pages = []
+    all_items = []
     while response.status_code == 200 and response.json().get('resources'):
-        all_pages += response.json().get('resources')
+        all_items += response.json().get('resources')
         params['page'] += 1
         response = requests.get(url, headers=headers, params=params)
-    return all_pages
+    return all_items
 
 
 def get_item_info(access_token: str, user_id: str, item_id: str) -> dict:

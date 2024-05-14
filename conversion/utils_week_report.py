@@ -26,7 +26,7 @@ def get_costs_merged(operations) -> dict:
     return costs_merged
 
 
-def get_conversions_for_week(statistics, operations: list) -> dict:
+def get_conversions_for_week(statistics, operations: list, items: list) -> dict:
     conversions = {}
     week_number = get_week_number()
     costs_merged = get_costs_merged(operations=operations)
@@ -34,13 +34,18 @@ def get_conversions_for_week(statistics, operations: list) -> dict:
         for statistic in statistics:
             itemId = statistic.get("itemId", None)
             if itemId:
-                item = Item.objects.filter(id=itemId).last()
+                # TODO надо сделать загрузку данных об объявлении
+                item = None
+                for item_from_list in items:
+                    if item_from_list.get('id') == itemId:
+                        item = item_from_list
+
                 conversion_item = conversions.get(itemId, None)
                 if conversion_item is None:
                     stats = statistic.get("stats")
                     if stats and len(stats) > week_number and stats[week_number] is not None:
                         conversions[itemId] = {
-                            'itemTitle': item.title,
+                            'itemTitle': item.get("title"),
                             'uniqContacts': statistic.get("stats")[week_number].get("uniqContacts"),
                             'uniqFavorites': statistic.get("stats")[week_number].get("uniqFavorites"),
                             'uniqViews': statistic.get("stats")[week_number].get("uniqViews"),
@@ -65,13 +70,12 @@ def get_conversions_for_week(statistics, operations: list) -> dict:
     return conversions
 
 
-def get_week_report(telegram_id: str):
+def get_week_report(avito_account: AvitoAccount):
     conversions = {}
-    avito_account = AvitoAccount.objects.filter(telegram_id=telegram_id).last()
-    statistics = get_statistics_for_period(avito_account, period="week")  # Здесь токен рефрешится если он просрочен
+    statistics, items = get_statistics_for_period(avito_account, period="week")  # Здесь токен рефрешится если он просрочен
     operations = get_active_operations_for_period(avito_account, period="week")
 
     conversions["avito_account_name"] = avito_account.name
     conversions["telegram_id"] = avito_account.telegram_id
-    conversions["conversions"] = get_conversions_for_week(statistics=statistics, operations=operations)
+    conversions["conversions"] = get_conversions_for_week(statistics=statistics, operations=operations, items=items)
     return conversions
