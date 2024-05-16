@@ -7,10 +7,10 @@ from avito_account.models import AvitoAccount, Item
 from conversion.api import get_statistics_for_period
 
 
-def get_week_number():
-    today = datetime.datetime.now()
-    week_number = (today.day - 1) // 7
-    return week_number
+# def get_week_number():
+#     today = datetime.datetime.now()
+#     week_number = today.day // 7
+#     return week_number
 
 
 def get_costs_merged(operations) -> dict:
@@ -27,8 +27,9 @@ def get_costs_merged(operations) -> dict:
 
 
 def get_conversions_for_week(statistics, operations: list, items: list) -> dict:
+    #TODO внимательно смотреть и постараться отрефакторить всю функцию
     conversions = {}
-    week_number = get_week_number()
+    week_number = -1
     costs_merged = get_costs_merged(operations=operations)
     if statistics:
         for statistic in statistics:
@@ -72,7 +73,8 @@ def get_conversions_for_week(statistics, operations: list, items: list) -> dict:
 
 def get_week_report(avito_account: AvitoAccount):
     conversions = {}
-    statistics, items = get_statistics_for_period(avito_account, period="week")  # Здесь токен рефрешится если он просрочен
+    statistics, items = get_statistics_for_period(avito_account,
+                                                  period="week")  # Здесь токен рефрешится если он просрочен
     operations = get_active_operations_for_period(avito_account, period="week")
 
     conversions["avito_account_name"] = avito_account.name

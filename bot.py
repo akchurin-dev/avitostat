@@ -32,43 +32,47 @@ async def get_week_report_text(message: Message):
 
     statistics_total = ""
     conversions = week_report_data.get("conversions")
-    for item in conversions:
-        itemTitle = conversions.get(item).get("itemTitle", 0)
-        uniqContacts = conversions.get(item).get("uniqContacts", 0)
-        uniqFavorites = conversions.get(item).get("uniqFavorites", 0)
-        uniqViews = conversions.get(item).get("uniqViews", 0)
-        coast = conversions.get(item).get("coast", 0)
-        amount_per_contact = conversions.get(item).get("amount_per_contact", 0)
-        amount_per_view = conversions.get(item).get("amount_per_view", 0)
+    if conversions is not None:
+        for item in conversions:
+            itemTitle = conversions.get(item).get("itemTitle", 0)
+            uniqContacts = conversions.get(item).get("uniqContacts", 0)
+            uniqFavorites = conversions.get(item).get("uniqFavorites", 0)
+            uniqViews = conversions.get(item).get("uniqViews", 0)
+            coast = conversions.get(item).get("coast", 0)
+            amount_per_contact = conversions.get(item).get("amount_per_contact", 0)
+            amount_per_view = conversions.get(item).get("amount_per_view", 0)
 
-        statistics_text = (f"\n Объявление №{item}\n"
-                           f"Название - {itemTitle}\n")
+            statistics_text = (f"\n Объявление №{item}\n"
+                               f"Название - {itemTitle}\n")
 
-        if uniqContacts > 0:
-            statistics_text += f"Запрошен контакт - {uniqContacts}\n"
-        if uniqFavorites > 0:
-            statistics_text += f"Доб. в избранные - {uniqFavorites}\n"
-        if uniqViews > 0:
-            statistics_text += f"Просмотры - {uniqViews}\n"
-        if coast > 0:
-            statistics_text += f"Затраты - {coast}\n"
-        if amount_per_contact > 0:
-            statistics_text += f"Цена контакта - {amount_per_contact}\n"
-        if amount_per_view > 0:
-            statistics_text += f"Цена просмотра - {amount_per_view}\n"
+            if uniqContacts > 0:
+                statistics_text += f"Запрошен контакт - {uniqContacts}\n"
+            if uniqFavorites > 0:
+                statistics_text += f"Доб. в избранные - {uniqFavorites}\n"
+            if uniqViews > 0:
+                statistics_text += f"Просмотры - {uniqViews}\n"
+            if coast > 0:
+                statistics_text += f"Затраты - {coast}\n"
+            if amount_per_contact > 0:
+                statistics_text += f"Цена контакта - {amount_per_contact}\n"
+            if amount_per_view > 0:
+                statistics_text += f"Цена просмотра - {amount_per_view}\n"
 
-        statistics_total += statistics_text
+            statistics_total += statistics_text
     return text + statistics_total
 
 
 @router.message()
 async def echo(message: Message, cleaner):
     msg = message.text.lower()
-    if msg == "week":
+    if msg == "/week@avitostata_bot":
         text = await get_week_report_text(message=message)
         while text:
             await message.answer(text=text[:4000], parse_mode=ParseMode.HTML)
             text = text[4000:]
+    elif msg in ["/help@avitostata_bot", "/help", "help"]:
+        await message.reply("/help - список команд \n"
+                            "/week - еженедельный отчёт \n")
     else:
         pass
 

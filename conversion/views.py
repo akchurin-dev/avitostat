@@ -2,7 +2,6 @@ from django.http import JsonResponse
 from django.utils.decorators import method_decorator
 from django.views import View
 from django.views.decorators.csrf import csrf_exempt
-
 from avito_account.models import AvitoAccount
 from conversion.utils_week_report import get_week_report
 
