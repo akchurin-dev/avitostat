@@ -4,6 +4,7 @@ from datetime import datetime, timedelta
 import pytz
 from avito_account.models import AvitoAccount
 from conversion.utils import dates_for_period_with_extra_reserve, active_services_for_period_filtering
+from exceptions import HTTPException
 
 
 def operations(access_token: str, start_date: str, end_date: str) -> dict:
@@ -25,8 +26,8 @@ def operations(access_token: str, start_date: str, end_date: str) -> dict:
     # кусок кода раньше использовал оставил на всякий случай
     # if response.status_code == 200 and len(response.json().get("result").get("operations")) != 0:
     #     return response.json()
-    # else:
-    #     raise HTTPException(status_code=response.status_code, detail=response.text)
+    else:
+        raise HTTPException(status_code=response.status_code, detail=response.text)
 
 
 def get_operations_splitted_by_week(access_token: str, start_date: str, end_date: str) -> dict:

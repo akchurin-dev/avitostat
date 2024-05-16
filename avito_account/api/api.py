@@ -1,5 +1,6 @@
 import requests
 from avito_account.models import AvitoAccount
+from exceptions import HTTPException
 
 
 def get_items_list(avito_account: AvitoAccount) -> list[dict] | None:
@@ -23,6 +24,8 @@ def get_items_list(avito_account: AvitoAccount) -> list[dict] | None:
         all_items += response.json().get('resources')
         params['page'] += 1
         response = requests.get(url, headers=headers, params=params)
+    if response.status_code != 200:
+        raise HTTPException(status_code=response.status_code, detail=response.json())
     return all_items
 
 
@@ -33,7 +36,10 @@ def get_item_info(access_token: str, user_id: str, item_id: str) -> dict:
     }
 
     response = requests.get(url, headers=headers)
-    return response.json()
+    if response.status_code == 200:
+        return response.json()
+    else:
+        raise HTTPException(status_code=response.status_code, detail=response.json())
 
 
 
