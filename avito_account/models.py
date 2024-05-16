@@ -1,3 +1,5 @@
+from pprint import pprint
+
 from django.db import models
 from django.contrib.auth.models import User
 import os
@@ -19,7 +21,7 @@ class AvitoAccount(models.Model):
     access_token = models.CharField(max_length=255, null=True)
     refresh_token = models.CharField(max_length=255, null=True)
 
-    def refresh_token(self):
+    def update_refresh_token(self):
         url = 'https://api.avito.ru/token/'
         data = {
             'grant_type': 'refresh_token',
