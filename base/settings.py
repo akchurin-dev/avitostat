@@ -24,7 +24,7 @@ SECRET_KEY = 'django-insecure-umx*1bjclxog_*haru1%&$m2injd^_eftaiz2qrbctphhuy(5n
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = ["172.22.0.2", "localhost", "127.0.0.1", "45.12.238.229"]
 
 # Application definition
 
@@ -76,8 +76,12 @@ WSGI_APPLICATION = 'base.wsgi.application'
 
 DATABASES = {
     'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
+        'ENGINE': 'django.db.backends.postgresql',
+        'NAME': 'postgres',
+        'USER': 'postgres',
+        'PASSWORD': 'postgres',
+        'HOST': '172.22.0.2',  # Если контейнер и Django приложение на одной машине
+        'PORT': '5432',
     }
 }
 
