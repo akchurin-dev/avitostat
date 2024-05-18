@@ -75,7 +75,7 @@ def refresh_token(avito_account: AvitoAccount):
     if response.status_code != 200:
         raise HTTPException(status_code=response.status_code, detail=response.text)
     else:
-        avito_account.access_token = response_data['access_token']
-        avito_account.refresh_token = response_data['refresh_token']
+        avito_account.access_token = response_data.get('access_token')
+        avito_account.refresh_token = response_data.get('refresh_token')
         avito_account.save()
         return True

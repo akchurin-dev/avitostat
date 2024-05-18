@@ -20,8 +20,12 @@ def operations(access_token: str, start_date: str, end_date: str) -> dict:
 
     response = requests.post(url, headers=headers, json=params)
 
-    if response.status_code == 200 and len(response.json().get("result").get("operations")) != 0:
+    if response.status_code == 200:
         return response.json()
+
+    # кусок кода раньше использовал оставил на всякий случай
+    # if response.status_code == 200 and len(response.json().get("result").get("operations")) != 0:
+    #     return response.json()
     else:
         raise HTTPException(status_code=response.status_code, detail=response.text)
 
@@ -90,8 +94,8 @@ def get_active_operations_for_period(avito_account: AvitoAccount, period: str) -
         # Переходим к следующему отрезку
         current_start = current_end
         current_end = min(current_start + timedelta(days=7), end_date_dt)
-
-    operations_splitted_by_weeks = [item[1].get("result").get("operations") for item in all_statistics.items()]
+    operations_splitted_by_weeks = [item[1] for item in all_statistics.items() if item[1] is not None] # Исключаем все пустые данные об операциях
+    operations_splitted_by_weeks = [item.get("result").get("operations") for item in operations_splitted_by_weeks]
     operations_list = []
     for week in operations_splitted_by_weeks:
         operations_list.extend(week)
