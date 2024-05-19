@@ -13,4 +13,14 @@ ssh avitostata
 
 systemctl daemon-reload
 sudo systemctl start gunicorn
+sudo systemctl stop  gunicorn
+
 systemctl status gunicorn.service
+
+#тут все конфиги системктл
+cd /etc/systemd/system/ 
+
+
+45.12.238.229
+
+
