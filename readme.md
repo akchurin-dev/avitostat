@@ -7,3 +7,10 @@
 3) Возможно атк же поможет
 https://proghunter.ru/articles/django-base-2023-installing-postgresql-in-django
 
+
+
+ssh avitostata
+
+systemctl daemon-reload
+sudo systemctl start gunicorn
+systemctl status gunicorn.service
