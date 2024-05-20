@@ -23,7 +23,7 @@ load_dotenv()
 # See https://docs.djangoproject.com/en/5.0/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = os.getenv('SECRET_KEY')
+SECRET_KEY = 'django-insecure-umx*1bjclxog_*haru1%&$m2injd^_eftaiz2qrbctphhuy(5n'
 
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = False
@@ -133,19 +133,3 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 # for httpS settings
 USE_X_FORWARDED_HOST = True
 SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
-
-
-# после check --deploy
-
-SECURE_HSTS_SECONDS = 31536000  # 1 year
-SECURE_HSTS_INCLUDE_SUBDOMAINS = True
-SECURE_HSTS_PRELOAD = True
-
-SECURE_SSL_REDIRECT = True
-
-SESSION_COOKIE_SECURE = True
-
-CSRF_COOKIE_SECURE = True
-
-
-
