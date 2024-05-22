@@ -1,16 +1,8 @@
-from datetime import datetime
-import datetime
 import math
 
 from avito_account.api.get_operations import get_active_operations_for_period
 from avito_account.models import AvitoAccount, Item
 from conversion.api import get_statistics_for_period
-
-
-# def get_week_number():
-#     today = datetime.datetime.now()
-#     week_number = today.day // 7
-#     return week_number
 
 
 def get_costs_merged(operations) -> dict:
@@ -26,26 +18,34 @@ def get_costs_merged(operations) -> dict:
     return costs_merged
 
 
-def get_conversions_for_week(statistics, operations: list, items: list) -> dict:
-    #TODO внимательно смотреть и постараться отрефакторить всю функцию
-    conversions = {}
+def get_top_5_items(items_with_metrics):
+    sorted_items = sorted(items_with_metrics.items(),
+                          key=lambda item: (-item[1]['uniqContacts'], -item[1]['uniqViews']))
+    top_5_items = dict(sorted_items[:5])
+    return top_5_items
+
+
+def get_items_with_metrics(statistics, operations: list, items: list):
+    # TODO внимательно смотреть и постараться отрефакторить всю функцию
+    # TODO внимательно смотреть и постараться отрефакторить всю функцию
+    # TODO внимательно смотреть и постараться отрефакторить всю функцию
+    metrics = {}
     week_number = -1
     costs_merged = get_costs_merged(operations=operations)
     if statistics:
         for statistic in statistics:
             itemId = statistic.get("itemId", None)
             if itemId:
-                # TODO надо сделать загрузку данных об объявлении
                 item = None
                 for item_from_list in items:
                     if item_from_list.get('id') == itemId:
                         item = item_from_list
 
-                conversion_item = conversions.get(itemId, None)
+                conversion_item = metrics.get(itemId, None)
                 if conversion_item is None:
                     stats = statistic.get("stats")
                     if stats and len(stats) > week_number and stats[week_number] is not None:
-                        conversions[itemId] = {
+                        metrics[itemId] = {
                             'itemTitle': item.get("title"),
                             'uniqContacts': statistic.get("stats")[week_number].get("uniqContacts"),
                             'uniqFavorites': statistic.get("stats")[week_number].get("uniqFavorites"),
@@ -61,23 +61,60 @@ def get_conversions_for_week(statistics, operations: list, items: list) -> dict:
                             uniq_favorites = statistic.get("stats")[week_number].get("uniqFavorites")
                             uniq_views = statistic.get("stats")[week_number].get("uniqViews")
 
-                            conversions[itemId]["coast"] = coast
+                            metrics[itemId]["coast"] = coast
                             if uniq_contacts != 0:
-                                conversions[itemId]["amount_per_contact"] = math.floor(coast / uniq_contacts)
+                                metrics[itemId]["amount_per_contact"] = math.floor(coast / uniq_contacts)
                             if uniq_favorites != 0:
-                                conversions[itemId]["amount_per_favorite"] = math.floor(coast / uniq_favorites)
+                                metrics[itemId]["amount_per_favorite"] = math.floor(coast / uniq_favorites)
                             if uniq_views != 0:
-                                conversions[itemId]["amount_per_view"] = math.floor(coast / uniq_views)
-    return conversions
+                                metrics[itemId]["amount_per_view"] = math.floor(coast / uniq_views)
+
+    return metrics
+
+
+def get_total_metrics(items_with_metrics, items: list, statistics: dict):
+    total_metrics = {
+        "total_items_count": {
+            "all": 0,
+            "active": 0,
+        },
+        "total_contacts_count": 0,
+        "total_views_count": 0,
+        "total_favorites_count": 0,
+        "total_coast": 0,
+        "total_coast_per_contact": 0,
+
+    }
+    if items:
+        total_metrics["total_items_count"] = {
+            "all": len(items),
+            "active": len(statistics)
+        }
+
+    for item in items_with_metrics.items():
+        total_metrics["total_contacts_count"] += item[1].get("uniqContacts", 0)
+        total_metrics["total_views_count"] += item[1].get("uniqViews", 0)
+        total_metrics["total_favorites_count"] += item[1].get("uniqFavorites", 0)
+        total_metrics["total_coast"] += item[1].get("coast", 0)
+
+    total_contacts = total_metrics.get("total_contacts_count", 0)
+    total_coast = total_metrics.get("total_coast", 0)
+    if total_contacts > 0 and total_coast > 0:
+        total_metrics["total_coast_per_contact"] = round((total_coast / total_contacts), 2)
+
+    return total_metrics
 
 
 def get_week_report(avito_account: AvitoAccount):
-    conversions = {}
-    statistics, items = get_statistics_for_period(avito_account,
-                                                  period="week")  # Здесь токен рефрешится если он просрочен
+    metrics = {}
+    statistics, items = get_statistics_for_period(avito_account, period="week")
     operations = get_active_operations_for_period(avito_account, period="week")
+    items_with_metrics = get_items_with_metrics(statistics=statistics, operations=operations, items=items)
 
-    conversions["avito_account_name"] = avito_account.name
-    conversions["telegram_id"] = avito_account.telegram_id
-    conversions["conversions"] = get_conversions_for_week(statistics=statistics, operations=operations, items=items)
-    return conversions
+    metrics["avito_account_name"] = avito_account.name
+    metrics["telegram_id"] = avito_account.telegram_id
+    metrics["total_metrics"] = get_total_metrics(items_with_metrics=items_with_metrics,
+                                                 items=items,
+                                                 statistics=statistics)
+    metrics["top"] = get_top_5_items(items_with_metrics=items_with_metrics)
+    return metrics
