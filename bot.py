@@ -5,9 +5,11 @@ import sys
 
 from aiogram import Bot, Dispatcher, Router
 from aiogram.enums import ParseMode
+from aiogram.exceptions import AiogramError
 from aiogram.types import Message
 from dotenv import load_dotenv
 
+from exceptions import HTTPException
 from telegram_bot.api.week_report import get_week_report_by_telegram_id
 from telegram_bot.cleaner.cleaner import Cleaner
 from telegram_bot.cleaner.cleaner_middleware import CleanerMiddleware
@@ -22,10 +24,16 @@ router = Router()
 
 async def get_week_report_text(message: Message):
     await message.answer(
-        "Ожидайте, формируется отчёт..."
+        "📊 Ожидайте, формируется отчёт..."
     )
 
     week_report_data = get_week_report_by_telegram_id(telegram_chat_id=message.chat.id)
+    if week_report_data.get("error") == "Avito account not found":
+        await message.answer(
+            "⚠️ Ошибка: Ваша телеграм группа не найдена.\n"
+            " 🛠️ Пожалуйста, проверьте настройки и повторите попытку.")
+        raise AiogramError("Avito account not found")
+
     avito_account_name = week_report_data.get("avito_account_name")
     total_items_count = week_report_data.get("total_metrics").get("total_items_count").get("active")
     total_contacts_count = week_report_data.get("total_metrics").get("total_contacts_count")
@@ -33,22 +41,21 @@ async def get_week_report_text(message: Message):
     total_favorites_count = week_report_data.get("total_metrics").get("total_favorites_count")
     total_coast = week_report_data.get("total_metrics").get("total_coast")
     total_coast_per_contact = week_report_data.get("total_metrics").get("total_coast_per_contact")
-    text = (f"Еженедельный отчёт: \n\n"
-            f"Аккаунт - <b>{avito_account_name}</b>\n"
-            f"Активных объявлений - <b>{total_items_count}</b>\n"
-            f"Запрошено контактов - <b>{total_contacts_count}</b>\n"
-            f"Просмотров - <b>{total_views_count}</b>\n"
-            f"В Избранное - <b>{total_favorites_count}</b>\n"
-            f"Затраты - <b>{total_coast}</b>\n"
-            f"Цена за контакт- <b>{total_coast_per_contact}</b>\n"
 
-            )
+    text = (f"📅 <b>Еженедельный отчёт</b> 📅\n\n"
+            f"👤 <b>Аккаунт:</b> <b>{avito_account_name}</b>\n"
+            f"📋 <b>Активных объявлений:</b> <b>{total_items_count}</b>\n"
+            f"📞 <b>Запрошено контактов:</b> <b>{total_contacts_count}</b>\n"
+            f"👁️ <b>Просмотров:</b> <b>{total_views_count}</b>\n"
+            f"⭐ <b>В Избранное:</b> <b>{total_favorites_count}</b>\n"
+            f"💸 <b>Затраты:</b> <b>{total_coast}</b>\n"
+            f"💰 <b>Цена за контакт:</b> <b>{total_coast_per_contact}</b>\n\n")
 
     statistics_total = ""
     top_items = week_report_data.get("top")
     if top_items is not None:
         for item in top_items:
-            itemTitle = top_items.get(item).get("itemTitle", 0)
+            itemTitle = top_items.get(item).get("itemTitle", "Без названия")
             uniqContacts = top_items.get(item).get("uniqContacts", 0)
             uniqFavorites = top_items.get(item).get("uniqFavorites", 0)
             uniqViews = top_items.get(item).get("uniqViews", 0)
@@ -56,22 +63,23 @@ async def get_week_report_text(message: Message):
             amount_per_contact = top_items.get(item).get("amount_per_contact", 0)
             amount_per_view = top_items.get(item).get("amount_per_view", 0)
 
-            statistics_text = (f"\n Объявление №{item}\n"
-                               f"Название - {itemTitle}\n")
+            statistics_text = (f"\n📢 <b>Объявление №{item}</b>\n"
+                               f"🔹 <b>Название:</b> {itemTitle}\n")
 
             if uniqContacts > 0:
-                statistics_text += f"Запрошен контакт - {uniqContacts}\n"
+                statistics_text += f"🔸 <b>Запрошен контакт:</b> {uniqContacts}\n"
             if uniqFavorites > 0:
-                statistics_text += f"Доб. в избранные - {uniqFavorites}\n"
+                statistics_text += f"🔸 <b>Добавлено в избранные:</b> {uniqFavorites}\n"
             if uniqViews > 0:
-                statistics_text += f"Просмотры - {uniqViews}\n"
+                statistics_text += f"🔸 <b>Просмотры:</b> {uniqViews}\n"
             if coast > 0:
-                statistics_text += f"Затраты - {coast}\n"
+                statistics_text += f"🔸 <b>Затраты:</b> {coast}\n"
             if amount_per_contact > 0:
-                statistics_text += f"Цена контакта - {amount_per_contact}\n"
+                statistics_text += f"🔸 <b>Цена за контакт:</b> {amount_per_contact}\n"
             if amount_per_view > 0:
-                statistics_text += f"Цена просмотра - {amount_per_view}\n"
+                statistics_text += f"🔸 <b>Цена за просмотр:</b> {amount_per_view}\n"
             statistics_total += statistics_text
+
     return text + statistics_total
 
 
