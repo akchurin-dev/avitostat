@@ -8,8 +8,6 @@ from aiogram.enums import ParseMode
 from aiogram.exceptions import AiogramError
 from aiogram.types import Message
 from dotenv import load_dotenv
-
-from exceptions import HTTPException
 from telegram_bot.api.week_report import get_week_report_by_telegram_id
 from telegram_bot.cleaner.cleaner import Cleaner
 from telegram_bot.cleaner.cleaner_middleware import CleanerMiddleware
