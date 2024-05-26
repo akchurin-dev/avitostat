@@ -3,7 +3,7 @@ from typing import Dict, Any, List
 
 
 async def get_answer_durations(chats: List[Dict[str, Any]]) -> Dict[Any, Any]:
-    duration_times = {}
+    duration_times = []
 
     for chat in chats:
         messages = chat.get("messages")
@@ -18,10 +18,7 @@ async def get_answer_durations(chats: List[Dict[str, Any]]) -> Dict[Any, Any]:
                 duration = (out_time - in_time).total_seconds()
 
                 chat_id = chat.get('id')
-                message_id = message.get('id')
-                if chat_id not in duration_times:
-                    duration_times[chat_id] = {}
-                duration_times[chat_id][message_id] = duration
+                duration_times.append([duration, chat_id])
 
                 last_in_message = None
 

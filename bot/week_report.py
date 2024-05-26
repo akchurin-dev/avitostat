@@ -64,11 +64,13 @@ async def get_week_report_text(message: Message):
 
     duration_report_data = get_duration_report_by_telegram_id(telegram_chat_id=message.chat.id)
     if duration_report_data:
-        duration_report_text = (f"\n⏱ *Среднее время ответа:* {duration_report_data.get('average_duration')}\n"
+        duration_report_text = (f"\n⏱ *Среднее время ответа:* \n"
+                                f"        {duration_report_data.get('average_duration')}\n"
                                 f"⏳ *Топ долгих ответов:*\n")
         for duration in duration_report_data.get("top_durations", []):
-            duration_report_text += f"        📌{duration}\n"
+            url = f"https://www.avito.ru/profile/messenger/channel/{duration[1]}"
+            duration_report_text += f"        📌[{duration[0]}]({url})\n"
         statistics_total += duration_report_text
 
-    await message.answer(text + statistics_total, parse_mode="Markdown")
+    await message.answer(text + statistics_total, parse_mode="Markdown", disable_web_page_preview=True)
 

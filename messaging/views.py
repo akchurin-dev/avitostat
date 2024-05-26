@@ -29,36 +29,30 @@ async def convert_seconds(seconds):
 
     parts = []
     if days > 0:
-        parts.append(f"{days} дней")
+        parts.append(f"{days} д")
     if hours > 0:
-        parts.append(f"{hours} часов")
+        parts.append(f"{hours} ч")
     if minutes > 0:
-        parts.append(f"{minutes} минут")
+        parts.append(f"{minutes} м")
     if seconds > 0:
-        parts.append(f"{seconds} секунд")
+        parts.append(f"{seconds} с")
 
     return ": ".join(parts)
 
 
-async def get_duration_statistics(chats: list) -> dict[str, str | list[str]]:
+async def get_duration_statistics(chats: list):
     statistics = {}
-    values = [v for subdict in chats.values() for v in subdict.values()]
-
-    for chat in chats.items():
-        chat_id = chats[chat].get("id")
-        for message in chats[chat].get("messages", []):
-            print(message)
-    # Расчет средней продолжительности
-    if len(values) > 0 and len(values) > 0:
-        average_duration = sum(values) / len(values)
+    total_sum = sum([chat[0] for chat in chats])
+    total_len = len(chats)
+    if total_sum > 0 and total_len > 0:
+        average_duration = total_sum / total_len
         average_duration_formatted = await convert_seconds(average_duration)
         statistics["average_duration"] = average_duration_formatted
 
-
-        top_durations = sorted(values)[::-1][:3]
-        top_durations_formatted = [await convert_seconds(duration) for duration in top_durations]
-        statistics["top_durations"] = top_durations_formatted
-        return statistics
+    top_durations = sorted(chats, key=lambda x: x[0])[::-1][:3]
+    top_durations_formatted = [[await convert_seconds(duration[0]), duration[1]] for duration in top_durations]
+    statistics["top_durations"] = top_durations_formatted
+    return statistics
 
 
 class DurationStatisticsView(View):

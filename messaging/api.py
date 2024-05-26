@@ -19,7 +19,7 @@ async def get_chats(avito_account: AvitoAccount, has_more: bool = True) -> dict:
 
     while has_more == True:
         async with httpx.AsyncClient() as client:
-            response = await client.get(url, headers=headers, params=params)
+            response = await client.get(url, headers=headers, params=params, timeout=180)
             if response.status_code == 200:
                 has_more = response.json().get("meta").get("has_more")
                 params["offset"] += 100
