@@ -42,6 +42,7 @@ INSTALLED_APPS = [
     'rest_framework',
     'avito_account',
     'conversion',
+    'messaging',
 ]
 
 MIDDLEWARE = [
@@ -153,13 +154,55 @@ CSRF_COOKIE_SECURE = True
 # SENTRY SETTINGS
 import sentry_sdk
 
+import sentry_sdk
+from sentry_sdk.integrations.django import DjangoIntegration
+
 sentry_sdk.init(
-    dsn="https://daac336800cd09de6538b6a9e71aef44@o4507288745148416.ingest.us.sentry.io/4507288746983424",
-    # Set traces_sample_rate to 1.0 to capture 100%
-    # of transactions for performance monitoring.
-    traces_sample_rate=1.0,
-    # Set profiles_sample_rate to 1.0 to profile 100%
-    # of sampled transactions.
-    # We recommend adjusting this value in production.
-    profiles_sample_rate=1.0,
+    # dsn="your-dsn-here",
+    integrations=[DjangoIntegration()],
+    # If you wish to associate users to errors (assuming you are using
+    # django.contrib.auth) you may enable sending PII data.
+    send_default_pii=True
 )
+
+LOGGING = {
+    'version': 1,
+    'disable_existing_loggers': False,
+    'formatters': {
+        'verbose': {
+            'format': '{levelname} {asctime} {module} {message}',
+            'style': '{',
+        },
+        'simple': {
+            'format': '{levelname} {message}',
+            'style': '{',
+        },
+    },
+    'handlers': {
+        'console': {
+            'level': 'DEBUG',
+            'class': 'logging.StreamHandler',
+            'formatter': 'simple',
+        },
+        'sentry': {
+            'level': 'ERROR',  # To capture more than errors, change to WARNING, INFO, etc.
+            'class': 'sentry_sdk.integrations.logging.EventHandler',
+        },
+    },
+    'loggers': {
+        'django': {
+            'handlers': ['console', 'sentry'],
+            'level': 'DEBUG',
+            'propagate': True,
+        },
+        'sentry_sdk': {
+            'level': 'ERROR',
+            'handlers': ['console'],
+            'propagate': False,
+        },
+        'root': {
+            'level': 'WARNING',
+            'handlers': ['console', 'sentry'],
+        },
+    },
+}

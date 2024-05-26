@@ -1,7 +1,6 @@
 import math
-
 from avito_account.api.get_operations import get_active_operations_for_period
-from avito_account.models import AvitoAccount, Item
+from avito_account.models import AvitoAccount
 from conversion.api import get_statistics_for_period
 
 
@@ -26,9 +25,6 @@ def get_top_5_items(items_with_metrics):
 
 
 def get_items_with_metrics(statistics, operations: list, items: list):
-    # TODO внимательно смотреть и постараться отрефакторить всю функцию
-    # TODO внимательно смотреть и постараться отрефакторить всю функцию
-    # TODO внимательно смотреть и постараться отрефакторить всю функцию
     metrics = {}
     week_number = -1
     costs_merged = get_costs_merged(operations=operations)
