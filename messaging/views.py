@@ -1,12 +1,10 @@
 import datetime
-from datetime import timezone
-
 from asgiref.sync import sync_to_async
 from django.http import JsonResponse
 from django.views import View
-
 from avito_account.models import AvitoAccount
 from messaging.api import get_chats, get_chats_messages
+from messaging.utils import get_answer_durations
 
 
 async def get_chats_for_week(chats: list) -> list:
@@ -23,7 +21,47 @@ async def get_chats_for_week(chats: list) -> list:
         return filtered_chats
 
 
-class ChatListView(View):
+async def convert_seconds(seconds):
+    td = datetime.timedelta(seconds=seconds)
+    days = td.days
+    hours, remainder = divmod(td.seconds, 3600)
+    minutes, seconds = divmod(remainder, 60)
+
+    parts = []
+    if days > 0:
+        parts.append(f"{days} дней")
+    if hours > 0:
+        parts.append(f"{hours} часов")
+    if minutes > 0:
+        parts.append(f"{minutes} минут")
+    if seconds > 0:
+        parts.append(f"{seconds} секунд")
+
+    return ": ".join(parts)
+
+
+async def get_duration_statistics(chats: list) -> dict[str, str | list[str]]:
+    statistics = {}
+    values = [v for subdict in chats.values() for v in subdict.values()]
+
+    for chat in chats.items():
+        chat_id = chats[chat].get("id")
+        for message in chats[chat].get("messages", []):
+            print(message)
+    # Расчет средней продолжительности
+    if len(values) > 0 and len(values) > 0:
+        average_duration = sum(values) / len(values)
+        average_duration_formatted = await convert_seconds(average_duration)
+        statistics["average_duration"] = average_duration_formatted
+
+
+        top_durations = sorted(values)[::-1][:3]
+        top_durations_formatted = [await convert_seconds(duration) for duration in top_durations]
+        statistics["top_durations"] = top_durations_formatted
+        return statistics
+
+
+class DurationStatisticsView(View):
     async def get(self, request, *args, **kwargs):
         telegram_id = kwargs.get("telegram_id", None)
         avito_account = await sync_to_async(AvitoAccount.objects.filter(telegram_id=telegram_id).last)()
@@ -33,7 +71,9 @@ class ChatListView(View):
             if chats:
                 actual_chats = await get_chats_for_week(chats)
                 actual_chats_with_messages = await get_chats_messages(avito_account, actual_chats)
-                return JsonResponse(actual_chats_with_messages, safe=False)
+                durations = await get_answer_durations(actual_chats_with_messages)
+                duration_statistics = await get_duration_statistics(durations)
+                return JsonResponse(duration_statistics, safe=False)
             else:
                 return JsonResponse(status=404, data={"error": "Чаты не найдены"})
         else:
