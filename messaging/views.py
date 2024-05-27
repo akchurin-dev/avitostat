@@ -72,5 +72,3 @@ class DurationStatisticsView(View):
                 return JsonResponse(status=404, data={"error": "Чаты не найдены"})
         else:
             return JsonResponse(status=404, data={"error": "Аккаунт Avito не найден"})
-
-# async def get_duration_week_report(avito_account: AvitoAccount):
