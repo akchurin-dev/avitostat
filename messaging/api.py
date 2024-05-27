@@ -1,10 +1,13 @@
 import httpx
 from avito_account.models import AvitoAccount
 from exceptions import HTTPException
+import httpx
 
 
 # TODO ДОБАВИТЬ ПРОВЕРКУ НА ПРОСРОЧЕННОСТЬ и обновление токена
-async def get_chats(avito_account: AvitoAccount, has_more: bool = True) -> dict:
+# статистика по последним 100 чатам не отличается если даже все чаты вытаскивать имей ввиду, возможно
+# можно убрать цикл уайл и просто один запрос отправлять если будут сложности или будет медленно
+async def get_chats(avito_account: AvitoAccount) -> dict:
     url = f"https://api.avito.ru/messenger/v2/accounts/{avito_account.id}/chats"
     headers = {
         'authorization': f"Bearer {avito_account.access_token}"
@@ -17,13 +20,16 @@ async def get_chats(avito_account: AvitoAccount, has_more: bool = True) -> dict:
     }
     chats = []
 
-    while has_more == True:
-        async with httpx.AsyncClient() as client:
+    async with httpx.AsyncClient() as client:
+        while True:
             response = await client.get(url, headers=headers, params=params, timeout=180)
             if response.status_code == 200:
-                has_more = response.json().get("meta").get("has_more")
+                data = response.json()
+                chats.extend(data.get("chats", []))
+                has_more = data.get("meta", {}).get("has_more", False)
+                if not has_more:
+                    break
                 params["offset"] += 100
-                chats.extend(response.json().get("chats"))
             else:
                 raise HTTPException(status_code=response.status_code, detail=response.text)
 

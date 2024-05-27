@@ -49,7 +49,7 @@ async def get_duration_statistics(chats: list):
         average_duration_formatted = await convert_seconds(average_duration)
         statistics["average_duration"] = average_duration_formatted
 
-    top_durations = sorted(chats, key=lambda x: x[0])[::-1][:3]
+    top_durations = sorted(chats, key=lambda x: x[0])[::-1][:10]
     top_durations_formatted = [[await convert_seconds(duration[0]), duration[1]] for duration in top_durations]
     statistics["top_durations"] = top_durations_formatted
     return statistics
