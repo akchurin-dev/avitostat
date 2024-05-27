@@ -4,7 +4,7 @@ from django.http import JsonResponse
 from django.views import View
 from avito_account.models import AvitoAccount
 from messaging.api import get_chats, get_chats_messages
-from messaging.utils import get_answer_durations
+from messaging.utils_duration import get_answer_durations
 
 
 async def get_chats_for_week(chats: list) -> list:
