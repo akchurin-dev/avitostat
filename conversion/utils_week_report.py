@@ -101,7 +101,7 @@ def get_total_metrics(items_with_metrics, items: list, statistics: dict):
     return total_metrics
 
 
-def get_week_report(avito_account: AvitoAccount):
+def get_conversion_week_report(avito_account: AvitoAccount):
     metrics = {}
     statistics, items = get_statistics_for_period(avito_account, period="week")
     operations = get_active_operations_for_period(avito_account, period="week")
