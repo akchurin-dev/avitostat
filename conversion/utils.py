@@ -19,7 +19,7 @@ def dates_for_period_with_extra_reserve(period: str):
     return date_from, date_to
 
 
-def dates_for_period_without_extra_reserve(period: str):
+async def dates_for_period_without_extra_reserve(period: str):
     valid_periods = ['month', 'week', 'day']
     if period not in valid_periods:
         raise ValueError("Invalid period. Please choose from 'month', 'week', or 'day'.")

@@ -12,7 +12,7 @@ class CallbackView(View):
         code = request.GET.get("code", None)
         if code:
             avito_account = create_or_update_avito_account(code=code)
-            items_to_db(avito_account)
+            # items_to_db(avito_account)
             return JsonResponse({"message": "Hello, you will redirect"})
         else:
             return JsonResponse({"message": "Please provide a code"}, status=400)

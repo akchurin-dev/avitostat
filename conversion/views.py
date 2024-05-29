@@ -1,3 +1,4 @@
+from asgiref.sync import sync_to_async
 from django.http import JsonResponse
 from django.utils.decorators import method_decorator
 from django.views import View
@@ -8,11 +9,11 @@ from conversion.utils_week_report import get_week_report
 
 @method_decorator(csrf_exempt, name='dispatch')
 class WeekReportView(View):
-    def get(self, request, *args, **kwargs):
+    async def get(self, request, *args, **kwargs):
         telegram_id = kwargs.get("telegram_id", None)
-        avito_account = AvitoAccount.objects.filter(telegram_id=telegram_id).last()
+        avito_account = await sync_to_async(AvitoAccount.objects.filter(telegram_id=telegram_id).last)()
         if avito_account:
-            week_report = get_week_report(avito_account=avito_account)
+            week_report = await get_week_report(avito_account=avito_account)
 
             if week_report:
                 return JsonResponse(status=200, data=week_report)

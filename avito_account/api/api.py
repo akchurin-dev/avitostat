@@ -56,9 +56,7 @@ def async_handle_403_and_retry(func):
     return wrapper
 
 
-@handle_403_and_retry
-def get_items_list(avito_account: AvitoAccount) -> list[dict] | None:
-    # TODO Добавить функционал если в БД нет таких айтемов чтобы сразу добавились
+async def get_items_list(avito_account: AvitoAccount):
     url = f"https://api.avito.ru/core/v1/items"
     headers = {
         'authorization': f"Bearer {avito_account.access_token}"
@@ -68,20 +66,21 @@ def get_items_list(avito_account: AvitoAccount) -> list[dict] | None:
         'per_page': 100,
         'status': 'active, removed, old, blocked, rejected',
         'page': 1
-        # 'updatedAtFrom':
-        # 'category':
     }
-    response = requests.get(url, headers=headers, params=params)
 
-    if response.status_code != 200:
-        raise HTTPException(status_code=response.status_code, detail=response.json())
+    async with httpx.AsyncClient() as client:
+        response = await client.get(url, headers=headers, params=params)
 
-    all_items = []
-    while response.status_code == 200 and response.json().get('resources'):
-        all_items += response.json().get('resources')
-        params['page'] += 1
-        response = requests.get(url, headers=headers, params=params)
-    return all_items
+        if response.status_code != 200:
+            raise HTTPException(status_code=response.status_code, detail=response.json())
+
+        all_items = []
+        while response.status_code == 200 and response.json().get('resources'):
+            all_items += response.json().get('resources')
+            params['page'] += 1
+            response = await client.get(url, headers=headers, params=params)
+
+        return all_items
 
 
 def get_item_info(access_token: str, user_id: str, item_id: str) -> dict:
