@@ -1,8 +1,7 @@
 from datetime import datetime, timedelta
-from pprint import pprint
 
 
-def dates_for_period_with_extra_reserve(period: str):
+async def dates_for_period_with_extra_reserve(period: str):
     valid_periods = ['month', 'week', 'day']
     if period not in valid_periods:
         raise ValueError("Invalid period. Please choose from 'month', 'week', or 'day'.")
@@ -13,7 +12,7 @@ def dates_for_period_with_extra_reserve(period: str):
         date_from = (today - timedelta(days=60)).strftime("%Y-%m-%d")
     elif period == 'week':
         date_from = (today - timedelta(days=37)).strftime("%Y-%m-%d")
-    else:  # Период 'day'
+    else:  # period is 'day'
         date_from = (today - timedelta(days=31)).strftime("%Y-%m-%d")
 
     return date_from, date_to
@@ -34,10 +33,9 @@ async def dates_for_period_without_extra_reserve(period: str):
     return date_from, date_to
 
 
-def active_services_for_period_filtering(period: str, operations: list) -> list:
+async def active_services_for_period_filtering(period: str, operations: list) -> list:
     active_services = []
-    date_from, date_to = dates_for_period_without_extra_reserve(period=period)
-    pprint(operations)
+    date_from, date_to = await dates_for_period_without_extra_reserve(period=period)
 
     for operation in operations:
         service_start = operation.get("updatedAt")

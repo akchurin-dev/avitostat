@@ -1,10 +1,10 @@
-import math
 from avito_account.api.get_operations import get_active_operations_for_period
 from avito_account.models import AvitoAccount
 from conversion.api import get_statistics_for_period
+import math
 
 
-def get_costs_merged(operations) -> dict:
+async def get_costs_merged(operations) -> dict:
     costs_merged = {}
     if operations:
         for operation in operations:
@@ -17,17 +17,17 @@ def get_costs_merged(operations) -> dict:
     return costs_merged
 
 
-def get_top_5_items(items_with_metrics):
+async def get_top_5_items(items_with_metrics):
     sorted_items = sorted(items_with_metrics.items(),
                           key=lambda item: (-item[1]['uniqContacts'], -item[1]['uniqViews']))
     top_5_items = dict(sorted_items[:5])
     return top_5_items
 
 
-def get_items_with_metrics(statistics, operations: list, items: list):
+async def get_items_with_metrics(statistics, operations: list, items: list):
     metrics = {}
     week_number = -1
-    costs_merged = get_costs_merged(operations=operations)
+    costs_merged = await get_costs_merged(operations=operations)
     if statistics:
         for statistic in statistics:
             itemId = statistic.get("itemId", None)
@@ -68,7 +68,7 @@ def get_items_with_metrics(statistics, operations: list, items: list):
     return metrics
 
 
-def get_total_metrics(items_with_metrics, items: list, statistics: dict):
+async def get_total_metrics(items_with_metrics, items: list, statistics: dict):
     total_metrics = {
         "total_items_count": {
             "all": 0,
@@ -91,7 +91,7 @@ def get_total_metrics(items_with_metrics, items: list, statistics: dict):
         total_metrics["total_contacts_count"] += item[1].get("uniqContacts", 0)
         total_metrics["total_views_count"] += item[1].get("uniqViews", 0)
         total_metrics["total_favorites_count"] += item[1].get("uniqFavorites", 0)
-        total_metrics["total_coast"] += item[1].get("coast", 0)
+        total_metrics["total_coast"] += round(item[1].get("coast", 0), 2)
 
     total_contacts = total_metrics.get("total_contacts_count", 0)
     total_coast = total_metrics.get("total_coast", 0)
@@ -104,13 +104,13 @@ def get_total_metrics(items_with_metrics, items: list, statistics: dict):
 async def get_week_report(avito_account: AvitoAccount):
     metrics = {}
     statistics, items = await get_statistics_for_period(avito_account, period="week")
-    operations = get_active_operations_for_period(avito_account, period="week")
-    items_with_metrics = get_items_with_metrics(statistics=statistics, operations=operations, items=items)
+    operations = await get_active_operations_for_period(avito_account, period="week")
+    items_with_metrics = await get_items_with_metrics(statistics=statistics, operations=operations, items=items)
 
     metrics["avito_account_name"] = avito_account.name
     metrics["telegram_id"] = avito_account.telegram_id
-    metrics["total_metrics"] = get_total_metrics(items_with_metrics=items_with_metrics,
-                                                 items=items,
-                                                 statistics=statistics)
-    metrics["top"] = get_top_5_items(items_with_metrics=items_with_metrics)
+    metrics["total_metrics"] = await get_total_metrics(items_with_metrics=items_with_metrics,
+                                                       items=items,
+                                                       statistics=statistics)
+    metrics["top"] = await get_top_5_items(items_with_metrics=items_with_metrics)
     return metrics

@@ -33,7 +33,7 @@ async def get_statistics_for_period(avito_account: AvitoAccount, period: str):
                 'periodGrouping': period
             }
 
-            response = await client.post(url, headers=headers, json=params)
+            response = await client.post(url, headers=headers, json=params, timeout=300)
 
             if response.status_code == 200:
                 data = response.json()

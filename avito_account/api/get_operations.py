@@ -1,5 +1,5 @@
 import re
-import requests
+import httpx
 from datetime import datetime, timedelta
 import pytz
 from avito_account.models import AvitoAccount
@@ -7,7 +7,7 @@ from conversion.utils import dates_for_period_with_extra_reserve, active_service
 from exceptions import HTTPException
 
 
-def operations(access_token: str, start_date: str, end_date: str) -> dict:
+async def operations(access_token: str, start_date: str, end_date: str) -> dict:
     url = "https://api.avito.ru/core/v1/accounts/operations_history/"
     headers = {
         "Authorization": f"Bearer {access_token}",
@@ -18,27 +18,24 @@ def operations(access_token: str, start_date: str, end_date: str) -> dict:
         "dateTimeTo": end_date
     }
 
-    response = requests.post(url, headers=headers, json=params)
+    async with httpx.AsyncClient() as client:
+        response = await client.post(url, headers=headers, json=params)
 
-    if response.status_code == 200:
-        return response.json()
-
-    # кусок кода раньше использовал оставил на всякий случай
-    # if response.status_code == 200 and len(response.json().get("result").get("operations")) != 0:
-    #     return response.json()
-    else:
-        raise HTTPException(status_code=response.status_code, detail=response.text)
+        if response.status_code == 200:
+            return response.json()
+        else:
+            raise HTTPException(status_code=response.status_code, detail=response.text)
 
 
-def get_operations_splitted_by_week(access_token: str, start_date: str, end_date: str) -> dict:
+async def get_operations_splitted_by_week(access_token: str, start_date: str, end_date: str) -> dict:
     # Максимальный период для запроса - не более одной недели
     if (datetime.fromisoformat(end_date) - datetime.fromisoformat(start_date)).days > 7:
         raise ValueError("Period should not exceed 7 days")
 
-    return operations(access_token, start_date, end_date)
+    return await operations(access_token, start_date, end_date)
 
 
-def add_custom_calculations(operations_list: list) -> list:
+async def add_custom_calculations(operations_list: list) -> list:
     moscow_tz = pytz.timezone('Europe/Moscow')
     current_date = datetime.now(moscow_tz)
     for operation in operations_list:
@@ -75,8 +72,8 @@ def add_custom_calculations(operations_list: list) -> list:
     return operations_list
 
 
-def get_active_operations_for_period(avito_account: AvitoAccount, period: str) -> list:
-    date_from, date_to = dates_for_period_with_extra_reserve(period=period)
+async def get_active_operations_for_period(avito_account: AvitoAccount, period: str) -> list:
+    date_from, date_to = await dates_for_period_with_extra_reserve(period=period)
 
     # Разбиваем заданный период на отрезки по 7 дней
     current_start = datetime.fromisoformat(date_from)
@@ -86,20 +83,23 @@ def get_active_operations_for_period(avito_account: AvitoAccount, period: str) -
 
     while current_start < end_date_dt:
         # Получаем статистику для текущего отрезка
-        statistics = get_operations_splitted_by_week(avito_account.access_token, current_start.isoformat(),
-                                                     current_end.isoformat())
+        statistics = await get_operations_splitted_by_week(avito_account.access_token, current_start.isoformat(),
+                                                           current_end.isoformat())
         # Обновляем словарь статистики
         all_statistics[current_start.isoformat()] = statistics
 
         # Переходим к следующему отрезку
         current_start = current_end
         current_end = min(current_start + timedelta(days=7), end_date_dt)
-    operations_splitted_by_weeks = [item[1] for item in all_statistics.items() if item[1] is not None] # Исключаем все пустые данные об операциях
+
+    operations_splitted_by_weeks = [item[1] for item in all_statistics.items() if
+                                    item[1] is not None]  # Исключаем все пустые данные об операциях
     operations_splitted_by_weeks = [item.get("result").get("operations") for item in operations_splitted_by_weeks]
     operations_list = []
     for week in operations_splitted_by_weeks:
         operations_list.extend(week)
 
-    operations_list_with_calculations = add_custom_calculations(operations_list)
-    active_operations = active_services_for_period_filtering(period=period, operations=operations_list_with_calculations)
+    operations_list_with_calculations = await add_custom_calculations(operations_list)
+    active_operations = await active_services_for_period_filtering(period=period,
+                                                                   operations=operations_list_with_calculations)
     return active_operations
