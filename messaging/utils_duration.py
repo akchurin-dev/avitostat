@@ -1,12 +1,8 @@
 import datetime
 from typing import Dict, Any, List
 
-from django.http import JsonResponse
 
-from messaging.api import get_chats, get_chats_messages
-
-
-async def get_answer_durations(chats: List[Dict[str, Any]]):
+async def get_answer_durations(chats: List[Dict[str, Any]]) -> Dict[Any, Any]:
     duration_times = []
 
     for chat in chats:
@@ -75,15 +71,3 @@ async def get_duration_statistics(chats: list):
     top_durations_formatted = [[await convert_seconds(duration[0]), duration[1]] for duration in top_durations]
     statistics["top_durations"] = top_durations_formatted
     return statistics
-
-
-async def get_duration_week_report(avito_account):
-    chats = await get_chats(avito_account)
-    if chats:
-        actual_chats = await get_chats_for_week(chats)
-        actual_chats_with_messages = await get_chats_messages(avito_account, actual_chats)
-        durations = await get_answer_durations(actual_chats_with_messages)
-        duration_statistics = await get_duration_statistics(durations)
-        return duration_statistics
-    else:
-        return JsonResponse(status=404, data={"error": "Чаты не найдены"})
