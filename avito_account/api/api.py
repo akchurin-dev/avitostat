@@ -9,26 +9,26 @@ from avito_account.models import AvitoAccount
 from exceptions import HTTPException
 
 
-def handle_403_and_retry(func):
-    @wraps(func)
-    def wrapper(*args, **kwargs):
-        avito_account = args[0]  # Предполагаем, что avito_account передается первым аргументом
-        try:
-            return func(*args, **kwargs)
-        except HTTPException as e:
-            if e.status_code == 403:
-                avito_account.update_refresh_token()
-                return func(*args, **kwargs)
-            else:
-                raise e
-        except requests.exceptions.HTTPError as e:
-            if e.response.status_code == 403:
-                avito_account.update_refresh_token()
-                return func(*args, **kwargs)
-            else:
-                raise e
-
-    return wrapper
+# def handle_403_and_retry(func):
+#     @wraps(func)
+#     def wrapper(*args, **kwargs):
+#         avito_account = args[0]  # Предполагаем, что avito_account передается первым аргументом
+#         try:
+#             return func(*args, **kwargs)
+#         except HTTPException as e:
+#             if e.status_code == 403:
+#                 avito_account.update_refresh_token()
+#                 return func(*args, **kwargs)
+#             else:
+#                 raise e
+#         except requests.exceptions.HTTPError as e:
+#             if e.response.status_code == 403:
+#                 avito_account.update_refresh_token()
+#                 return func(*args, **kwargs)
+#             else:
+#                 raise e
+#
+#     return wrapper
 
 
 from requests.exceptions import HTTPError
