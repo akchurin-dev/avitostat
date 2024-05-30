@@ -40,22 +40,23 @@ async def get_items_with_metrics(statistics, operations: list, items: list):
                 conversion_item = metrics.get(itemId, None)
                 if conversion_item is None:
                     stats = statistic.get("stats")
-                    if stats and len(stats) > week_number and stats[week_number] is not None:
+                    if stats:
                         metrics[itemId] = {
                             'itemTitle': item.get("title"),
-                            'uniqContacts': statistic.get("stats")[week_number].get("uniqContacts"),
-                            'uniqFavorites': statistic.get("stats")[week_number].get("uniqFavorites"),
-                            'uniqViews': statistic.get("stats")[week_number].get("uniqViews"),
+                            'uniqContacts': 0,
+                            'uniqFavorites': 0,
+                            'uniqViews': 0,
                         }
+                        for stat in stats:
+                            metrics[itemId]['uniqContacts'] += stat.get("uniqContacts")
+                            metrics[itemId]['uniqFavorites'] += stat.get("uniqFavorites")
+                            metrics[itemId]['uniqViews'] += stat.get("uniqViews")
 
-                    coast = costs_merged.get(itemId)
-
-                    if coast:
-                        stats = statistic.get("stats")
-                        if stats and len(stats) > week_number and stats[week_number] is not None:
-                            uniq_contacts = statistic.get("stats")[week_number].get("uniqContacts")
-                            uniq_favorites = statistic.get("stats")[week_number].get("uniqFavorites")
-                            uniq_views = statistic.get("stats")[week_number].get("uniqViews")
+                        coast = costs_merged.get(itemId)
+                        if coast:
+                            uniq_contacts = metrics[itemId].get("uniqContacts")
+                            uniq_favorites = metrics[itemId].get("uniqFavorites")
+                            uniq_views = metrics[itemId].get("uniqViews")
 
                             metrics[itemId]["coast"] = coast
                             if uniq_contacts != 0:
