@@ -1,3 +1,5 @@
+import httpx
+from asgiref.sync import sync_to_async
 from django.db import models
 from django.contrib.auth.models import User
 import os
@@ -38,6 +40,26 @@ class AvitoAccount(models.Model):
             self.refresh_token = response_data['refresh_token']
             self.save()
             return True
+
+    async def update_refresh_token_async(self):
+        url = 'https://api.avito.ru/token/'
+        data = {
+            'grant_type': 'refresh_token',
+            'client_id': client_id,
+            'client_secret': client_secret,
+            'refresh_token': self.refresh_token
+        }
+
+        async with httpx.AsyncClient() as client:
+            response = await client.post(url, data=data)
+            if response.status_code != 200:
+                raise HTTPException(status_code=response.status_code, detail=response.text)
+            else:
+                response_data = response.json()
+                self.access_token = response_data['access_token']
+                self.refresh_token = response_data['refresh_token']
+                await sync_to_async(self.save)()
+                return True
 
     def __str__(self):
         return f"{self.name}, {self.id}"

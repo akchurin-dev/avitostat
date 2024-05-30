@@ -13,6 +13,7 @@ class WeekReportView(View):
         telegram_id = kwargs.get("telegram_id", None)
         avito_account = await sync_to_async(AvitoAccount.objects.filter(telegram_id=telegram_id).last)()
         if avito_account:
+            await avito_account.update_refresh_token_async()
             week_report = await get_week_report(avito_account=avito_account)
 
             if week_report:

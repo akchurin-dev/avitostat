@@ -84,7 +84,7 @@ async def get_total_metrics(items_with_metrics, items: list, statistics: dict):
     if items:
         total_metrics["total_items_count"] = {
             "all": len(items),
-            "active": len(statistics)
+            "active": len(items)
         }
 
     for item in items_with_metrics.items():

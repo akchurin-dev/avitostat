@@ -2,8 +2,6 @@ from functools import wraps
 
 import httpx
 import requests
-from aiohttp import ClientResponseError
-from asgiref.sync import sync_to_async
 
 from avito_account.models import AvitoAccount
 from exceptions import HTTPException
@@ -31,31 +29,6 @@ from exceptions import HTTPException
 #     return wrapper
 
 
-from requests.exceptions import HTTPError
-
-
-def async_handle_403_and_retry(func):
-    @wraps(func)
-    async def wrapper(*args, **kwargs):
-        avito_account = args[0]  # Предполагаем, что avito_account передается первым аргументом
-        try:
-            return await func(*args, **kwargs)
-        except ClientResponseError as e:
-            if e.status == 403:
-                await avito_account.async_update_refresh_token()
-                return await func(*args, **kwargs)
-            else:
-                raise e
-        except Exception as e:
-            if hasattr(e, 'status') and e.status == 403:
-                await avito_account.async_update_refresh_token()
-                return await func(*args, **kwargs)
-            else:
-                raise e
-
-    return wrapper
-
-
 async def get_items_list(avito_account: AvitoAccount):
     url = f"https://api.avito.ru/core/v1/items"
     headers = {
@@ -64,7 +37,7 @@ async def get_items_list(avito_account: AvitoAccount):
 
     params = {
         'per_page': 100,
-        'status': 'active, removed, old, blocked, rejected',
+        'status': 'active',
         'page': 1
     }
 
