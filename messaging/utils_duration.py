@@ -2,7 +2,7 @@ from datetime import datetime
 from typing import Dict, Any, List
 
 
-async def get_answer_durations(chats: List[Dict[str, Any]]) -> Dict[Any, Any]:
+async def get_answer_durations(chats: List[Dict[str, Any]]):
     duration_times = []
 
     for chat in chats:

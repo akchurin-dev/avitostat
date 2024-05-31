@@ -12,4 +12,4 @@ class StatisticAdmin(admin.ModelAdmin):
 
 
 # Register your models here.
-site.register(Statistic, StatisticAdmin)
+# site.register(Statistic, StatisticAdmin)

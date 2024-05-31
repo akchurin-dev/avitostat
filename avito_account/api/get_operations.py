@@ -69,7 +69,7 @@ async def add_custom_calculations(operations_list: list) -> list:
                 operation |= {
                     'days_left_active_total': days_left,
                 }
-        #TODO проверку на наличие новых айдишников услуг куда то логировать
+        # TODO проверку на наличие новых айдишников услуг куда то логировать
     return operations_list
 
 

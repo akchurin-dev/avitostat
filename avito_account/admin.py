@@ -16,6 +16,6 @@ class ItemAdmin(admin.ModelAdmin):
 
 
 site.register(AvitoAccount)
-site.register(Item, ItemAdmin)
-site.register(ServiceType)
-site.register(Operation)
+# site.register(Item, ItemAdmin)
+# site.register(ServiceType)
+# site.register(Operation)
