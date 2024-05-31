@@ -69,6 +69,7 @@ async def add_custom_calculations(operations_list: list) -> list:
                 operation |= {
                     'days_left_active_total': days_left,
                 }
+        #TODO проверку на наличие новых айдишников услуг куда то логировать
     return operations_list
 
 
@@ -94,6 +95,7 @@ async def get_active_operations_for_period(avito_account: AvitoAccount, period: 
 
     operations_splitted_by_weeks = [item[1] for item in all_statistics.items() if
                                     item[1] is not None]  # Исключаем все пустые данные об операциях
+
     operations_splitted_by_weeks = [item.get("result").get("operations") for item in operations_splitted_by_weeks]
     operations_list = []
     for week in operations_splitted_by_weeks:

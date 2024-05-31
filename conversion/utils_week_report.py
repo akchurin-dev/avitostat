@@ -26,7 +26,6 @@ async def get_top_5_items(items_with_metrics):
 
 async def get_items_with_metrics(statistics, operations: list, items: list):
     metrics = {}
-    week_number = -1
     costs_merged = await get_costs_merged(operations=operations)
     if statistics:
         for statistic in statistics:
