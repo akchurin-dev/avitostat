@@ -25,9 +25,9 @@ async def dates_for_period_without_extra_reserve(period: str):
 
     date_to = datetime.now()
     if period == 'month':
-        date_from = (date_to - timedelta(days=30))
+        date_from = (date_to - timedelta(days=29))
     elif period == 'week':
-        date_from = (date_to - timedelta(days=7))
+        date_from = (date_to - timedelta(days=6))
     else:  # Period is 'day'
         date_from = (date_to - timedelta(days=1))
     return date_from, date_to

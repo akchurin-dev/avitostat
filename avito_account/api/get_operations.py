@@ -45,10 +45,12 @@ async def add_custom_calculations(operations_list: list) -> list:
             pattern = r'\d+'
             amount, duration = re.findall(pattern, operation.get('operationName'))
             finish_at = date + timedelta(days=int(duration))
+
             days_left = (finish_at - current_date).days
+
             operation |= {
-                'amount_per_day': int(amount),
-                'duration': int(duration),
+                'amount_per_day': operation.get('amountRub') / int(duration),
+                'duration':  int(duration),
                 'finishAt': finish_at.isoformat(),
             }
             if days_left and days_left > 0:
@@ -93,8 +95,7 @@ async def get_active_operations_for_period(avito_account: AvitoAccount, period: 
         current_start = current_end
         current_end = min(current_start + timedelta(days=7), end_date_dt)
 
-    operations_splitted_by_weeks = [item[1] for item in all_statistics.items() if
-                                    item[1] is not None]  # Исключаем все пустые данные об операциях
+    operations_splitted_by_weeks = [item[1] for item in all_statistics.items() if item[1] is not None]  # Исключаем все пустые данные об операциях
 
     operations_splitted_by_weeks = [item.get("result").get("operations") for item in operations_splitted_by_weeks]
     operations_list = []
