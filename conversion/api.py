@@ -1,3 +1,5 @@
+from datetime import timedelta
+
 from avito_account.api.api import get_items_list
 from avito_account.models import AvitoAccount
 from conversion.utils import dates_for_period_without_extra_reserve
@@ -8,6 +10,7 @@ import httpx
 async def get_statistics_for_period(avito_account: AvitoAccount, period: str):
     date_from, date_to = await dates_for_period_without_extra_reserve(period=period)
     date_from = date_from.strftime("%Y-%m-%d")
+    date_to -= timedelta(hours=12)
     date_to = date_to.strftime("%Y-%m-%d")
 
     items = await get_items_list(avito_account)
