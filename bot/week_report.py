@@ -42,9 +42,9 @@ def generate_week_report_text(week_report_data):
             f"📋 *Активных объявлений:* {total_items_count}\n"
             f"📞 *Запрошено контактов:* {total_contacts_count}\n"
             f"👁️ *Просмотров:* {total_views_count}\n"
-            f"⭐ *В Избранное:* {total_favorites_count}\n"
-            f"💸 *Затраты:* {total_coast}\n"
-            f"💰 *Цена за контакт:* {total_coast_per_contact}\n\n")
+            # f"⭐ *В Избранное:* {total_favorites_count}\n"
+            f"💸 *Затраты:* {total_coast} р\n"
+            f"💰 *Цена за контакт:* {total_coast_per_contact} р\n\n")
 
     text += generate_top_items_text(week_report_data.get("top"))
     return text
@@ -57,11 +57,11 @@ def generate_top_items_text(top_items):
             statistics_total += (f"\n📢 *Объявление №{item}*\n"
                                  f"🔹 *Название:* {item_data.get('itemTitle', 'Без названия')}\n"
                                  f"🔸 *Запрошен контакт:* {item_data.get('uniqContacts', 0)}\n"
-                                 f"🔸 *Добавлено в избранные:* {item_data.get('uniqFavorites', 0)}\n"
+                                 # f"🔸 *Добавлено в избранные:* {item_data.get('uniqFavorites', 0)}\n"
                                  f"🔸 *Просмотры:* {item_data.get('uniqViews', 0)}\n"
-                                 f"🔸 *Затраты:* {item_data.get('coast', 0)}\n"
-                                 f"🔸 *Цена за контакт:* {item_data.get('amount_per_contact', 0)}\n"
-                                 f"🔸 *Цена за просмотр:* {item_data.get('amount_per_view', 0)}\n")
+                                 f"🔸 *Затраты:* {item_data.get('coast', 0)} р\n"
+                                 f"🔸 *Цена за контакт:* {item_data.get('amount_per_contact', 0)} р\n"
+                                 f"🔸 *Цена за просмотр:* {item_data.get('amount_per_view', 0)} р\n")
     return statistics_total
 
 
