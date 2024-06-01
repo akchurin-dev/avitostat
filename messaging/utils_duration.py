@@ -18,7 +18,12 @@ async def get_answer_durations(chats: List[Dict[str, Any]]):
                 duration = (out_time - in_time).total_seconds()
 
                 chat_id = chat.get('id')
-                duration_times.append([duration, chat_id])
+                content_text = message.get('content', None).get('text', None)
+
+                author = None
+                if content_text and ':' in content_text:
+                    author = content_text.split(":")[0]
+                duration_times.append([duration, chat_id, author])
 
                 last_in_message = None
 

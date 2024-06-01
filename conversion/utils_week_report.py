@@ -71,8 +71,8 @@ async def get_items_with_metrics(statistics, operations: list, items: list):
 async def get_total_metrics(items_with_metrics, items: list, statistics: dict):
     total_metrics = {
         "total_items_count": {
-            "all": 0,
             "active": 0,
+            "visited": 0,
         },
         "total_contacts_count": 0,
         "total_views_count": 0,
@@ -83,8 +83,8 @@ async def get_total_metrics(items_with_metrics, items: list, statistics: dict):
     }
     if items:
         total_metrics["total_items_count"] = {
-            "all": len(items),
-            "active": len(items)
+            "active":  len(items),
+            "visited": len(statistics)
         }
 
     for item in items_with_metrics.items():
