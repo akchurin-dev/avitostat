@@ -14,7 +14,23 @@ from telegram_bot.api.week_report import get_avito_account_all_ids
 from telegram_bot.cleaner.cleaner import Cleaner
 from telegram_bot.cleaner.cleaner_middleware import CleanerMiddleware
 
+# Sentry SDK
+import sentry_sdk
+from sentry_sdk.integrations.logging import LoggingIntegration
+
 load_dotenv()
+
+# Initialize Sentry
+sentry_logging = LoggingIntegration(
+    level=logging.INFO,        # Capture info and higher as breadcrumbs
+    event_level=logging.ERROR  # Send errors as events
+)
+
+sentry_sdk.init(
+    dsn="https://4c503fd616c203931739ae3e8ff1946f@o4507288745148416.ingest.us.sentry.io/4507368290975744",
+    integrations=[sentry_logging],
+    traces_sample_rate=1.0
+)
 # t.me/avitostata_bot
 
 bot = Bot(os.getenv('TELEGRAM_BOT_TOKEN'))
