@@ -38,6 +38,11 @@ sudo systemctl stop  aiogram
 systemctl status gunicorn.service
 systemctl status aiogram.service
 
+логи 
+sudo journalctl -u aiogram.service
+sudo journalctl -u gunicorn.service
+
+
 #тут все конфиги системктл
 cd /etc/systemd/system/ 
 
@@ -52,7 +57,7 @@ Description=Aiogram bot
 [Service]
 Type=simple
 WorkingDirectory=/var/www/avitostat
-ExecStart=/root/worker/venv/bin/python3 /var/www/avitostat/bot.py
+ExecStart=/var/www/avitostat/venv/bin/python3 /var/www/avitostat/bot.py
 KillMode=process
 Restart=always
 RestartSec=10
