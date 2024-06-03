@@ -8,6 +8,7 @@ def trigger_error(request):
 
 
 urlpatterns = [
+    path(r'jet/', include('jet.urls', 'jet')),  # Django JET URLS
     path('admin/', admin.site.urls),
     path("oauth/", include("avito_account.urls")),
     path("conversion/", include("conversion.urls")),
