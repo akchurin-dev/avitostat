@@ -1,29 +1,40 @@
+from aiogram import Bot
 from aiogram.exceptions import AiogramError
-from aiogram.types import Message
 from telegram_bot.api.week_report import get_week_report_by_telegram_id, get_duration_report_by_telegram_id
 
 
-async def get_week_report_text(message: Message):
-    await message.answer("📊 Ожидайте, формируется отчёт...")
+async def get_week_report_text(telegram_chat_id: int, bot: Bot):
+    await bot.send_message(
+        chat_id=telegram_chat_id,
+        text="📊 Ожидайте, формируется отчёт..."
+    )
 
-    week_report_data = get_week_report_by_telegram_id(telegram_chat_id=message.chat.id)
+    week_report_data = get_week_report_by_telegram_id(telegram_chat_id=telegram_chat_id)
     if week_report_data.get("error") == "Avito account not found":
-        await handle_avito_account_not_found(message)
+        await handle_avito_account_not_found(telegram_chat_id, bot)
         return
 
     report_text = generate_week_report_text(week_report_data)
 
-    duration_report_data = get_duration_report_by_telegram_id(telegram_chat_id=message.chat.id)
+    duration_report_data = get_duration_report_by_telegram_id(telegram_chat_id=telegram_chat_id)
     if duration_report_data:
         report_text += generate_duration_report_text(duration_report_data)
 
-    await message.answer(report_text, parse_mode="Markdown", disable_web_page_preview=True)
+    await bot.send_message(
+        chat_id=telegram_chat_id,
+        text=report_text,
+        parse_mode="Markdown",
+        disable_web_page_preview=True
+    )
 
 
-async def handle_avito_account_not_found(message: Message):
-    await message.answer(
-        "⚠️ Ошибка: Ваша телеграм группа не найдена.\n"
-        "🛠️ Пожалуйста, проверьте настройки и повторите попытку."
+async def handle_avito_account_not_found(telegram_chat_id: int, bot: Bot):
+    await bot.send_message(
+        chat_id=telegram_chat_id,
+        text=(
+            "⚠️ Ошибка: Ваша телеграм группа не найдена.\n"
+            "🛠️ Пожалуйста, проверьте настройки и повторите попытку."
+        )
     )
     raise AiogramError("Avito account not found")
 
@@ -51,7 +62,7 @@ def generate_week_report_text(week_report_data):
 
 
 def generate_top_items_text(top_items):
-    statistics_total = ""
+    statistics_total = "🏆 *Топовые объявления*\n"
     if top_items is not None:
         for item, item_data in top_items.items():
             statistics_total += (f"\n📢 *Объявление №{item}*\n"
@@ -62,6 +73,7 @@ def generate_top_items_text(top_items):
                                  f"🔸 *Цена за контакт:* {item_data.get('amount_per_contact', 0)} р\n"
                                  f"🔸 *Цена за просмотр:* {item_data.get('amount_per_view', 0)} р\n")
     return statistics_total
+
 
 
 def generate_duration_report_text(duration_report_data):

@@ -1,8 +1,10 @@
+from asgiref.sync import sync_to_async
 from django.http import JsonResponse
 from django.utils.decorators import method_decorator
 from django.views import View
 from django.views.decorators.csrf import csrf_exempt
 from avito_account.dao import items_to_db
+from avito_account.models import AvitoAccount
 from avito_account.oauth_utils import create_or_update_avito_account
 
 
@@ -16,3 +18,14 @@ class CallbackView(View):
             return JsonResponse({"message": "Hello, you will redirect"})
         else:
             return JsonResponse({"message": "Please provide a code"}, status=400)
+
+
+@method_decorator(csrf_exempt, name='dispatch')
+class AvitoAccountListView(View):
+    def get(self, request, *args, **kwargs):
+        avito_accounts = AvitoAccount.objects.all()
+        avito_accounts_ids = [avito_account.telegram_id for avito_account in avito_accounts]
+        if avito_accounts_ids:
+            return JsonResponse(status=200, data=avito_accounts_ids, safe=False)
+        else:
+            return JsonResponse(status=404, data={"error": "Not found any Avito accounts"})

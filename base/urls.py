@@ -11,5 +11,6 @@ urlpatterns = [
     path('admin/', admin.site.urls),
     path("oauth/", include("avito_account.urls")),
     path("conversion/", include("conversion.urls")),
+    path("messaging/", include("messaging.urls")),
     path('sentry-debug/', trigger_error),
 ]

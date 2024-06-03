@@ -51,7 +51,7 @@ class AvitoAccount(models.Model):
         }
 
         async with httpx.AsyncClient() as client:
-            response = await client.post(url, data=data)
+            response = await client.post(url, data=data, timeout=300)
             if response.status_code != 200:
                 raise HTTPException(status_code=response.status_code, detail=response.text)
             else:
