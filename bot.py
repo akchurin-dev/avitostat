@@ -2,7 +2,7 @@ import asyncio
 import logging
 import os
 import sys
-from functools import partial
+from apscheduler.schedulers.asyncio import AsyncIOScheduler
 
 from aiogram import Bot, Dispatcher, Router
 from aiogram.enums import ParseMode
@@ -21,6 +21,16 @@ bot = Bot(os.getenv('TELEGRAM_BOT_TOKEN'))
 dp = Dispatcher()
 logging.basicConfig(level=logging.INFO)
 router = Router()
+
+scheduler = AsyncIOScheduler()  # Автоматическая отправка сообщений
+
+
+async def scheduler_setup(scheduler: AsyncIOScheduler, bot):
+    scheduler.add_job(send_week_report_to_all_accounts, "interval",
+                      minutes=15,
+                      args=(bot,))
+
+    scheduler.start()
 
 
 async def send_week_report_to_all_accounts():
@@ -64,6 +74,8 @@ async def main() -> None:
 
     cleaner = Cleaner(limit=100)
     dp.update.middleware(CleanerMiddleware(cleaner))
+
+    await scheduler_setup(scheduler, bot)
 
     await bot.delete_webhook(drop_pending_updates=True)
     await dp.start_polling(bot)
