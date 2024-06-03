@@ -25,6 +25,11 @@
 https://proghunter.ru/articles/django-base-2023-installing-postgresql-in-django
 
 
+source /var/www/avitostat/venv/bin/activate
+cd /var/www/avitostat
+gunicorn -c gunicorn_config.py base.wsgi:application
+
+htop - просмотрт системных ресурсов
 
 ssh avitostata
 
