@@ -74,7 +74,7 @@ async def main() -> None:
     cleaner = Cleaner(limit=100)
     dp.update.middleware(CleanerMiddleware(cleaner))
 
-    await scheduler_setup(scheduler, bot)
+    await scheduler_setup(scheduler)
 
     await bot.delete_webhook(drop_pending_updates=True)
     await dp.start_polling(bot)
