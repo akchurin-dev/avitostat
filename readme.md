@@ -30,12 +30,52 @@ ssh avitostata
 
 systemctl daemon-reload
 sudo systemctl start gunicorn
+sudo systemctl start aiogram
+
 sudo systemctl stop  gunicorn
+sudo systemctl stop  aiogram
 
 systemctl status gunicorn.service
+systemctl status aiogram.service
 
 #тут все конфиги системктл
 cd /etc/systemd/system/ 
 
 
 
+
+# Конфиг для бота
+
+[Unit]
+Description=Aiogram bot
+
+[Service]
+Type=simple
+WorkingDirectory=/var/www/avitostat
+ExecStart=/root/worker/venv/bin/python3 /var/www/avitostat/bot.py
+KillMode=process
+Restart=always
+RestartSec=10
+EnvironmentFile=/var/www/avitostat/.env
+
+[Install]
+WantedBy=multi-user.target
+
+
+# КОнфиг для джанго 
+
+[Unit]
+Description=Django
+After=network.target
+
+[Service]
+Type=simple
+WorkingDirectory=/var/www/avitostat
+ExecStart=/var/www/avitostat/venv/bin/gunicorn -c gunicorn_config.py base.wsgi:application
+KillMode=process
+Restart=always
+RestartSec=10
+EnvironmentFile=/var/www/avitostat/.env
+
+[Install]
+WantedBy=multi-user.target

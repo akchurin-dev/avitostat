@@ -25,10 +25,9 @@ router = Router()
 scheduler = AsyncIOScheduler()  # Автоматическая отправка сообщений
 
 
-async def scheduler_setup(scheduler: AsyncIOScheduler, bot):
+async def scheduler_setup(scheduler: AsyncIOScheduler):
     scheduler.add_job(send_week_report_to_all_accounts, "interval",
-                      minutes=15,
-                      args=(bot,))
+                      minutes=15)
 
     scheduler.start()
 
