@@ -15,13 +15,19 @@ from telegram_bot.cleaner.cleaner import Cleaner
 from telegram_bot.cleaner.cleaner_middleware import CleanerMiddleware
 
 load_dotenv()
-# t.me/avitostata_bot
+# t.me/avitostata_bot           DEVELOPMENT
+# t.me/avitostata_ru_bot        PRODUCTION
 
-bot = Bot(os.getenv('TELEGRAM_BOT_TOKEN'))
+ENVIRONMENT = os.getenv('ENVIRONMENT')
+if ENVIRONMENT == 'PRODUCTION':
+    bot = Bot(os.getenv('TELEGRAM_BOT_TOKEN'))
+else:
+    bot = Bot(os.getenv('TELEGRAM_BOT_TOKEN_PROD'))
+
+
 dp = Dispatcher()
 logging.basicConfig(level=logging.INFO)
 router = Router()
-
 scheduler = AsyncIOScheduler()  # Автоматическая отправка сообщений
 
 
