@@ -33,7 +33,7 @@ scheduler = AsyncIOScheduler()  # Автоматическая отправка 
 
 async def scheduler_setup(scheduler: AsyncIOScheduler):
     scheduler.add_job(send_week_report_to_all_accounts, "interval",
-                      minutes=5)
+                      minutes=2)
 
     scheduler.start()
 
