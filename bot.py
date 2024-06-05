@@ -20,9 +20,9 @@ load_dotenv()
 
 ENVIRONMENT = os.getenv('ENVIRONMENT')
 if ENVIRONMENT == 'PRODUCTION':
-    bot = Bot(os.getenv('TELEGRAM_BOT_TOKEN'))
-else:
     bot = Bot(os.getenv('TELEGRAM_BOT_TOKEN_PROD'))
+else:
+    bot = Bot(os.getenv('TELEGRAM_BOT_TOKEN'))
 
 
 dp = Dispatcher()
