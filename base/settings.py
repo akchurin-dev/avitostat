@@ -159,7 +159,7 @@ CSRF_COOKIE_SECURE = True
 import sentry_sdk
 
 sentry_sdk.init(
-    dsn="https://daac336800cd09de6538b6a9e71aef44@o4507288745148416.ingest.us.sentry.io/4507288746983424",
+    dsn="https://26cd6adb31a7d912277757045055f118@o4506274465972224.ingest.us.sentry.io/4507378908004352",
     # Set traces_sample_rate to 1.0 to capture 100%
     # of transactions for performance monitoring.
     traces_sample_rate=1.0,
