@@ -2,6 +2,7 @@ import asyncio
 import logging
 import os
 import sys
+import pytz
 
 import sentry_sdk
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
@@ -44,9 +45,15 @@ async def trigger_error():
 
 
 async def scheduler_setup(scheduler: AsyncIOScheduler):
-    scheduler.add_job(send_week_report_to_all_accounts, "interval",
-                      minutes=2)
-
+    moscow_tz = pytz.timezone('Europe/Moscow')
+    scheduler.add_job(
+        send_week_report_to_all_accounts,
+        'cron',
+        day_of_week='mon',
+        hour=13,
+        minute=0,
+        timezone=moscow_tz
+    )
     scheduler.start()
 
 
