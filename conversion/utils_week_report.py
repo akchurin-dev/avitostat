@@ -103,7 +103,7 @@ async def get_total_metrics(items_with_metrics, items: list, statistics: dict):
 
 async def get_week_report(avito_account: AvitoAccount):
     metrics = {}
-    statistics, items = await get_statistics_for_period(avito_account, period="week")
+    statistics, items, date_from, date_to = await get_statistics_for_period(avito_account, period="week")
     operations = await get_active_operations_for_period(avito_account, period="week")
     items_with_metrics = await get_items_with_metrics(statistics=statistics, operations=operations, items=items)
 
@@ -113,4 +113,8 @@ async def get_week_report(avito_account: AvitoAccount):
                                                        items=items,
                                                        statistics=statistics)
     metrics["top"] = await get_top_5_items(items_with_metrics=items_with_metrics)
+    metrics["period"] = {
+        "date_from": date_from,
+        "date_to": date_to
+    }
     return metrics

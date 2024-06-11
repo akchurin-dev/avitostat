@@ -62,7 +62,7 @@ class AvitoAccount(models.Model):
                 return True
 
     def __str__(self):
-        return f"{self.name}, {self.id}"
+        return f"{self.name}, {self.telegram_id}"
 
 
 class Item(models.Model):

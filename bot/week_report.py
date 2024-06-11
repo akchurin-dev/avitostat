@@ -1,4 +1,5 @@
 import os
+from datetime import datetime
 
 from aiogram import Bot
 from aiogram.exceptions import AiogramError
@@ -70,8 +71,11 @@ def generate_week_report_text(week_report_data):
     total_coast = week_report_data.get("total_metrics").get("total_coast")
     total_coast_per_contact = week_report_data.get("total_metrics").get("total_coast_per_contact")
 
-    text = (f"📅 *Еженедельный отчёт* 📅\n\n"
-            f"👤 *Период:*с {date_from} по {date_to}\n"
+    date_from = datetime.strptime(date_from, "%Y-%m-%d").strftime("%d-%m-%Y")
+    date_to = datetime.strptime(date_to, "%Y-%m-%d").strftime("%d-%m-%Y")
+
+    text = (f"📊 *Еженедельный отчёт* 📅\n\n"
+            f"📅 *Период:* с {date_from} по {date_to}\n"
             f"👤 *Аккаунт:* {avito_account_name}\n"
             f"📋 *Активных объявлений:* {active_items_count}\n"
             f"📈 *Посещено объявлений:* {visited_items_count}\n"
