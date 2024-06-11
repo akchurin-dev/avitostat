@@ -5,6 +5,7 @@ from django.views import View
 from django.views.decorators.csrf import csrf_exempt
 from avito_account.models import AvitoAccount
 from conversion.utils_week_report import get_week_report
+from exceptions import HTTPException
 
 
 @method_decorator(csrf_exempt, name='dispatch')
@@ -14,9 +15,11 @@ class WeekReportView(View):
         avito_account = await sync_to_async(AvitoAccount.objects.filter(telegram_id=telegram_id).last)()
         if avito_account:
             await avito_account.update_refresh_token_async()
-            week_report = await get_week_report(avito_account=avito_account)
-
-            if week_report:
+            try:
+                week_report = await get_week_report(avito_account=avito_account)
                 return JsonResponse(status=200, data=week_report)
+            except HTTPException as e:
+                return JsonResponse(status=e.status_code, data={"error": e.detail})
         else:
             return JsonResponse(status=404, data={"error": "Avito account not found"})
+

@@ -2,6 +2,7 @@ from functools import wraps
 
 import httpx
 import requests
+from django.http import JsonResponse
 
 from avito_account.models import AvitoAccount
 from exceptions import HTTPException
@@ -53,7 +54,10 @@ async def get_items_list(avito_account: AvitoAccount):
             params['page'] += 1
             response = await client.get(url, headers=headers, params=params)
 
-        return all_items
+        if len(all_items) == 0:
+            raise HTTPException(status_code=404, detail="Avito account does not have active items in period")
+        else:
+            return all_items
 
 
 def get_item_info(access_token: str, user_id: str, item_id: str) -> dict:

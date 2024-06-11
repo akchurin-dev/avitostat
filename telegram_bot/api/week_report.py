@@ -1,6 +1,7 @@
 import os
 
 import requests
+from django.http import JsonResponse
 from dotenv import load_dotenv
 
 from exceptions import HTTPException
@@ -22,10 +23,7 @@ def get_avito_account_all_ids():
 def get_week_report_by_telegram_id(telegram_chat_id: int):
     url = f"{BASE_URL}/conversion/week_report/{telegram_chat_id}"
     response = requests.get(url=url)
-    if response.status_code == 200:
-        return response.json()
-    else:
-        raise HTTPException(status_code=response.status_code, detail=response.text)
+    return response.json()
 
 
 def get_duration_report_by_telegram_id(telegram_chat_id: int):

@@ -1,17 +1,27 @@
+import os
+
 from aiogram import Bot
 from aiogram.exceptions import AiogramError
+from dotenv import load_dotenv
+
 from telegram_bot.api.week_report import get_week_report_by_telegram_id, get_duration_report_by_telegram_id
 
 
 async def get_week_report_text(telegram_chat_id: int, bot: Bot):
-    await bot.send_message(
-        chat_id=telegram_chat_id,
-        text="📊 Ожидайте, формируется отчёт..."
-    )
+    load_dotenv()
+    ENVIRONMENT = os.getenv('ENVIRONMENT')
+    if ENVIRONMENT == 'DEVELOPMENT':
+        await bot.send_message(
+            chat_id=telegram_chat_id,
+            text="📊 Ожидайте, формируется отчёт..."
+        )
 
     week_report_data = get_week_report_by_telegram_id(telegram_chat_id=telegram_chat_id)
     if week_report_data.get("error") == "Avito account not found":
         await handle_avito_account_not_found(telegram_chat_id, bot)
+        return
+    elif week_report_data.get("error") == "Avito account does not have active items in period":
+        await handle_avito_account_have_not_active_items_for_period(telegram_chat_id, bot)
         return
 
     report_text = generate_week_report_text(week_report_data)
@@ -39,7 +49,19 @@ async def handle_avito_account_not_found(telegram_chat_id: int, bot: Bot):
     raise AiogramError("Avito account not found")
 
 
+async def handle_avito_account_have_not_active_items_for_period(telegram_chat_id: int, bot: Bot):
+    await bot.send_message(
+        chat_id=telegram_chat_id,
+        text=(
+            "⚠️ Ошибка: Для данного Авито аккаунта нет активных объявлений за отчётный период \n"
+        )
+    )
+    raise AiogramError("Avito account does not have active items in period")
+
+
 def generate_week_report_text(week_report_data):
+    date_from = week_report_data.get("period").get("date_from")
+    date_to = week_report_data.get("period").get("date_to")
     avito_account_name = week_report_data.get("avito_account_name")
     active_items_count = week_report_data.get("total_metrics").get("total_items_count").get("active")
     visited_items_count = week_report_data.get("total_metrics").get("total_items_count").get("visited")
@@ -49,6 +71,7 @@ def generate_week_report_text(week_report_data):
     total_coast_per_contact = week_report_data.get("total_metrics").get("total_coast_per_contact")
 
     text = (f"📅 *Еженедельный отчёт* 📅\n\n"
+            f"👤 *Период:*с {date_from} по {date_to}\n"
             f"👤 *Аккаунт:* {avito_account_name}\n"
             f"📋 *Активных объявлений:* {active_items_count}\n"
             f"📈 *Посещено объявлений:* {visited_items_count}\n"
@@ -73,7 +96,6 @@ def generate_top_items_text(top_items):
                                  f"🔸 *Цена за контакт:* {item_data.get('amount_per_contact', 0)} р\n"
                                  f"🔸 *Цена за просмотр:* {item_data.get('amount_per_view', 0)} р\n")
     return statistics_total
-
 
 
 def generate_duration_report_text(duration_report_data):
