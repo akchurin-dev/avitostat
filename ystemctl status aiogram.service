@@ -1,0 +1,16 @@
+[0;1;32m●[0m aiogram.service - Aiogram bot
+     Loaded: loaded (/etc/systemd/system/aiogram.service; disabled; vendor preset: enabled)
+     Active: [0;1;32mactive (running)[0m since Mon 2024-06-03 20:16:14 UTC; 23s ago
+   Main PID: 4365 (python3)
+      Tasks: 2 (limit: 2308)
+     Memory: 121.4M
+        CPU: 2.887s
+     CGroup: /system.slice/aiogram.service
+             └─4365 /var/www/avitostat/venv/bin/python3 /var/www/avitostat/bot.py
+
+Jun 03 20:16:14 fieufomfda systemd[1]: Started Aiogram bot.
+Jun 03 20:16:19 fieufomfda python3[4365]: INFO:apscheduler.scheduler:Adding job tentatively -- it will be properly scheduled when the scheduler starts
+Jun 03 20:16:19 fieufomfda python3[4365]: INFO:apscheduler.scheduler:Added job "send_week_report_to_all_accounts" to job store "default"
+Jun 03 20:16:19 fieufomfda python3[4365]: INFO:apscheduler.scheduler:Scheduler started
+Jun 03 20:16:19 fieufomfda python3[4365]: INFO:aiogram.dispatcher:Start polling
+Jun 03 20:16:20 fieufomfda python3[4365]: INFO:aiogram.dispatcher:Run polling for bot @avitostata_bot id=7025543345 - 'avitostata_bot'
