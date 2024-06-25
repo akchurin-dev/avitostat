@@ -20,13 +20,13 @@ class ItemAdmin(admin.ModelAdmin):
 class AvitoAccountAdmin(admin.ModelAdmin):
     list_display = ('company', 'name', 'telegram_id', 'phone', 'profile_url')
 
-    def get_queryset(self, request):
-        if request.user.is_superuser:
-            queryset = super().get_queryset(request)
-            return queryset
-        else:
-            queryset = super().get_queryset(request)
-            return queryset.filter(Q(company_id=request.user.pk) | Q(company_id=None))
+    # def get_queryset(self, request):
+    #     if request.user.is_superuser:
+    #         queryset = super().get_queryset(request)
+    #         return queryset
+    #     else:
+    #         queryset = super().get_queryset(request)
+    #         return queryset.filter(Q(company_id=request.user.pk) | Q(company_id=None))
 
 
 site.register(AvitoAccount, AvitoAccountAdmin)
