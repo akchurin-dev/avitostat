@@ -4,4 +4,5 @@
 *.pyc
 .env
 /venv
+static/
 db.sqlite3
