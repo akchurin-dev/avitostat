@@ -19,6 +19,7 @@ class ItemAdmin(admin.ModelAdmin):
 
 class AvitoAccountAdmin(admin.ModelAdmin):
     list_display = ('company', 'name', 'telegram_id', 'phone', 'profile_url')
+    exclude = ('access_token', 'refresh_token')
 
     def get_queryset(self, request):
         if request.user.is_superuser:
@@ -26,6 +27,9 @@ class AvitoAccountAdmin(admin.ModelAdmin):
         else:
             queryset = super().get_queryset(request).filter(Q(company_id=request.user.pk) | Q(company_id=None))
         return queryset
+
+    def has_add_permission(self, request):
+        return False
 
 
 site.register(AvitoAccount, AvitoAccountAdmin)
