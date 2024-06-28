@@ -144,6 +144,7 @@ SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
 CSRF_TRUSTED_ORIGINS = [
     'https://avitostata.ru',
     'https://www.avitostata.ru',
+    'http://127.0.0.1:8000/',
 ]
 
 SECURE_HSTS_SECONDS = 31536000  # 1 year

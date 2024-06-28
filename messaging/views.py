@@ -1,10 +1,13 @@
 import datetime
 from asgiref.sync import sync_to_async
 from django.http import JsonResponse
-from django.views import View
+from django.utils.decorators import method_decorator
+
 from avito_account.models import AvitoAccount
 from messaging.api import get_chats, get_chats_messages
 from messaging.utils_duration import get_answer_durations
+from django.views.decorators.csrf import csrf_exempt
+from django.views import View
 
 
 async def get_chats_for_week(chats: list) -> list:
@@ -50,7 +53,8 @@ async def get_duration_statistics(chats: list):
         statistics["average_duration"] = average_duration_formatted
 
     top_durations = sorted(chats, key=lambda x: x[0])[::-1][:10]
-    top_durations_formatted = [[await convert_seconds(duration[0]), duration[1], duration[2]] for duration in top_durations]
+    top_durations_formatted = [[await convert_seconds(duration[0]), duration[1], duration[2]] for duration in
+                               top_durations]
     statistics["top_durations"] = top_durations_formatted
     return statistics
 
@@ -72,3 +76,10 @@ class DurationStatisticsView(View):
                 return JsonResponse(status=404, data={"error": "Чаты не найдены"})
         else:
             return JsonResponse(status=404, data={"error": "Аккаунт Avito не найден"})
+
+
+@method_decorator(csrf_exempt, name='dispatch')
+class WebhookView(View):
+
+    async def post(self, request, *args, **kwargs):
+        return JsonResponse(status=200, data={"status": "ok"})

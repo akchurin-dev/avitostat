@@ -1,4 +1,3 @@
-import httpx
 from avito_account.models import AvitoAccount
 from exceptions import HTTPException
 import httpx
