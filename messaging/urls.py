@@ -1,7 +1,8 @@
 from django.urls import path
 
-from messaging.views import DurationStatisticsView
+from messaging.views import DurationWeekStatisticsView, BadMessagingWeekView
 
 urlpatterns = [
-    path('week_report/<str:telegram_id>/', DurationStatisticsView.as_view(), name='chat_list'),
+    path('week_report/<str:telegram_id>/', DurationWeekStatisticsView.as_view(), name='duration_week_stats'),
+    path('bad_messagging_report', BadMessagingWeekView.as_view(), name='bad_messaging_week'),
 ]

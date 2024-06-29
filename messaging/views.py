@@ -7,7 +7,7 @@ from messaging.api import get_chats, get_chats_messages
 from messaging.utils_duration import get_answer_durations
 
 
-async def get_chats_for_week(chats: list) -> list:
+async def get_chats_for_last_week(chats: list) -> list:
     filtered_chats = []
     now = datetime.datetime.now()
 
@@ -50,12 +50,13 @@ async def get_duration_statistics(chats: list):
         statistics["average_duration"] = average_duration_formatted
 
     top_durations = sorted(chats, key=lambda x: x[0])[::-1][:10]
-    top_durations_formatted = [[await convert_seconds(duration[0]), duration[1], duration[2]] for duration in top_durations]
+    top_durations_formatted = [[await convert_seconds(duration[0]), duration[1], duration[2]] for duration in
+                               top_durations]
     statistics["top_durations"] = top_durations_formatted
     return statistics
 
 
-class DurationStatisticsView(View):
+class DurationWeekStatisticsView(View):
     async def get(self, request, *args, **kwargs):
         telegram_id = kwargs.get("telegram_id", None)
         avito_account = await sync_to_async(AvitoAccount.objects.filter(telegram_id=telegram_id).last)()
@@ -63,7 +64,7 @@ class DurationStatisticsView(View):
         if avito_account:
             chats = await get_chats(avito_account)
             if chats:
-                actual_chats = await get_chats_for_week(chats)
+                actual_chats = await get_chats_for_last_week(chats)
                 actual_chats_with_messages = await get_chats_messages(avito_account, actual_chats)
                 durations = await get_answer_durations(actual_chats_with_messages)
                 duration_statistics = await get_duration_statistics(durations)
@@ -72,3 +73,17 @@ class DurationStatisticsView(View):
                 return JsonResponse(status=404, data={"error": "Чаты не найдены"})
         else:
             return JsonResponse(status=404, data={"error": "Аккаунт Avito не найден"})
+
+
+class BadMessagingWeekView(View):
+    async def get(self, request, *args, **kwargs):
+        bad_messaging_results = []
+        avito_accounts = await sync_to_async(lambda: list(AvitoAccount.objects.filter(company__is_active=True)))()
+        if len(avito_accounts) > 0:
+
+            for avito_account in avito_accounts:  # 5 lines down duplicated from DurationWeekStatisticsView
+                chats = await get_chats(avito_account)
+                if chats:
+                    actual_chats = await get_chats_for_last_week(chats)
+                    actual_chats_with_messages = await get_chats_messages(avito_account, actual_chats)
+                    return actual_chats_with_messages
