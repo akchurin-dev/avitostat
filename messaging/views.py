@@ -5,6 +5,7 @@ from django.views import View
 from avito_account.models import AvitoAccount
 from messaging.api import get_chats, get_chats_messages
 from messaging.utils_duration import get_answer_durations
+from messaging.utils_open_ai import compare_messages_for_ai, analyze_overall_conversation
 
 
 async def get_chats_for_last_week(chats: list) -> list:
@@ -86,4 +87,7 @@ class BadMessagingWeekView(View):
                 if chats:
                     actual_chats = await get_chats_for_last_week(chats)
                     actual_chats_with_messages = await get_chats_messages(avito_account, actual_chats)
-                    return actual_chats_with_messages
+                    # await get_analyze_of_messagging(actual_chats_with_messages)
+                    compared_messages = compare_messages_for_ai(actual_chats_with_messages)
+                    analyze = analyze_overall_conversation(compared_messages)
+                    print(1)
