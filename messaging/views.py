@@ -76,18 +76,26 @@ class DurationWeekStatisticsView(View):
             return JsonResponse(status=404, data={"error": "Аккаунт Avito не найден"})
 
 
-class BadMessagingWeekView(View):
+class BadMessagingWeekReportView(View):
     async def get(self, request, *args, **kwargs):
-        bad_messaging_results = []
+        analyze_all_chats = []
         avito_accounts = await sync_to_async(lambda: list(AvitoAccount.objects.filter(company__is_active=True)))()
         if len(avito_accounts) > 0:
-
-            for avito_account in avito_accounts:  # 5 lines down duplicated from DurationWeekStatisticsView
+            for avito_account in avito_accounts:
                 chats = await get_chats(avito_account)
-                if chats:
+                # ADD RESULTS
+                analyze_all_chats.append({
+                    "avito_account_name": avito_account.name,
+                    "avito_account_id": avito_account.id,
+                })
+                if chats: # 5 lines down duplicated from DurationWeekStatisticsView
                     actual_chats = await get_chats_for_last_week(chats)
                     actual_chats_with_messages = await get_chats_messages(avito_account, actual_chats)
-                    # await get_analyze_of_messagging(actual_chats_with_messages)
                     compared_messages = compare_messages_for_ai(actual_chats_with_messages)
                     analyze = analyze_overall_conversation(compared_messages)
-                    print(1)
+                    if analyze:
+                        analyze_all_chats[-1]["compared_messages"] = compared_messages
+                        analyze_all_chats[-1]["analyze"] = analyze
+                else:
+                    analyze_all_chats[-1]["compared_messages"] ="Чаты н найдены 404"
+            return JsonResponse(analyze_all_chats, safe=False)
