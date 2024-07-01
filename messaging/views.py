@@ -3,7 +3,6 @@ from asgiref.sync import sync_to_async
 from django.http import JsonResponse
 from django.views import View
 from avito_account.models import AvitoAccount
-from exceptions import HTTPException
 from messaging.api import get_chats, get_chats_messages
 from messaging.utils_duration import get_answer_durations
 from messaging.utils_open_ai import compare_messages_for_ai, analyze_overall_conversation
@@ -77,6 +76,14 @@ class DurationWeekStatisticsView(View):
             return JsonResponse(status=404, data={"error": "Аккаунт Avito не найден"})
 
 
+from django.http import JsonResponse, HttpResponse
+from django.views import View
+from jinja2 import Template
+from weasyprint import HTML
+from asgiref.sync import sync_to_async
+
+
+
 class BadMessagingWeekReportView(View):
     async def get(self, request, *args, **kwargs):
         analyze_all_chats = []
@@ -98,6 +105,120 @@ class BadMessagingWeekReportView(View):
                     analyze_all_chats[-1]["analyze"] = analyze
             else:
                 analyze_all_chats[-1]["compared_messages"] = "Чаты не найдены 404"
-            return JsonResponse(analyze_all_chats, safe=False)
+
+            # Преобразование данных в HTML и PDF
+            html_content = self.generate_html(analyze_all_chats)
+            pdf_file = HTML(string=html_content).write_pdf()
+
+            response = HttpResponse(pdf_file, content_type='application/pdf')
+            response['Content-Disposition'] = 'attachment; filename="chat_analysis_report.pdf"'
+            return response
         else:
             return JsonResponse(status=404, data={"error": "Аккаунт Avito не найден"})
+
+    def generate_html(self, data):
+        template = Template('''
+    <!DOCTYPE html>
+    <html lang="ru">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <meta http-equiv="X-UA-Compatible" content="ie=edge">
+        <title>Аналитика авито аккаунта</title>
+        <link href="https://fonts.googleapis.com/css?family=Montserrat:100,100i,200,200i,300,300i,400,400i,500,500i,600,600i,700,700i,800,800i,900,900i&display=swap&subset=cyrillic,cyrillic-ext,latin-ext" rel="stylesheet">
+        <style>
+            @page {
+                size: A4;
+                margin: 0;
+            }
+            html,
+            body {
+                font: normal 14px Montserrat, sans-serif;
+                position: relative;
+                line-height: normal;
+                min-height: 100%;
+                width: 100%;
+                background: #FFF;
+                margin: 0;
+            }
+            .container {
+                width: 800px;
+                margin: 20px auto;
+            }
+            .header {
+                text-align: center;
+                margin-bottom: 20px;
+            }
+            .header h1 {
+                font-size: 28px;
+                font-weight: 700;
+                color: #20232B;
+            }
+            .header h2 {
+                font-size: 16px;
+                font-weight: 400;
+                color: #99A3B1;
+            }
+            .report {
+                border: 1px solid #E4EDF1;
+                border-radius: 10px;
+                padding: 20px;
+                margin-bottom: 20px;
+            }
+            .report .chat-link {
+                font-size: 14px;
+                color: #009AD8;
+                margin-bottom: 10px;
+            }
+            .report .chat-text {
+                font-size: 14px;
+                color: #20232B;
+                white-space: pre-line;
+                margin-bottom: 10px;
+            }
+            .report .analysis {
+                font-size: 14px;
+                color: #20232B;
+                background-color: #F3F5F8;
+                padding: 10px;
+                border-radius: 5px;
+            }
+        </style>
+    </head>
+    <body>
+        <div class="container">
+            <div class="header">
+                <h1>Аналитика авито аккаунта - {{ avito_account_name }}</h1>
+                <h2>за период с {{ start_date }} по {{ end_date }}</h2>
+            </div>
+
+            {% for chat in data %}
+            <div class="report">
+                <div class="chat-link">
+                    Ссылка на чат: <a href="https://www.avito.ru/profile/messenger/channel/u2i-FLEHg_5TEmFxC9uhQlqklg/{{ chat.chat_id }}">перейти в чат</a>
+                </div>
+                <div class="chat-text">
+                    {% for message in chat.chat_text %}
+                        <strong>{{ message.role|replace('user', 'Клиент')|replace('assistant', 'Менеджер') }}:</strong> {{ message.content }}<br>
+                    {% endfor %}
+                </div>
+                <div class="analysis">
+                    <strong>Анализ переписки:</strong> {{ chat.analysis }}
+                </div>
+            </div>
+            {% endfor %}
+
+        </div>
+    </body>
+    </html>
+        ''')
+
+        # Примерные данные для периода (можно обновить по требованию)
+        start_date = "01.01.2024"
+        end_date = "07.01.2024"
+        avito_account_name = data[0]['avito_account_name'] if data else "Неизвестно"
+
+        return template.render(data=data[0].get('analyze', []), avito_account_name=avito_account_name,
+                               start_date=start_date, end_date=end_date)
+
+

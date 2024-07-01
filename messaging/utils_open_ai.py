@@ -14,7 +14,7 @@ def compare_messages_for_ai(chats_with_raw_messages: list):
         if any(message['type'] == 'text' for message in chat.get("messages")):  # do we have any text type message?
             compared_messages.append({'chat_id': chat_id, 'messages': []})
             for message in chat.get('messages')[:10]:
-                if message['direction'] == 'in' and message.get('type', None) == 'text':  #  becouse we have appCall
+                if message['direction'] == 'in' and message.get('type', None) == 'text':  # becouse we have appCall
                     compared_messages[-1].get('messages').append(
                         {"role": "user", "content": message['content']['text']})
                 elif message['direction'] == 'out' and message.get('type', None) == 'text':
@@ -23,11 +23,11 @@ def compare_messages_for_ai(chats_with_raw_messages: list):
     return compared_messages
 
 
-#TODO do yo need ASYNC?
+# TODO I tried change to ASYNC methods for analyze , but not see different in speed
 def analyze_overall_conversation(chats_with_compared_messages: list):
     chats_analyze = []
-    for chat in chats_with_compared_messages[:5]:  #TODO CLEAR IT
-        chat_text = "\n".join([message.get('role') + " " + message.get('content') for message in chat.get('messages')])
+    for chat in chats_with_compared_messages[:5]:  # TODO CLEAR IT
+        chat_text = "\n".join([message.get('role') + ": " + message.get('content') for message in chat.get('messages')])
         prompt = (f"Оцените этот чат переписки с точки зрения клиентского обслуживания."
                   f"Оценивать надо чат переписки целиком"
                   f"Переписка:\n{chat_text}\n"
