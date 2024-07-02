@@ -218,3 +218,17 @@ else:
         'REDIS_URL': "redis://redis:6379/0",
         'TOKEN': os.getenv('TELEGRAM_BOT_TOKEN')
     }
+
+
+#CELERY settings
+#CELERY settings
+#CELERY settings
+
+# Добавляем настройки для Celery
+CELERY_BROKER_URL = 'redis://localhost:6379/0'  # URL для подключения к Redis
+
+# Настройки Celery
+CELERY_ACCEPT_CONTENT = ['json']
+CELERY_TASK_SERIALIZER = 'json'
+CELERY_RESULT_SERIALIZER = 'json'
+CELERY_TIMEZONE = 'UTC'
