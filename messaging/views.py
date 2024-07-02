@@ -1,11 +1,13 @@
 import datetime
-from asgiref.sync import sync_to_async
-from django.http import JsonResponse
-from django.views import View
 from avito_account.models import AvitoAccount
 from messaging.api import get_chats, get_chats_messages
 from messaging.utils_duration import get_answer_durations
 from messaging.utils_open_ai import compare_messages_for_ai, analyze_overall_conversation
+from django.http import JsonResponse, HttpResponse
+from django.views import View
+from jinja2 import Template
+from weasyprint import HTML
+from asgiref.sync import sync_to_async
 
 
 async def get_chats_for_last_week(chats: list) -> list:
@@ -76,13 +78,6 @@ class DurationWeekStatisticsView(View):
             return JsonResponse(status=404, data={"error": "Аккаунт Avito не найден"})
 
 
-from django.http import JsonResponse, HttpResponse
-from django.views import View
-from jinja2 import Template
-from weasyprint import HTML
-from asgiref.sync import sync_to_async
-
-
 class BadMessagingWeekReportView(View):
     async def get(self, request, *args, **kwargs):
         analyze_all_chats = []
@@ -104,18 +99,17 @@ class BadMessagingWeekReportView(View):
                     analyze_all_chats[-1]["analyze"] = analyze
             else:
                 analyze_all_chats[-1]["compared_messages"] = "Чаты не найдены 404"
-
-            # Преобразование данных в HTML и PDF
-            html_content = self.generate_html(analyze_all_chats)
+            # Converting to PDF
+            html_content = await self.generate_html(analyze_all_chats)
             pdf_file = HTML(string=html_content).write_pdf()
-
             response = HttpResponse(pdf_file, content_type='application/pdf')
             response['Content-Disposition'] = 'attachment; filename="chat_analysis_report.pdf"'
             return response
         else:
             return JsonResponse(status=404, data={"error": "Аккаунт Avito не найден"})
 
-    def generate_html(self, data):
+    async def generate_html(self, data):
+        from datetime import datetime, timedelta
         template = Template('''
     <!DOCTYPE html>
     <html lang="ru">
@@ -382,11 +376,8 @@ class BadMessagingWeekReportView(View):
 </body>
     </html>
         ''')
-
-        # Примерные данные для периода (можно обновить по требованию)
-        start_date = "01.01.2024"
-        end_date = "07.01.2024"
+        start_date = datetime.now().strftime("%d.%m.%Y")
+        end_date = (datetime.now() + timedelta(days=6)).strftime("%d.%m.%Y")
         avito_account_name = data[0]['avito_account_name'] if data else "Неизвестно"
-
         return template.render(data=data[0].get('analyze', []), avito_account_name=avito_account_name,
                                start_date=start_date, end_date=end_date)
