@@ -5,7 +5,7 @@ from aiogram import Bot
 from aiogram.exceptions import AiogramError
 from dotenv import load_dotenv
 
-from telegram_bot.api.week_report import get_week_report_by_telegram_id, get_duration_report_by_telegram_id
+from tg_bot.api.week_report import get_week_report_by_telegram_id, get_duration_report_by_telegram_id
 
 
 async def get_week_report_text(telegram_chat_id: int, bot: Bot):
