@@ -97,4 +97,4 @@ WantedBy=multi-user.target
 
 # Запуск
     celery -A base worker -l info
-    celery -A base worker -l info
+    celery -A base beat -l info
