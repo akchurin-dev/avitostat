@@ -234,6 +234,6 @@ CELERY_TIMEZONE = 'UTC'
 CELERY_BEAT_SCHEDULE = {
     'send_test_message_task': {
         'task': 'messaging.tasks.send_test_message',
-        'schedule': 10.0,  # every 10 seconds
+        'schedule': 10.0,
     },
 }

@@ -20,7 +20,6 @@ def setup_periodic_tasks(sender, **kwargs):
     # Пример периодической задачи, которая запускается каждые 10 секунд
     sender.add_periodic_task(10.0, test.s('hello'), name='add every 10 seconds')
 
-
 @celery_app.task
 def test(arg):
     print(arg)

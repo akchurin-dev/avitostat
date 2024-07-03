@@ -6,7 +6,8 @@ from django.http import HttpResponse
 from jinja2 import Template
 from weasyprint import HTML
 from asgiref.sync import sync_to_async
-
+from pathlib import Path
+from datetime import datetime
 from messaging.views import get_chats_for_last_week
 
 
@@ -15,12 +16,11 @@ async def get_bad_messaging_week_report_pdf(avito_accounts_id):
     avito_account = await sync_to_async(AvitoAccount.objects.filter(id=avito_accounts_id).last)()
     if avito_account:
         chats = await get_chats(avito_account)
-        # ADD RESULTS
         analyze_all_chats.append({
             "avito_account_name": avito_account.name,
             "avito_account_id": avito_account.id,
         })
-        if chats:  # 5 lines down duplicated from DurationWeekStatisticsView
+        if chats:
             actual_chats = await get_chats_for_last_week(chats)
             actual_chats_with_messages = await get_chats_messages(avito_account, actual_chats)
             compared_messages = compare_messages_for_ai(actual_chats_with_messages)
@@ -29,14 +29,26 @@ async def get_bad_messaging_week_report_pdf(avito_accounts_id):
                 analyze_all_chats[-1]["analyze"] = analyze
         else:
             analyze_all_chats[-1]["compared_messages"] = "Чаты не найдены"
-        # Converting to PDF
+
         html_content = await bad_messaging_report_generate_html(analyze_all_chats=analyze_all_chats)
         pdf_file = HTML(string=html_content).write_pdf()
-        # response = HttpResponse(pdf_file, content_type='application/pdf')
-        # response['Content-Disposition'] = 'attachment; filename="chat_analysis_report.pdf"'
-        return pdf_file
+
+        # Get the current date in dd.mm.yyyy format
+        current_date = datetime.now().strftime("%d.%m.%Y")
+
+        # Define the directory and file path with the date
+        reports_dir = Path("reports/bad_messaging_reports")
+        reports_dir.mkdir(parents=True, exist_ok=True)
+        pdf_path = reports_dir / f"report_{avito_accounts_id}_{current_date}.pdf"
+
+        # Save the PDF file
+        with open(pdf_path, "wb") as f:
+            f.write(pdf_file)
+
+        # Return the absolute path to the saved PDF
+        return str(pdf_path.resolve())
     else:
-        return HTTPException(status_code=404, detail="error: Аккаунт Avito не найден")
+        raise HTTPException(status_code=404, detail="error: Аккаунт Avito не найден")
 
 
 async def bad_messaging_report_generate_html(analyze_all_chats):
