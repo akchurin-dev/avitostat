@@ -12,6 +12,7 @@ https://docs.djangoproject.com/en/5.0/ref/settings/
 import os
 from pathlib import Path
 
+from celery.schedules import crontab
 from dotenv import load_dotenv
 from sentry_sdk.integrations.django import DjangoIntegration
 
@@ -50,6 +51,7 @@ INSTALLED_APPS = [
     'avito_account',
     'conversion',
     'messaging',
+    'deep_tests',
 ]
 
 MIDDLEWARE = [
@@ -232,8 +234,14 @@ CELERY_RESULT_SERIALIZER = 'json'
 CELERY_TIMEZONE = 'UTC'
 
 CELERY_BEAT_SCHEDULE = {
+    # Bad messaging tasks
     'send_test_message_task': {
         'task': 'messaging.tasks.send_test_message',
         'schedule': 10.0,
+    },
+    'clean_up_folder_task': {
+        'task': 'messaging.tasks.clean_up_folder_task',
+        'schedule': crontab(0, 0, day_of_month='1', month_of_year='1,4,7,10'),
+        # Раз в три месяца (1 января, 1 апреля, 1 июля, 1 октября)
     },
 }

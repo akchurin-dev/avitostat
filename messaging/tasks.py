@@ -22,7 +22,10 @@ async def _send_test_message_async():
         await sync_to_async(bot.send_raw, thread_sensitive=False)(chat_id=avito_account.telegram_id,
                                                                   text=f"TEST TEXT. PDF Path: {pdf_path}")
 
-    await clean_up_folder('reports/bad_messaging_reports')
+
+@shared_task
+def clean_up_folder_task():
+    async_to_sync(clean_up_folder)('reports/bad_messaging_reports')
 
 
 async def clean_up_folder(folder_path):

@@ -2,7 +2,6 @@ from avito_account.models import AvitoAccount
 from exceptions import HTTPException
 from messaging.api import get_chats, get_chats_messages
 from messaging.utils_open_ai import compare_messages_for_ai, analyze_overall_conversation
-from django.http import HttpResponse
 from jinja2 import Template
 from weasyprint import HTML
 from asgiref.sync import sync_to_async
