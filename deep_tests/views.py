@@ -1,3 +1,4 @@
+from aiogram import types
 from telegram_bot import bot
 from avito_account.models import AvitoAccount
 from messaging.api import get_chats, get_chats_messages
@@ -14,6 +15,15 @@ from messaging.views import get_chats_for_last_week
 class TelegramSenderTestView(View):
     def get(self, request):
         bot.send_raw(chat_id="-1002061228822", text="TEST TEXT")
+
+
+class TelegramDocumentSenderTestView(View):
+    def get(self, request):
+        bot.send_raw(
+            chat_id="-1002061228822",
+            function="send_document",
+            document=types.FSInputFile("deep_tests/test.pdf"),
+        )
 
 
 class BadMessagingWeekReportView(View):
