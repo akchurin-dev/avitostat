@@ -1,6 +1,7 @@
 import os
 import shutil
 
+import sentry_sdk
 from celery import shared_task
 from asgiref.sync import async_to_sync, sync_to_async
 from avito_account.models import AvitoAccount
@@ -27,6 +28,7 @@ async def send_test_message_async():
                     function="send_document",
                     document=types.FSInputFile(pdf_path))
         except Exception as e:
+            sentry_sdk.capture_exception(e)  # Отправка исключения в Sentry
             print(e)
 
 

@@ -10,6 +10,7 @@ from pathlib import Path
 
 from celery.schedules import crontab
 from dotenv import load_dotenv
+from sentry_sdk.integrations.celery import CeleryIntegration
 from sentry_sdk.integrations.django import DjangoIntegration
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
@@ -152,7 +153,7 @@ SECURE_HSTS_PRELOAD = True
 SESSION_COOKIE_SECURE = True
 CSRF_COOKIE_SECURE = True
 
-# SENTRY SETTINGS
+# TODO SENTRY SETTINGS
 # SENTRY SETTINGS
 # SENTRY SETTINGS
 
@@ -163,6 +164,10 @@ if ENVIRONMENT == 'PRODUCTION':
         dsn="https://26cd6adb31a7d912277757045055f118@o4506274465972224.ingest.us.sentry.io/4507378908004352",
         # Set traces_sample_rate to 1.0 to capture 100%
         # of transactions for performance monitoring.
+        integrations=[
+            DjangoIntegration(),
+            CeleryIntegration(),
+        ],
         traces_sample_rate=1.0,
         # Set profiles_sample_rate to 1.0 to profile 100%
         # of sampled transactions.
@@ -170,6 +175,75 @@ if ENVIRONMENT == 'PRODUCTION':
         profiles_sample_rate=1.0,
     )
 
+LOGGING = {
+    'version': 1,
+    'disable_existing_loggers': False,
+    'handlers': {
+        'sentry': {
+            'level': 'ERROR',
+            'class': 'sentry_sdk.integrations.logging.EventHandler',
+        },
+        'console': {
+            'level': 'DEBUG',
+            'class': 'sentry_sdk.integrations.logging.EventHandler',
+        },
+    },
+    'loggers': {
+        'django': {
+            'handlers': ['console', 'sentry'],
+            'level': 'DEBUG',
+            'propagate': True,
+        },
+        'celery': {
+            'handlers': ['console', 'sentry'],
+            'level': 'DEBUG',
+            'propagate': True,
+        },
+    },
+}
+
+# django-redis-aiogram sender SETTINGS
+# django-redis-aiogram sender SETTINGS
+# django-redis-aiogram sender SETTINGS
+if ENVIRONMENT == 'PRODUCTION':
+    TELEGRAM_BOT = {
+        'REDIS_URL': "redis://redis:6379/0",
+        'TOKEN': os.getenv('TELEGRAM_BOT_TOKEN_PROD')
+    }
+else:
+    TELEGRAM_BOT = {
+        'REDIS_URL': "redis://redis:6379/0",
+        'TOKEN': os.getenv('TELEGRAM_BOT_TOKEN')
+    }
+
+# CELERY settings
+# CELERY settings
+# CELERY settings
+
+# Добавляем настройки для Celery
+CELERY_BROKER_URL = 'redis://localhost:6379/0'
+CELERY_RESULT_BACKEND = 'redis://localhost:6379/0'
+CELERY_ACCEPT_CONTENT = ['json']
+CELERY_TASK_SERIALIZER = 'json'
+CELERY_RESULT_SERIALIZER = 'json'
+CELERY_TIMEZONE = 'UTC'
+
+CELERY_BEAT_SCHEDULE = {
+    # Bad messaging tasks
+    'send_test_message_task': {
+        'task': 'messaging.tasks.send_test_message',
+        'schedule': 100.0,
+    },
+    'clean_up_folder_task': {
+        'task': 'messaging.tasks.clean_up_folder_task',
+        'schedule': crontab(0, 0, day_of_month='1', month_of_year='1,4,7,10'),
+        # Раз в три месяца (1 января, 1 апреля, 1 июля, 1 октября)
+    },
+}
+
+# TODO OTHER THINGS
+# OTHER THINGS
+# OTHER THINGS
 JET_THEMES = [
     {
         'theme': 'default',  # theme folder name
@@ -202,42 +276,3 @@ JET_THEMES = [
         'title': 'Light Gray'
     }
 ]
-
-# django-redis-aiogram sender SETTINGS
-# django-redis-aiogram sender SETTINGS
-# django-redis-aiogram sender SETTINGS
-if ENVIRONMENT == 'PRODUCTION':
-    TELEGRAM_BOT = {
-        'REDIS_URL': "redis://redis:6379/0",
-        'TOKEN': os.getenv('TELEGRAM_BOT_TOKEN_PROD')
-    }
-else:
-    TELEGRAM_BOT = {
-        'REDIS_URL': "redis://redis:6379/0",
-        'TOKEN': os.getenv('TELEGRAM_BOT_TOKEN')
-    }
-
-# CELERY settings
-# CELERY settings
-# CELERY settings
-
-# Добавляем настройки для Celery
-CELERY_BROKER_URL = 'redis://localhost:6379/0'
-CELERY_RESULT_BACKEND = 'redis://localhost:6379/0'
-CELERY_ACCEPT_CONTENT = ['json']
-CELERY_TASK_SERIALIZER = 'json'
-CELERY_RESULT_SERIALIZER = 'json'
-CELERY_TIMEZONE = 'UTC'
-
-CELERY_BEAT_SCHEDULE = {
-    # Bad messaging tasks
-    'send_test_message_task': {
-        'task': 'messaging.tasks.send_test_message',
-        'schedule': 500.0,
-    },
-    'clean_up_folder_task': {
-        'task': 'messaging.tasks.clean_up_folder_task',
-        'schedule': crontab(0, 0, day_of_month='1', month_of_year='1,4,7,10'),
-        # Раз в три месяца (1 января, 1 апреля, 1 июля, 1 октября)
-    },
-}
