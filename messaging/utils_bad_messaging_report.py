@@ -38,7 +38,7 @@ async def get_bad_messaging_week_report_pdf(avito_accounts_id):
         # Define the directory and file path with the date
         reports_dir = Path("reports/bad_messaging_reports")
         reports_dir.mkdir(parents=True, exist_ok=True)
-        pdf_path = reports_dir / f"report_{avito_accounts_id}_{current_date}.pdf"
+        pdf_path = reports_dir / f"bad_mes_report_{current_date}_{avito_accounts_id}.pdf"
 
         # Save the PDF file
         with open(pdf_path, "wb") as f:
