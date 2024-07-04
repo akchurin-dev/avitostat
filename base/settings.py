@@ -162,16 +162,11 @@ if ENVIRONMENT == 'PRODUCTION':
 
     sentry_sdk.init(
         dsn="https://26cd6adb31a7d912277757045055f118@o4506274465972224.ingest.us.sentry.io/4507378908004352",
-        # Set traces_sample_rate to 1.0 to capture 100%
-        # of transactions for performance monitoring.
         integrations=[
             DjangoIntegration(),
             CeleryIntegration(),
         ],
         traces_sample_rate=1.0,
-        # Set profiles_sample_rate to 1.0 to profile 100%
-        # of sampled transactions.
-        # We recommend adjusting this value in production.
         profiles_sample_rate=1.0,
     )
 

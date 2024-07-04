@@ -2,13 +2,13 @@ from aiogram import types
 from telegram_bot import bot
 from avito_account.models import AvitoAccount
 from messaging.api import get_chats, get_chats_messages
-from messaging.utils_open_ai import compare_messages_for_ai, analyze_overall_conversation
 from django.http import JsonResponse, HttpResponse
 from django.views import View
 from jinja2 import Template
 from weasyprint import HTML
 from asgiref.sync import sync_to_async
 
+from messaging.utils_open_ai import compare_messages_for_ai, analyze_overall_conversation
 from messaging.views import get_chats_for_last_week
 
 

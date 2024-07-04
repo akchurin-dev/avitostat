@@ -5,9 +5,10 @@ import sentry_sdk
 from celery import shared_task
 from asgiref.sync import async_to_sync, sync_to_async
 from avito_account.models import AvitoAccount
-from messaging.utils_bad_messaging_report import get_bad_messaging_week_report_pdf
 from telegram_bot import bot
 from aiogram import types
+
+from messaging.utils_bad_messaging_report import get_bad_messaging_week_report_pdf
 
 
 @shared_task
@@ -34,7 +35,7 @@ async def send_test_message_async():
 
 @shared_task
 def clean_up_folder_task():
-    async_to_sync(clean_up_folder)('reports/bad_messaging_reports')
+    async_to_sync(clean_up_folder)('messaging/bad_mes_report/PDFs')
 
 
 async def clean_up_folder(folder_path):

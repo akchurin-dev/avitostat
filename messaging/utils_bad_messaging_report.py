@@ -1,12 +1,13 @@
 from avito_account.models import AvitoAccount
 from exceptions import HTTPException
 from messaging.api import get_chats, get_chats_messages
-from messaging.utils_open_ai import compare_messages_for_ai, analyze_overall_conversation
 from jinja2 import Template
 from weasyprint import HTML
 from asgiref.sync import sync_to_async
 from pathlib import Path
 from datetime import datetime
+
+from messaging.utils_open_ai import compare_messages_for_ai, analyze_overall_conversation
 from messaging.views import get_chats_for_last_week
 
 
@@ -36,7 +37,7 @@ async def get_bad_messaging_week_report_pdf(avito_accounts_id):
         current_date = datetime.now().strftime("%d.%m.%Y")
 
         # Define the directory and file path with the date
-        reports_dir = Path("reports/bad_messaging_reports")
+        reports_dir = Path("messaging/bad_mes_report/PDFs")
         reports_dir.mkdir(parents=True, exist_ok=True)
         pdf_path = reports_dir / f"bad_mes_report_{current_date}_{avito_accounts_id}.pdf"
 
