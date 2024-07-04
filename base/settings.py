@@ -223,22 +223,38 @@ CELERY_TASK_SERIALIZER = 'json'
 CELERY_RESULT_SERIALIZER = 'json'
 CELERY_TIMEZONE = 'UTC'
 
-CELERY_BEAT_SCHEDULE = {
-    # Bad messaging tasks
-    'send_test_message_task': {
-        'task': 'messaging.tasks.send_test_message',
-        'schedule': 100.0,
-    },
-    'clean_up_folder_task': {
-        'task': 'messaging.tasks.clean_up_folder_task',
-        'schedule': crontab(0, 0, day_of_month='1', month_of_year='1,4,7,10'),
-        # Раз в три месяца (1 января, 1 апреля, 1 июля, 1 октября)
-    },
-}
+
+#TODO CELERY_BEAT_SCHEDULE
+#TODO CELERY_BEAT_SCHEDULE
+#TODO CELERY_BEAT_SCHEDULE
+if ENVIRONMENT == 'PRODUCTION':
+    CELERY_BEAT_SCHEDULE = {
+        'bad_messaging_week_report_task': {
+            'task': 'messaging.tasks.bad_messaging_week_report_async_task',
+            'schedule': crontab(hour=11, minute=0, day_of_week=5),  # 5 - это пятница (0 - понедельник, 6 - воскресенье)
+        },
+        'bad_messaging_week_report_folder_cleaner_task': {
+            'task': 'messaging.tasks.bad_mes_report_pdfs_folder_cleaner_task',
+            'schedule': crontab(0, 0, day_of_month='1', month_of_year='1,4,7,10'),
+            # Раз в три месяца (1 января, 1 апреля, 1 июля, 1 октября)
+        },
+    }
+else:
+    CELERY_BEAT_SCHEDULE = {
+        'bad_messaging_week_report_task_DEBUG': {
+            'task': 'messaging.tasks.bad_messaging_week_report_async_task',
+            'schedule': 100.0,  #  каждые 100 секунд
+        },
+        # 'bad_messaging_week_report_folder_cleaner_task': {
+        #     'task': 'messaging.tasks.bad_mes_report_pdfs_folder_cleaner_task',
+        #     'schedule': crontab(0, 0, day_of_month='1', month_of_year='1,4,7,10'),
+        #     # Раз в три месяца (1 января, 1 апреля, 1 июля, 1 октября)
+        # },
+    }
 
 # TODO OTHER THINGS
-# OTHER THINGS
-# OTHER THINGS
+# TODO OTHER THINGS
+# TODO OTHER THINGS
 JET_THEMES = [
     {
         'theme': 'default',  # theme folder name

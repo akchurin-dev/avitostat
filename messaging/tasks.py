@@ -8,15 +8,15 @@ from avito_account.models import AvitoAccount
 from telegram_bot import bot
 from aiogram import types
 
-from messaging.utils_bad_messaging_report import get_bad_messaging_week_report_pdf
+from messaging.bad_mes_report.utils_bad_messaging_report import get_bad_messaging_week_report_pdf
 
 
 @shared_task
-def send_test_message():
-    async_to_sync(send_test_message_async)()
+def bad_messaging_week_report_async_task():
+    async_to_sync(bad_messaging_week_report_async)()
 
 
-async def send_test_message_async():
+async def bad_messaging_week_report_async():
     all_avito_accounts = await sync_to_async(list)(
         AvitoAccount.objects.filter(company__is_active=True, telegram_id__isnull=False)
     )
@@ -34,10 +34,10 @@ async def send_test_message_async():
 
 
 @shared_task
-def clean_up_folder_task():
-    async_to_sync(clean_up_folder)('messaging/bad_mes_report/PDFs')
+def bad_mes_report_pdfs_folder_cleaner_task():
+    async_to_sync(bad_mes_report_pdfs_folder_cleaner)('messaging/bad_mes_report/PDFs')
 
 
-async def clean_up_folder(folder_path):
+async def bad_mes_report_pdfs_folder_cleaner(folder_path):
     await sync_to_async(shutil.rmtree)(folder_path)
     os.makedirs(folder_path)
