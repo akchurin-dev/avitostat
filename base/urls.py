@@ -13,5 +13,6 @@ urlpatterns = [
     path("oauth/", include("avito_account.urls")),
     path("conversion/", include("conversion.urls")),
     path("messaging/", include("messaging.urls")),
+    path("deep_tests/", include("deep_tests.urls")),
     path('sentry-debug/', trigger_error),
 ]

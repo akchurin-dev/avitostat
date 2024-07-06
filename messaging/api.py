@@ -30,6 +30,8 @@ async def get_chats(avito_account: AvitoAccount) -> dict:
                 if not has_more:
                     break
                 params["offset"] += 100
+            elif response.status_code == 403:  # REMOVE THIS AND ADD DECORATOR
+                await avito_account.update_refresh_token_async()
             else:
                 raise HTTPException(status_code=response.status_code, detail=response.text)
 

@@ -19,6 +19,7 @@ class ItemAdmin(admin.ModelAdmin):
 
 class AvitoAccountAdmin(admin.ModelAdmin):
     list_display = ('company', 'name', 'telegram_id', 'phone', 'profile_url')
+    readonly_fields = ('id',)
     exclude = ('access_token', 'refresh_token')
 
     def get_queryset(self, request):
@@ -30,6 +31,18 @@ class AvitoAccountAdmin(admin.ModelAdmin):
 
     def has_add_permission(self, request):
         return False
+
+    def get_fields(self, request, obj=None):  # Only for view id in details and hide in list
+        fields = super().get_fields(request, obj)
+        if obj is not None and 'id' not in fields:
+            fields = ['id'] + list(fields)
+        return fields
+
+    def get_readonly_fields(self, request, obj=None):  # Only for view id in details and hide in list
+        readonly_fields = super().get_readonly_fields(request, obj)
+        if obj is not None and 'id' not in readonly_fields:
+            readonly_fields = ['id'] + list(readonly_fields)
+        return readonly_fields
 
 
 site.register(AvitoAccount, AvitoAccountAdmin)

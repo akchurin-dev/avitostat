@@ -13,9 +13,9 @@ from aiogram.types import Message
 from dotenv import load_dotenv
 
 from bot.week_report import get_week_report_text
-from telegram_bot.api.week_report import get_avito_account_all_ids
-from telegram_bot.cleaner.cleaner import Cleaner
-from telegram_bot.cleaner.cleaner_middleware import CleanerMiddleware
+from tg_bot.api.week_report import get_avito_account_all_ids
+from tg_bot.cleaner.cleaner import Cleaner
+from tg_bot.cleaner.cleaner_middleware import CleanerMiddleware
 
 # Инициализация Sentry
 sentry_sdk.init(
