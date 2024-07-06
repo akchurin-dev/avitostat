@@ -89,3 +89,12 @@ EnvironmentFile=/var/www/avitostat/.env
 
 [Install]
 WantedBy=multi-user.target
+
+
+
+# CELERY
+    Устанавливать надо селери и селери-бит локально (так проще на данном этапе)
+
+# Запуск
+    celery -A base worker -l info
+    celery -A base beat -l info

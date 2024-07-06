@@ -6,3 +6,4 @@
 /venv
 static/
 db.sqlite3
+celerybeat-schedule
