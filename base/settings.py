@@ -231,7 +231,7 @@ if ENVIRONMENT == 'PRODUCTION':
     CELERY_BEAT_SCHEDULE = {
         'bad_messaging_week_report_task': {
             'task': 'messaging.tasks.bad_messaging_week_report_async_task',
-            'schedule': crontab(hour=14, minute=53, day_of_week=6),  # 6 - это суббота (0 - воскресенье, 1 - понедельник и т.д.)
+            'schedule': crontab(hour=19, minute=47, day_of_week=6),  # 6 - это суббота (0 - воскресенье, 1 - понедельник и т.д.)
         },
         'bad_messaging_week_report_folder_cleaner_task': {
             'task': 'messaging.tasks.bad_mes_report_pdfs_folder_cleaner_task',
