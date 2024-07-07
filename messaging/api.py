@@ -1,12 +1,13 @@
 from avito_account.models import AvitoAccount
 from exceptions import HTTPException
 import httpx
+from httpx import HTTPStatusError
 
 
 # TODO ДОБАВИТЬ ПРОВЕРКУ НА ПРОСРОЧЕННОСТЬ и обновление токена
 # статистика по последним 100 чатам не отличается если даже все чаты вытаскивать имей ввиду, возможно
 # можно убрать цикл уайл и просто один запрос отправлять если будут сложности или будет медленно
-async def get_chats(avito_account: AvitoAccount) -> dict:
+async def get_chats(avito_account: AvitoAccount, max_retries: int = 3) -> dict:
     url = f"https://api.avito.ru/messenger/v2/accounts/{avito_account.id}/chats"
     headers = {
         'authorization': f"Bearer {avito_account.access_token}"
@@ -18,6 +19,7 @@ async def get_chats(avito_account: AvitoAccount) -> dict:
         "offset": 0,
     }
     chats = []
+    retries = 0
 
     async with httpx.AsyncClient() as client:
         while True:
@@ -29,9 +31,12 @@ async def get_chats(avito_account: AvitoAccount) -> dict:
                 if not has_more:
                     break
                 params["offset"] += 100
-            elif response.status_code == 403:  # REMOVE THIS AND ADD DECORATOR
+            elif response.status_code == 403:
+                retries += 1
+                if retries > max_retries:
+                    raise HTTPStatusError("Превышено максимальное количество попыток обновления токена", request=response.request, response=response)
                 await avito_account.update_refresh_token_async()
-                print(response.status_code, response.text)
+                print(f"Attempt {retries}: {response.status_code}, {response.text}")     # Удалить если нет необходимости в коде, была нужда когда разбирался в ошибкой 403 бесконечно
             else:
                 raise HTTPException(status_code=response.status_code, detail=response.text)
 
