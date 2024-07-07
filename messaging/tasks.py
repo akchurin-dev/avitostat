@@ -20,7 +20,7 @@ async def bad_messaging_week_report_async():
     all_avito_accounts = await sync_to_async(list)(
         AvitoAccount.objects.filter(company__is_active=True, telegram_id__isnull=False)
     )
-    for avito_account in all_avito_accounts:
+    async for avito_account in all_avito_accounts:
         try:
             pdf_path = await get_bad_messaging_week_report_pdf(avito_account.id)
             if pdf_path:
