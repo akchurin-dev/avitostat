@@ -1,4 +1,3 @@
-import httpx
 from avito_account.models import AvitoAccount
 from exceptions import HTTPException
 import httpx
@@ -32,6 +31,7 @@ async def get_chats(avito_account: AvitoAccount) -> dict:
                 params["offset"] += 100
             elif response.status_code == 403:  # REMOVE THIS AND ADD DECORATOR
                 await avito_account.update_refresh_token_async()
+                print(response.status_code, response.text)
             else:
                 raise HTTPException(status_code=response.status_code, detail=response.text)
 
