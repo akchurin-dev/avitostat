@@ -25,7 +25,8 @@ async def bad_messaging_week_report_async():
             pdf_path = await get_bad_messaging_week_report_pdf(avito_account.id)
             if pdf_path:
                 await sync_to_async(bot.send_raw, thread_sensitive=False)(
-                    chat_id=avito_account.telegram_id,
+                    # chat_id=avito_account.telegram_id,
+                    chat_id="-4221870448",
                     function="send_document",
                     document=types.FSInputFile(pdf_path))
         except Exception as e:
