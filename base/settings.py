@@ -137,9 +137,9 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 USE_X_FORWARDED_HOST = True
 SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
 
-# НАСТРОЙКИ БЕЗОПАСНОСТИ после check --deploy
-# НАСТРОЙКИ БЕЗОПАСНОСТИ после check --deploy
-# НАСТРОЙКИ БЕЗОПАСНОСТИ после check --deploy
+#TODO НАСТРОЙКИ БЕЗОПАСНОСТИ после check --deploy
+#TODO НАСТРОЙКИ БЕЗОПАСНОСТИ после check --deploy
+#TODO НАСТРОЙКИ БЕЗОПАСНОСТИ после check --deploy
 
 CSRF_TRUSTED_ORIGINS = [
     'https://avitostata.ru',
@@ -154,8 +154,8 @@ SESSION_COOKIE_SECURE = True
 CSRF_COOKIE_SECURE = True
 
 # TODO SENTRY SETTINGS
-# SENTRY SETTINGS
-# SENTRY SETTINGS
+# TODO SENTRY SETTINGS
+# TODO SENTRY SETTINGS
 
 if ENVIRONMENT == 'PRODUCTION':
     import sentry_sdk
@@ -197,9 +197,9 @@ LOGGING = {
     },
 }
 
-# django-redis-aiogram sender SETTINGS
-# django-redis-aiogram sender SETTINGS
-# django-redis-aiogram sender SETTINGS
+#TODO django-redis-aiogram sender SETTINGS
+#TODO django-redis-aiogram sender SETTINGS
+#TODO django-redis-aiogram sender SETTINGS
 if ENVIRONMENT == 'PRODUCTION':
     TELEGRAM_BOT = {
         'REDIS_URL': "redis://redis:6379/0",
@@ -211,9 +211,9 @@ else:
         'TOKEN': os.getenv('TELEGRAM_BOT_TOKEN')
     }
 
-# CELERY settings
-# CELERY settings
-# CELERY settings
+#TODO CELERY settings
+#TODO CELERY settings
+#TODO CELERY settings
 
 # Добавляем настройки для Celery
 CELERY_BROKER_URL = 'redis://localhost:6379/0'
@@ -231,7 +231,7 @@ if ENVIRONMENT == 'PRODUCTION':
     CELERY_BEAT_SCHEDULE = {
         'bad_messaging_week_report_task': {
             'task': 'messaging.tasks.bad_messaging_week_report_async_task',
-            'schedule': crontab(hour=7, minute=40, day_of_week=0),  # 6 - это суббота (0 - воскресенье, 1 - понедельник и т.д.)
+            'schedule': crontab(hour=6, minute=0, day_of_week=5),  # 6 - это суббота (0 - воскресенье, 1 - понедельник и т.д.)
         },
         'bad_messaging_week_report_folder_cleaner_task': {
             'task': 'messaging.tasks.bad_mes_report_pdfs_folder_cleaner_task',
