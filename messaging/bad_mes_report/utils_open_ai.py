@@ -13,7 +13,7 @@ def compare_messages_for_ai(chats_with_raw_messages: list):
         chat_id = chat.get('id')
         if any(message['type'] == 'text' for message in chat.get("messages")):  # do we have any text type message?
             compared_messages.append({'chat_id': chat_id, 'messages': []})
-            for message in chat.get('messages')[-30:]:  # TODO only last 10 messages
+            for message in chat.get('messages')[-15:]:  # TODO only last 15 messages
                 if message['direction'] == 'in' and message.get('type', None) == 'text':  # becouse we have appCall
                     compared_messages[-1].get('messages').append(
                         {"role": "user", "content": message['content']['text']})
@@ -26,7 +26,7 @@ def compare_messages_for_ai(chats_with_raw_messages: list):
 # TODO I tried change to ASYNC methods for analyze , but not see different in speed
 def analyze_overall_conversation(chats_with_compared_messages: list):
     chats_analyze = []
-    for chat in chats_with_compared_messages[-3:]:
+    for chat in chats_with_compared_messages[-10:]:
         chat_text = "\n".join([message.get('role') + ": " + message.get('content') for message in chat.get('messages')])
         prompt = f"""
                     Ты - эксперт по клиентскому обслуживанию.
