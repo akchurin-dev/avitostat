@@ -1,15 +1,19 @@
 # ОПИСАНИЕ СЕРВИСА
 1)Сервис для сбора статистики с авито аккаунтов, расчет конверсии, полезных метрик, рассылка на телеграм аккаунты.
-
-планируется:
 2)Анализ переписки менеджеров с клиентами, опции направленные на повышение конверсии когда это зависит от качества переписки.
+Используя ИИ.
+
+Планируется:
 3)Централизация переписки в аккаунтах на один аккаунт телеграм(для того чтобы не прыгать по всем аккаунтам)
 
 # Технические особенности реализации:
-1) OAUTH2 avito  - доступ к аккаунтам передаётся сервису посредством перехода по ссылке клиентом и подтвеждения
+1) OAUTH2 avito  - доступ к аккаунтам передаётся сервису посредством перехода по ссылке клиентом и подтвеждения.
 2) Асинхронность, тк количетсво запросов может достигать 200-300 для формирования одного отчёта когда в аккаунте к прмиеру 
 20000 объявлений
 3) Sentry для удобного логирования ошибок
+4) Селери - для создания рассылок отчетов по расписанию
+5) Редис для создания очердей Селери
+6) Рассылка отчётов в телеграм группы непосредственно из Селери.(без аиограмм)
 
 
 
@@ -36,16 +40,24 @@ ssh avitostata
 systemctl daemon-reload
 sudo systemctl start gunicorn
 sudo systemctl start aiogram
+sudo systemctl start celery-worker
+sudo systemctl start celery-beat
 
 sudo systemctl stop  gunicorn
 sudo systemctl stop  aiogram
+sudo systemctl stop  celery-worker
+sudo systemctl stop  celery-beat
 
 systemctl status gunicorn.service
 systemctl status aiogram.service
+systemctl status celery-worker.service
+systemctl status celery-beat.service
 
 логи 
 sudo journalctl -u aiogram.service
 sudo journalctl -u gunicorn.service
+sudo journalctl -u celery-worker.service
+sudo journalctl -u celery-beat.service
 
 
 #тут все конфиги системктл
@@ -100,3 +112,43 @@ WantedBy=multi-user.target
     celery -A base beat -l info
 
 # Запуск 
+
+
+# Конфиги СЕЛЕРИ для системктл
+
+# Конфиг для воркера
+[Unit]
+Description=Celery Worker Service
+After=network.target
+
+[Service]
+Type=simple
+WorkingDirectory=/var/www/avitostat
+ExecStart=/var/www/avitostat/venv/bin/celery -A base worker -l info
+Restart=always
+RestartSec=10
+EnvironmentFile=/var/www/avitostat/.env
+KillMode=process
+
+
+# Конфиг для бита
+
+[Install]
+WantedBy=multi-user.target
+
+[Unit]
+Description=Celery Beat Service
+After=network.target
+
+[Service]
+Type=simple
+WorkingDirectory=/var/www/avitostat
+ExecStart=/var/www/avitostat/venv/bin/celery -A base beat -l info
+Restart=always
+RestartSec=10
+EnvironmentFile=/var/www/avitostat/.env
+KillMode=process
+
+[Install]
+WantedBy=multi-user.target
+
