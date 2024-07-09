@@ -5,38 +5,39 @@ from aiogram import Bot
 from aiogram.exceptions import AiogramError
 from dotenv import load_dotenv
 
-from tg_bot.api.week_report import get_week_report_by_telegram_id, get_duration_report_by_telegram_id
+from tg_bot.api.week_report import get_week_report_by_id, get_duration_report_by_telegram_id, \
+    get_avito_account_id_by_telegram_id
 
 
 async def get_week_report_text(telegram_chat_id: int, bot: Bot):
-    load_dotenv()
-    ENVIRONMENT = os.getenv('ENVIRONMENT')
-    if ENVIRONMENT == 'DEVELOPMENT':
+    avito_account_ids = get_avito_account_id_by_telegram_id(telegram_chat_id)
+    if avito_account_ids:
         await bot.send_message(
             chat_id=telegram_chat_id,
             text="📊 Ожидайте, формируется отчёт..."
         )
 
-    week_report_data = get_week_report_by_telegram_id(telegram_chat_id=telegram_chat_id)
-    if week_report_data.get("error") == "Avito account not found":
-        await handle_avito_account_not_found(telegram_chat_id, bot)
-        return
-    elif week_report_data.get("error") == "Avito account does not have active items in period":
-        await handle_avito_account_have_not_active_items_for_period(telegram_chat_id, bot)
-        return
+        for avito_account_id in avito_account_ids:
+            week_report_data = get_week_report_by_id(avito_account_id=avito_account_id)
+            if week_report_data.get("error") == "Avito account not found":
+                await handle_avito_account_not_found(avito_account_id, bot)
+                return
+            elif week_report_data.get("error") == "Avito account does not have active items in period":
+                await handle_avito_account_have_not_active_items_for_period(avito_account_id, bot)
+                return
 
-    report_text = generate_week_report_text(week_report_data)
+            report_text = generate_week_report_text(week_report_data)
 
-    duration_report_data = get_duration_report_by_telegram_id(telegram_chat_id=telegram_chat_id)
-    if duration_report_data:
-        report_text += generate_duration_report_text(duration_report_data)
+            duration_report_data = get_duration_report_by_telegram_id(avito_account_id=avito_account_id)
+            if duration_report_data:
+                report_text += generate_duration_report_text(duration_report_data)
 
-    await bot.send_message(
-        chat_id=telegram_chat_id,
-        text=report_text,
-        parse_mode="Markdown",
-        disable_web_page_preview=True
-    )
+            await bot.send_message(
+                chat_id=telegram_chat_id,
+                text=report_text,
+                parse_mode="Markdown",
+                disable_web_page_preview=True
+            )
 
 
 async def handle_avito_account_not_found(telegram_chat_id: int, bot: Bot):

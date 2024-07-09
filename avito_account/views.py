@@ -23,8 +23,20 @@ class CallbackView(View):
 @method_decorator(csrf_exempt, name='dispatch')
 class AvitoAccountListView(View):
     def get(self, request, *args, **kwargs):
-        avito_accounts = AvitoAccount.objects.all()
-        avito_accounts_ids = [avito_account.telegram_id for avito_account in avito_accounts if avito_account.telegram_id]
+        avito_accounts = AvitoAccount.objects.filter(company__is_active=True)
+        avito_accounts_ids = [avito_account.id for avito_account in avito_accounts if avito_account.telegram_id]
+        if avito_accounts_ids:
+            return JsonResponse(status=200, data=avito_accounts_ids, safe=False)
+        else:
+            return JsonResponse(status=404, data={"error": "Not found any Avito accounts"})
+
+
+@method_decorator(csrf_exempt, name='dispatch')
+class AvitoAccountByTelegramIdView(View):
+    def get(self, request, *args, **kwargs):
+        telegram_id = kwargs.get("telegram_id", None)
+        avito_accounts = AvitoAccount.objects.filter(company__is_active=True, telegram_id=telegram_id)
+        avito_accounts_ids = [avito_account.id for avito_account in avito_accounts]
         if avito_accounts_ids:
             return JsonResponse(status=200, data=avito_accounts_ids, safe=False)
         else:
