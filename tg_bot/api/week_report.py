@@ -26,8 +26,8 @@ def get_avito_ids_by_telegram_id(telegram_chat_id: int):
     return response.json()
 
 
-def get_week_report_by_telegram_id(telegram_chat_id: int):
-    url = f"{BASE_URL}/conversion/week_report/{telegram_chat_id}"
+def get_week_report_by_avito_id(avito_id: int):
+    url = f"{BASE_URL}/conversion/week_report/{avito_id}"
     response = requests.get(url=url)
     return response.json()
 

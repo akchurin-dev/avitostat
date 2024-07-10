@@ -5,7 +5,7 @@ from aiogram import Bot
 from aiogram.exceptions import AiogramError
 from dotenv import load_dotenv
 
-from tg_bot.api.week_report import get_week_report_by_telegram_id, get_duration_report_by_telegram_id, \
+from tg_bot.api.week_report import get_week_report_by_avito_id, get_duration_report_by_telegram_id, \
     get_avito_ids_by_telegram_id
 
 
@@ -21,7 +21,7 @@ async def get_week_report_text(telegram_chat_id: int, bot: Bot):
                     text="📊 Ожидайте, формируется отчёт..."
                 )
 
-            week_report_data = get_week_report_by_telegram_id(telegram_chat_id=telegram_chat_id)
+            week_report_data = get_week_report_by_avito_id(avito_id=avito_id)
             if week_report_data.get("error") == "Avito account not found":
                 await handle_avito_account_not_found(telegram_chat_id, bot)
                 return
