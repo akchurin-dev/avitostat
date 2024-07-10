@@ -13,7 +13,7 @@ from aiogram.types import Message
 from dotenv import load_dotenv
 
 from bot.week_report import get_week_report_text
-from tg_bot.api.week_report import get_avito_account_all_ids
+from tg_bot.api.week_report import get_avito_account_all_ids, get_avito_account_data_by_telegram_id
 from tg_bot.cleaner.cleaner import Cleaner
 from tg_bot.cleaner.cleaner_middleware import CleanerMiddleware
 
@@ -58,29 +58,43 @@ async def scheduler_setup(scheduler: AsyncIOScheduler):
 
 
 async def send_week_report_to_all_accounts():
-    avito_account_ids = get_avito_account_all_ids()
-    if avito_account_ids:
-        for account_id in avito_account_ids:
-            await send_week_report(int(account_id))
+    avito_account_datas = get_avito_account_all_ids()
+    if avito_account_datas:
+        for avito_account_data in avito_account_datas:
+            await send_week_report(avito_account_data)
 
 
-async def send_week_report(telegram_chat_id: int):
-    text = await get_week_report_text(telegram_chat_id, bot=bot)
+async def send_week_report(avito_account_data: dict):
+    text = await get_week_report_text(avito_account_data, bot=bot)
 
     while text:
         await bot.send_message(
-            chat_id=telegram_chat_id,
+            chat_id=avito_account_data.get("telegram_id"),
             text=text,
             parse_mode=ParseMode.HTML
         )
         text = text[4000:]
 
 
+async def send_week_report_individual(telegram_id: int):
+    avito_account_datas = get_avito_account_data_by_telegram_id(telegram_id)
+    if avito_account_datas:
+        for avito_account_data in avito_account_datas:
+            text = await get_week_report_text(avito_account_data, bot=bot)
+            while text:
+                await bot.send_message(
+                    chat_id=avito_account_data.get("telegram_id"),
+                    text=text,
+                    parse_mode=ParseMode.HTML
+                )
+                text = text[4000:]
+
+
 @router.message()
 async def echo(message: Message, bot: Bot):
     msg = message.text.lower()
     if msg == "/week@avitostata_bot":
-        await send_week_report(message.chat.id)
+        await send_week_report_individual(message.chat.id)
 
     if msg == "/week_all@avitostata_bot":
         await send_week_report_to_all_accounts()

@@ -6,18 +6,18 @@ from aiogram.exceptions import AiogramError
 from dotenv import load_dotenv
 
 from tg_bot.api.week_report import get_week_report_by_id, get_duration_report_by_telegram_id, \
-    get_avito_account_id_by_telegram_id
+    get_avito_account_data_by_telegram_id
 
 
-async def get_week_report_text(telegram_chat_id: int, bot: Bot):
-    avito_account_ids = get_avito_account_id_by_telegram_id(telegram_chat_id)
-    if avito_account_ids:
+async def get_week_report_text(avito_account_data: dict, bot: Bot):
+    # avito_account_ids = get_avito_account_id_by_telegram_id(avito_account_data['telegram_id'])
+    if avito_account_data:
         await bot.send_message(
-            chat_id=telegram_chat_id,
+            chat_id=avito_account_data['telegram_id'],
             text="📊 Ожидайте, формируется отчёт..."
         )
 
-        for avito_account_id in avito_account_ids:
+        for avito_account_id in avito_account_data:
             week_report_data = get_week_report_by_id(avito_account_id=avito_account_id)
             if week_report_data.get("error") == "Avito account not found":
                 await handle_avito_account_not_found(avito_account_id, bot)
@@ -33,7 +33,7 @@ async def get_week_report_text(telegram_chat_id: int, bot: Bot):
                 report_text += generate_duration_report_text(duration_report_data)
 
             await bot.send_message(
-                chat_id=telegram_chat_id,
+                chat_id=avito_account_data['telegram_id'],
                 text=report_text,
                 parse_mode="Markdown",
                 disable_web_page_preview=True

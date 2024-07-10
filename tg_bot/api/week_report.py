@@ -11,7 +11,7 @@ load_dotenv()
 BASE_URL = 'http://' + os.getenv('LOCALHOST_IP')
 
 
-def get_avito_account_id_by_telegram_id(telegram_id: int):
+def get_avito_account_data_by_telegram_id(telegram_id: int):
     url = f"{BASE_URL}/oauth/avito_account_by_telegram_id/{telegram_id}"
     response = requests.get(url=url)
     return response.json()
