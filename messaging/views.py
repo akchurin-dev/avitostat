@@ -58,8 +58,8 @@ async def get_duration_statistics(chats: list):
 
 class DurationWeekStatisticsView(View):
     async def get(self, request, *args, **kwargs):
-        telegram_id = kwargs.get("telegram_id", None)
-        avito_account = await sync_to_async(AvitoAccount.objects.filter(telegram_id=telegram_id).last)()
+        avito_id = kwargs.get("avito_id", None)
+        avito_account = await sync_to_async(AvitoAccount.objects.filter(id=avito_id).last)()
 
         if avito_account:
             chats = await get_chats(avito_account)

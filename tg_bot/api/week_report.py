@@ -20,14 +20,20 @@ def get_avito_account_all_ids():
         raise HTTPException(status_code=response.status_code, detail=response.text)
 
 
-def get_week_report_by_telegram_id(telegram_chat_id: int):
-    url = f"{BASE_URL}/conversion/week_report/{telegram_chat_id}"
+def get_avito_ids_by_telegram_id(telegram_chat_id: int):
+    url = f"{BASE_URL}/oauth/avito_ids_list/{telegram_chat_id}"
     response = requests.get(url=url)
     return response.json()
 
 
-def get_duration_report_by_telegram_id(telegram_chat_id: int):
-    url = f"{BASE_URL}/messaging/week_report/{telegram_chat_id}"
+def get_week_report_by_avito_id(avito_id: int):
+    url = f"{BASE_URL}/conversion/week_report/{avito_id}"
+    response = requests.get(url=url)
+    return response.json()
+
+
+def get_duration_report_by_avito_id(avito_id: int):
+    url = f"{BASE_URL}/messaging/week_report/{avito_id}"
     response = requests.get(url=url, timeout=360)
     if response.status_code == 200:
         return response.json()
