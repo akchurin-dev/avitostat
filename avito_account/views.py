@@ -24,10 +24,11 @@ class CallbackView(View):
 class AvitoAccountListView(View):
     def get(self, request, *args, **kwargs):
         avito_accounts = AvitoAccount.objects.all()
-        avito_accounts_ids = [avito_account.telegram_id for avito_account in avito_accounts if
+        avito_account_ids = [avito_account.telegram_id for avito_account in avito_accounts if
                               avito_account.telegram_id]
-        if avito_accounts_ids:
-            return JsonResponse(status=200, data=avito_accounts_ids, safe=False)
+        unique_avito_account_ids = list(set(avito_account_ids))
+        if unique_avito_account_ids:
+            return JsonResponse(status=200, data=unique_avito_account_ids, safe=False)
         else:
             return JsonResponse(status=404, data={"error": "Not found any Avito accounts"})
 
