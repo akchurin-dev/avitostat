@@ -152,3 +152,12 @@ KillMode=process
 [Install]
 WantedBy=multi-user.target
 
+
+# Копирование базы
+
+    sudo docker ps -a
+    sudo docker stop 471abf4d3e44
+    sudo docker rm 471abf4d3e44
+    sudo docker-compose up -d
+    python manage.py loaddata --exclude auth.permission --exclude contenttypes /home/rauf/PycharmProjects/avitostat/data.json
+    ./manage.py runserver

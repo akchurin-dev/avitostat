@@ -1,6 +1,7 @@
 import os
 from datetime import datetime
 
+import sentry_sdk
 from aiogram import Bot
 from aiogram.exceptions import AiogramError
 from dotenv import load_dotenv
@@ -15,32 +16,38 @@ async def get_week_report_text(telegram_chat_id: int, bot: Bot):
         for avito_id in avito_ids:
             load_dotenv()
             ENVIRONMENT = os.getenv('ENVIRONMENT')
-            if ENVIRONMENT == 'DEVELOPMENT':
+
+            try:
+                if ENVIRONMENT == 'DEVELOPMENT':
+                    await bot.send_message(
+                        chat_id=telegram_chat_id,
+                        text="📊 Ожидайте, формируется отчёт..."
+                    )
+
+                week_report_data = get_week_report_by_avito_id(avito_id=avito_id)
+                if week_report_data.get("error") == "Avito account not found":
+                    await handle_avito_account_not_found(telegram_chat_id, bot)
+                    return
+                elif week_report_data.get("error") == "Avito account does not have active items in period":
+                    await handle_avito_account_have_not_active_items_for_period(telegram_chat_id, bot)
+                    return
+
+                report_text = generate_week_report_text(week_report_data)
+
+                duration_report_data = get_duration_report_by_avito_id(avito_id=avito_id)
+                if duration_report_data:
+                    report_text += generate_duration_report_text(duration_report_data)
+
                 await bot.send_message(
                     chat_id=telegram_chat_id,
-                    text="📊 Ожидайте, формируется отчёт..."
+                    text=report_text,
+                    parse_mode="Markdown",
+                    disable_web_page_preview=True
                 )
-
-            week_report_data = get_week_report_by_avito_id(avito_id=avito_id)
-            if week_report_data.get("error") == "Avito account not found":
-                await handle_avito_account_not_found(telegram_chat_id, bot)
-                return
-            elif week_report_data.get("error") == "Avito account does not have active items in period":
-                await handle_avito_account_have_not_active_items_for_period(telegram_chat_id, bot)
-                return
-
-            report_text = generate_week_report_text(week_report_data)
-
-            duration_report_data = get_duration_report_by_avito_id(avito_id=avito_id)
-            if duration_report_data:
-                report_text += generate_duration_report_text(duration_report_data)
-
-            await bot.send_message(
-                chat_id=telegram_chat_id,
-                text=report_text,
-                parse_mode="Markdown",
-                disable_web_page_preview=True
-            )
+            except Exception as e:
+                sentry_sdk.capture_exception(e)
+                print(f"Account_id: {avito_id}\n"
+                      f"Exception occurred: {e}")
 
 
 async def handle_avito_account_not_found(telegram_chat_id: int, bot: Bot):
