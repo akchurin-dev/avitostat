@@ -1,4 +1,5 @@
 import httpx
+import sentry_sdk
 from asgiref.sync import sync_to_async
 from django.db import models
 from django.contrib.auth.models import User
@@ -50,16 +51,19 @@ class AvitoAccount(models.Model):
             'refresh_token': self.refresh_token
         }
 
-        async with httpx.AsyncClient() as client:
-            response = await client.post(url, data=data, timeout=300)
-            if response.status_code != 200:
-                raise HTTPException(status_code=response.status_code, detail=response.text)
-            else:
-                response_data = response.json()
-                self.access_token = response_data['access_token']
-                self.refresh_token = response_data['refresh_token']
-                await sync_to_async(self.save)()
-                return True
+        for attempt in range(3):  # Not more 3 tries
+            try:
+                async with httpx.AsyncClient() as client:
+                    response = await client.post(url, data=data, timeout=300)
+                    if response.status_code == 200:
+                        response_data = response.json()
+                        self.access_token = response_data['access_token']
+                        self.refresh_token = response_data['refresh_token']
+                        await sync_to_async(self.save)()
+                        return True
+            except HTTPException as e:
+                if attempt == 2:
+                    sentry_sdk.capture_exception(e)
 
     def __str__(self):
         return f"{self.name}, {self.telegram_id}"
