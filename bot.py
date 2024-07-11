@@ -61,7 +61,10 @@ async def send_week_report_to_all_accounts():
     avito_account_ids = get_avito_account_all_ids()
     if avito_account_ids:
         for account_id in avito_account_ids:
-            await send_week_report(int(account_id))
+            try:
+                await send_week_report(int(account_id))
+            except Exception as e:
+                sentry_sdk.capture_exception(e)
 
 
 async def send_week_report(telegram_chat_id: int):
