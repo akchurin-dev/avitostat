@@ -20,7 +20,7 @@ class ItemAdmin(admin.ModelAdmin):
 class AvitoAccountAdmin(admin.ModelAdmin):
     list_display = ('company', 'name', 'telegram_id', 'phone', 'profile_url')
     readonly_fields = ('id',)
-    exclude = ('access_token', 'refresh_token')
+    # exclude = ('access_token', 'refresh_token')
 
     def get_queryset(self, request):
         if request.user.is_superuser:
