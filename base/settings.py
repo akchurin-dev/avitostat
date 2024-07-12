@@ -170,32 +170,32 @@ if ENVIRONMENT == 'PRODUCTION':
         profiles_sample_rate=1.0,
     )
 
-LOGGING = {
-    'version': 1,
-    'disable_existing_loggers': False,
-    'handlers': {
-        'sentry': {
-            'level': 'ERROR',
-            'class': 'sentry_sdk.integrations.logging.EventHandler',
-        },
-        'console': {
-            'level': 'DEBUG',
-            'class': 'sentry_sdk.integrations.logging.EventHandler',
-        },
-    },
-    'loggers': {
-        'django': {
-            'handlers': ['console', 'sentry'],
-            'level': 'DEBUG',
-            'propagate': True,
-        },
-        'celery': {
-            'handlers': ['console', 'sentry'],
-            'level': 'DEBUG',
-            'propagate': True,
-        },
-    },
-}
+# LOGGING = {
+#     'version': 1,
+#     'disable_existing_loggers': False,
+#     'handlers': {
+#         'sentry': {
+#             'level': 'ERROR',
+#             'class': 'sentry_sdk.integrations.logging.EventHandler',
+#         },
+#         'console': {
+#             'level': 'DEBUG',
+#             'class': 'sentry_sdk.integrations.logging.EventHandler',
+#         },
+#     },
+#     'loggers': {
+#         'django': {
+#             'handlers': ['console', 'sentry'],
+#             'level': 'DEBUG',
+#             'propagate': True,
+#         },
+#         'celery': {
+#             'handlers': ['console', 'sentry'],
+#             'level': 'DEBUG',
+#             'propagate': True,
+#         },
+#     },
+# }
 
 #TODO django-redis-aiogram sender SETTINGS
 #TODO django-redis-aiogram sender SETTINGS
