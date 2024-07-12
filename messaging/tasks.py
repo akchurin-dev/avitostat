@@ -16,7 +16,7 @@ def bad_messaging_week_report_async_task():
     async_to_sync(bad_messaging_week_report_async)()
 
 
-async def bad_messaging_week_report_async():
+async def bad_messaging_week_report_async(test_from_prod: bool = False):
     all_avito_accounts = await sync_to_async(list)(
         AvitoAccount.objects.filter(company__is_active=True, telegram_id__isnull=False)
     )
@@ -24,9 +24,9 @@ async def bad_messaging_week_report_async():
         try:
             pdf_path = await get_bad_messaging_week_report_pdf(avito_account.id)
             if pdf_path:
+                chat_id = "-4221870448" if test_from_prod else avito_account.telegram_id
                 await sync_to_async(bot.send_raw, thread_sensitive=False)(
-                    chat_id=avito_account.telegram_id,
-                    # chat_id="-4221870448",    #TODO FOR TESTING FROM PROD
+                    chat_id=chat_id,
                     function="send_document",
                     document=types.FSInputFile(pdf_path))
         except Exception as e:

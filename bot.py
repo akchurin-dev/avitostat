@@ -13,7 +13,8 @@ from aiogram.types import Message
 from dotenv import load_dotenv
 
 from bot.week_report import get_week_report_text
-from tg_bot.api.week_report import get_avito_account_all_ids
+from tg_bot.api.week_report import get_avito_account_all_ids, get_bad_messaging_week_report_all_to_users, \
+    get_bad_messaging_week_report_all_to_admin
 from tg_bot.cleaner.cleaner import Cleaner
 from tg_bot.cleaner.cleaner_middleware import CleanerMiddleware
 
@@ -81,17 +82,27 @@ async def echo(message: Message, bot: Bot):
     msg = message.text.lower()
     if msg == "/week@avitostata_bot":
         await send_week_report(message.chat.id)
+    if message.from_user.id == 5640395403:
+        if msg == "/week_all@avitostata_bot":
+            await send_week_report_to_all_accounts()
 
-    if msg == "/week_all@avitostata_bot":
-        await send_week_report_to_all_accounts()
+        if msg == "/messaging_week_all_to_users@avitostata_bot":
+            await get_bad_messaging_week_report_all_to_users()
 
-    if msg == "/sentry_log@avitostata_bot":
-        await trigger_error()
+        if msg == "/messaging_week_all_to_admin@avitostata_bot":
+            await get_bad_messaging_week_report_all_to_admin()
+
+        if msg == "/sentry_log@avitostata_bot":
+            await trigger_error()
 
     elif msg in ["/help@avitostata_bot", "/help", "help"]:
         await message.reply("/help - список команд \n"
-                            "/week - еженедельный отчёт \n"
-                            "/week_all - еженедельный отчёт всем \n"
+                            "/week@avitostata_bot - отчёт статистика индивидуально \n"
+                            "/week_all@avitostata_bot - отчёт статистика всем \n"
+                            "/messaging_week_all_to_users@avitostata_bot - переписка отчёт всем \n"
+                            
+                            "ТЕСТИРОВАНИЕ \n"
+                            "/messaging_week_all_to_admin@avitostata_bot - переписка отчёт всем \n"
                             "/sentry_log - пробная ошибка на сентри \n")
     else:
         pass

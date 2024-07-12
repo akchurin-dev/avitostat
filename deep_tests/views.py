@@ -9,6 +9,7 @@ from weasyprint import HTML
 from asgiref.sync import sync_to_async
 
 from messaging.bad_mes_report.utils_open_ai import compare_messages_for_ai, analyze_overall_conversation
+from messaging.tasks import bad_messaging_week_report_async
 from messaging.views import get_chats_for_last_week
 
 
@@ -329,3 +330,8 @@ class BadMessagingWeekReportView(View):
         avito_account_name = data[0]['avito_account_name'] if data else "Неизвестно"
         return template.render(data=data[0].get('analyze', []), avito_account_name=avito_account_name,
                                start_date=start_date, end_date=end_date)
+
+
+class BadMessagingWeekReportAllView(View):
+    async def get(self, request, *args, **kwargs):
+        await bad_messaging_week_report_async(test_from_prod=True)
