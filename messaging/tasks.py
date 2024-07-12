@@ -16,7 +16,6 @@ def bad_messaging_week_report_async_task():
     async_to_sync(bad_messaging_week_report_async)()
 
 
-@shared_task
 async def bad_messaging_week_report_async(test_from_prod: bool = False):
     all_avito_accounts = await sync_to_async(list)(
         AvitoAccount.objects.filter(company__is_active=True, telegram_id__isnull=False)

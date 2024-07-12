@@ -6,5 +6,5 @@ from messaging.tasks import bad_messaging_week_report_async
 
 class BadMessagingWeekReportAllView(View):
     async def get(self, request, *args, **kwargs):
-        await bad_messaging_week_report_async.delay()
+        await bad_messaging_week_report_async()
         return JsonResponse(status=200, data={"success": "Всё прошло успешно"})
