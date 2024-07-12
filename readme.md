@@ -31,7 +31,10 @@ https://proghunter.ru/articles/django-base-2023-installing-postgresql-in-django
 
 source /var/www/avitostat/venv/bin/activate
 cd /var/www/avitostat
+
 gunicorn -c gunicorn_config.py base.wsgi:application
+убить гуникорн все процессы
+ps aux | grep gunicorn | grep -v grep | awk '{print $2}' | xargs kill
 
 htop - просмотрт системных ресурсов
 
