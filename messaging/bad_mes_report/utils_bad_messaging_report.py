@@ -20,15 +20,18 @@ async def get_bad_messaging_week_report_pdf(avito_accounts_id):
             "avito_account_name": avito_account.name,
             "avito_account_id": avito_account.id,
         })
-        if len(chats) > 2:   # We make AI analize if have more then 2 chats in period
+        if chats:   # We make AI analize if have more then 2 chats in period
             actual_chats = await get_chats_for_last_week(chats)
             actual_chats_with_messages = await get_chats_messages(avito_account, actual_chats)
-            compared_messages = compare_messages_for_ai(actual_chats_with_messages)
-            analyze = analyze_overall_conversation(compared_messages)
-            if analyze:
-                analyze_all_chats[-1]["analyze"] = analyze
+            if len(actual_chats_with_messages) > 2:
+                compared_messages = compare_messages_for_ai(actual_chats_with_messages)
+                analyze = analyze_overall_conversation(compared_messages)
+                if analyze:
+                    analyze_all_chats[-1]["analyze"] = analyze
+            else:
+                analyze_all_chats[-1]["compared_messages"] = "Активных чатов за отчетный период менее двух"
         else:
-            analyze_all_chats[-1]["compared_messages"] = "Активных чатов за отчетный период не найдено или их менее двух"
+            analyze_all_chats[-1]["compared_messages"] = "Активных чатов за отчетный период не найдено"
 
         html_content = await bad_messaging_report_generate_html(analyze_all_chats=analyze_all_chats)
         pdf_file = HTML(string=html_content).write_pdf()
