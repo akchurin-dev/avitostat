@@ -321,8 +321,8 @@ async def bad_messaging_report_generate_html(analyze_all_chats):
 </body>
 </html>
     ''')
-    start_date = datetime.now().strftime("%d.%m.%Y")
-    end_date = (datetime.now() + timedelta(days=6)).strftime("%d.%m.%Y")
+    start_date = (datetime.now() - timedelta(days=6)).strftime("%d.%m.%Y")
+    end_date = datetime.now().strftime("%d.%m.%Y")
     avito_account_name = analyze_all_chats[0]['avito_account_name'] if analyze_all_chats else "Неизвестно"
     return template.render(data=analyze_all_chats[0].get('analyze', []), avito_account_name=avito_account_name,
                            start_date=start_date, end_date=end_date)
