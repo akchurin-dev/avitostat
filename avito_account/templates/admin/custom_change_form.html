@@ -4,9 +4,12 @@
 {% block extrahead %}
 {{ block.super }}
 <script src="{% static 'js/custom_admin.js' %}"></script>
+<script>
+    const LOCALHOST_IP = "{{ localhost_ip }}";
+</script>
 {% endblock %}
 
 {% block object-tools %}
     {{ block.super }}
-    <button type="button" class="button" id="custom-button" data-object-id="{{ object_id }}">Show ID in Console</button>
+    <button type="button" class="button" id="custom-button" data-object-id="{{ object_id }}">Send Test Message</button>
 {% endblock %}
