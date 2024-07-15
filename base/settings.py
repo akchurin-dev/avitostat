@@ -125,8 +125,23 @@ USE_TZ = True
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/5.0/howto/static-files/
 
+# STATIC_URL = '/static/'
+# STATIC_ROOT = os.path.join(BASE_DIR, 'static')
+
+import os
+from pathlib import Path
+
+# Определите BASE_DIR
+BASE_DIR = Path(__file__).resolve().parent.parent
+
+# URL для статических файлов
 STATIC_URL = '/static/'
-STATIC_ROOT = os.path.join(BASE_DIR, 'static')
+
+# Путь к директории статических файлов
+STATICFILES_DIRS = [
+    BASE_DIR / "static",
+]
+
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/5.0/ref/settings/#default-auto-field
@@ -170,32 +185,32 @@ if ENVIRONMENT == 'PRODUCTION':
         profiles_sample_rate=1.0,
     )
 
-LOGGING = {
-    'version': 1,
-    'disable_existing_loggers': False,
-    'handlers': {
-        'sentry': {
-            'level': 'ERROR',
-            'class': 'sentry_sdk.integrations.logging.EventHandler',
-        },
-        'console': {
-            'level': 'DEBUG',
-            'class': 'sentry_sdk.integrations.logging.EventHandler',
-        },
-    },
-    'loggers': {
-        'django': {
-            'handlers': ['console', 'sentry'],
-            'level': 'DEBUG',
-            'propagate': True,
-        },
-        'celery': {
-            'handlers': ['console', 'sentry'],
-            'level': 'DEBUG',
-            'propagate': True,
-        },
-    },
-}
+# LOGGING = {
+#     'version': 1,
+#     'disable_existing_loggers': False,
+#     'handlers': {
+#         'sentry': {
+#             'level': 'ERROR',
+#             'class': 'sentry_sdk.integrations.logging.EventHandler',
+#         },
+#         'console': {
+#             'level': 'DEBUG',
+#             'class': 'sentry_sdk.integrations.logging.EventHandler',
+#         },
+#     },
+#     'loggers': {
+#         'django': {
+#             'handlers': ['console', 'sentry'],
+#             'level': 'DEBUG',
+#             'propagate': True,
+#         },
+#         'celery': {
+#             'handlers': ['console', 'sentry'],
+#             'level': 'DEBUG',
+#             'propagate': True,
+#         },
+#     },
+# }
 
 #TODO django-redis-aiogram sender SETTINGS
 #TODO django-redis-aiogram sender SETTINGS
