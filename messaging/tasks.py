@@ -17,10 +17,19 @@ def bad_messaging_week_report_async_task():
 
 
 @shared_task
-async def bad_messaging_week_report_async(test_from_prod: bool = False):
-    all_avito_accounts = await sync_to_async(list)(
-        AvitoAccount.objects.filter(company__is_active=True, telegram_id__isnull=False)
-    )
+async def bad_messaging_week_report_async(test_from_prod: bool = False, only_for_users=None):
+    #  Queryset filtering logic
+    if only_for_users is None:
+        all_avito_accounts = await sync_to_async(list)(AvitoAccount.objects.filter(
+                company__is_active=True,
+                telegram_id__isnull=False))
+    else:
+        all_avito_accounts = await sync_to_async(list)(AvitoAccount.objects.filter(
+                id__in=only_for_users,
+                company__is_active=True,
+                telegram_id__isnull=False))
+
+    # CORE logic
     for avito_account in all_avito_accounts:
         try:
             pdf_path = await get_bad_messaging_week_report_pdf(avito_account.id)
