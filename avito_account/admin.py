@@ -3,6 +3,7 @@ from django.contrib.admin import site
 from django.db.models import Q
 
 from avito_account.models import AvitoAccount
+from base import settings
 from conversion.models import Operation
 
 
@@ -43,6 +44,14 @@ class AvitoAccountAdmin(admin.ModelAdmin):
         if obj is not None and 'id' not in readonly_fields:
             readonly_fields = ['id'] + list(readonly_fields)
         return readonly_fields
+
+    change_form_template = 'admin/custom_change_form.html'
+
+    def change_view(self, request, object_id, form_url='', extra_context=None):
+        extra_context = extra_context or {}
+        extra_context['object_id'] = object_id
+        extra_context['localhost_ip'] = settings.LOCALHOST_IP
+        return super(AvitoAccountAdmin, self).change_view(request, object_id, form_url, extra_context)
 
 
 site.register(AvitoAccount, AvitoAccountAdmin)

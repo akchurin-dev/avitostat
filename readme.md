@@ -111,6 +111,7 @@ WantedBy=multi-user.target
     Устанавливать надо селери и селери-бит локально (так проще на данном этапе)
 
 # Запуск ВРУЧНУЮ
+
     celery -A base worker -l info
     celery -A base beat -l info
 

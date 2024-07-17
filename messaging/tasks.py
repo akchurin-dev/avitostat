@@ -4,6 +4,8 @@ import shutil
 import sentry_sdk
 from celery import shared_task
 from asgiref.sync import async_to_sync, sync_to_async
+from django.http import JsonResponse
+
 from avito_account.models import AvitoAccount
 from telegram_bot import bot
 from aiogram import types
@@ -17,19 +19,34 @@ def bad_messaging_week_report_async_task():
 
 
 @shared_task
-async def bad_messaging_week_report_async(test_from_prod: bool = False):
-    all_avito_accounts = await sync_to_async(list)(
-        AvitoAccount.objects.filter(company__is_active=True, telegram_id__isnull=False)
-    )
+async def bad_messaging_week_report_async(test_from_prod: bool = False, only_for_users=None):
+    #  Queryset filtering logic
+    if only_for_users is None:
+        all_avito_accounts = await sync_to_async(list)(AvitoAccount.objects.filter(
+                company__is_active=True,
+                telegram_id__isnull=False))
+    else:
+        all_avito_accounts = await sync_to_async(list)(AvitoAccount.objects.filter(
+                id__in=only_for_users,
+                company__is_active=True,
+                telegram_id__isnull=False))
+
+    # CORE logic
     for avito_account in all_avito_accounts:
         try:
             pdf_path = await get_bad_messaging_week_report_pdf(avito_account.id)
             if pdf_path:
                 chat_id = "-4221870448" if test_from_prod else avito_account.telegram_id
-                await sync_to_async(bot.send_raw, thread_sensitive=False)(
+
+                try:
+                    await sync_to_async(bot.send_raw, thread_sensitive=False)(
                     chat_id=chat_id,
                     function="send_document",
                     document=types.FSInputFile(pdf_path))
+
+                except Exception as send_error:
+                    sentry_sdk.capture_exception(send_error)
+                    print(send_error)
         except Exception as e:
             sentry_sdk.capture_exception(e)  # Отправка исключения в Sentry
             print(e)
