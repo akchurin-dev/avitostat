@@ -12,5 +12,5 @@ class BadMessagingWeekReportAllView(View):
 class BadMessagingWeekReportIndividualView(View):
     #TODO добавить извлечение айдишника из урла и добавление в фильтр
     async def get(self, request, *args, **kwargs):
-        await bad_messaging_week_report_async(only_for_users=[203199629, 203199629])
+        await bad_messaging_week_report_async(only_for_users=[145213826])
         return JsonResponse(status=200, data={"success": "Всё прошло успешно"})
