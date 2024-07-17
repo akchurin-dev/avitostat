@@ -4,7 +4,7 @@ document.addEventListener('DOMContentLoaded', function() {
         const objectId = button.getAttribute('data-object-id');
         console.log("Instance ID:", objectId);
 
-        fetch(`http://${LOCALHOST_IP}/messaging/bad_messaging_week_report_individual/${objectId}`, {
+        fetch(`http://45.12.238.229:8000/messaging/bad_messaging_week_report_individual/${objectId}`, {
             method: 'GET',
         })
         .then(response => response.json())
