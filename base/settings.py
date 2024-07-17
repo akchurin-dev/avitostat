@@ -122,9 +122,6 @@ TIME_ZONE = 'UTC'
 USE_I18N = True
 USE_TZ = True
 
-# Static files (CSS, JavaScript, Images)
-# https://docs.djangoproject.com/en/5.0/howto/static-files/
-
 import os
 from pathlib import Path
 
@@ -132,14 +129,15 @@ from pathlib import Path
 BASE_DIR = Path(__file__).resolve().parent.parent
 LOCALHOST_IP = os.getenv('LOCALHOST_IP', '127.0.0.1:8000')
 
-
-# URL для статических файлов
+# URL для доступа к статическим файлам
 STATIC_URL = '/static/'
-STATIC_ROOT = os.path.join(BASE_DIR, 'static')
 
-# Путь к директории статических файлов
+# Директория, в которую будут собираться статические файлы
+STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
+
+# Дополнительные директории для поиска статических файлов
 STATICFILES_DIRS = [
-    STATIC_ROOT,
+    os.path.join(BASE_DIR, 'static'),
 ]
 
 
