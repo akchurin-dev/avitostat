@@ -4,6 +4,7 @@
 *.pyc
 .env
 /venv
+/static
 messaging/bad_mes_report/PDFs/
 db.sqlite3
 celerybeat-schedule
