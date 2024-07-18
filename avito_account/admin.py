@@ -5,6 +5,7 @@ from django.db.models import Q
 from avito_account.models import AvitoAccount
 from base import settings
 from conversion.models import Operation
+from messaging.tasks import bad_messaging_week_report_async
 
 
 class OperationInline(admin.TabularInline):
@@ -45,13 +46,20 @@ class AvitoAccountAdmin(admin.ModelAdmin):
             readonly_fields = ['id'] + list(readonly_fields)
         return readonly_fields
 
-    change_form_template = 'admin/custom_change_form.html'
+        # Определение действия для экшн кнопки
 
-    def change_view(self, request, object_id, form_url='', extra_context=None):
-        extra_context = extra_context or {}
-        extra_context['object_id'] = object_id
-        extra_context['localhost_ip'] = settings.LOCALHOST_IP
-        return super(AvitoAccountAdmin, self).change_view(request, object_id, form_url, extra_context)
+    actions = ['run_weekly_report']
+
+    def run_weekly_report(self, request, queryset):
+        object_ids = list(queryset.values_list('id', flat=True))
+
+        # Вызываем задачу Celery, передавая айдишники объектов
+        bad_messaging_week_report_async.delay(only_for_users=object_ids)
+
+        # Опционально, добавьте сообщение об успешном выполнении действия
+        self.message_user(request, "Отчет успешно сгенерирован и отправлен.", level='success')
+
+    run_weekly_report.short_description = "Отправить недельный отчет"
 
 
 site.register(AvitoAccount, AvitoAccountAdmin)
