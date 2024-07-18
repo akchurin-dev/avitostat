@@ -37,8 +37,8 @@ gunicorn -c gunicorn_config.py base.wsgi:application
 ps aux | grep gunicorn | grep -v grep | awk '{print $2}' | xargs kill
 
 htop - просмотрт системных ресурсов
-
 ssh avitostata
+
 
 systemctl daemon-reload
 sudo systemctl start gunicorn
@@ -109,9 +109,7 @@ WantedBy=multi-user.target
 
 # CELERY
     Устанавливать надо селери и селери-бит локально (так проще на данном этапе)
-
 # Запуск ВРУЧНУЮ
-
     celery -A base worker -l info
     celery -A base beat -l info
 
