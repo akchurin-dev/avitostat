@@ -11,7 +11,7 @@ from messaging.bad_mes_report.utils_open_ai import compare_messages_for_ai, anal
 from messaging.views import get_chats_for_last_week
 
 
-async def get_bad_messaging_week_report_pdf(avito_accounts_id):
+async def get_bad_messaging_week_report_pdf(avito_accounts_id, test_from_prod: bool):
     analyze_all_chats = []
     avito_account = await sync_to_async(AvitoAccount.objects.filter(id=avito_accounts_id).last)()
     if avito_account:
@@ -26,7 +26,9 @@ async def get_bad_messaging_week_report_pdf(avito_accounts_id):
             if len(actual_chats_with_messages) < 2:
                 return False
             compared_messages = compare_messages_for_ai(actual_chats_with_messages)
-            analyze = analyze_overall_conversation(compared_messages)
+            analyze = analyze_overall_conversation(chats_with_compared_messages=compared_messages,
+                                                   avito_account=avito_account,
+                                                   test_from_prod=test_from_prod)
             if analyze:
                 analyze_all_chats[-1]["analyze"] = analyze
         else:

@@ -2,6 +2,8 @@ from dotenv import load_dotenv
 from openai import OpenAI
 import os
 
+from avito_account.models import AvitoAccount
+
 load_dotenv()
 MODEL = "gpt-4o"
 client = OpenAI(api_key=os.environ.get("OPENAI_SECRET_KEY"))
@@ -24,7 +26,9 @@ def compare_messages_for_ai(chats_with_raw_messages: list):
 
 
 # TODO I tried change to ASYNC methods for analyze , but not see different in speed
-def analyze_overall_conversation(chats_with_compared_messages: list):
+def analyze_overall_conversation(chats_with_compared_messages: list,
+                                 avito_account: AvitoAccount,
+                                 test_from_prod: bool = False):
     chats_analyze = []
     for chat in chats_with_compared_messages[-10:]:
         chat_text = "\n".join([message.get('role') + ": " + message.get('content') for message in chat.get('messages')])
