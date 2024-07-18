@@ -62,7 +62,7 @@ class AvitoAccountAdmin(admin.ModelAdmin):
             logger.error(f"Ошибка при отправке отчета: {e}", exc_info=True)
             self.message_user(request, f"Отчет не удалось отправить" f" Ошибка сервера - {e}", level='error')
 
-    run_weekly_report.short_description = "Отправить недельный отчет"
+    run_weekly_report.short_description = "Отправить недельный отчет анализа переписок"
 
 
 site.register(AvitoAccount, AvitoAccountAdmin)
