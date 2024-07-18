@@ -23,13 +23,13 @@ async def bad_messaging_week_report_async(test_from_prod: bool = False, only_for
     #  Queryset filtering logic
     if only_for_users is None:
         all_avito_accounts = await sync_to_async(list)(AvitoAccount.objects.filter(
-                company__is_active=True,
-                telegram_id__isnull=False))
+            company__is_active=True,
+            telegram_id__isnull=False))
     else:
         all_avito_accounts = await sync_to_async(list)(AvitoAccount.objects.filter(
-                id__in=only_for_users,
-                company__is_active=True,
-                telegram_id__isnull=False))
+            id__in=only_for_users,
+            company__is_active=True,
+            telegram_id__isnull=False))
 
     # CORE logic
     for avito_account in all_avito_accounts:
@@ -40,9 +40,9 @@ async def bad_messaging_week_report_async(test_from_prod: bool = False, only_for
 
                 try:
                     await sync_to_async(bot.send_raw, thread_sensitive=False)(
-                    chat_id=chat_id,
-                    function="send_document",
-                    document=types.FSInputFile(pdf_path))
+                        chat_id=chat_id,
+                        function="send_document",
+                        document=types.FSInputFile(pdf_path))
 
                 except Exception as send_error:
                     sentry_sdk.capture_exception(send_error)

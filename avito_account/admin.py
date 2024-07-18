@@ -1,3 +1,5 @@
+from asgiref.sync import async_to_sync
+from celery import shared_task
 from django.contrib import admin
 from django.contrib.admin import site
 from django.db.models import Q
@@ -6,8 +8,15 @@ from avito_account.models import AvitoAccount
 import logging
 from conversion.models import Operation
 from messaging.tasks import bad_messaging_week_report_async
+
 # Настройка логирования
 logger = logging.getLogger(__name__)
+
+
+@shared_task
+def run_weekly_report_task(object_ids):
+    async_to_sync(bad_messaging_week_report_async)(only_for_users=object_ids)
+
 
 class OperationInline(admin.TabularInline):
     model = Operation
@@ -23,6 +32,7 @@ class ItemAdmin(admin.ModelAdmin):
 class AvitoAccountAdmin(admin.ModelAdmin):
     list_display = ('company', 'name', 'telegram_id', 'phone', 'profile_url')
     readonly_fields = ('id',)
+
     # exclude = ('access_token', 'refresh_token')
 
     def get_queryset(self, request):
@@ -47,18 +57,13 @@ class AvitoAccountAdmin(admin.ModelAdmin):
             readonly_fields = ['id'] + list(readonly_fields)
         return readonly_fields
 
-        # Определение действия для экшн кнопки
-
     actions = ['run_weekly_report']
 
     def run_weekly_report(self, request, queryset):
         object_ids = list(queryset.values_list('id', flat=True))
 
         try:
-            # Вызываем задачу Celery, передавая айдишники объектов
-            bad_messaging_week_report_async.delay(only_for_users=object_ids)
-
-            # Опционально, добавьте сообщение об успешном выполнении действия
+            run_weekly_report_task.delay(object_ids)
             self.message_user(request, "Отчет успешно сгенерирован и отправлен.", level='success')
         except Exception as e:
             logger.error(f"Ошибка при отправке отчета: {e}", exc_info=True)
