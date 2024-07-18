@@ -13,9 +13,9 @@ from messaging.tasks import bad_messaging_week_report_async
 logger = logging.getLogger(__name__)
 
 
-@shared_task
-def run_weekly_report_task(object_ids):
-    async_to_sync(bad_messaging_week_report_async)(only_for_users=object_ids)
+# @shared_task
+# def run_weekly_report_task(object_ids):
+#     async_to_sync(bad_messaging_week_report_async)(only_for_users=object_ids)
 
 
 class OperationInline(admin.TabularInline):
@@ -63,7 +63,7 @@ class AvitoAccountAdmin(admin.ModelAdmin):
         object_ids = list(queryset.values_list('id', flat=True))
 
         try:
-            run_weekly_report_task.delay(object_ids)
+            async_to_sync(bad_messaging_week_report_async)(only_for_users=object_ids)
             self.message_user(request, "Отчет успешно сгенерирован и отправлен.", level='success')
         except Exception as e:
             logger.error(f"Ошибка при отправке отчета: {e}", exc_info=True)
