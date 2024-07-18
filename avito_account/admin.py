@@ -3,10 +3,11 @@ from django.contrib.admin import site
 from django.db.models import Q
 
 from avito_account.models import AvitoAccount
-from base import settings
+import logging
 from conversion.models import Operation
 from messaging.tasks import bad_messaging_week_report_async
-
+# Настройка логирования
+logger = logging.getLogger(__name__)
 
 class OperationInline(admin.TabularInline):
     model = Operation
@@ -53,11 +54,15 @@ class AvitoAccountAdmin(admin.ModelAdmin):
     def run_weekly_report(self, request, queryset):
         object_ids = list(queryset.values_list('id', flat=True))
 
-        # Вызываем задачу Celery, передавая айдишники объектов
-        bad_messaging_week_report_async.delay(only_for_users=object_ids)
+        try:
+            # Вызываем задачу Celery, передавая айдишники объектов
+            bad_messaging_week_report_async.delay(only_for_users=object_ids)
 
-        # Опционально, добавьте сообщение об успешном выполнении действия
-        self.message_user(request, "Отчет успешно сгенерирован и отправлен.", level='success')
+            # Опционально, добавьте сообщение об успешном выполнении действия
+            self.message_user(request, "Отчет успешно сгенерирован и отправлен.", level='success')
+        except Exception as e:
+            logger.error(f"Ошибка при отправке отчета: {e}", exc_info=True)
+            self.message_user(request, f"Отчет не удалось отправить" f"Ошибка сервера - {e}", level='error')
 
     run_weekly_report.short_description = "Отправить недельный отчет"
 
