@@ -62,7 +62,7 @@ class AvitoAccountAdmin(admin.ModelAdmin):
             self.message_user(request, "Отчет успешно сгенерирован и отправлен.", level='success')
         except Exception as e:
             logger.error(f"Ошибка при отправке отчета: {e}", exc_info=True)
-            self.message_user(request, f"Отчет не удалось отправить" f"Ошибка сервера - {e}", level='error')
+            self.message_user(request, f"Отчет не удалось отправить" f" Ошибка сервера - {e}", level='error')
 
     run_weekly_report.short_description = "Отправить недельный отчет"
 
