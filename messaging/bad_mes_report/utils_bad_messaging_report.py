@@ -6,9 +6,49 @@ from weasyprint import HTML
 from asgiref.sync import sync_to_async
 from pathlib import Path
 from datetime import datetime
-
 from messaging.bad_mes_report.utils_open_ai import compare_messages_for_ai, analyze_overall_conversation
-from messaging.views import get_chats_for_last_week
+from messaging.utils_duration import get_answer_durations_seconds
+from messaging.views import get_chats_for_last_week, convert_seconds
+
+
+async def get_header_with_statistics(actual_chats: list,
+                                     actual_chats_with_messages: list):
+    statistics = {}
+    #TODO First touch
+    total_first_touches = []
+    first_incoming_time = None
+    first_outgoing_time = None
+
+    for chat.get("messages") in actual_chats_with_messages:
+        for message in chat.get("messages"):
+            if message['direction'] == 'in' and first_incoming_time is None:
+                first_incoming_time = message['created']
+            elif message['direction'] == 'out' and first_incoming_time is not None:
+                first_outgoing_time = message['created']
+                break
+
+        # Calculate the elapsed time in seconds
+        elapsed_time = first_outgoing_time - first_incoming_time
+
+        # Convert the elapsed time to a human-readable format (days, hours, minutes, seconds)
+        elapsed_time_str = str(datetime.utcfromtimestamp(elapsed_time) - datetime.utcfromtimestamp(0))
+        total_first_touches.append(elapsed_time_str)
+
+    #TODO Messages in chat count average
+    counts = [len([chat for chat in chat.get("messages") if chat.get("direction") == "out"]) for chat in actual_chats]
+    messages_in_chat_average = sum(counts) / len(counts)
+    statistics["messages_in_chat_average"] = messages_in_chat_average
+
+    # TODO Duration average
+    durations = await get_answer_durations_seconds(actual_chats_with_messages)
+    total_sum = sum([chat[0] for chat in durations])
+    total_len = len(durations)
+    if total_sum > 0 and total_len > 0:
+        average_duration = total_sum / total_len
+        average_duration_formatted = await convert_seconds(average_duration)
+        statistics["average_duration"] = average_duration_formatted
+
+    return statistics
 
 
 async def get_bad_messaging_week_report_pdf(avito_accounts_id):
@@ -26,29 +66,30 @@ async def get_bad_messaging_week_report_pdf(avito_accounts_id):
             if len(actual_chats_with_messages) < 2:
                 return False
             compared_messages = compare_messages_for_ai(actual_chats_with_messages)
+            header_with_statistics = await get_header_with_statistics(
+                actual_chats=actual_chats,
+                actual_chats_with_messages=actual_chats_with_messages)
             analyze = analyze_overall_conversation(compared_messages)
             if analyze:
                 analyze_all_chats[-1]["analyze"] = analyze
         else:
             analyze_all_chats[-1]["compared_messages"] = "Чаты не найдены"
 
+        #TODO PDF CREATING
         html_content = await bad_messaging_report_generate_html(analyze_all_chats=analyze_all_chats)
         pdf_file = HTML(string=html_content).write_pdf()
-
         # Get the current date in dd.mm.yyyy format
         current_date = datetime.now().strftime("%d.%m.%Y")
-
         # Define the directory and file path with the date
         reports_dir = Path("messaging/bad_mes_report/PDFs")
         reports_dir.mkdir(parents=True, exist_ok=True)
         pdf_path = reports_dir / f"bad_mes_report_{current_date}_{avito_accounts_id}.pdf"
-
         # Save the PDF file
         with open(pdf_path, "wb") as f:
             f.write(pdf_file)
-
         # Return the absolute path to the saved PDF
         return str(pdf_path.resolve())
+
     else:
         raise HTTPException(status_code=404, detail="error: Аккаунт Avito не найден")
 
@@ -326,4 +367,3 @@ async def bad_messaging_report_generate_html(analyze_all_chats):
     avito_account_name = analyze_all_chats[0]['avito_account_name'] if analyze_all_chats else "Неизвестно"
     return template.render(data=analyze_all_chats[0].get('analyze', []), avito_account_name=avito_account_name,
                            start_date=start_date, end_date=end_date)
-

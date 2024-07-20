@@ -9,7 +9,6 @@ from aiogram import types
 from messaging.bad_mes_report.utils_bad_messaging_report import get_bad_messaging_week_report_pdf
 
 
-
 @shared_task
 async def bad_messaging_week_report_async(test_from_prod: bool = False, only_for_users=None):
     #  Queryset filtering logic
