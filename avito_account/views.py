@@ -3,7 +3,7 @@ from django.http import JsonResponse
 from django.utils.decorators import method_decorator
 from django.views import View
 from django.views.decorators.csrf import csrf_exempt
-from avito_account.dao import items_to_db
+# from avito_account.dao import items_to_db
 from avito_account.models import AvitoAccount
 from avito_account.oauth_utils import create_or_update_avito_account
 
