@@ -1,6 +1,9 @@
+from asgiref.sync import sync_to_async
 from dotenv import load_dotenv
 from openai import OpenAI
 import os
+
+from avito_account.models import AvitoAccount, AnalyticSchema, Criterion
 
 load_dotenv()
 MODEL = "gpt-4o"
@@ -24,7 +27,7 @@ def compare_messages_for_ai(chats_with_raw_messages: list):
 
 
 # TODO I tried change to ASYNC methods for analyze , but not see different in speed
-def analyze_overall_conversation(chats_with_compared_messages: list):
+def messaging_total_analyze(chats_with_compared_messages: list):
     chats_analyze = []
     for chat in chats_with_compared_messages[-10:]:
         chat_text = "\n".join([message.get('role') + ": " + message.get('content') for message in chat.get('messages')])
@@ -107,3 +110,51 @@ def analyze_overall_conversation(chats_with_compared_messages: list):
             "analysis": completion.choices[0].message.content
         })
     return chats_analyze
+
+
+async def analyze_by_criteria(chats_with_compared_messages: list, avito_account: AvitoAccount):
+    criteria = None
+    if avito_account.analytic_schema_id:
+        criteria = await sync_to_async(list)(Criterion.objects.filter(schema_id=avito_account.analytic_schema_id))
+        criteria_dict = {criterion.id: criterion.name for criterion in criteria}
+        analyze_all_chats = []
+
+        for chat in chats_with_compared_messages:
+            prompt = (
+                    "Given a conversation between a call center agent and a customer, "
+                    + (
+                        "and a criteria dictionary with criterion IDs as keys and criteria as values, "
+                        if criteria
+                        else ""
+                    )
+                    + "perform the following steps: "
+                      "\n - Split the conversation by role, creating separate entries for each piece of dialogue in a JSON array."
+                    + ("\n - Give an evaluation for each criterion." if criteria else "")
+                    + "\nProvide the output in the following JSON format:"
+                      '\n{"conversation": [{"agent": "text of agent here"}, {"customer": "text of customer here"}, ...], '
+                    + (
+                        '"criteria": {"criterion_id_1": {"meets_criterion": true/false, "evaluation": "your evaluation here"},'
+                        ' "criterion_id_2": {"meets_criterion": true/false, "evaluation": "your evaluation here"}, ...} '
+                        if criteria
+                        else ""
+                    )
+                    + "}"
+            )
+
+            user_content = (
+                    f"Conversation:\n{chat['messages']}"
+                    + ("\nCriteria:\n" + str(criteria_dict) if criteria else "")
+            )
+
+            response = client.chat.completions.create(
+                model="gpt-4o",
+                response_format={"type": "json_object"},
+                temperature=0,
+                messages=[
+                    {"role": "system", "content": prompt},
+                    {"role": "user", "content": user_content},
+                ],
+            )
+            analyze_all_chats.append(response.choices[0].message.content)
+
+    return analyze_all_chats

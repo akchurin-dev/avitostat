@@ -8,11 +8,11 @@ from pathlib import Path
 from datetime import datetime
 
 from messaging.bad_mes_report.header.header_utils import get_header_with_statistics
-from messaging.bad_mes_report.utils_open_ai import compare_messages_for_ai, analyze_overall_conversation
+from messaging.bad_mes_report.utils_open_ai import compare_messages_for_ai, messaging_total_analyze, analyze_by_criteria
 from messaging.views import get_chats_for_last_week
 
 
-async def get_bad_messaging_week_report_pdf(avito_accounts_id):
+async def get_messaging_week_report_pdf(avito_accounts_id):
     analyze_all_chats = []
     avito_account = await sync_to_async(AvitoAccount.objects.filter(id=avito_accounts_id).last)()
     if avito_account:
@@ -30,9 +30,12 @@ async def get_bad_messaging_week_report_pdf(avito_accounts_id):
             header_with_statistics = await get_header_with_statistics(
                 actual_chats=actual_chats,
                 actual_chats_with_messages=actual_chats_with_messages)
-            analyze = analyze_overall_conversation(compared_messages)
-            if analyze:
-                analyze_all_chats[-1]["analyze"] = analyze
+
+            # analyze_messaging = messaging_total_analyze(compared_messages)
+
+            by_criteria = await analyze_by_criteria(compared_messages, avito_account)
+            # if analyze_messaging:
+            #     analyze_all_chats[-1]["analyze"] = analyze_messaging
         else:
             analyze_all_chats[-1]["compared_messages"] = "Чаты не найдены"
 

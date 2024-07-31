@@ -6,7 +6,7 @@ from asgiref.sync import async_to_sync, sync_to_async
 from avito_account.models import AvitoAccount
 from telegram_bot import bot
 from aiogram import types
-from messaging.bad_mes_report.utils_bad_messaging_report import get_bad_messaging_week_report_pdf
+from messaging.bad_mes_report.utils_bad_messaging_report import get_messaging_week_report_pdf
 
 
 @shared_task
@@ -25,7 +25,7 @@ async def bad_messaging_week_report_async(test_from_prod: bool = False, only_for
     # CORE logic
     for avito_account in all_avito_accounts:
         try:
-            pdf_path = await get_bad_messaging_week_report_pdf(avito_account.id)
+            pdf_path = await get_messaging_week_report_pdf(avito_account.id)
             if pdf_path:
                 chat_id = "-4221870448" if test_from_prod else avito_account.telegram_id
 

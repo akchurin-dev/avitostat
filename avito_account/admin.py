@@ -1,31 +1,32 @@
 from asgiref.sync import async_to_sync
-from celery import shared_task
 from django.contrib import admin
 from django.contrib.admin import site
 from django.db.models import Q
-from avito_account.models import AvitoAccount
+from avito_account.models import AvitoAccount, AnalyticSchema, Criterion
 import logging
-from conversion.models import Operation
 from messaging.tasks import bad_messaging_week_report_async
 
 logger = logging.getLogger(__name__)
 
 
-class OperationInline(admin.TabularInline):
-    model = Operation
+class CriterionInline(admin.TabularInline):
+    model = Criterion
     extra = 0
 
 
-class ItemAdmin(admin.ModelAdmin):
-    list_display = ('title', 'price', 'status', 'address', 'category', 'url')
-    list_filter = ('avito_account', 'status')
-    inlines = [OperationInline, ]
+class AnalyticSchemaAdmin(admin.ModelAdmin):
+    inlines = [CriterionInline, ]
+
+    def get_queryset(self, request):
+        queryset = super().get_queryset(request)
+        if request.user.is_superuser:
+            return queryset
+        return queryset.filter(created_by=request.user)
 
 
 class AvitoAccountAdmin(admin.ModelAdmin):
     list_display = ('company', 'name', 'telegram_id', 'phone', 'profile_url')
     readonly_fields = ('id',)
-
     # exclude = ('access_token', 'refresh_token')
 
     def get_queryset(self, request):
@@ -66,6 +67,4 @@ class AvitoAccountAdmin(admin.ModelAdmin):
 
 
 site.register(AvitoAccount, AvitoAccountAdmin)
-# site.register(Item, ItemAdmin)
-# site.register(ServiceType)
-# site.register(Operation)
+site.register(AnalyticSchema, AnalyticSchemaAdmin)
