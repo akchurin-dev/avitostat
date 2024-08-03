@@ -121,17 +121,17 @@ async def analyze_by_criteria(chats_with_compared_messages: list, avito_account:
 
         for chat in chats_with_compared_messages:
             prompt = (
-                    "Given a conversation between a call center agent and a customer, "
+                    "Дан разговор между оператором колл-центра и клиентом, "
                     + (
-                        "and a criteria dictionary with criterion IDs as keys and criteria as values, "
+                        "и словарь критериев с идентификаторами критериев в качестве ключей и критериями в качестве значений, "
                         if criteria
                         else ""
                     )
-                    + "perform the following steps: "
-                      "\n - Split the conversation by role, creating separate entries for each piece of dialogue in a JSON array."
-                    + ("\n - Give an evaluation for each criterion." if criteria else "")
-                    + "\nProvide the output in the following JSON format:"
-                      '\n{"conversation": [{"agent": "text of agent here"}, {"customer": "text of customer here"}, ...], '
+                    + "выполните следующие шаги: "
+                      "\n - Разделите разговор по ролям, создавая отдельные записи для каждого фрагмента диалога в массиве JSON."
+                    + ("\n - Дайте оценку для каждого критерия." if criteria else "")
+                    + "\n Предоставьте результат в следующем формате JSON:"
+                      '\n {"conversation": [{"agent": "text of agent here"}, {"customer": "text of customer here"}, ...], '
                     + (
                         '"criteria": {"criterion_id_1": {"meets_criterion": true/false, "evaluation": "your evaluation here"},'
                         ' "criterion_id_2": {"meets_criterion": true/false, "evaluation": "your evaluation here"}, ...} '
