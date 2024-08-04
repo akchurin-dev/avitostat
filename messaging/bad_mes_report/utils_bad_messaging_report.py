@@ -11,6 +11,23 @@ from messaging.bad_mes_report.header.header_utils import get_header_with_statist
 from messaging.bad_mes_report.utils_open_ai import compare_messages_for_ai, messaging_total_analyze, analyze_by_criteria
 from messaging.views import get_chats_for_last_week
 
+import re
+
+
+def determine_manager(chats):
+    manager_pattern = re.compile(r'^([А-ЯЁ][а-яё]+(?:\s[А-ЯЁ][а-яё]+){1,2}):\s*\n')
+
+    for chat in chats:
+        chat['manager_name'] = None
+        for message in chat['messages']:
+            if message['role'] == 'assistant':
+                match = manager_pattern.match(message['content'])
+                if match:
+                    manager_name = match.group(1)
+                    chat['manager_name'] = manager_name
+                    break
+    return sorted(chats, key=lambda x: (x['manager_name'] is None, x['manager_name']))
+
 
 async def get_messaging_week_report_pdf(avito_accounts_id):
     analyze_all_chats = []
@@ -27,6 +44,7 @@ async def get_messaging_week_report_pdf(avito_accounts_id):
             if len(actual_chats_with_messages) < 2:
                 return False
             compared_messages = compare_messages_for_ai(actual_chats_with_messages)
+            compared_messages_with_manager = determine_manager(compared_messages)
             header_with_statistics = await get_header_with_statistics(
                 actual_chats=actual_chats,
                 actual_chats_with_messages=actual_chats_with_messages)
@@ -34,10 +52,10 @@ async def get_messaging_week_report_pdf(avito_accounts_id):
                 analyze_all_chats[-1]["header_with_statistics"] = header_with_statistics
 
             #TODO сделать ИИ анализ analyze_messaging и by_criteria из одной фунции
-            analyze_messaging = messaging_total_analyze(compared_messages)
+            analyze_messaging = messaging_total_analyze(compared_messages_with_manager)
             if analyze_messaging:
                 analyze_all_chats[-1]["analyze"] = analyze_messaging
-            by_criteria = await analyze_by_criteria(compared_messages, avito_account)
+            by_criteria = await analyze_by_criteria(compared_messages_with_manager, avito_account)
             if by_criteria:
                 analyze_all_chats[-1]["analyze_by_criteria"] = analyze_messaging
         else:

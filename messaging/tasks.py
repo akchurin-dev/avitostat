@@ -3,6 +3,8 @@ import shutil
 import sentry_sdk
 from celery import shared_task
 from asgiref.sync import async_to_sync, sync_to_async
+from django.http import JsonResponse
+
 from avito_account.models import AvitoAccount
 from telegram_bot import bot
 from aiogram import types
@@ -21,6 +23,8 @@ async def bad_messaging_week_report_async(test_from_prod: bool = False, only_for
             id__in=only_for_users,
             company__is_active=True,
             telegram_id__isnull=False))
+        if len(all_avito_accounts) == 0:
+            return None
 
     # CORE logic
     for avito_account in all_avito_accounts:

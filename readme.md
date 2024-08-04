@@ -163,5 +163,5 @@ WantedBy=multi-user.target
     sudo docker stop 471abf4d3e44
     sudo docker rm 471abf4d3e44
     sudo docker-compose up -d
-    python manage.py loaddata --exclude auth.permission --exclude contenttypes /home/rauf/PycharmProjects/avitostat/data.json
+    python manage.py loaddata --exclude auth.permission --exclude contenttypes /Users/raufakchurin/projects/avitostat/db_backup.json
     ./manage.py runserver
