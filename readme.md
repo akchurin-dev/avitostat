@@ -36,6 +36,12 @@ htop - просмотрт системных ресурсов
 ssh avitostata
 
 
+#TODO add redis restarting
+sudo systemctl stop  gunicorn
+sudo systemctl stop  aiogram
+sudo systemctl stop  celery-worker
+sudo systemctl stop  celery-beat
+
 systemctl daemon-reload
 sudo systemctl start gunicorn
 sudo systemctl start aiogram
