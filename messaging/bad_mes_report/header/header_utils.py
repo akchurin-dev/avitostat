@@ -25,7 +25,7 @@ def seconds_to_time_str(seconds):
     return str(td)
 
 
-async def get_header_with_statistics(actual_chats: list, actual_chats_with_messages: list):
+async def get_statistics_total(actual_chats: list, actual_chats_with_messages: list):
     statistics = {}
     #TODO First touch
     total_first_touches = []
@@ -84,3 +84,24 @@ async def get_header_with_statistics(actual_chats: list, actual_chats_with_messa
         statistics["answers_duration_average"] = average_duration_formatted
 
     return statistics
+
+
+async def get_statistics_splitted_by_managers(actual_chats: list,
+                                              actual_chats_with_messages: list):
+    from collections import defaultdict
+
+    # Используем defaultdict для автоматического создания списков для каждого менеджера
+    manager_chats = defaultdict(list)
+
+    # Группируем чаты по именам менеджеров
+    for chat in actual_chats_with_messages:
+        manager_name = chat.get("manager_name")
+        manager_chats[manager_name].append(chat.get("messages"))
+
+    # Преобразуем результат в нужный формат
+    total_statistics = [
+        {"manager_name": manager_name, "chat_messages": messages}
+        for manager_name, messages in manager_chats.items()
+    ]
+
+    return total_statistics

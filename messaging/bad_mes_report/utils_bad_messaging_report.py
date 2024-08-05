@@ -7,14 +7,13 @@ from asgiref.sync import sync_to_async
 from pathlib import Path
 from datetime import datetime
 
-from messaging.bad_mes_report.header.header_utils import get_header_with_statistics
+from messaging.bad_mes_report.header.header_utils import get_statistics_total, get_statistics_splitted_by_managers
 from messaging.bad_mes_report.utils_open_ai import compare_messages_for_ai, messaging_total_analyze, analyze_by_criteria
 from messaging.views import get_chats_for_last_week
-
 import re
 
 
-def determine_manager(chats):
+def adding_manager_info_for_chats(chats):
     manager_pattern = re.compile(r'^([А-ЯЁ][а-яё]+(?:\s[А-ЯЁ][а-яё]+){1,2}):\s*\n')
 
     for chat in chats:
@@ -44,12 +43,19 @@ async def get_messaging_week_report_pdf(avito_accounts_id):
             if len(actual_chats_with_messages) < 2:
                 return False
             compared_messages = compare_messages_for_ai(actual_chats_with_messages)
-            compared_messages_with_manager = determine_manager(compared_messages)
-            header_with_statistics = await get_header_with_statistics(
+            compared_messages_with_manager = adding_manager_info_for_chats(compared_messages)
+
+            statistics_total = await get_statistics_total(
                 actual_chats=actual_chats,
                 actual_chats_with_messages=actual_chats_with_messages)
-            if header_with_statistics:
-                analyze_all_chats[-1]["header_with_statistics"] = header_with_statistics
+            if statistics_total:
+                analyze_all_chats[-1]["header_with_statistics"] = statistics_total
+
+            statistics_splitted_by_managers = await get_statistics_splitted_by_managers(
+                actual_chats=actual_chats,
+                actual_chats_with_messages=compared_messages_with_manager
+            )
+
 
             #TODO сделать ИИ анализ analyze_messaging и by_criteria из одной фунции
             analyze_messaging = messaging_total_analyze(compared_messages_with_manager)
@@ -143,7 +149,7 @@ async def bad_messaging_report_generate_html(analyze_all_chats):
         * {
             box-sizing: border-box; }
         .page {
-            width: 800px;
+            width: 750px;
             margin: 0 auto;}
         .page__top {
             margin-top: 20px;
@@ -169,13 +175,15 @@ async def bad_messaging_report_generate_html(analyze_all_chats):
         .page__info {
             width: 100%;
             padding-bottom: 35px;}
+        .page__info-items {
+            width: calc(100% - 160px);}
         .page__info-item {
             height: 30px;
             border-radius: 15px;
             border: 1px solid #00D8BF;
-            padding: 0 15px;
+            padding: 0 10px;
             color: #20232B;
-            font-size: 14px;
+            font-size: 13px;
             font-weight: 700;
             letter-spacing: -.4px;
             white-space: nowrap;
@@ -187,11 +195,12 @@ async def bad_messaging_report_generate_html(analyze_all_chats):
             color: #00D8BF;
         }
         .page__info-logo {
-            margin-left: auto;
+            width: 158px;
             margin-top: -108px;
         }
         .page__info-logo svg {
             margin-left: 10px;
+            width: 148px;
         }
         .page .page__title {
             display: block;
@@ -208,6 +217,7 @@ async def bad_messaging_report_generate_html(analyze_all_chats):
         .page .reports {
             width: 100%;
             margin-bottom: 40px;
+            float: left;
         }
         .page .reports__top {
             width: 100%;
@@ -224,13 +234,22 @@ async def bad_messaging_report_generate_html(analyze_all_chats):
             margin-right: 5px;
         }
         .page .reports .report {
-            width: calc(50% - 7.5px);
-            min-width: calc(50% - 7.5px);
+            float: left;
+            width: 50%;
             margin-top: 15px;
+        }
+        .page .reports .report__inner {
+            width: 100%;
             min-height: 40px;
             border-radius: 14px;
             background-color: #F3F5F8;
             padding: 5px 5px 5px 10px;
+        }
+        .page .reports .report:nth-child(odd) {
+            padding-left: 5px;
+        }
+        .page .reports .report:nth-child(even) {
+            padding-right: 5px;
         }
         .page .reports .report__title {
             flex-grow: 1;
@@ -264,16 +283,26 @@ async def bad_messaging_report_generate_html(analyze_all_chats):
         .page .parameters {
             width: 100%;
             margin-bottom: 20px;
+            float: left;
         }
         .page .parameters__item {
-            width: calc(50% - 5px);
-            min-width: calc(50% - 5px);
+            width: 50%;
+            float: left;
             margin-bottom: 10px;
             font-size: 12px;
             font-weight: 400;
             line-height: 12px;
             letter-spacing: -.02em;
             color: #000;
+        }
+        .page .parameters__item-inner {
+            width: 100%;
+        }
+        .page .parameters__item:nth-child(odd) {
+            padding-right: 5px;
+        }
+        .page .parameters__item:nth-child(even) {
+            padding-left: 5px;
         }
         .page .parameters__item-status {
             width: 25px;
@@ -283,6 +312,7 @@ async def bad_messaging_report_generate_html(analyze_all_chats):
             margin: 0 5px;
         }
         .page .tips {
+            float: left;
             width: 100%;
             margin-bottom: 30px;
         }
@@ -321,6 +351,14 @@ async def bad_messaging_report_generate_html(analyze_all_chats):
             border-radius: 20px;
             border: 1px solid #E4EDF1;
             padding: 10px;
+        }
+        .chat__manager {
+            display: inline-block;
+            color: #009AD8;
+            font-size: 14px;
+            font-weight: 700;
+            line-height: 100%;
+            margin-bottom: 10px;
         }
         .chat__info {
             color: #20232B;
@@ -385,10 +423,13 @@ async def bad_messaging_report_generate_html(analyze_all_chats):
     </div>
 
     <div class="page__info d-flex items-end">
-        <div class="page__info-item d-flex items-center">Моя Стройка</div>
-        <div class="page__info-item d-flex items-center">Период с 19.05 по 27.05</div>
-        <div class="page__info-item d-flex items-center">Количество обращений:&nbsp;<span>20</span></div>
-        <div class="page__info-logo d-flex items-center">
+        <div class="page__info-items d-flex">
+            <div class="page__info-item d-flex items-center">Моя Стройка</div>
+            <div class="page__info-item d-flex items-center">Период с 19.05 по 27.05</div>
+            <div class="page__info-item d-flex items-center">Количество обращений:&nbsp;<span>20</span></div>
+        </div>
+
+        <div class="page__info-logo">
             <svg width="148" height="138" viewBox="0 0 148 138" fill="none" xmlns="http://www.w3.org/2000/svg">
                 <ellipse cx="73.6719" cy="48.9282" rx="48.4977" ry="48.9282" fill="url(#paint0_linear_17_32)"/>
                 <mask id="mask0_17_32" style="mask-type:alpha" maskUnits="userSpaceOnUse" x="24" y="0" width="98" height="98">
@@ -485,27 +526,33 @@ async def bad_messaging_report_generate_html(analyze_all_chats):
 
     <div class="page__title">Основные параметры оценки</div>
 
-    <div class="parameters d-flex flex-wrap justify-between">
-        <div class="parameters__item d-flex items-center">
-            Среднее время ответа 1-ого контакта:
-            <div class="parameters__item-status" style="background-color: #73C356"></div>
-            3 минуты;
+    <div class="parameters">
+        <div class="parameters__item">
+            <div class="parameters__item-inner d-flex items-center">
+                Среднее время ответа 1-ого контакта:
+                <div class="parameters__item-status" style="background-color: #73C356"></div>
+                3 минуты;
+            </div>
+        </div>
+
+        <div class="parameters__item">
+            <div class="parameters__item-inner d-flex items-center">
+                Среднее количество касаний с клиентом:
+                <div class="parameters__item-status" style="background-color: #E4A03B"></div>
+                5 касаний **;
+            </div>
         </div>
 
         <div class="parameters__item d-flex items-center">
-            Среднее количество касаний с клиентом:
-            <div class="parameters__item-status" style="background-color: #E4A03B"></div>
-            5 касаний **;
-        </div>
-
-        <div class="parameters__item d-flex items-center">
-            Среднее время ответа 2-ого обращения:
-            <div class="parameters__item-status" style="background-color: #C04D3D"></div>
-            10 минут;
+            <div class="parameters__item-inner d-flex items-center">
+                Среднее время ответа 2-ого обращения:
+                <div class="parameters__item-status" style="background-color: #C04D3D"></div>
+                10 минут;
+            </div>
         </div>
     </div>
 
-    <div class="tips d-flex flex-wrap">
+    <div class="tips d-flex">
         <div class="tips__item d-flex items-center">
             <div class="tips__item-column d-flex items-center">
                 * статистика за рабочее время менеджера с 08:00 до 22:00. Хорошее время обработки не более 2 мин
@@ -523,27 +570,34 @@ async def bad_messaging_report_generate_html(analyze_all_chats):
     <div class="manager">
         <div class="manager__title">Менеджер Алия</div>
 
-        <div class="parameters d-flex flex-wrap justify-between">
-            <div class="parameters__item d-flex items-center">
-                Среднее время ответа 1-ого контакта:
-                <div class="parameters__item-status" style="background-color: #73C356"></div>
-                3 минуты;
+        <div class="parameters">
+            <div class="parameters__item">
+                <div class="parameters__item-inner d-flex items-center">
+                    Среднее время ответа 1-ого контакта:
+                    <div class="parameters__item-status" style="background-color: #73C356"></div>
+                    3 минуты;
+                </div>
+
             </div>
 
-            <div class="parameters__item d-flex items-center">
-                Среднее количество касаний с клиентом:
-                <div class="parameters__item-status" style="background-color: #E4A03B"></div>
-                5 касаний **;
+            <div class="parameters__item">
+                <div class="parameters__item-inner d-flex items-center">
+                    Среднее количество касаний с клиентом:
+                    <div class="parameters__item-status" style="background-color: #E4A03B"></div>
+                    5 касаний **;
+                </div>
             </div>
 
-            <div class="parameters__item d-flex items-center">
-                Среднее время ответа 2-ого обращения:
-                <div class="parameters__item-status" style="background-color: #C04D3D"></div>
-                10 минут;
+            <div class="parameters__item">
+                <div class="parameters__item-inner d-flex items-center">
+                    Среднее время ответа 2-ого обращения:
+                    <div class="parameters__item-status" style="background-color: #C04D3D"></div>
+                    10 минут;
+                </div>
             </div>
         </div>
 
-        <div class="tips d-flex flex-wrap">
+        <div class="tips d-flex">
             <div class="tips__item d-flex items-center">
                 <div class="tips__item-column d-flex items-center">
                     * статистика за рабочее время менеджера с 08:00 до 22:00
@@ -559,82 +613,98 @@ async def bad_messaging_report_generate_html(analyze_all_chats):
 
     <div class="page__title">Аналитика по менеджерам</div>
 
-    <div class="reports d-flex flex-wrap justify-between">
+    <div class="reports">
         <div class="reports__top d-flex items-center justify-between">
             <div class="reports__top-info d-flex items-center">
                 <span class="reports__top-manager">Менеджер Алия</span>
             </div>
         </div>
 
-        <div class="report d-flex items-center">
-            <span class="report__title">Приветствие менеджера</span>
-            <div class="report__info d-flex items-center justify-between">
-                <b>5</b>/ 10
-                <div class="report__info-status d-flex items-center" style="background-color: #E4A03B">средне</div>
+        <div class="report">
+            <div class="report__inner d-flex items-center">
+                <span class="report__title">Приветствие менеджера</span>
+                <div class="report__info d-flex items-center justify-between">
+                    <b>5</b>/ 10
+                    <div class="report__info-status d-flex items-center" style="background-color: #E4A03B">средне</div>
+                </div>
             </div>
         </div>
 
-        <div class="report d-flex items-center">
-            <span class="report__title">Закрыл сделку</span>
-            <div class="report__info d-flex items-center justify-between">
-                <b>10</b>/ 10
-                <div class="report__info-status d-flex items-center" style="background-color: #73C356">отлично</div>
+        <div class="report">
+            <div class="report__inner d-flex items-center">
+                <span class="report__title">Закрыл сделку</span>
+                <div class="report__info d-flex items-center justify-between">
+                    <b>10</b>/ 10
+                    <div class="report__info-status d-flex items-center" style="background-color: #73C356">отлично</div>
+                </div>
             </div>
         </div>
 
-        <div class="report d-flex items-center">
-            <span class="report__title">Запросил номер WhatsApp</span>
-            <div class="report__info d-flex items-center justify-between">
-                <b>5</b>/ 10
-                <div class="report__info-status d-flex items-center" style="background-color: #E4A03B">средне</div>
+        <div class="report">
+            <div class="report__inner d-flex items-center">
+                <span class="report__title">Запросил номер WhatsApp</span>
+                <div class="report__info d-flex items-center justify-between">
+                    <b>5</b>/ 10
+                    <div class="report__info-status d-flex items-center" style="background-color: #E4A03B">средне</div>
+                </div>
             </div>
         </div>
 
-        <div class="report d-flex items-center">
-            <span class="report__title">Вежливость</span>
-            <div class="report__info d-flex items-center justify-between">
-                <b>3</b>/ 10
-                <div class="report__info-status d-flex items-center" style="background-color: #C14D3D">плохо</div>
+        <div class="report">
+            <div class="report__inner d-flex items-center">
+                <span class="report__title">Вежливость</span>
+                <div class="report__info d-flex items-center justify-between">
+                    <b>3</b>/ 10
+                    <div class="report__info-status d-flex items-center" style="background-color: #C14D3D">плохо</div>
+                </div>
             </div>
         </div>
     </div>
 
-    <div class="reports d-flex flex-wrap justify-between">
+    <div class="reports">
         <div class="reports__top d-flex items-center justify-between">
             <div class="reports__top-info d-flex items-center">
                 <span class="reports__top-manager">Менеджер Айдар</span>
             </div>
         </div>
 
-        <div class="report d-flex items-center">
-            <span class="report__title">Приветствие менеджера</span>
-            <div class="report__info d-flex items-center justify-between">
-                <b>5</b>/ 10
-                <div class="report__info-status d-flex items-center" style="background-color: #E4A03B">средне</div>
+        <div class="report">
+            <div class="report__inner d-flex items-center">
+                <span class="report__title">Приветствие менеджера</span>
+                <div class="report__info d-flex items-center justify-between">
+                    <b>5</b>/ 10
+                    <div class="report__info-status d-flex items-center" style="background-color: #E4A03B">средне</div>
+                </div>
             </div>
         </div>
 
-        <div class="report d-flex items-center">
-            <span class="report__title">Закрыл сделку</span>
-            <div class="report__info d-flex items-center justify-between">
-                <b>10</b>/ 10
-                <div class="report__info-status d-flex items-center" style="background-color: #73C356">отлично</div>
+        <div class="report">
+            <div class="report__inner d-flex items-center">
+                <span class="report__title">Закрыл сделку</span>
+                <div class="report__info d-flex items-center justify-between">
+                    <b>10</b>/ 10
+                    <div class="report__info-status d-flex items-center" style="background-color: #73C356">отлично</div>
+                </div>
             </div>
         </div>
 
-        <div class="report d-flex items-center">
-            <span class="report__title">Запросил номер WhatsApp</span>
-            <div class="report__info d-flex items-center justify-between">
-                <b>5</b>/ 10
-                <div class="report__info-status d-flex items-center" style="background-color: #E4A03B">средне</div>
+        <div class="report">
+            <div class="report__inner d-flex items-center">
+                <span class="report__title">Запросил номер WhatsApp</span>
+                <div class="report__info d-flex items-center justify-between">
+                    <b>5</b>/ 10
+                    <div class="report__info-status d-flex items-center" style="background-color: #E4A03B">средне</div>
+                </div>
             </div>
         </div>
 
-        <div class="report d-flex items-center">
-            <span class="report__title">Вежливость</span>
-            <div class="report__info d-flex items-center justify-between">
-                <b>3</b>/ 10
-                <div class="report__info-status d-flex items-center" style="background-color: #C14D3D">плохо</div>
+        <div class="report">
+            <div class="report__inner d-flex items-center">
+                <span class="report__title">Вежливость</span>
+                <div class="report__info d-flex items-center justify-between">
+                    <b>3</b>/ 10
+                    <div class="report__info-status d-flex items-center" style="background-color: #C14D3D">плохо</div>
+                </div>
             </div>
         </div>
     </div>
@@ -644,6 +714,7 @@ async def bad_messaging_report_generate_html(analyze_all_chats):
     <div class="chats">
         {% for chat in data %}
         <div class="chat">
+            <span class="chat__manager">Менеджер Алия</span>
             <div class="chat__info">
                 Ссылка на чат (неоходима авторизация на Авито): <a href="https://www.avito.ru/profile/messenger/channel/{{ chat.chat_id }}" class="chat__info-link" target="_blank">Перейти в чат</a>
             </div>
