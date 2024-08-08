@@ -18,14 +18,16 @@ def adding_manager_info_for_chats(chats):
 
     for chat in chats:
         chat['manager_name'] = None
-        for message in chat['messages']:
-            if message['role'] == 'assistant':
-                match = manager_pattern.match(message['content'])
+        for message in chat.get('messages'):
+            if message.get("direction") == 'out':
+                text_content = message.get("content", {}).get("text", "")
+                match = manager_pattern.match(text_content)
                 if match:
                     manager_name = match.group(1)
                     chat['manager_name'] = manager_name
                     break
-    return sorted(chats, key=lambda x: (x['manager_name'] is None, x['manager_name']))
+    sorted_chats = sorted(chats, key=lambda x: (x['manager_name'] is None, x['manager_name']))
+    return sorted_chats
 
 
 async def get_messaging_week_report_pdf(avito_accounts_id):
@@ -42,19 +44,21 @@ async def get_messaging_week_report_pdf(avito_accounts_id):
             actual_chats_with_messages = await get_chats_messages(avito_account, actual_chats)
             if len(actual_chats_with_messages) < 2:
                 return False
-            compared_messages = compare_messages_for_ai(actual_chats_with_messages)
-            compared_messages_with_manager = adding_manager_info_for_chats(compared_messages)
-
+            #  Total statistics
             statistics_total = await get_statistics_total(
                 actual_chats=actual_chats,
                 actual_chats_with_messages=actual_chats_with_messages)
             if statistics_total:
                 analyze_all_chats[-1]["header_with_statistics"] = statistics_total
 
+            #  Separated by managers statistics
+            compared_messages_with_manager = adding_manager_info_for_chats(actual_chats_with_messages)
             statistics_splitted_by_managers = await get_statistics_splitted_by_managers(
                 actual_chats=actual_chats,
                 actual_chats_with_messages=compared_messages_with_manager
             )
+            compared_messages = compare_messages_for_ai(actual_chats_with_messages)
+
 
 
             #TODO сделать ИИ анализ analyze_messaging и by_criteria из одной фунции
@@ -176,7 +180,7 @@ async def bad_messaging_report_generate_html(analyze_all_chats):
             width: 100%;
             padding-bottom: 35px;}
         .page__info-items {
-            width: calc(100% - 160px);}
+            width: 600px;}
         .page__info-item {
             height: 30px;
             border-radius: 15px;
@@ -192,7 +196,12 @@ async def bad_messaging_report_generate_html(analyze_all_chats):
             background-color: #00D8BF;
             color:#FFF;}
         .page__info-item span {
+            white-space: nowrap;
+            float: left;
+        }
+        .page__info-item span:last-child {
             color: #00D8BF;
+            margin-left: 3px;
         }
         .page__info-logo {
             width: 158px;
@@ -426,11 +435,12 @@ async def bad_messaging_report_generate_html(analyze_all_chats):
         <div class="page__info-items d-flex">
             <div class="page__info-item d-flex items-center">Моя Стройка</div>
             <div class="page__info-item d-flex items-center">Период с 19.05 по 27.05</div>
-            <div class="page__info-item d-flex items-center">Количество обращений:&nbsp;<span>20</span></div>
+            <div class="page__info-item" style="line-height: 30px"><span>Количество обращений:&nbsp;</span><span>20</span></div>
         </div>
 
         <div class="page__info-logo">
-            <svg width="148" height="138" viewBox="0 0 148 138" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <img src="images/avitostata.svg" alt="logo">
+            <!--<svg width="148" height="138" viewBox="0 0 148 138" fill="none" xmlns="http://www.w3.org/2000/svg">
                 <ellipse cx="73.6719" cy="48.9282" rx="48.4977" ry="48.9282" fill="url(#paint0_linear_17_32)"/>
                 <mask id="mask0_17_32" style="mask-type:alpha" maskUnits="userSpaceOnUse" x="24" y="0" width="98" height="98">
                     <ellipse cx="73.385" cy="48.9282" rx="48.4977" ry="48.9282" fill="url(#paint1_linear_17_32)"/>
@@ -520,7 +530,7 @@ async def bad_messaging_report_generate_html(analyze_all_chats):
                         <stop offset="1" stop-color="#64C81A"/>
                     </linearGradient>
                 </defs>
-            </svg>
+            </svg>-->
         </div>
     </div>
 

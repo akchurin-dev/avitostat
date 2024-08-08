@@ -85,7 +85,7 @@
             width: 100%;
             padding-bottom: 35px;}
         .page__info-items {
-            width: calc(100% - 160px);}
+            width: 600px;}
         .page__info-item {
             height: 30px;
             border-radius: 15px;
@@ -101,7 +101,12 @@
             background-color: #00D8BF;
             color:#FFF;}
         .page__info-item span {
+            white-space: nowrap;
+            float: left;
+        }
+        .page__info-item span:last-child {
             color: #00D8BF;
+            margin-left: 3px;
         }
         .page__info-logo {
             width: 158px;
@@ -335,11 +340,12 @@
         <div class="page__info-items d-flex">
             <div class="page__info-item d-flex items-center">Моя Стройка</div>
             <div class="page__info-item d-flex items-center">Период с 19.05 по 27.05</div>
-            <div class="page__info-item d-flex items-center">Количество обращений:&nbsp;<span>20</span></div>
+            <div class="page__info-item" style="line-height: 30px"><span>Количество обращений:&nbsp;</span><span>20</span></div>
         </div>
 
         <div class="page__info-logo">
-            <svg width="148" height="138" viewBox="0 0 148 138" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <img src="images/avitostata.svg" alt="logo">
+            <!--<svg width="148" height="138" viewBox="0 0 148 138" fill="none" xmlns="http://www.w3.org/2000/svg">
                 <ellipse cx="73.6719" cy="48.9282" rx="48.4977" ry="48.9282" fill="url(#paint0_linear_17_32)"/>
                 <mask id="mask0_17_32" style="mask-type:alpha" maskUnits="userSpaceOnUse" x="24" y="0" width="98" height="98">
                     <ellipse cx="73.385" cy="48.9282" rx="48.4977" ry="48.9282" fill="url(#paint1_linear_17_32)"/>
@@ -429,7 +435,7 @@
                         <stop offset="1" stop-color="#64C81A"/>
                     </linearGradient>
                 </defs>
-            </svg>
+            </svg>-->
         </div>
     </div>
 

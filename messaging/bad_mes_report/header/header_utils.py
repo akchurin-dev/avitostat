@@ -31,11 +31,10 @@ async def get_statistics_total(actual_chats: list, actual_chats_with_messages: l
     total_first_touches = []
 
     for chat in actual_chats_with_messages:
-        messages = chat.get("messages")
         first_incoming_time = None
         first_outgoing_time = None
 
-        for message in messages:
+        for message in chat.get("messages", None):
             if message['direction'] == 'in' and first_incoming_time is None:
                 first_incoming_time = message['created']
             elif message['direction'] == 'out' and first_incoming_time is not None:
@@ -86,22 +85,34 @@ async def get_statistics_total(actual_chats: list, actual_chats_with_messages: l
     return statistics
 
 
-async def get_statistics_splitted_by_managers(actual_chats: list,
-                                              actual_chats_with_messages: list):
-    from collections import defaultdict
+async def grouping_chats_by_managers(sorted_chats: list) -> list:
+    grouped_chats = []
+    if len(sorted_chats) > 0:
+        grouped_chats.append({
+            "manager_name": sorted_chats[0].get("manager_name"),
+            "chats": [sorted_chats[0], ]
+        })
+        for chat in sorted_chats[1:]:
+            manager_name = chat.get("manager_name")
+            if grouped_chats[-1]["manager_name"] == manager_name:
+                grouped_chats[-1]["chats"].append(chat)
+            else:
+                grouped_chats.append({
+                    "manager_name": manager_name,
+                    "chats": [chat, ]
+                })
+    return grouped_chats
 
-    # Используем defaultdict для автоматического создания списков для каждого менеджера
-    manager_chats = defaultdict(list)
 
-    # Группируем чаты по именам менеджеров
-    for chat in actual_chats_with_messages:
-        manager_name = chat.get("manager_name")
-        manager_chats[manager_name].append(chat.get("messages"))
+async def get_statistics_splitted_by_managers(actual_chats: list, actual_chats_with_messages: list):
+    grouped_chats = await grouping_chats_by_managers(actual_chats_with_messages)
 
-    # Преобразуем результат в нужный формат
-    total_statistics = [
-        {"manager_name": manager_name, "chat_messages": messages}
-        for manager_name, messages in manager_chats.items()
-    ]
+    if len(grouped_chats) > 0:
+        for manager_chats in grouped_chats:
+            manager_chats["statistics"] = []
+            statistics_for_manager = await get_statistics_total(actual_chats=actual_chats,
+                                                                actual_chats_with_messages=manager_chats.get("chats"))
+            if statistics_for_manager:
+                manager_chats.get("statistics").append(statistics_for_manager)
 
-    return total_statistics
+    return grouped_chats
