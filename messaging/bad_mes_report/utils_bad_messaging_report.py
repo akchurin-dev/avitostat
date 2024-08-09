@@ -46,7 +46,6 @@ async def get_messaging_week_report_pdf(avito_accounts_id):
                 return False
             #  Total statistics
             statistics_total = await get_statistics_total(
-                actual_chats=actual_chats,
                 actual_chats_with_messages=actual_chats_with_messages)
             if statistics_total:
                 analyze_all_chats[-1]["header_with_statistics"] = statistics_total
@@ -54,10 +53,9 @@ async def get_messaging_week_report_pdf(avito_accounts_id):
             #  Separated by managers statistics
             compared_messages_with_manager = adding_manager_info_for_chats(actual_chats_with_messages)
             statistics_splitted_by_managers = await get_statistics_splitted_by_managers(
-                actual_chats=actual_chats,
                 actual_chats_with_messages=compared_messages_with_manager
             )
-            compared_messages = compare_messages_for_ai(actual_chats_with_messages)
+            compared_messages = compare_messages_for_ai(actual_chats_with_messages)  # We need AI analyze NOT separated by manager
 
 
 

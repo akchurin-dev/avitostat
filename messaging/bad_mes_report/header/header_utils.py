@@ -25,7 +25,7 @@ def seconds_to_time_str(seconds):
     return str(td)
 
 
-async def get_statistics_total(actual_chats: list, actual_chats_with_messages: list):
+async def get_statistics_total(actual_chats_with_messages: list):
     statistics = {}
     #TODO First touch
     total_first_touches = []
@@ -69,7 +69,7 @@ async def get_statistics_total(actual_chats: list, actual_chats_with_messages: l
         statistics['first_touches_average'] = average_first_touches_str
 
     #TODO Messages in chat count average
-    counts = [len([chat for chat in chat.get("messages") if chat.get("direction") == "out"]) for chat in actual_chats]
+    counts = [len([chat for chat in chat.get("messages") if chat.get("direction") == "out"]) for chat in actual_chats_with_messages]
     messages_in_chat_average = sum(counts) / len(counts)
     statistics["messages_count_in_chat_average"] = messages_in_chat_average
 
@@ -104,14 +104,13 @@ async def grouping_chats_by_managers(sorted_chats: list) -> list:
     return grouped_chats
 
 
-async def get_statistics_splitted_by_managers(actual_chats: list, actual_chats_with_messages: list):
+async def get_statistics_splitted_by_managers(actual_chats_with_messages: list):
     grouped_chats = await grouping_chats_by_managers(actual_chats_with_messages)
 
     if len(grouped_chats) > 0:
         for manager_chats in grouped_chats:
             manager_chats["statistics"] = []
-            statistics_for_manager = await get_statistics_total(actual_chats=actual_chats,
-                                                                actual_chats_with_messages=manager_chats.get("chats"))
+            statistics_for_manager = await get_statistics_total(actual_chats_with_messages=manager_chats.get("chats"))
             if statistics_for_manager:
                 manager_chats.get("statistics").append(statistics_for_manager)
 
