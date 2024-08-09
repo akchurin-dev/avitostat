@@ -8,7 +8,7 @@ from pathlib import Path
 from datetime import datetime
 
 from messaging.bad_mes_report.header.header_utils import get_statistics_total, get_statistics_splitted_by_managers
-from messaging.bad_mes_report.utils_open_ai import compare_messages_for_ai, messaging_total_analyze, analyze_by_criteria
+from messaging.bad_mes_report.utils_open_ai import messaging_total_analyze, analyze_by_criteria
 from messaging.views import get_chats_for_last_week
 import re
 
@@ -45,8 +45,7 @@ async def get_messaging_week_report_pdf(avito_accounts_id):
             if len(actual_chats_with_messages) < 2:
                 return False
             #  Total statistics
-            statistics_total = await get_statistics_total(
-                actual_chats_with_messages=actual_chats_with_messages)
+            statistics_total = await get_statistics_total(actual_chats_with_messages=actual_chats_with_messages)
             if statistics_total:
                 analyze_all_chats[-1]["header_with_statistics"] = statistics_total
 
@@ -55,17 +54,17 @@ async def get_messaging_week_report_pdf(avito_accounts_id):
             statistics_splitted_by_managers = await get_statistics_splitted_by_managers(
                 actual_chats_with_messages=compared_messages_with_manager
             )
-            compared_messages = compare_messages_for_ai(actual_chats_with_messages)  # We need AI analyze NOT separated by manager
-
-
+            if statistics_splitted_by_managers:
+                analyze_all_chats[-1]["statistics_splitted_by_managers"] = statistics_splitted_by_managers
 
             #TODO сделать ИИ анализ analyze_messaging и by_criteria из одной фунции
-            analyze_messaging = messaging_total_analyze(compared_messages_with_manager)
-            if analyze_messaging:
-                analyze_all_chats[-1]["analyze"] = analyze_messaging
-            by_criteria = await analyze_by_criteria(compared_messages_with_manager, avito_account)
-            if by_criteria:
-                analyze_all_chats[-1]["analyze_by_criteria"] = analyze_messaging
+            # compared_messages = compare_messages_for_ai(actual_chats_with_messages)
+            # analyze_messaging = messaging_total_analyze(compared_messages_with_manager)
+            # if analyze_messaging:
+            #     analyze_all_chats[-1]["analyze"] = analyze_messaging
+            # by_criteria = await analyze_by_criteria(compared_messages_with_manager, avito_account)
+            # if by_criteria:
+            #     analyze_all_chats[-1]["analyze_by_criteria"] = analyze_messaging
         else:
             analyze_all_chats[-1]["compared_messages"] = "Чаты не найдены"
 
@@ -574,16 +573,18 @@ async def bad_messaging_report_generate_html(analyze_all_chats):
     </div>
 
     <div class="page__title">Аналитика  с менеджерами</div>
-
+    
+    {% for chat in statistics_splitted %}
+    
     <div class="manager">
-        <div class="manager__title">Менеджер Алия</div>
+        <div class="manager__title">chat.manager_name</div>
 
         <div class="parameters">
             <div class="parameters__item">
                 <div class="parameters__item-inner d-flex items-center">
                     Среднее время ответа 1-ого контакта:
                     <div class="parameters__item-status" style="background-color: #73C356"></div>
-                    3 минуты;
+                    statistics[0].answers_duration_average;
                 </div>
 
             </div>
@@ -604,7 +605,8 @@ async def bad_messaging_report_generate_html(analyze_all_chats):
                 </div>
             </div>
         </div>
-
+    
+    {% endfor %}
         <div class="tips d-flex">
             <div class="tips__item d-flex items-center">
                 <div class="tips__item-column d-flex items-center">
@@ -727,17 +729,17 @@ async def bad_messaging_report_generate_html(analyze_all_chats):
                 Ссылка на чат (неоходима авторизация на Авито): <a href="https://www.avito.ru/profile/messenger/channel/{{ chat.chat_id }}" class="chat__info-link" target="_blank">Перейти в чат</a>
             </div>
             {% for message in chat.chat_text %}
-            {% if message.role == 'user' %}
+            {% if message.direction == 'in' and message.type == "text" %}
             <div class="chat__item chat__item--client">
                 <span class="chat__item-author">Клиент:</span>
-                <span class="chat__item-message"> {{ message.content }}</span>
+                <span class="chat__item-message"> {{ message.content.text }}</span>
             </div>
             {% endif %}
 
-            {% if message.role == 'assistant' %}
+            {% if message.direction == 'out' and message.type == "text" %}
             <div class="chat__item">
                 <span class="chat__item-author">Менеджер:</span>
-                <span class="chat__item-message"> {{ message.content }}</span>
+                <span class="chat__item-message"> {{ message.content.text }}</span>
             </div>
             {% endif %}
             {% endfor %}
@@ -757,5 +759,8 @@ async def bad_messaging_report_generate_html(analyze_all_chats):
     start_date = (datetime.now() - timedelta(days=6)).strftime("%d.%m.%Y")
     end_date = datetime.now().strftime("%d.%m.%Y")
     avito_account_name = analyze_all_chats[0]['avito_account_name'] if analyze_all_chats else "Неизвестно"
-    return template.render(data=analyze_all_chats[0].get('analyze', []), avito_account_name=avito_account_name,
-                           start_date=start_date, end_date=end_date)
+    return template.render(data=analyze_all_chats[0].get('analyze', []),
+                           avito_account_name=avito_account_name,
+                           statistics_splitted=analyze_all_chats[0].get("statistics_splitted_by_managers"),
+                           start_date=start_date,
+                           end_date=end_date)
