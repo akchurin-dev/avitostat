@@ -1,5 +1,5 @@
 from datetime import datetime
-from messaging.utils_duration import get_answer_durations_seconds
+from messaging.utils_duration import get_second_touches_durations_seconds
 from messaging.views import convert_seconds
 from datetime import timedelta
 
@@ -23,6 +23,44 @@ def time_str_to_seconds(time_str):
 def seconds_to_time_str(seconds):
     td = timedelta(seconds=seconds)
     return str(td)
+
+
+'#73C356'  # green
+'#E4A03B'  # yellow
+'#C04D3D'  # red
+
+
+def get_color_first_touches_average(rounded_average: int,
+                                    color: str = '#C04D3D') -> str:  # default color - red
+    if 120 >= rounded_average >= 1:
+        color = '#73C356'  # green
+    if 120 >= rounded_average >= 300:
+        color = '#E4A03B'  # yellow
+    if 300 > rounded_average:
+        color = '#C04D3D'  # red
+    return color
+
+
+def get_color_second_touches_average(rounded_average: int,
+                                     color: str = '#C04D3D') -> str:  # default color - red
+    if 240 >= rounded_average >= 1:
+        color = '#73C356'  # green
+    if 240 >= rounded_average >= 420:
+        color = '#E4A03B'  # yellow
+    if 420 > rounded_average:
+        color = '#C04D3D'  # red
+    return color
+
+
+def get_color_touches_count_in_chat_average(messages_count_in_chat_average: float,
+                                            color: str = '#C04D3D') -> str:  # default color - red
+    if messages_count_in_chat_average >= 6:
+        color = '#73C356'  # green
+    if 4 >= messages_count_in_chat_average >= 5:
+        color = '#E4A03B'  # yellow
+    if 3 >= messages_count_in_chat_average:
+        color = '#C04D3D'  # red
+    return color
 
 
 async def get_statistics_total(actual_chats_with_messages: list):
@@ -66,21 +104,34 @@ async def get_statistics_total(actual_chats_with_messages: list):
 
         # Преобразуем среднее значение обратно в строку формата 'часы:минуты:секунды'
         average_first_touches_str = seconds_to_time_str(rounded_average)
-        statistics['first_touches_average'] = average_first_touches_str
-
-    #TODO Messages in chat count average
-    counts = [len([chat for chat in chat.get("messages") if chat.get("direction") == "out"]) for chat in actual_chats_with_messages]
-    messages_in_chat_average = sum(counts) / len(counts)
-    statistics["messages_count_in_chat_average"] = messages_in_chat_average
+        color = get_color_first_touches_average(rounded_average)
+        statistics['first_touches_average'] = {
+            "value": average_first_touches_str,
+            "color": color
+        }
 
     # TODO Duration average
-    durations = await get_answer_durations_seconds(actual_chats_with_messages)
+    durations = await get_second_touches_durations_seconds(actual_chats_with_messages)
     total_sum = sum([chat[0] for chat in durations])
     total_len = len(durations)
     if total_sum > 0 and total_len > 0:
         average_duration = total_sum / total_len
         average_duration_formatted = await convert_seconds(average_duration)
-        statistics["answers_duration_average"] = average_duration_formatted
+        color = get_color_second_touches_average(average_duration)
+        statistics["second_touches_duration_average"] = {
+            "value": average_duration_formatted,
+            "color": color
+        }
+
+    #TODO Touches in chat count average
+    counts = [len([chat for chat in chat.get("messages") if chat.get("direction") == "out"]) for chat in
+              actual_chats_with_messages]
+    touches_in_chat_average = sum(counts) / len(counts)
+    color = get_color_touches_count_in_chat_average(round(touches_in_chat_average, 1))
+    statistics["touches_in_chat_average"] = {
+        "color": color,
+        "value": round(touches_in_chat_average, 1)
+    }
 
     return statistics
 

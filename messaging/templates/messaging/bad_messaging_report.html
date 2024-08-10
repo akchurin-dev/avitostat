@@ -445,24 +445,24 @@
         <div class="parameters__item">
             <div class="parameters__item-inner d-flex items-center">
                 Среднее время ответа 1-ого контакта:
-                <div class="parameters__item-status" style="background-color: #73C356"></div>
-                3 минуты;
+                <div class="parameters__item-status" style="background-color: {{ statistics_total.first_touches_average.color }}"></div>
+                {{ statistics_total.first_touches_average.value }}
             </div>
         </div>
 
         <div class="parameters__item">
             <div class="parameters__item-inner d-flex items-center">
                 Среднее количество касаний с клиентом:
-                <div class="parameters__item-status" style="background-color: #E4A03B"></div>
-                5 касаний **;
+                <div class="parameters__item-status" style="background-color: {{ statistics_total.touches_in_chat_average.color }}"></div>
+                {{ statistics_total.touches_in_chat_average.value }}
             </div>
         </div>
 
         <div class="parameters__item d-flex items-center">
             <div class="parameters__item-inner d-flex items-center">
                 Среднее время ответа 2-ого обращения:
-                <div class="parameters__item-status" style="background-color: #C04D3D"></div>
-                10 минут;
+                <div class="parameters__item-status" style="background-color: {{ statistics_total.second_touches_duration_average.color }}"></div>
+                {{ statistics_total.second_touches_duration_average.value }}
             </div>
         </div>
     </div>
@@ -479,10 +479,10 @@
             </div>
         </div>
     </div>
-
+    {% if statistics_by_managers | length > 1 %}
     <div class="page__title">Аналитика  с менеджерами</div>
 
-    {% for chat in statistics_splitted %}
+    {% for chat in statistics_by_managers %}
 
     <div class="manager">
         <div class="manager__title">{{ chat.manager_name  }}</div>
@@ -491,8 +491,8 @@
             <div class="parameters__item">
                 <div class="parameters__item-inner d-flex items-center">
                     Среднее время ответа 1-ого контакта:
-                    <div class="parameters__item-status" style="background-color: #73C356"></div>
-                    {{ chat.statistics[0].answers_duration_average }};
+                    <div class="parameters__item-status" style="background-color: {{ chat.statistics[0].first_touches_average.color }}"></div>
+                    {{ chat.statistics[0].first_touches_average.value }}
                 </div>
 
             </div>
@@ -500,16 +500,16 @@
             <div class="parameters__item">
                 <div class="parameters__item-inner d-flex items-center">
                     Среднее количество касаний с клиентом:
-                    <div class="parameters__item-status" style="background-color: #E4A03B"></div>
-                    5 касаний **;
+                    <div class="parameters__item-status" style="background-color: {{ chat.statistics[0].touches_in_chat_average.color }}"></div>
+                    {{ chat.statistics[0].touches_in_chat_average.value }}
                 </div>
             </div>
 
             <div class="parameters__item">
                 <div class="parameters__item-inner d-flex items-center">
                     Среднее время ответа 2-ого обращения:
-                    <div class="parameters__item-status" style="background-color: #C04D3D"></div>
-                    10 минут;
+                    <div class="parameters__item-status" style="background-color: {{ chat.statistics[0].second_touches_duration_average.color }}"></div>
+                    {{ chat.statistics[0].second_touches_duration_average.value }}
                 </div>
             </div>
         </div>
@@ -528,6 +528,7 @@
             </div>
         </div>
     </div>
+    {% endif %}
 
     <div class="page__title">Аналитика по менеджерам</div>
 
@@ -630,7 +631,7 @@
     <div class="page__title">Анализ переписок</div>
 
     <div class="chats">
-        {% for chat in data %}
+        {% for chat in analyze %}
         <div class="chat">
             <span class="chat__manager">Менеджер Алия</span>
             <div class="chat__info">

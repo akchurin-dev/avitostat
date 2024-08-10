@@ -58,13 +58,13 @@ async def get_messaging_week_report_pdf(avito_accounts_id):
                 analyze_all_chats[-1]["statistics_splitted_by_managers"] = statistics_splitted_by_managers
 
             #TODO сделать ИИ анализ analyze_messaging и by_criteria из одной фунции
-            # compared_messages = compare_messages_for_ai(actual_chats_with_messages)
-            # analyze_messaging = messaging_total_analyze(compared_messages_with_manager)
-            # if analyze_messaging:
-            #     analyze_all_chats[-1]["analyze"] = analyze_messaging
-            # by_criteria = await analyze_by_criteria(compared_messages_with_manager, avito_account)
-            # if by_criteria:
-            #     analyze_all_chats[-1]["analyze_by_criteria"] = analyze_messaging
+            analyze_messaging = messaging_total_analyze(compared_messages_with_manager)
+            if analyze_messaging:
+                analyze_all_chats[-1]["analyze"] = analyze_messaging
+
+            by_criteria = await analyze_by_criteria(compared_messages_with_manager, avito_account)
+            if by_criteria:
+                analyze_all_chats[-1]["analyze_by_criteria"] = analyze_messaging
         else:
             analyze_all_chats[-1]["compared_messages"] = "Чаты не найдены"
 
@@ -98,12 +98,11 @@ async def bad_messaging_report_generate_html(analyze_all_chats):
     start_date = (datetime.now() - timedelta(days=6)).strftime("%d.%m.%Y")
     end_date = datetime.now().strftime("%d.%m.%Y")
     avito_account_name = analyze_all_chats[0]['avito_account_name'] if analyze_all_chats else "Неизвестно"
-    total_requests = len(analyze_all_chats[0].get('analyze', []))
 
     # Генерация HTML с использованием шаблона и данных
-    return template.render(data=analyze_all_chats[0].get('analyze', []),
+    return template.render(analyze=analyze_all_chats[0].get('analyze', []),
                            avito_account_name=avito_account_name,
-                           statistics_splitted=analyze_all_chats[0].get("statistics_splitted_by_managers"),
+                           statistics_total=analyze_all_chats[0].get("header_with_statistics"),
+                           statistics_by_managers=analyze_all_chats[0].get("statistics_splitted_by_managers"),
                            start_date=start_date,
-                           end_date=end_date,
-                           total_requests=total_requests)
+                           end_date=end_date,)
