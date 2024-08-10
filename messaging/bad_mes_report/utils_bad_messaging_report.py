@@ -44,6 +44,8 @@ async def get_messaging_week_report_pdf(avito_accounts_id):
             actual_chats_with_messages = await get_chats_messages(avito_account, actual_chats)
             if len(actual_chats_with_messages) < 2:
                 return False
+            else:
+                analyze_all_chats[-1]["chats_count"] = len(actual_chats_with_messages)
             #  Total statistics
             statistics_total = await get_statistics_total(actual_chats_with_messages=actual_chats_with_messages)
             if statistics_total:
@@ -101,9 +103,11 @@ async def bad_messaging_report_generate_html(analyze_all_chats):
     avito_account_name = analyze_all_chats[0]['avito_account_name'] if analyze_all_chats else "Неизвестно"
 
     # Генерация HTML с использованием шаблона и данных
-    return template.render(analyze=analyze_all_chats[0].get('analyze', []),
-                           avito_account_name=avito_account_name,
+    return template.render(avito_account_name=avito_account_name,
+                           start_date=start_date,
+                           end_date=end_date,
+                           chats_count=analyze_all_chats[0]['chats_count'],
+                           analyze=analyze_all_chats[0].get('analyze', []),
                            statistics_total=analyze_all_chats[0].get("header_with_statistics"),
                            statistics_by_managers=analyze_all_chats[0].get("statistics_splitted_by_managers"),
-                           start_date=start_date,
-                           end_date=end_date,)
+                           )

@@ -340,9 +340,9 @@
 
     <div class="page__info d-flex items-end">
         <div class="page__info-items d-flex">
-            <div class="page__info-item d-flex items-center">Моя Стройка</div>
-            <div class="page__info-item d-flex items-center">Период с 19.05 по 27.05</div>
-            <div class="page__info-item d-flex items-center">Кол-во обращений:&nbsp<span>20</span></div>
+            <div class="page__info-item d-flex items-center">{{ avito_account_name }}</div>
+            <div class="page__info-item d-flex items-center">Период с {{ start_date }} по {{ end_date }}</div>
+            <div class="page__info-item d-flex items-center">Кол-во обращений:&nbsp<span> {{ chats_count }}</span></div>
         </div>
 
         <div class="page__info-logo">
