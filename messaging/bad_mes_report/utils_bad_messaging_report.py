@@ -58,13 +58,14 @@ async def get_messaging_week_report_pdf(avito_accounts_id):
                 analyze_all_chats[-1]["statistics_splitted_by_managers"] = statistics_splitted_by_managers
 
             #TODO сделать ИИ анализ analyze_messaging и by_criteria из одной фунции
-            analyze_messaging = messaging_total_analyze(compared_messages_with_manager)
-            if analyze_messaging:
-                analyze_all_chats[-1]["analyze"] = analyze_messaging
 
-            by_criteria = await analyze_by_criteria(compared_messages_with_manager, avito_account)
-            if by_criteria:
-                analyze_all_chats[-1]["analyze_by_criteria"] = analyze_messaging
+            # analyze_messaging = messaging_total_analyze(compared_messages_with_manager)
+            # if analyze_messaging:
+            #     analyze_all_chats[-1]["analyze"] = analyze_messaging
+            #
+            # by_criteria = await analyze_by_criteria(compared_messages_with_manager, avito_account)
+            # if by_criteria:
+            #     analyze_all_chats[-1]["analyze_by_criteria"] = analyze_messaging
         else:
             analyze_all_chats[-1]["compared_messages"] = "Чаты не найдены"
 
