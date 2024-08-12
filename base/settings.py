@@ -161,45 +161,45 @@ CSRF_COOKIE_SECURE = True
 # TODO SENTRY SETTINGS
 # TODO SENTRY SETTINGS
 
-if ENVIRONMENT == 'PRODUCTION':
-    import sentry_sdk
-
-    sentry_sdk.init(
-        dsn="https://26cd6adb31a7d912277757045055f118@o4506274465972224.ingest.us.sentry.io/4507378908004352",
-        integrations=[
-            DjangoIntegration(),
-            CeleryIntegration(),
-        ],
-        traces_sample_rate=1.0,
-        profiles_sample_rate=1.0,
-    )
-
-    LOGGING = {
-        'version': 1,
-        'disable_existing_loggers': False,
-        'handlers': {
-            'sentry': {
-                'level': 'ERROR',
-                'class': 'sentry_sdk.integrations.logging.EventHandler',
-            },
-            'console': {
-                'level': 'DEBUG',
-                'class': 'sentry_sdk.integrations.logging.EventHandler',
-            },
-        },
-        'loggers': {
-            'django': {
-                'handlers': ['console', 'sentry'],
-                'level': 'DEBUG',
-                'propagate': True,
-            },
-            'celery': {
-                'handlers': ['console', 'sentry'],
-                'level': 'DEBUG',
-                'propagate': True,
-            },
-        },
-    }
+# if ENVIRONMENT == 'PRODUCTION':
+#     import sentry_sdk
+#
+#     sentry_sdk.init(
+#         dsn="https://26cd6adb31a7d912277757045055f118@o4506274465972224.ingest.us.sentry.io/4507378908004352",
+#         integrations=[
+#             DjangoIntegration(),
+#             CeleryIntegration(),
+#         ],
+#         traces_sample_rate=1.0,
+#         profiles_sample_rate=1.0,
+#     )
+#
+#     LOGGING = {
+#         'version': 1,
+#         'disable_existing_loggers': False,
+#         'handlers': {
+#             'sentry': {
+#                 'level': 'ERROR',
+#                 'class': 'sentry_sdk.integrations.logging.EventHandler',
+#             },
+#             'console': {
+#                 'level': 'DEBUG',
+#                 'class': 'sentry_sdk.integrations.logging.EventHandler',
+#             },
+#         },
+#         'loggers': {
+#             'django': {
+#                 'handlers': ['console', 'sentry'],
+#                 'level': 'DEBUG',
+#                 'propagate': True,
+#             },
+#             'celery': {
+#                 'handlers': ['console', 'sentry'],
+#                 'level': 'DEBUG',
+#                 'propagate': True,
+#             },
+#         },
+#     }
 
 #TODO django-redis-aiogram sender SETTINGS
 #TODO django-redis-aiogram sender SETTINGS
