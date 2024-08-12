@@ -558,7 +558,13 @@
     <div class="chats">
         {% for chat in chats %}
         <div class="chat">
-            <span class="chat__manager">Менеджер {{ chat.manager_name }}</span>
+            <span class="chat__manager">
+                {% if chat.manager_name %}
+                    Менеджер {{ chat.manager_name }}
+                {% else %}
+                    Менеджер не закреплён
+                {% endif %}
+            </span>
             <div class="chat__info">
                 Ссылка на чат (неоходима авторизация на Авито): <a href="https://www.avito.ru/profile/messenger/channel/{{ chat.chat_id }}" class="chat__info-link" target="_blank">Перейти в чат</a>
             </div>

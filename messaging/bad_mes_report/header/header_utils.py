@@ -32,23 +32,23 @@ def seconds_to_time_str(seconds):
 
 def get_color_first_touches_average(rounded_average: int,
                                     color: str = '#C04D3D') -> str:  # default color - red
-    if 120 >= rounded_average >= 1:
-        color = '#73C356'  # green
-    if 120 >= rounded_average >= 300:
-        color = '#E4A03B'  # yellow
-    if 300 > rounded_average:
+    if rounded_average >= 300:
         color = '#C04D3D'  # red
+    elif 120 <= rounded_average < 300:
+        color = '#E4A03B'  # yellow
+    elif 1 <= rounded_average < 120:
+        color = '#73C356'  # green
     return color
 
 
 def get_color_second_touches_average(rounded_average: int,
                                      color: str = '#C04D3D') -> str:  # default color - red
-    if 240 >= rounded_average >= 1:
-        color = '#73C356'  # green
-    if 240 >= rounded_average >= 420:
-        color = '#E4A03B'  # yellow
-    if 420 > rounded_average:
+    if rounded_average >= 420:
         color = '#C04D3D'  # red
+    elif 240 <= rounded_average < 420:
+        color = '#E4A03B'  # yellow
+    elif 1 <= rounded_average < 240:
+        color = '#73C356'  # green
     return color
 
 
@@ -56,9 +56,9 @@ def get_color_touches_count_in_chat_average(messages_count_in_chat_average: floa
                                             color: str = '#C04D3D') -> str:  # default color - red
     if messages_count_in_chat_average >= 6:
         color = '#73C356'  # green
-    if 4 >= messages_count_in_chat_average >= 5:
+    elif 4 <= messages_count_in_chat_average <= 5:
         color = '#E4A03B'  # yellow
-    if 3 >= messages_count_in_chat_average:
+    elif messages_count_in_chat_average <= 3:
         color = '#C04D3D'  # red
     return color
 
