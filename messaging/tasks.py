@@ -3,11 +3,12 @@ import shutil
 import sentry_sdk
 from celery import shared_task
 from asgiref.sync import async_to_sync, sync_to_async
+from django.http import JsonResponse
+
 from avito_account.models import AvitoAccount
 from telegram_bot import bot
 from aiogram import types
-from messaging.bad_mes_report.utils_bad_messaging_report import get_bad_messaging_week_report_pdf
-
+from messaging.bad_mes_report.utils_bad_messaging_report import get_messaging_week_report_pdf
 
 
 @shared_task
@@ -22,11 +23,13 @@ async def bad_messaging_week_report_async(test_from_prod: bool = False, only_for
             id__in=only_for_users,
             company__is_active=True,
             telegram_id__isnull=False))
+        if len(all_avito_accounts) == 0:
+            return None
 
     # CORE logic
     for avito_account in all_avito_accounts:
         try:
-            pdf_path = await get_bad_messaging_week_report_pdf(avito_account.id)
+            pdf_path = await get_messaging_week_report_pdf(avito_account.id)
             if pdf_path:
                 chat_id = "-4221870448" if test_from_prod else avito_account.telegram_id
 
@@ -35,6 +38,7 @@ async def bad_messaging_week_report_async(test_from_prod: bool = False, only_for
                         chat_id=chat_id,
                         function="send_document",
                         document=types.FSInputFile(pdf_path))
+                    return True
 
                 except Exception as send_error:
                     sentry_sdk.capture_exception(send_error)
@@ -42,6 +46,7 @@ async def bad_messaging_week_report_async(test_from_prod: bool = False, only_for
         except Exception as e:
             sentry_sdk.capture_exception(e)  # Отправка исключения в Sentry
             print(e)
+            raise e
 
 
 @shared_task

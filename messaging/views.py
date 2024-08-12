@@ -1,7 +1,7 @@
 import datetime
 from avito_account.models import AvitoAccount
 from messaging.api import get_chats, get_chats_messages
-from messaging.utils_duration import get_answer_durations
+from messaging.utils_duration import get_second_touches_durations_seconds
 from django.http import JsonResponse
 from django.views import View
 from asgiref.sync import sync_to_async
@@ -66,7 +66,7 @@ class DurationWeekStatisticsView(View):
             if chats:
                 actual_chats = await get_chats_for_last_week(chats)
                 actual_chats_with_messages = await get_chats_messages(avito_account, actual_chats)
-                durations = await get_answer_durations(actual_chats_with_messages)
+                durations = await get_second_touches_durations_seconds(actual_chats_with_messages)
                 duration_statistics = await get_duration_statistics(durations)
                 return JsonResponse(duration_statistics, safe=False)
             else:

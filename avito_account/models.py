@@ -13,6 +13,51 @@ client_id = os.getenv('AVITO_CLIENT_ID')
 client_secret = os.getenv('AVITO_CLIENT_SECRET')
 
 
+class BaseModel(models.Model):
+    created_by = models.ForeignKey(
+        verbose_name="Created by",
+        null=True,
+        to=User,
+        on_delete=models.SET_NULL,
+        default=None,
+        related_name="%(app_label)s_%(class)s_created_by",
+        editable=False,
+    )
+    created_at = models.DateTimeField(
+        verbose_name="Created At",
+        auto_now_add=True,
+        editable=False
+    )
+
+    @classmethod
+    def filter_queryset_by_company(
+            cls, queryset: models.QuerySet, user: "User"
+    ) -> models.QuerySet:
+        if user.is_superuser:
+            return cls.objects.all()
+        if hasattr(cls, "pbx_account"):
+            return cls.objects.filter(pbx_account__created_by=user)
+        return cls.objects.filter(created_by=user)
+
+    class Meta:
+        abstract = True
+
+
+class AnalyticSchema(BaseModel):
+    name = models.CharField(max_length=32, verbose_name="Schemas Name")
+
+    def __str__(self):
+        return self.name
+
+
+class Criterion(BaseModel):
+    schema = models.ForeignKey(AnalyticSchema, on_delete=models.CASCADE, related_name="criteria")
+    name = models.CharField(verbose_name="Name")
+
+    def __str__(self):
+        return self.name
+
+
 class AvitoAccount(models.Model):
     company = models.ForeignKey(User, on_delete=models.CASCADE, null=True, blank=True)
     name = models.CharField(max_length=255, null=True)
@@ -21,6 +66,8 @@ class AvitoAccount(models.Model):
     profile_url = models.CharField(max_length=255, null=True)
     access_token = models.CharField(max_length=255, null=True)
     refresh_token = models.CharField(max_length=255, null=True)
+
+    analytic_schema = models.ForeignKey(AnalyticSchema, on_delete=models.PROTECT, null=True, blank=True)
 
     def update_refresh_token(self):
         url = 'https://api.avito.ru/token/'
@@ -67,17 +114,3 @@ class AvitoAccount(models.Model):
 
     def __str__(self):
         return f"{self.name}, {self.telegram_id}"
-
-
-class Item(models.Model):
-    avito_account = models.ForeignKey(AvitoAccount, on_delete=models.CASCADE)
-
-    address = models.CharField(max_length=255)
-    category = models.JSONField()
-    price = models.IntegerField(null=True)
-    status = models.CharField(max_length=255)
-    title = models.CharField(max_length=255)
-    url = models.CharField(max_length=255)
-
-    def __str__(self):
-        return f"{self.title, self.id}"
