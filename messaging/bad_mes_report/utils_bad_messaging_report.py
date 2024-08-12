@@ -30,6 +30,14 @@ def adding_manager_info_for_chats(chats):
     return sorted_chats
 
 
+def filter_chats_only_with_text(chats):
+    filtered_chats = []
+    for chat in chats:
+        if any(message.get("type") == "text" for message in chat.get("messages", [])):
+            filtered_chats.append(chat)
+    return filtered_chats
+
+
 async def get_messaging_week_report_pdf(avito_accounts_id):
     analyze_all_chats = []
     avito_account = await sync_to_async(AvitoAccount.objects.filter(id=avito_accounts_id).last)()
@@ -60,14 +68,15 @@ async def get_messaging_week_report_pdf(avito_accounts_id):
                 analyze_all_chats[-1]["statistics_splitted_by_managers"] = statistics_splitted_by_managers
 
             #TODO сделать ИИ анализ analyze_messaging и by_criteria из одной фунции
+            filtered_chats_only_with_text = filter_chats_only_with_text(compared_messages_with_manager)
 
-            # analyze_messaging = messaging_total_analyze(compared_messages_with_manager)
-            # if analyze_messaging:
-            #     analyze_all_chats[-1]["analyze"] = analyze_messaging
-            #
-            # by_criteria = await analyze_by_criteria(compared_messages_with_manager, avito_account)
-            # if by_criteria:
-            #     analyze_all_chats[-1]["analyze_by_criteria"] = analyze_messaging
+            analyze_messaging = messaging_total_analyze(compared_messages_with_manager)
+            if analyze_messaging:
+                analyze_all_chats[-1]["chats"] = analyze_messaging
+
+            analyze_by_criteria_result = await analyze_by_criteria(compared_messages_with_manager, avito_account)
+            if analyze_by_criteria:
+                analyze_all_chats[-1]["analyze_by_criteria"] = analyze_by_criteria_result
         else:
             analyze_all_chats[-1]["compared_messages"] = "Чаты не найдены"
 
@@ -107,7 +116,7 @@ async def bad_messaging_report_generate_html(analyze_all_chats):
                            start_date=start_date,
                            end_date=end_date,
                            chats_count=analyze_all_chats[0]['chats_count'],
-                           analyze=analyze_all_chats[0].get('analyze', []),
+                           chats=analyze_all_chats[0].get('chats', []),
                            statistics_total=analyze_all_chats[0].get("header_with_statistics"),
                            statistics_by_managers=analyze_all_chats[0].get("statistics_splitted_by_managers"),
                            )

@@ -28,8 +28,7 @@ client = OpenAI(api_key=os.environ.get("OPENAI_SECRET_KEY"))
 
 # TODO I tried change to ASYNC methods for analyze , but not see different in speed
 def messaging_total_analyze(chats_with_compared_messages: list):
-    chats_analyze = []
-    for chat in chats_with_compared_messages[-10:]:
+    for chat in chats_with_compared_messages[:10]:
         chat_text = "\n".join([message.get('direction') + ": " + message.get('content').get("text") for message in chat.get('messages') if message.get('type', None) == 'text'])
         prompt = f"""
                     Ты - эксперт по клиентскому обслуживанию.
@@ -90,6 +89,7 @@ def messaging_total_analyze(chats_with_compared_messages: list):
                             1. Краткое общее впечатление (1-2 предложения)
                             2. 2-3 ключевых замечания о работе менеджера (короткие и лаконичные)
                             3. Одно предложение о том, что было сделано хорошо
+                            4. Текст переписки не надо включать в ответ.
                             
                             Помни: цель - выявить основные моменты, которые могут повлиять на успешность продажи, без излишней придирчивости. Сосредоточься на наиболее важных аспектах общения.
                             
@@ -104,12 +104,8 @@ def messaging_total_analyze(chats_with_compared_messages: list):
             ],
             temperature=1.0
         )
-        chats_analyze.append({
-            "chat_id": chat.get('chat_id', None),
-            "chat_text": chat.get('messages', None),
-            "analysis": completion.choices[0].message.content
-        })
-    return chats_analyze
+        chat["analyze"] = completion.choices[0].message.content
+    return chats_with_compared_messages
 
 
 async def analyze_by_criteria(chats_with_compared_messages: list, avito_account: AvitoAccount):

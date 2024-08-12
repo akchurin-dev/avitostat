@@ -38,13 +38,14 @@ async def bad_messaging_week_report_async(test_from_prod: bool = False, only_for
                         chat_id=chat_id,
                         function="send_document",
                         document=types.FSInputFile(pdf_path))
+                    return True
 
                 except Exception as send_error:
                     sentry_sdk.capture_exception(send_error)
                     print(send_error)
         except Exception as e:
-            # sentry_sdk.capture_exception(e)  # Отправка исключения в Sentry
-            # print(e)
+            sentry_sdk.capture_exception(e)  # Отправка исключения в Sentry
+            print(e)
             raise e
 
 
