@@ -74,9 +74,9 @@ async def get_messaging_week_report_pdf(avito_accounts_id):
             if analyze_messaging:
                 analyze_all_chats[-1]["chats"] = analyze_messaging
 
-            analyze_by_criteria_result = await analyze_by_criteria(filtered_chats_only_with_text, avito_account)
-            if analyze_by_criteria:
-                analyze_all_chats[-1]["analyze_by_criteria"] = analyze_by_criteria_result
+            # analyze_by_criteria_result = await analyze_by_criteria(filtered_chats_only_with_text, avito_account)
+            # if analyze_by_criteria:
+            #     analyze_all_chats[-1]["analyze_by_criteria"] = analyze_by_criteria_result
         else:
             analyze_all_chats[-1]["compared_messages"] = "Чаты не найдены"
 
