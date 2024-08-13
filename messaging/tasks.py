@@ -29,7 +29,7 @@ async def bad_messaging_week_report_async(test_from_prod: bool = False, only_for
     # CORE logic
     for avito_account in all_avito_accounts:
         try:
-            pdf_path = await get_messaging_week_report_pdf(avito_account.id)
+            pdf_path = await get_messaging_week_report_pdf(avito_account.id, test_from_prod)
             if pdf_path:
                 chat_id = "-4221870448" if test_from_prod else avito_account.telegram_id
 

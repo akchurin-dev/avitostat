@@ -3,33 +3,23 @@ from dotenv import load_dotenv
 from openai import OpenAI
 import os
 
-from avito_account.models import AvitoAccount, AnalyticSchema, Criterion
+from avito_account.models import AvitoAccount, Criterion
 
 load_dotenv()
+ENVIRONMENT = os.getenv('ENVIRONMENT')
+
 MODEL = "gpt-4o"
 client = OpenAI(api_key=os.environ.get("OPENAI_SECRET_KEY"))
 
 
-# def compare_messages_for_ai(chats_with_raw_messages: list):
-#     compared_messages = []
-#     for chat in chats_with_raw_messages:
-#         chat_id = chat.get('id')
-#         if any(message['type'] == 'text' for message in chat.get("messages")):  # do we have any text type message?
-#             compared_messages.append({'chat_id': chat_id, 'messages': []})
-#             for message in chat.get('messages')[-15:]:  # TODO only last 15 messages
-#                 if message['direction'] == 'in' and message.get('type', None) == 'text':  # becouse we have appCall
-#                     compared_messages[-1].get('messages').append(
-#                         {"role": "user", "content": message['content']['text']})
-#                 elif message['direction'] == 'out' and message.get('type', None) == 'text':
-#                     compared_messages[-1].get('messages').append(
-#                         {"role": "assistant", "content": message['content']['text']})
-#     return compared_messages
-
-
 # TODO I tried change to ASYNC methods for analyze , but not see different in speed
-def messaging_total_analyze(chats_with_compared_messages: list):
-    for chat in chats_with_compared_messages[:10]:
-        chat_text = "\n".join([message.get('direction') + ": " + message.get('content').get("text") for message in chat.get('messages') if message.get('type', None) == 'text'])
+def messaging_total_analyze(chats_with_compared_messages: list, test_from_prod: bool):
+    if ENVIRONMENT == 'DEVELOPMENT' or test_from_prod:
+        chats_with_compared_messages = chats_with_compared_messages[:]  #  For testing 5 items  for economy
+    for chat in chats_with_compared_messages:
+        chat_text = "\n".join(
+            [message.get('direction') + ": " + message.get('content').get("text") for message in chat.get('messages') if
+             message.get('type', None) == 'text'])
         prompt = f"""
                     Ты - эксперт по клиентскому обслуживанию.
                     Твоя задача - проанализировать переписку между менеджером (assistant) и клиентом (user).

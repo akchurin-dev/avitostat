@@ -40,7 +40,7 @@ def filter_chats_only_with_text(chats):
     return filtered_chats
 
 
-async def get_messaging_week_report_pdf(avito_accounts_id):
+async def get_messaging_week_report_pdf(avito_accounts_id, test_from_prod: bool):
     analyze_all_chats = []
     avito_account = await sync_to_async(AvitoAccount.objects.filter(id=avito_accounts_id).last)()
     if avito_account:
@@ -74,7 +74,7 @@ async def get_messaging_week_report_pdf(avito_accounts_id):
                 #TODO сделать ИИ анализ analyze_messaging и by_criteria из одной фунции
                 filtered_chats_only_with_text = filter_chats_only_with_text(compared_messages_with_manager)
 
-                analyze_messaging = messaging_total_analyze(filtered_chats_only_with_text)
+                analyze_messaging = messaging_total_analyze(filtered_chats_only_with_text, test_from_prod)
                 if analyze_messaging:
                     analyze_all_chats[-1]["chats"] = analyze_messaging
 
