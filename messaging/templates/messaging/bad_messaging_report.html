@@ -85,7 +85,7 @@
             width: 100%;
             padding-bottom: 35px;}
         .page__info-items {
-            width: 600px;}
+            width: 100%;}
         .page__info-item {
             height: 30px;
             border-radius: 15px;
@@ -101,7 +101,7 @@
             background-color: #00D8BF;
             color:#FFF;}
         .page__info-item:last-child {
-            min-width: 165px}
+            min-width: 190px}
         .page__info-item span {
             white-space: nowrap;
         }
@@ -109,11 +109,11 @@
             color: #00D8BF;
             margin-left: 3px;
         }
-        .page__info-logo {
+        .page__top-logo {
             width: 158px;
-            margin-top: -108px;
+            margin-left: auto;
         }
-        .page__info-logo svg {
+        .page__top-logo svg {
             margin-left: 10px;
             width: 148px;
         }
@@ -336,16 +336,7 @@
                 <path d="M16.4167 17.1797C16.1469 17.1797 15.888 17.0758 15.6972 16.8909C15.5064 16.706 15.3992 16.4552 15.3992 16.1936C15.3992 15.9321 15.5064 15.6813 15.6972 15.4963C15.888 15.3114 16.1469 15.2075 16.4167 15.2075C16.6866 15.2075 16.9454 15.3114 17.1362 15.4963C17.327 15.6813 17.4342 15.9321 17.4342 16.1936C17.4342 16.4552 17.327 16.706 17.1362 16.8909C16.9454 17.0758 16.6866 17.1797 16.4167 17.1797ZM9.28504 17.1797C9.01518 17.1797 8.75638 17.0758 8.56556 16.8909C8.37474 16.706 8.26754 16.4552 8.26754 16.1936C8.26754 15.9321 8.37474 15.6813 8.56556 15.4963C8.75638 15.3114 9.01518 15.2075 9.28504 15.2075C9.5549 15.2075 9.8137 15.3114 10.0045 15.4963C10.1953 15.6813 10.3025 15.9321 10.3025 16.1936C10.3025 16.4552 10.1953 16.706 10.0045 16.8909C9.8137 17.0758 9.5549 17.1797 9.28504 17.1797ZM23.5484 17.1797C23.4148 17.1798 23.2824 17.1544 23.1589 17.105C23.0354 17.0555 22.9232 16.983 22.8287 16.8915C22.7341 16.8 22.659 16.6913 22.6078 16.5717C22.5566 16.4521 22.5302 16.3239 22.53 16.1944C22.5299 16.0649 22.5561 15.9367 22.6072 15.817C22.6582 15.6973 22.7331 15.5886 22.8275 15.4969C22.9219 15.4053 23.034 15.3325 23.1574 15.2829C23.2808 15.2332 23.4131 15.2076 23.5467 15.2075C23.8166 15.2075 24.0754 15.3114 24.2662 15.4963C24.457 15.6813 24.5642 15.9321 24.5642 16.1936C24.5642 16.4552 24.457 16.706 24.2662 16.8909C24.0754 17.0758 23.8182 17.1797 23.5484 17.1797Z" stroke="black" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
             </svg>
         </div>
-    </div>
-
-    <div class="page__info d-flex items-end">
-        <div class="page__info-items d-flex">
-            <div class="page__info-item d-flex items-center">{{ avito_account_name }}</div>
-            <div class="page__info-item d-flex items-center">Период с {{ start_date }} по {{ end_date }}</div>
-            <div class="page__info-item d-flex items-center">Кол-во обращений:&nbsp<span> {{  chats_count }}</span></div>
-        </div>
-
-        <div class="page__info-logo">
+        <div class="page__top-logo">
             <svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="200px" height="51px" viewBox="0 0 200 51" version="1.1">
                 <g id="surface1">
                     <path style=" stroke:none;fill-rule:nonzero;fill:rgb(0%,0%,0%);fill-opacity:1;" d="M 76.449219 1.199219 L 59.195312 46.394531 L 68.46875 46.394531 L 72.050781 36.957031 L 90.367188 36.957031 L 93.933594 46.394531 L 103.136719 46.394531 L 85.945312 1.199219 Z M 75.191406 28.660156 L 81.226562 12.757812 L 87.230469 28.660156 Z M 75.191406 28.660156 "></path>
@@ -360,7 +351,14 @@
                     <path style=" stroke:none;fill-rule:nonzero;fill:rgb(0%,66.666667%,100%);fill-opacity:1;" d="M 41.070312 26.800781 C 48.4375 26.800781 54.410156 20.8125 54.410156 13.429688 C 54.410156 6.042969 48.4375 0.0546875 41.070312 0.0546875 C 33.703125 0.0546875 27.730469 6.042969 27.730469 13.429688 C 27.730469 20.8125 33.703125 26.800781 41.070312 26.800781 Z M 41.070312 26.800781 "></path>
                 </g>
             </svg>
+        </div>
+    </div>
 
+    <div class="page__info d-flex items-end">
+        <div class="page__info-items d-flex">
+            <div class="page__info-item d-flex items-center">{{ avito_account_name }}</div>
+            <div class="page__info-item d-flex items-center">Период с {{ start_date }} по {{ end_date }}</div>
+            <div class="page__info-item d-flex items-center">Кол-во обращений:&nbsp<span> {{  chats_count }}</span></div>
         </div>
     </div>
 
