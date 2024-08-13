@@ -15,7 +15,9 @@ client = OpenAI(api_key=os.environ.get("OPENAI_SECRET_KEY"))
 # TODO I tried change to ASYNC methods for analyze , but not see different in speed
 def messaging_total_analyze(chats_with_compared_messages: list, test_from_prod: bool):
     if ENVIRONMENT == 'DEVELOPMENT' or test_from_prod:
-        chats_with_compared_messages = chats_with_compared_messages[:]  #  For testing 5 items  for economy
+        chats_with_compared_messages = chats_with_compared_messages[:5]  #  For testing 5 items  for economy
+    else:
+        chats_with_compared_messages = chats_with_compared_messages[:15]
     for chat in chats_with_compared_messages:
         chat_text = "\n".join(
             [message.get('direction') + ": " + message.get('content').get("text") for message in chat.get('messages') if
