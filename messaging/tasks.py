@@ -46,7 +46,7 @@ async def bad_messaging_week_report_async(test_from_prod: bool = False, only_for
         except Exception as e:
             sentry_sdk.capture_exception(e)  # Отправка исключения в Sentry
             print(e)
-            raise e
+            # raise e
 
 
 @shared_task
