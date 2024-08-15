@@ -39,12 +39,14 @@ ssh avitostata
 #TODO add redis restarting
 sudo systemctl stop  gunicorn
 sudo systemctl stop  aiogram
+sudo systemctl stop  redis-server
 sudo systemctl stop  celery-worker
 sudo systemctl stop  celery-beat
 
 systemctl daemon-reload
 sudo systemctl start gunicorn
 sudo systemctl start aiogram
+sudo systemctl start redis-server
 sudo systemctl start celery-worker
 sudo systemctl start celery-beat
 

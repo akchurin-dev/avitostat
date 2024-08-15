@@ -1,11 +1,11 @@
-from messaging.tasks import bad_messaging_week_report_async
+from messaging.tasks import bad_messaging_week_report_async, bad_messaging_week_report_async_task
 from django.http import JsonResponse
 from django.views import View
 
 
 class BadMessagingWeekReportAllView(View):
-    async def get(self, request, *args, **kwargs):
-        await bad_messaging_week_report_async.delay()
+    def get(self, request, *args, **kwargs):
+        bad_messaging_week_report_async_task.delay()
         return JsonResponse(status=200, data={"success": "Всё прошло успешно"})
 
 

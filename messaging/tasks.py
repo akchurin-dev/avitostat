@@ -3,15 +3,19 @@ import shutil
 import sentry_sdk
 from celery import shared_task
 from asgiref.sync import async_to_sync, sync_to_async
-from django.http import JsonResponse
 
 from avito_account.models import AvitoAccount
 from telegram_bot import bot
 from aiogram import types
+
 from messaging.bad_mes_report.utils_bad_messaging_report import get_messaging_week_report_pdf
 
 
 @shared_task
+def bad_messaging_week_report_async_task():
+    async_to_sync(bad_messaging_week_report_async)()
+
+
 async def bad_messaging_week_report_async(test_from_prod: bool = False, only_for_users=None):
     #  Queryset filtering logic
     if only_for_users is None:
