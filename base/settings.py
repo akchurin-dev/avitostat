@@ -239,8 +239,7 @@ if ENVIRONMENT == 'PRODUCTION':
         # },
         'bad_messaging_week_report_task': {
             'task': 'messaging.tasks.bad_messaging_week_report_async_task',
-            'schedule': crontab(hour=7, minute=58, day_of_week=7),
-            # 6 - это суббота (0 - воскресенье, 1 - понедельник и т.д.)
+            'schedule': crontab(hour=8, minute=10, day_of_week=6),
         },
         'bad_messaging_week_report_folder_cleaner_task': {
             'task': 'messaging.tasks.bad_mes_report_pdfs_folder_cleaner_task',

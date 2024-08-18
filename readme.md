@@ -39,6 +39,12 @@ ps aux | grep gunicorn | grep -v grep | awk '{print $2}' | xargs kill
 htop - просмотрт системных ресурсов
 ssh avitostata
 
+логи последние
+sudo journalctl -u aiogram.service -e
+sudo journalctl -u gunicorn.service -e
+sudo journalctl -u celery-worker.service -e
+sudo journalctl -u celery-beat.service -e
+sudo journalctl -u redis-server -e
 
 sudo systemctl stop  gunicorn
 sudo systemctl stop  aiogram
@@ -65,12 +71,7 @@ systemctl status celery-worker.service
 systemctl status celery-beat.service
 systemctl status redis-server
 
-логи 
-sudo journalctl -u aiogram.service
-sudo journalctl -u gunicorn.service
-sudo journalctl -u celery-worker.service
-sudo journalctl -u celery-beat.service
-sudo journalctl -u redis-server
+
 
 
 #тут все конфиги системктл
