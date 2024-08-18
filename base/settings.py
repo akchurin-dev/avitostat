@@ -239,7 +239,7 @@ if ENVIRONMENT == 'PRODUCTION':
         # },
         'bad_messaging_week_report_task': {
             'task': 'messaging.tasks.bad_messaging_week_report_async_task',
-            'schedule': crontab(hour=8, minute=14, day_of_week=0),
+            'schedule': crontab(hour=10, minute=56, day_of_week=0),
         },
         'bad_messaging_week_report_folder_cleaner_task': {
             'task': 'messaging.tasks.bad_mes_report_pdfs_folder_cleaner_task',

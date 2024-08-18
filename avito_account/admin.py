@@ -4,7 +4,7 @@ from django.contrib.admin import site
 from django.db.models import Q
 from avito_account.models import AvitoAccount, AnalyticSchema, Criterion
 import logging
-from messaging.tasks import bad_messaging_week_report_async
+from messaging.tasks import bad_messaging_week_report_async, bad_messaging_week_report_async_task
 
 logger = logging.getLogger(__name__)
 
@@ -57,7 +57,7 @@ class AvitoAccountAdmin(admin.ModelAdmin):
         object_ids = list(queryset.values_list('id', flat=True))
 
         try:
-            async_to_sync(bad_messaging_week_report_async)(only_for_users=object_ids)
+            bad_messaging_week_report_async_task.delay(only_for_users=object_ids)
             self.message_user(request, "Отчет успешно сгенерирован и отправлен.", level='success')
         except Exception as e:
             logger.error(f"Ошибка при отправке отчета: {e}", exc_info=True)
