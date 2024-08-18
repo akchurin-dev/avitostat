@@ -59,12 +59,14 @@ systemctl status gunicorn.service
 systemctl status aiogram.service
 systemctl status celery-worker.service
 systemctl status celery-beat.service
+systemctl status redis-server
 
 логи 
 sudo journalctl -u aiogram.service
 sudo journalctl -u gunicorn.service
 sudo journalctl -u celery-worker.service
 sudo journalctl -u celery-beat.service
+sudo journalctl -u redis-server
 
 
 #тут все конфиги системктл
