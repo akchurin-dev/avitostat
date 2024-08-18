@@ -24,11 +24,15 @@
 3) Возможно атк же поможет
 https://proghunter.ru/articles/django-base-2023-installing-postgresql-in-django
 
-
+# Запуск вручную
 source /var/www/avitostat/venv/bin/activate
 cd /var/www/avitostat
 
 gunicorn -c gunicorn_config.py base.wsgi:application
+
+celery -A base worker -l info --pool=solo   # на маке объязательно соло опцию включать 
+celery -A base beat -l info
+
 убить гуникорн все процессы
 ps aux | grep gunicorn | grep -v grep | awk '{print $2}' | xargs kill
 
@@ -36,7 +40,6 @@ htop - просмотрт системных ресурсов
 ssh avitostata
 
 
-#TODO add redis restarting
 sudo systemctl stop  gunicorn
 sudo systemctl stop  aiogram
 sudo systemctl stop  redis-server
@@ -54,6 +57,7 @@ sudo systemctl stop  gunicorn
 sudo systemctl stop  aiogram
 sudo systemctl stop  celery-worker
 sudo systemctl stop  celery-beat
+sudo systemctl stop  redis-server
 
 systemctl status gunicorn.service
 systemctl status aiogram.service
@@ -116,7 +120,7 @@ WantedBy=multi-user.target
 # CELERY
     Устанавливать надо селери и селери-бит локально (так проще на данном этапе)
 # Запуск ВРУЧНУЮ
-    celery -A base worker -l info
+    celery -A base worker -l info --pool=solo
     celery -A base beat -l info
 
 # Запуск 
