@@ -14,7 +14,7 @@ from messaging.bad_mes_report.utils_bad_messaging_report import get_messaging_we
 
 @celery_app.task(name='messaging.tasks.bad_messaging_week_report_async_task')
 def bad_messaging_week_report_async_task(only_for_users=None):
-    async_to_sync(bad_messaging_week_report_async)(test_from_prod=True, only_for_users=only_for_users)
+    async_to_sync(bad_messaging_week_report_async)(only_for_users=only_for_users)
 
 
 async def bad_messaging_week_report_async(test_from_prod: bool = False, only_for_users=None):
