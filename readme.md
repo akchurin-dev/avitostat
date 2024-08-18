@@ -42,9 +42,19 @@ ssh avitostata
 логи последние
 sudo journalctl -u aiogram.service -e
 sudo journalctl -u gunicorn.service -e
+sudo journalctl -u redis-server -e
 sudo journalctl -u celery-worker.service -e
 sudo journalctl -u celery-beat.service -e
-sudo journalctl -u redis-server -e
+
+логи в РЕАЛЬНОМ времени
+
+sudo journalctl -u aiogram.service -f
+sudo journalctl -u gunicorn.service -f
+sudo journalctl -u redis-server -f
+sudo journalctl -u celery-worker.service -f
+sudo journalctl -u celery-beat.service -f
+
+
 
 sudo systemctl stop  gunicorn
 sudo systemctl stop  aiogram
