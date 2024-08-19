@@ -47,15 +47,6 @@ sudo journalctl -u redis-server -f
 sudo journalctl -u celery-worker.service -f
 sudo journalctl -u celery-beat.service -f
 
-логи последние (НЕ ОБНОВЛЯЮТСЯ В РЕАЛЬНОМ ВРЕМЕНИ)
-sudo journalctl -u aiogram.service -e
-sudo journalctl -u gunicorn.service -e
-sudo journalctl -u redis-server -e
-sudo journalctl -u celery-worker.service -e
-sudo journalctl -u celery-beat.service -e
-
-
-
 sudo systemctl stop  gunicorn
 sudo systemctl stop  aiogram
 sudo systemctl stop  redis-server
@@ -80,6 +71,13 @@ systemctl status aiogram.service
 systemctl status celery-worker.service
 systemctl status celery-beat.service
 systemctl status redis-server
+
+логи последние (НЕ ОБНОВЛЯЮТСЯ В РЕАЛЬНОМ ВРЕМЕНИ)
+sudo journalctl -u aiogram.service -e
+sudo journalctl -u gunicorn.service -e
+sudo journalctl -u redis-server -e
+sudo journalctl -u celery-worker.service -e
+sudo journalctl -u celery-beat.service -e
 
 
 
