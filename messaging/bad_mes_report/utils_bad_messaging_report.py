@@ -35,6 +35,8 @@ def adding_manager_info_for_chats(chats):
 def filter_chats_only_with_text(chats):
     filtered_chats = []
     for chat in chats:
+        if chat.get("messages")[0].get("direction") == 'out':  # Skip all chats initialized from Manager
+            continue
         if any(message.get("type") == "text" for message in chat.get("messages", [])):
             filtered_chats.append(chat)
     return filtered_chats

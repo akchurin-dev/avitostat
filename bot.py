@@ -87,6 +87,7 @@ async def echo(message: Message, bot: Bot):
             await send_week_report_to_all_accounts()
 
         if msg == "/messaging_week_all_to_users@avitostata_bot":
+            # TODO check error when you tap on command
             await get_bad_messaging_week_report_all_to_users()
 
         if msg == "/messaging_week_all_to_admin@avitostata_bot":
