@@ -31,6 +31,12 @@ async def bad_messaging_week_report_async(test_from_prod: bool = False, only_for
         if len(all_avito_accounts) == 0:
             return None
 
+    # DEVELOPEMENT testing checking
+    ENVIRONMENT = os.getenv('ENVIRONMENT')
+    test_from_prod = False
+    if ENVIRONMENT == 'DEVELOPMENT':
+        test_from_prod = True
+
     # CORE logic
     for avito_account in all_avito_accounts:
         try:
