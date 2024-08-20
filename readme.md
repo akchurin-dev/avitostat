@@ -60,12 +60,6 @@ sudo systemctl start redis-server
 sudo systemctl start celery-worker
 sudo systemctl start celery-beat
 
-sudo systemctl stop  gunicorn
-sudo systemctl stop  aiogram
-sudo systemctl stop  celery-worker
-sudo systemctl stop  celery-beat
-sudo systemctl stop  redis-server
-
 systemctl status gunicorn.service
 systemctl status aiogram.service
 systemctl status celery-worker.service
@@ -182,3 +176,16 @@ WantedBy=multi-user.target
     sudo docker-compose up -d
     python manage.py loaddata --exclude auth.permission --exclude contenttypes /Users/raufakchurin/projects/avitostat/db_backup.json
     ./manage.py runserver
+
+
+# ОБЛАЧНАЯ БД
+
+подключение 
+psql -h wokrofanu.beget.app -p 5432 -U cloud_user -d default_db
+вводим пароль из учётки
+
+ 
+
+восстановление БД из файла
+psql -h wokrofanu.beget.app -p 5432 -U cloud_user -d default_db -f local_db_dump.sql
+вводим пароль из учётки
