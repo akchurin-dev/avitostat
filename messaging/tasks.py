@@ -33,7 +33,6 @@ async def bad_messaging_week_report_async(test_from_prod: bool = False, only_for
 
     # DEVELOPEMENT testing checking
     ENVIRONMENT = os.getenv('ENVIRONMENT')
-    test_from_prod = False
     if ENVIRONMENT == 'DEVELOPMENT':
         test_from_prod = True
 
