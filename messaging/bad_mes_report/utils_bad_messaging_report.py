@@ -76,13 +76,13 @@ async def get_messaging_week_report_pdf(avito_accounts_id, test_from_prod: bool)
                 #TODO сделать ИИ анализ analyze_messaging и by_criteria из одной фунции
                 filtered_chats_only_with_text = filter_chats_only_with_text(compared_messages_with_manager)
 
-                analyze_messaging = messaging_total_analyze(filtered_chats_only_with_text, test_from_prod)
+                analyze_messaging = await messaging_total_analyze(filtered_chats_only_with_text, test_from_prod, avito_account)
                 if analyze_messaging:
                     analyze_all_chats[-1]["chats"] = analyze_messaging
 
-                # analyze_by_criteria_result = await analyze_by_criteria(filtered_chats_only_with_text, avito_account)
-                # if analyze_by_criteria:
-                #     analyze_all_chats[-1]["analyze_by_criteria"] = analyze_by_criteria_result
+                analyze_by_criteria_result = await analyze_by_criteria(filtered_chats_only_with_text, avito_account)
+                if analyze_by_criteria:
+                    analyze_all_chats[-1]["analyze_by_criteria"] = analyze_by_criteria_result
         except Exception as send_error:
             sentry_sdk.capture_exception(send_error)
             print(send_error)
