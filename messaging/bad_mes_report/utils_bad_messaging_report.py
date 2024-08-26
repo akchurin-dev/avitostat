@@ -45,27 +45,26 @@ def filter_chats_only_with_text(chats):
 
 
 async def get_messaging_week_report_pdf(avito_accounts_id, test_from_prod: bool):
-    analyze_all_chats = []
     avito_account = await sync_to_async(AvitoAccount.objects.filter(id=avito_accounts_id).last)()
     if avito_account:
         try:
             chats = await get_chats(avito_account)
 
-            analyze_all_chats.append({
+            analyze_all_chats = {
                 "avito_account_name": avito_account.name,
                 "avito_account_id": avito_account.id,
-            })
+            }
             if chats:
                 actual_chats = await get_chats_for_last_week(chats)
                 actual_chats_with_messages = await get_chats_messages(avito_account, actual_chats)
                 if len(actual_chats_with_messages) < 2:
                     return False
                 else:
-                    analyze_all_chats[-1]["chats_count"] = len(actual_chats_with_messages)
+                    analyze_all_chats["chats_count"] = len(actual_chats_with_messages)
                 #  Total statistics
                 statistics_total = await get_statistics_total(actual_chats_with_messages=actual_chats_with_messages)
                 if statistics_total:
-                    analyze_all_chats[-1]["header_with_statistics"] = statistics_total
+                    analyze_all_chats["header_with_statistics"] = statistics_total
 
                 #  Separated by managers statistics
                 compared_messages_with_manager = adding_manager_info_for_chats(actual_chats_with_messages)
@@ -73,26 +72,26 @@ async def get_messaging_week_report_pdf(avito_accounts_id, test_from_prod: bool)
                     actual_chats_with_messages=compared_messages_with_manager
                 )
                 if statistics_splitted_by_managers:
-                    analyze_all_chats[-1]["statistics_splitted_by_managers"] = statistics_splitted_by_managers
+                    analyze_all_chats["statistics_splitted_by_managers"] = statistics_splitted_by_managers
 
                 #TODO сделать ИИ анализ analyze_messaging и by_criteria из одной фунции
                 filtered_chats_only_with_text = filter_chats_only_with_text(compared_messages_with_manager)
 
                 analyze_messaging = await messaging_total_analyze(filtered_chats_only_with_text, test_from_prod, avito_account)
                 if analyze_messaging:
-                    analyze_all_chats[-1]["chats"] = analyze_messaging
+                    analyze_all_chats["chats"] = analyze_messaging
 
                 analyze_by_criteria_raw_result = await analyze_by_criteria(filtered_chats_only_with_text, avito_account)
                 if analyze_by_criteria_raw_result:
                     analyze_by_criteria_splitted_by_managers = \
                         await get_statistics_by_criteria_splitted_by_managers(actual_chats_with_messages=compared_messages_with_manager)
-                    analyze_all_chats[-1]["analyze_by_criteria"] = analyze_by_criteria_splitted_by_managers
+                    analyze_all_chats["analyze_by_criteria"] = analyze_by_criteria_splitted_by_managers
         except Exception as send_error:
             sentry_sdk.capture_exception(send_error)
             print(send_error)
             return False
         else:
-            analyze_all_chats[-1]["compared_messages"] = "Чаты не найдены"
+            analyze_all_chats["compared_messages"] = "Чаты не найдены"
 
         #TODO PDF CREATING
         html_content = await bad_messaging_report_generate_html(analyze_all_chats=analyze_all_chats)
@@ -123,15 +122,15 @@ async def bad_messaging_report_generate_html(analyze_all_chats):
     # Данные для подстановки в шаблон
     start_date = (datetime.now() - timedelta(days=6)).strftime("%d.%m.%Y")
     end_date = datetime.now().strftime("%d.%m.%Y")
-    avito_account_name = analyze_all_chats[0]['avito_account_name'] if analyze_all_chats else "Неизвестно"
+    avito_account_name = analyze_all_chats['avito_account_name'] if analyze_all_chats else "Неизвестно"
 
     # Генерация HTML с использованием шаблона и данных
     return template.render(avito_account_name=avito_account_name,
                            start_date=start_date,
                            end_date=end_date,
-                           chats_count=analyze_all_chats[0]['chats_count'],
-                           chats=analyze_all_chats[0].get('chats', []),
-                           statistics_total=analyze_all_chats[0].get("header_with_statistics"),
-                           statistics_by_managers=analyze_all_chats[0].get("statistics_splitted_by_managers"),
-                           analyze_by_criteria=analyze_all_chats[0].get("analyze_by_criteria"),
+                           chats_count=analyze_all_chats['chats_count'],
+                           chats=analyze_all_chats.get('chats', []),
+                           statistics_total=analyze_all_chats.get("header_with_statistics"),
+                           statistics_by_managers=analyze_all_chats.get("statistics_splitted_by_managers"),
+                           analyze_by_criteria=analyze_all_chats.get("analyze_by_criteria"),
                            )
