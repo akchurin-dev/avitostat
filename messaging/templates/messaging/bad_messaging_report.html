@@ -453,56 +453,35 @@
     </div>
     {% endif %}
 
-{#    <div class="page__title">Аналитика по менеджерам</div>#}
-{##}
-{#    <div class="reports">#}
-{#        <div class="reports__top d-flex items-center justify-between">#}
-{#            <div class="reports__top-info d-flex items-center">#}
-{#                <span class="reports__top-manager">Менеджер Алия</span>#}
-{#            </div>#}
-{#        </div>#}
-{##}
-{#        <div class="report">#}
-{#            <div class="report__inner d-flex items-center">#}
-{#                <span class="report__title">Приветствие менеджера</span>#}
-{#                <div class="report__info d-flex items-center justify-between">#}
-{#                    <b>5</b>/ 10#}
-{#                    <div class="report__info-status d-flex items-center" style="background-color: #E4A03B">средне</div>#}
-{#                </div>#}
-{#            </div>#}
-{#        </div>#}
-{##}
-{#        <div class="report">#}
-{#            <div class="report__inner d-flex items-center">#}
-{#                <span class="report__title">Закрыл сделку</span>#}
-{#                <div class="report__info d-flex items-center justify-between">#}
-{#                    <b>10</b>/ 10#}
-{#                    <div class="report__info-status d-flex items-center" style="background-color: #73C356">отлично</div>#}
-{#                </div>#}
-{#            </div>#}
-{#        </div>#}
-{##}
-{#        <div class="report">#}
-{#            <div class="report__inner d-flex items-center">#}
-{#                <span class="report__title">Запросил номер WhatsApp</span>#}
-{#                <div class="report__info d-flex items-center justify-between">#}
-{#                    <b>5</b>/ 10#}
-{#                    <div class="report__info-status d-flex items-center" style="background-color: #E4A03B">средне</div>#}
-{#                </div>#}
-{#            </div>#}
-{#        </div>#}
-{##}
-{#        <div class="report">#}
-{#            <div class="report__inner d-flex items-center">#}
-{#                <span class="report__title">Вежливость</span>#}
-{#                <div class="report__info d-flex items-center justify-between">#}
-{#                    <b>3</b>/ 10#}
-{#                    <div class="report__info-status d-flex items-center" style="background-color: #C14D3D">плохо</div>#}
-{#                </div>#}
-{#            </div>#}
-{#        </div>#}
-{#    </div>#}
-{##}
+    <div class="page__title">Аналитика по менеджерам</div>
+
+    {% for manager in analyze_by_criteria %}
+    <div class="reports">
+        <div class="reports__top d-flex items-center justify-between">
+            <div class="reports__top-info d-flex items-center">
+                {% if manager.manager_name %}
+                    <span class="reports__top-manager">Менеджер {{ manager.manager_name }}</span>
+                {% else %}
+                    <span class="reports__top-manager">Менеджер не закреплён</span>
+                {% endif %}
+            </div>
+        </div>
+
+        {% for criterion in manager.statistics_by_criteria[0] %}
+            <div class="report">
+                <div class="report__inner d-flex items-center">
+                    <span class="report__title">{{ criterion.criterion_name }}</span>
+                    <div class="report__info d-flex items-center justify-between">
+                        <b>{{ criterion.positive_chats }}</b>/ {{ criterion.total_chats }}
+                        <div class="report__info-status d-flex items-center" style="background-color: #E4A03B">средне</div>
+                    </div>
+                </div>
+            </div>
+        {% endfor %}
+    </div>
+    {% endfor %}
+
+
 {#    <div class="reports">#}
 {#        <div class="reports__top d-flex items-center justify-between">#}
 {#            <div class="reports__top-info d-flex items-center">#}
