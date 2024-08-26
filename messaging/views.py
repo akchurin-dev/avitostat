@@ -16,7 +16,7 @@ async def get_chats_for_last_week(chats: list) -> list:
             updated = datetime.datetime.fromtimestamp(chat.get("updated"))
             timedelta = now - updated
             print(timedelta)
-            if 7 >= timedelta.days > -1:
+            if 20 >= timedelta.days > -1:
                 filtered_chats.append(chat)
         return filtered_chats
 

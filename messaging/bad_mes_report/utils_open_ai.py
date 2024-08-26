@@ -1,13 +1,10 @@
-import time
-
 import openai
 from asgiref.sync import sync_to_async
 from dotenv import load_dotenv
 from openai import OpenAI
 import os
-
 from pydantic import BaseModel
-
+import json
 from avito_account.models import AvitoAccount, Criterion
 
 load_dotenv()
@@ -147,6 +144,19 @@ async def analyze_by_criteria(chats_with_compared_messages: list, avito_account:
                 temperature=1.0,
                 tools=[openai.pydantic_function_tool(CriterionAnalyzeSchema)]
             )
-            chat["analyze_by_criteria"] = [x.function.arguments for x in response.choices[0].message.tool_calls]
+            raw_result = [x.function.arguments for x in response.choices[0].message.tool_calls]
 
-    return chats_with_compared_messages
+            # Converting raw_result do usable DICT
+            result = {}
+            for item in raw_result:
+                item_dict = json.loads(item)
+                criterion_id = item_dict['criterion_id']
+                result[criterion_id] = {
+                    "meets_criterion": item_dict['meets_criterion'],
+                    "criterion": item_dict['criterion']
+                }
+
+            chat["analyze_by_criteria"] = result
+        return chats_with_compared_messages
+
+

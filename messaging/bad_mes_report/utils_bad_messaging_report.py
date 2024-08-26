@@ -9,7 +9,9 @@ from asgiref.sync import sync_to_async
 from pathlib import Path
 from datetime import datetime, timedelta
 
-from messaging.bad_mes_report.header.header_utils import get_statistics_total, get_statistics_splitted_by_managers
+from messaging.bad_mes_report.statistics.statistics_by_criteria_utils import \
+    get_statistics_by_criteria_splitted_by_managers
+from messaging.bad_mes_report.statistics.total_statistics_utils import get_statistics_total, get_statistics_total_splitted_by_managers
 from messaging.bad_mes_report.utils_open_ai import messaging_total_analyze, analyze_by_criteria
 from messaging.views import get_chats_for_last_week
 import re
@@ -67,7 +69,7 @@ async def get_messaging_week_report_pdf(avito_accounts_id, test_from_prod: bool)
 
                 #  Separated by managers statistics
                 compared_messages_with_manager = adding_manager_info_for_chats(actual_chats_with_messages)
-                statistics_splitted_by_managers = await get_statistics_splitted_by_managers(
+                statistics_splitted_by_managers = await get_statistics_total_splitted_by_managers(
                     actual_chats_with_messages=compared_messages_with_manager
                 )
                 if statistics_splitted_by_managers:
@@ -81,8 +83,13 @@ async def get_messaging_week_report_pdf(avito_accounts_id, test_from_prod: bool)
                     analyze_all_chats[-1]["chats"] = analyze_messaging
 
                 analyze_by_criteria_result = await analyze_by_criteria(filtered_chats_only_with_text, avito_account)
-                if analyze_by_criteria:
-                    analyze_all_chats[-1]["analyze_by_criteria"] = analyze_by_criteria_result
+                if analyze_by_criteria_result:
+                    analyze_all_chats[-1]["chats"] = analyze_by_criteria_result
+                    analyze_all_chats[-1]["statistics_by_criteria_splitted_by_managers"] = \
+                        await get_statistics_by_criteria_splitted_by_managers(
+                    actual_chats_with_messages=compared_messages_with_manager
+                )
+
         except Exception as send_error:
             sentry_sdk.capture_exception(send_error)
             print(send_error)

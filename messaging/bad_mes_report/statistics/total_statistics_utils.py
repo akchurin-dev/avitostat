@@ -155,7 +155,7 @@ async def grouping_chats_by_managers(sorted_chats: list) -> list:
     return grouped_chats
 
 
-async def get_statistics_splitted_by_managers(actual_chats_with_messages: list):
+async def get_statistics_total_splitted_by_managers(actual_chats_with_messages: list):
     grouped_chats = await grouping_chats_by_managers(actual_chats_with_messages)
 
     if len(grouped_chats) > 0:
