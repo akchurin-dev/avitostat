@@ -10,7 +10,8 @@ async def get_statistics_by_criteria_splitted_by_managers(actual_chats_with_mess
             statistics_for_manager = await get_statistics_by_criteria(
                 actual_chats_with_messages=manager_chats.get("chats"))
             if statistics_for_manager:
-                manager_chats.get("statistics_by_criteria").append(statistics_for_manager)
+                for result in statistics_for_manager:
+                    manager_chats.get("statistics_by_criteria").append(result)
 
     return grouped_chats
 
