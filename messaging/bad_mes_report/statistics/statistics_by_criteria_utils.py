@@ -16,20 +16,22 @@ async def get_statistics_by_criteria_splitted_by_managers(actual_chats_with_mess
 
 
 async def get_statistics_by_criteria(actual_chats_with_messages: list):
-    statistics_by_criteria = {}
+    result = {}
     for chat in actual_chats_with_messages:
         analyze_by_criteria = chat.get("analyze_by_criteria")
         # Initialize counters
-        if len(statistics_by_criteria) == 0:
+        if len(result) == 0:
             for key, value in analyze_by_criteria.items():
-                statistics_by_criteria[key] = {
+                result[key] = {
                     "positive_chats": 0,
                     "total_chats": len(actual_chats_with_messages),
                     "criterion_name": value.get("criterion"),
+                    "criterion_id": key,
                 }
         # # Feel positive criteria counter
         for k, v in analyze_by_criteria.items():
             if v.get("meets_criterion"):
-                statistics_by_criteria[k]["positive_chats"] += 1
+                result[k]["positive_chats"] += 1
 
-    return statistics_by_criteria
+    result_converted_to_list = list(result.values())
+    return result_converted_to_list

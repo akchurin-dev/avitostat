@@ -82,14 +82,11 @@ async def get_messaging_week_report_pdf(avito_accounts_id, test_from_prod: bool)
                 if analyze_messaging:
                     analyze_all_chats[-1]["chats"] = analyze_messaging
 
-                analyze_by_criteria_result = await analyze_by_criteria(filtered_chats_only_with_text, avito_account)
-                if analyze_by_criteria_result:
-                    analyze_all_chats[-1]["chats"] = analyze_by_criteria_result
-                    analyze_all_chats[-1]["statistics_by_criteria_splitted_by_managers"] = \
-                        await get_statistics_by_criteria_splitted_by_managers(
-                    actual_chats_with_messages=compared_messages_with_manager
-                )
-
+                analyze_by_criteria_raw_result = await analyze_by_criteria(filtered_chats_only_with_text, avito_account)
+                if analyze_by_criteria_raw_result:
+                    analyze_by_criteria_splitted_by_managers = \
+                        await get_statistics_by_criteria_splitted_by_managers(actual_chats_with_messages=compared_messages_with_manager)
+                    analyze_all_chats[-1]["analyze_by_criteria"] = analyze_by_criteria_splitted_by_managers
         except Exception as send_error:
             sentry_sdk.capture_exception(send_error)
             print(send_error)
@@ -136,4 +133,5 @@ async def bad_messaging_report_generate_html(analyze_all_chats):
                            chats=analyze_all_chats[0].get('chats', []),
                            statistics_total=analyze_all_chats[0].get("header_with_statistics"),
                            statistics_by_managers=analyze_all_chats[0].get("statistics_splitted_by_managers"),
+                           analyze_by_criteria=analyze_all_chats[0].get("analyze_by_criteria"),
                            )
