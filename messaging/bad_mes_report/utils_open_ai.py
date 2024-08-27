@@ -6,6 +6,7 @@ import os
 from pydantic import BaseModel
 import json
 from avito_account.models import AvitoAccount, Criterion
+from exceptions import HTTPException
 
 load_dotenv()
 ENVIRONMENT = os.getenv('ENVIRONMENT')
@@ -112,7 +113,12 @@ class CriterionAnalyzeSchema(BaseModel):
     criterion: str
 
 
-async def analyze_by_criteria(chats_with_compared_messages: list, avito_account: AvitoAccount):
+async def analyze_by_criteria(chats_with_compared_messages: list, test_from_prod: bool, avito_account: AvitoAccount):
+    if ENVIRONMENT == 'DEVELOPMENT' or test_from_prod:
+        chats_with_compared_messages = chats_with_compared_messages[:5]  #  For testing 5 items  for economy
+    else:
+        chats_with_compared_messages = chats_with_compared_messages[:15]
+
     if avito_account.analytic_schema_id:
         criteria = await sync_to_async(list)(Criterion.objects.filter(schema_id=avito_account.analytic_schema_id))
         criteria_dict = {criterion.id: criterion.name for criterion in criteria}
@@ -158,5 +164,6 @@ async def analyze_by_criteria(chats_with_compared_messages: list, avito_account:
 
             chat["analyze_by_criteria"] = result
         return chats_with_compared_messages
-
-
+    else:
+        raise HTTPException(status_code=404,
+                            detail=f"К аккаунту {avito_account.id, avito_account.name}  не закреплена схема аналитики по критериям")

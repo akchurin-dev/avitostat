@@ -11,7 +11,8 @@ from datetime import datetime, timedelta
 
 from messaging.bad_mes_report.statistics.statistics_by_criteria_utils import \
     get_statistics_by_criteria_splitted_by_managers
-from messaging.bad_mes_report.statistics.total_statistics_utils import get_statistics_total, get_statistics_total_splitted_by_managers
+from messaging.bad_mes_report.statistics.total_statistics_utils import get_statistics_total, \
+    get_statistics_total_splitted_by_managers
 from messaging.bad_mes_report.utils_open_ai import messaging_total_analyze, analyze_by_criteria
 from messaging.views import get_chats_for_last_week
 import re
@@ -74,21 +75,24 @@ async def get_messaging_week_report_pdf(avito_accounts_id, test_from_prod: bool)
                 if statistics_splitted_by_managers:
                     analyze_all_chats["statistics_splitted_by_managers"] = statistics_splitted_by_managers
 
-                #TODO сделать ИИ анализ analyze_messaging и by_criteria из одной фунции
                 filtered_chats_only_with_text = filter_chats_only_with_text(compared_messages_with_manager)
-
-                analyze_messaging = await messaging_total_analyze(filtered_chats_only_with_text, test_from_prod, avito_account)
+                analyze_messaging = await messaging_total_analyze(filtered_chats_only_with_text,
+                                                                  test_from_prod,
+                                                                  avito_account)
                 if analyze_messaging:
                     analyze_all_chats["chats"] = analyze_messaging
 
-                analyze_by_criteria_raw_result = await analyze_by_criteria(filtered_chats_only_with_text, avito_account)
+                analyze_by_criteria_raw_result = await analyze_by_criteria(filtered_chats_only_with_text,
+                                                                           test_from_prod,
+                                                                           avito_account)
                 if analyze_by_criteria_raw_result:
                     analyze_by_criteria_splitted_by_managers = \
-                        await get_statistics_by_criteria_splitted_by_managers(actual_chats_with_messages=compared_messages_with_manager)
+                        await get_statistics_by_criteria_splitted_by_managers(filtered_chats_only_with_text)
                     analyze_all_chats["analyze_by_criteria"] = analyze_by_criteria_splitted_by_managers
         except Exception as send_error:
             sentry_sdk.capture_exception(send_error)
             print(send_error)
+            # raise send_error
             return False
         else:
             analyze_all_chats["compared_messages"] = "Чаты не найдены"

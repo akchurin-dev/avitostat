@@ -54,9 +54,9 @@ def get_color_second_touches_average(rounded_average: int,
 
 def get_color_touches_count_in_chat_average(messages_count_in_chat_average: float,
                                             color: str = '#C04D3D') -> str:  # default color - red
-    if messages_count_in_chat_average >= 6:
+    if messages_count_in_chat_average >= 5:
         color = '#73C356'  # green
-    elif 4 <= messages_count_in_chat_average <= 5:
+    elif 4 <= messages_count_in_chat_average < 5:
         color = '#E4A03B'  # yellow
     elif messages_count_in_chat_average <= 3:
         color = '#C04D3D'  # red
