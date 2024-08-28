@@ -473,7 +473,7 @@
                     <span class="report__title">{{ criterion.criterion_name }}</span>
                     <div class="report__info d-flex items-center justify-between">
                         <b>{{ criterion.positive_chats }}</b>/ {{ criterion.total_chats }}
-                        <div class="report__info-status d-flex items-center" style="background-color: #E4A03B">средне</div>
+                        <div class="report__info-status d-flex items-center" style="background-color: {{ criterion.description.color }}">{{ criterion.description.text }}</div>
                     </div>
                 </div>
             </div>
