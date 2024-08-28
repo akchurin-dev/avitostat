@@ -2,7 +2,7 @@ from aiogram import types
 from django.http import HttpResponse
 from telegram_bot import bot
 from django.views import View
-from messaging.tasks import bad_messaging_week_report_async
+from messaging.tasks import bad_messaging_week_report_async, bad_messaging_week_report_async_task
 
 
 class TelegramSenderTestView(View):
@@ -29,6 +29,6 @@ class BadMessagingWeekReportTestView(View):
 
 class BadMessagingWeekReportAllTestView(View):
     async def get(self, request, *args, **kwargs):
-        await bad_messaging_week_report_async(test_from_prod=True)
+        bad_messaging_week_report_async_task.delay(test_from_prod=True)
         # TODO Придумать нормальные условия для 200 и других статусов, тк сейчас всегда 200
         return HttpResponse(status=200)

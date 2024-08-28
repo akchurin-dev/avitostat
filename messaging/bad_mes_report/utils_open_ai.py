@@ -20,7 +20,7 @@ async def messaging_total_analyze(chats_with_compared_messages: list, test_from_
                                   avito_account: AvitoAccount):
     # Checking count of messages fo analytics
     if ENVIRONMENT == 'DEVELOPMENT' or test_from_prod:
-        chats_with_compared_messages = chats_with_compared_messages[:25]  #  For testing 5 items  for economy
+        chats_with_compared_messages = chats_with_compared_messages[:5]  #  For testing 5 items  for economy
     else:
         chats_with_compared_messages = chats_with_compared_messages[:15]
 
@@ -115,7 +115,7 @@ class CriterionAnalyzeSchema(BaseModel):
 
 async def analyze_by_criteria(chats_with_compared_messages: list, test_from_prod: bool, avito_account: AvitoAccount):
     if ENVIRONMENT == 'DEVELOPMENT' or test_from_prod:
-        chats_with_compared_messages = chats_with_compared_messages[:25]  #  For testing 5 items  for economy
+        chats_with_compared_messages = chats_with_compared_messages[:5]  #  For testing 5 items  for economy
     else:
         chats_with_compared_messages = chats_with_compared_messages[:15]
 
