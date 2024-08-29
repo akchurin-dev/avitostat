@@ -1,3 +1,4 @@
+import pdfkit
 import sentry_sdk
 
 from avito_account.models import AvitoAccount
@@ -99,18 +100,15 @@ async def get_messaging_week_report_pdf(avito_accounts_id, test_from_prod: bool)
 
         #TODO PDF CREATING
         html_content = await bad_messaging_report_generate_html(analyze_all_chats=analyze_all_chats)
-        pdf_file = HTML(string=html_content).write_pdf()
-        # Get the current date in dd.mm.yyyy format
-        current_date = datetime.now().strftime("%d.%m.%Y")
+        config = pdfkit.configuration(wkhtmltopdf="/usr/local/bin/wkhtmltopdf")
         # Define the directory and file path with the date
         reports_dir = Path("messaging/bad_mes_report/PDFs")
         reports_dir.mkdir(parents=True, exist_ok=True)
+        # Get the current date in dd.mm.yyyy format
+        current_date = datetime.now().strftime("%d.%m.%Y")
         pdf_path = reports_dir / f"bad_mes_report_{current_date}_{avito_accounts_id}.pdf"
-        # Save the PDF file
-        with open(pdf_path, "wb") as f:
-            f.write(pdf_file)
-        # Return the absolute path to the saved PDF
-        return str(pdf_path.resolve())
+        pdfkit.from_string(html_content, pdf_path, configuration=config)
+        return pdf_path
 
     else:
         raise HTTPException(status_code=404, detail="error: Аккаунт Avito не найден")

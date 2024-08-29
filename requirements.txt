@@ -84,6 +84,7 @@ overrides==7.7.0
 packaging==24.0
 pandocfilters==1.5.1
 parso==0.8.4
+pdfkit==1.0.0
 pexpect==4.9.0
 pillow==10.3.0
 platformdirs==4.2.1
@@ -135,5 +136,6 @@ weasyprint==62.3
 webcolors==1.13
 webencodings==0.5.1
 websocket-client==1.8.0
+wkhtmltopdf==0.2
 yarl==1.9.4
 zopfli==0.2.3
