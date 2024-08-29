@@ -28,7 +28,7 @@ class BadMessagingWeekReportTestView(View):
 
 
 class BadMessagingWeekReportAllTestView(View):
-    def get(self, request, *args, **kwargs):
-        bad_messaging_week_report_async_task.delay(test_from_prod=True)
+    async def get(self, request, *args, **kwargs):
+        await bad_messaging_week_report_async(test_from_prod=True)
         # TODO Придумать нормальные условия для 200 и других статусов, тк сейчас всегда 200
         return HttpResponse(status=200)

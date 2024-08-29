@@ -122,6 +122,11 @@ async def get_statistics_total(actual_chats_with_messages: list):
             "value": average_duration_formatted,
             "color": color
         }
+    elif total_sum == 0:   # Если небыло второго касания вообще -
+        statistics["second_touches_duration_average"] = {
+            "value": "отсутствует",
+            "color": '#C04D3D'  # red
+        }
 
     #TODO Touches in chat count average
     counts = [len([chat for chat in chat.get("messages") if chat.get("direction") == "out"]) for chat in
