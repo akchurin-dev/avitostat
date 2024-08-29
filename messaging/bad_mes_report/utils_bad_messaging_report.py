@@ -5,7 +5,6 @@ from avito_account.models import AvitoAccount
 from exceptions import HTTPException
 from messaging.api import get_chats, get_chats_messages
 from jinja2 import Template
-from weasyprint import HTML
 from asgiref.sync import sync_to_async
 from pathlib import Path
 from datetime import datetime, timedelta
@@ -43,6 +42,7 @@ def filter_chats_only_with_text(chats):
             continue
         if any(message.get("type") == "text" for message in chat.get("messages", [])):
             filtered_chats.append(chat)
+    print(f"{len(filtered_chats)} chats loaded: ")
     return filtered_chats
 
 
@@ -59,24 +59,24 @@ async def get_messaging_week_report_pdf(avito_accounts_id, test_from_prod: bool)
             if chats:
                 actual_chats = await get_chats_for_last_week(chats)
                 actual_chats_with_messages = await get_chats_messages(avito_account, actual_chats)
-                if len(actual_chats_with_messages) < 2:
+                filtered_chats_only_with_text = filter_chats_only_with_text(actual_chats_with_messages)
+
+                if len(filtered_chats_only_with_text) < 2:
                     return False
                 else:
-                    analyze_all_chats["chats_count"] = len(actual_chats_with_messages)
+                    analyze_all_chats["chats_count"] = len(filtered_chats_only_with_text)
                 #  Total statistics
-                statistics_total = await get_statistics_total(actual_chats_with_messages=actual_chats_with_messages)
+                statistics_total = await get_statistics_total(actual_chats_with_messages=filtered_chats_only_with_text)
                 if statistics_total:
                     analyze_all_chats["header_with_statistics"] = statistics_total
-
                 #  Separated by managers statistics
-                compared_messages_with_manager = adding_manager_info_for_chats(actual_chats_with_messages)
+                compared_messages_with_manager = adding_manager_info_for_chats(filtered_chats_only_with_text)
                 statistics_splitted_by_managers = await get_statistics_total_splitted_by_managers(
                     actual_chats_with_messages=compared_messages_with_manager
                 )
                 if statistics_splitted_by_managers:
                     analyze_all_chats["statistics_splitted_by_managers"] = statistics_splitted_by_managers
 
-                filtered_chats_only_with_text = filter_chats_only_with_text(compared_messages_with_manager)
                 analyze_messaging = await messaging_total_analyze(filtered_chats_only_with_text,
                                                                   test_from_prod,
                                                                   avito_account)
@@ -93,7 +93,6 @@ async def get_messaging_week_report_pdf(avito_accounts_id, test_from_prod: bool)
         except Exception as send_error:
             sentry_sdk.capture_exception(send_error)
             print(send_error)
-            # raise send_error
             return False
         else:
             analyze_all_chats["compared_messages"] = "Чаты не найдены"
