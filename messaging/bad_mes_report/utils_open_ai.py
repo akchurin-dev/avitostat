@@ -120,48 +120,49 @@ async def analyze_by_criteria(chats_with_compared_messages: list, test_from_prod
 
     if avito_account.analytic_schema_id:
         criteria = await sync_to_async(list)(Criterion.objects.filter(schema_id=avito_account.analytic_schema_id))
-    else:
-        criteria = await sync_to_async(list)(Criterion.objects.filter(schema_id=1))
+        criteria_dict = {criterion.id: criterion.name for criterion in criteria}
 
-    criteria_dict = {criterion.id: criterion.name for criterion in criteria}
-    for chat in chats_with_compared_messages:
-        chat_text = "\n".join(
-            [message.get('direction') + ": " + message.get('content').get("text") for message in
-             chat.get('messages') if
-             message.get('type', None) == 'text'])
+        for chat in chats_with_compared_messages:
+            chat_text = "\n".join(
+                [message.get('direction') + ": " + message.get('content').get("text") for message in
+                 chat.get('messages') if
+                 message.get('type', None) == 'text'])
 
-        prompt = (
-                f"Here is a conversation between a call center operator and a client: {chat_text}"
-                "Format of the conversation:"
-                "- First, the role of the speaker is described, followed by their text"
-                "- 'in' indicates the client"
-                "- 'out' indicates the manager"
-                + (
-                    f"and a dictionary of criteria with criterion identifiers as keys and criteria as "
-                    f"values, {criteria_dict}" if criteria else ""
-                )
-                + "perform the following steps: "
-                + ("\n - Evaluate each criterion." if criteria else "")
-        )
-        response = client.chat.completions.create(
-            model=MODEL,
-            messages=[
-                {"role": "system", "content": prompt},
-            ],
-            temperature=1.0,
-            tools=[openai.pydantic_function_tool(CriterionAnalyzeSchema)]
-        )
-        raw_result = [x.function.arguments for x in response.choices[0].message.tool_calls]
+            prompt = (
+                    f"Here is a conversation between a call center operator and a client: {chat_text}"
+                    "Format of the conversation:"
+                    "- First, the role of the speaker is described, followed by their text"
+                    "- 'in' indicates the client"
+                    "- 'out' indicates the manager"
+                    + (
+                        f"and a dictionary of criteria with criterion identifiers as keys and criteria as "
+                        f"values, {criteria_dict}" if criteria else ""
+                    )
+                    + "perform the following steps: "
+                    + ("\n - Evaluate each criterion." if criteria else "")
+            )
+            response = client.chat.completions.create(
+                model=MODEL,
+                messages=[
+                    {"role": "system", "content": prompt},
+                ],
+                temperature=1.0,
+                tools=[openai.pydantic_function_tool(CriterionAnalyzeSchema)]
+            )
+            raw_result = [x.function.arguments for x in response.choices[0].message.tool_calls]
 
-        # Converting raw_result do usable DICT
-        result = {}
-        for item in raw_result:
-            item_dict = json.loads(item)
-            criterion_id = item_dict['criterion_id']
-            result[criterion_id] = {
-                "meets_criterion": item_dict['meets_criterion'],
-                "criterion": item_dict['criterion']
-            }
+            # Converting raw_result do usable DICT
+            result = {}
+            for item in raw_result:
+                item_dict = json.loads(item)
+                criterion_id = item_dict['criterion_id']
+                result[criterion_id] = {
+                    "meets_criterion": item_dict['meets_criterion'],
+                    "criterion": item_dict['criterion']
+                }
 
-        chat["analyze_by_criteria"] = result
+            chat["analyze_by_criteria"] = result
         return chats_with_compared_messages
+    else:
+        raise HTTPException(status_code=404,
+                            detail=f"К аккаунту {avito_account.id, avito_account.name}  не закреплена схема аналитики по критериям")
