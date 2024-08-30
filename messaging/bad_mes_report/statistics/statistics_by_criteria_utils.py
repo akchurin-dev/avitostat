@@ -15,7 +15,7 @@ async def get_statistics_by_criteria_splitted_by_managers(filtered_chats_only_wi
     return grouped_chats
 
 
-async def get_color_description(result: dict, color="red", text="ПЛОХО"):
+async def get_color_description(result: dict, color="#C14D3D", text="плохо"):
     percentage = result.get("positive_chats") / result.get("total_chats")
     if 0.33 >= percentage > 0:
         color = "#C14D3D"
