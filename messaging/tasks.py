@@ -13,8 +13,8 @@ from messaging.bad_mes_report.utils_bad_messaging_report import get_messaging_we
 
 
 @celery_app.task(name='messaging.tasks.bad_messaging_week_report_async_task')
-def bad_messaging_week_report_async_task(only_for_users=None):
-    async_to_sync(bad_messaging_week_report_async)(only_for_users=only_for_users)
+def bad_messaging_week_report_async_task(only_for_users=None, test_from_prod=False):
+    async_to_sync(bad_messaging_week_report_async)(only_for_users=only_for_users, test_from_prod=test_from_prod)
 
 
 async def bad_messaging_week_report_async(test_from_prod: bool = False, only_for_users=None):
@@ -38,6 +38,7 @@ async def bad_messaging_week_report_async(test_from_prod: bool = False, only_for
 
     # CORE logic
     for avito_account in all_avito_accounts:
+        print(avito_account.name)
         try:
             pdf_path = await get_messaging_week_report_pdf(avito_account.id, test_from_prod)
             if pdf_path:

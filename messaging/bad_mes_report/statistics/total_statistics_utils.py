@@ -54,9 +54,9 @@ def get_color_second_touches_average(rounded_average: int,
 
 def get_color_touches_count_in_chat_average(messages_count_in_chat_average: float,
                                             color: str = '#C04D3D') -> str:  # default color - red
-    if messages_count_in_chat_average >= 6:
+    if messages_count_in_chat_average >= 5:
         color = '#73C356'  # green
-    elif 4 <= messages_count_in_chat_average <= 5:
+    elif 4 <= messages_count_in_chat_average < 5:
         color = '#E4A03B'  # yellow
     elif messages_count_in_chat_average <= 3:
         color = '#C04D3D'  # red
@@ -69,6 +69,11 @@ async def get_statistics_total(actual_chats_with_messages: list):
     total_first_touches = []
 
     for chat in actual_chats_with_messages:
+        statistics['first_touches_average'] = {  #  Default values if cant calculate it
+            "value": "не удалось рассчитать",
+            "color": '#C04D3D'
+        }
+
         first_incoming_time = None
         first_outgoing_time = None
 
@@ -122,6 +127,11 @@ async def get_statistics_total(actual_chats_with_messages: list):
             "value": average_duration_formatted,
             "color": color
         }
+    elif total_sum == 0:  # Если небыло второго касания вообще -
+        statistics["second_touches_duration_average"] = {
+            "value": "отсутствует",
+            "color": '#C04D3D'  # red
+        }
 
     #TODO Touches in chat count average
     counts = [len([chat for chat in chat.get("messages") if chat.get("direction") == "out"]) for chat in
@@ -155,7 +165,7 @@ async def grouping_chats_by_managers(sorted_chats: list) -> list:
     return grouped_chats
 
 
-async def get_statistics_splitted_by_managers(actual_chats_with_messages: list):
+async def get_statistics_total_splitted_by_managers(actual_chats_with_messages: list):
     grouped_chats = await grouping_chats_by_managers(actual_chats_with_messages)
 
     if len(grouped_chats) > 0:

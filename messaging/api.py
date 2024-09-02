@@ -33,9 +33,9 @@ async def get_chats(avito_account: AvitoAccount, max_retries: int = 3) -> dict:
                 params["offset"] += 100
             elif response.status_code == 403:
                 retries += 1
+                await avito_account.update_refresh_token_async()
                 if retries > max_retries:
                     raise HTTPStatusError("Превышено максимальное количество попыток обновления токена", request=response.request, response=response)
-                await avito_account.update_refresh_token_async()
                 print(f"Attempt {retries}: {response.status_code}, {response.text}")     # Удалить если нет необходимости в коде, была нужда когда разбирался в ошибкой 403 бесконечно
             else:
                 raise HTTPException(status_code=response.status_code, detail=response.text)

@@ -67,13 +67,15 @@
         .page__top-title {
             height: 70px;
             border-radius: 0 35px 35px 0;
-            border: 1px solid #00D8BF;
+            border-top: 1px solid #00D8BF;
+            border-right: 1px solid #00D8BF;
+            border-bottom: 1px solid #00D8BF;
             color: #20232B;
             font-size: 28px;
             font-weight: 700;
             letter-spacing: -.76px;
             padding-right: 20px;
-            border-left: none;}
+        }
         .page__top-icon {
             width: 70px;
             height: 70px;
@@ -111,10 +113,9 @@
         }
         .page__top-logo {
             width: 158px;
-            margin-left: auto;
         }
         .page__top-logo svg {
-            margin-left: 10px;
+            margin-left: 35px;
             width: 148px;
         }
         .page .page__title {
@@ -167,12 +168,13 @@
             padding-right: 5px;
         }
         .page .reports .report__title {
-            flex-grow: 1;
+            width: 220px !important;
             color: #20232B;
             font-size: 12px;
             font-weight: 500;
             line-height: 100%;
             padding-right: 10px;
+            display: inline-block;
         }
         .page .reports .report__info {
             height: 30px;
@@ -183,7 +185,7 @@
             font-weight: 500;
             letter-spacing: -.8px;
             padding: 5px 5px 5px 10px;
-            min-width: 150px;
+            width: 135px;
         }
         .page .reports .report__info-status {
             height: 16px;
@@ -212,6 +214,9 @@
         }
         .page .parameters__item-inner {
             width: 100%;
+        }
+        .page .parameters__item-inner span {
+            white-space: nowrap;
         }
         .page .parameters__item:nth-child(odd) {
             padding-right: 5px;
@@ -369,7 +374,7 @@
             <div class="parameters__item-inner d-flex items-center">
                 Среднее время ответа 1-ого контакта:
                 <div class="parameters__item-status" style="background-color: {{ statistics_total.first_touches_average.color }}"></div>
-                {{ statistics_total.first_touches_average.value }}
+                <span>{{ statistics_total.first_touches_average.value }}</span>
             </div>
         </div>
 
@@ -377,7 +382,7 @@
             <div class="parameters__item-inner d-flex items-center">
                 Среднее количество касаний с клиентом:
                 <div class="parameters__item-status" style="background-color: {{ statistics_total.touches_in_chat_average.color }}"></div>
-                {{ statistics_total.touches_in_chat_average.value }}
+                <span>{{ statistics_total.touches_in_chat_average.value }}</span>
             </div>
         </div>
 
@@ -385,7 +390,7 @@
             <div class="parameters__item-inner d-flex items-center">
                 Среднее время ответа 2-ого обращения:
                 <div class="parameters__item-status" style="background-color: {{ statistics_total.second_touches_duration_average.color }}"></div>
-                {{ statistics_total.second_touches_duration_average.value }}
+                <span>{{ statistics_total.second_touches_duration_average.value }}</span>
             </div>
         </div>
     </div>
@@ -453,56 +458,35 @@
     </div>
     {% endif %}
 
-{#    <div class="page__title">Аналитика по менеджерам</div>#}
-{##}
-{#    <div class="reports">#}
-{#        <div class="reports__top d-flex items-center justify-between">#}
-{#            <div class="reports__top-info d-flex items-center">#}
-{#                <span class="reports__top-manager">Менеджер Алия</span>#}
-{#            </div>#}
-{#        </div>#}
-{##}
-{#        <div class="report">#}
-{#            <div class="report__inner d-flex items-center">#}
-{#                <span class="report__title">Приветствие менеджера</span>#}
-{#                <div class="report__info d-flex items-center justify-between">#}
-{#                    <b>5</b>/ 10#}
-{#                    <div class="report__info-status d-flex items-center" style="background-color: #E4A03B">средне</div>#}
-{#                </div>#}
-{#            </div>#}
-{#        </div>#}
-{##}
-{#        <div class="report">#}
-{#            <div class="report__inner d-flex items-center">#}
-{#                <span class="report__title">Закрыл сделку</span>#}
-{#                <div class="report__info d-flex items-center justify-between">#}
-{#                    <b>10</b>/ 10#}
-{#                    <div class="report__info-status d-flex items-center" style="background-color: #73C356">отлично</div>#}
-{#                </div>#}
-{#            </div>#}
-{#        </div>#}
-{##}
-{#        <div class="report">#}
-{#            <div class="report__inner d-flex items-center">#}
-{#                <span class="report__title">Запросил номер WhatsApp</span>#}
-{#                <div class="report__info d-flex items-center justify-between">#}
-{#                    <b>5</b>/ 10#}
-{#                    <div class="report__info-status d-flex items-center" style="background-color: #E4A03B">средне</div>#}
-{#                </div>#}
-{#            </div>#}
-{#        </div>#}
-{##}
-{#        <div class="report">#}
-{#            <div class="report__inner d-flex items-center">#}
-{#                <span class="report__title">Вежливость</span>#}
-{#                <div class="report__info d-flex items-center justify-between">#}
-{#                    <b>3</b>/ 10#}
-{#                    <div class="report__info-status d-flex items-center" style="background-color: #C14D3D">плохо</div>#}
-{#                </div>#}
-{#            </div>#}
-{#        </div>#}
-{#    </div>#}
-{##}
+    <div class="page__title">Аналитика по менеджерам</div>
+
+    {% for manager in analyze_by_criteria %}
+    <div class="reports">
+        <div class="reports__top d-flex items-center justify-between">
+            <div class="reports__top-info d-flex items-center">
+                {% if manager.manager_name %}
+                    <span class="reports__top-manager">Менеджер {{ manager.manager_name }}</span>
+                {% else %}
+                    <span class="reports__top-manager">Менеджер не закреплён</span>
+                {% endif %}
+            </div>
+        </div>
+
+        {% for criterion in manager.statistics_by_criteria %}
+            <div class="report">
+                <div class="report__inner d-flex items-center">
+                    <span class="report__title">{{ criterion.criterion_name }}</span>
+                    <div class="report__info d-flex items-center justify-between">
+                        <b>{{ criterion.positive_chats }}</b>/ {{ criterion.total_chats }}
+                        <div class="report__info-status d-flex items-center" style="background-color: {{ criterion.description.color }}">{{ criterion.description.text }}</div>
+                    </div>
+                </div>
+            </div>
+        {% endfor %}
+    </div>
+    {% endfor %}
+
+
 {#    <div class="reports">#}
 {#        <div class="reports__top d-flex items-center justify-between">#}
 {#            <div class="reports__top-info d-flex items-center">#}

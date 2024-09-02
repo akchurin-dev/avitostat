@@ -1,23 +1,24 @@
+import openai
 from asgiref.sync import sync_to_async
 from dotenv import load_dotenv
 from openai import OpenAI
 import os
-
+from pydantic import BaseModel
+import json
 from avito_account.models import AvitoAccount, Criterion
+from exceptions import HTTPException
 
 load_dotenv()
 ENVIRONMENT = os.getenv('ENVIRONMENT')
 
-MODEL = "gpt-4o"
+MODEL = "gpt-4o-2024-08-06"
 client = OpenAI(api_key=os.environ.get("OPENAI_SECRET_KEY"))
 
 
 # TODO I tried change to ASYNC methods for analyze , but not see different in speed
-def messaging_total_analyze(chats_with_compared_messages: list, test_from_prod: bool):
-    if ENVIRONMENT == 'DEVELOPMENT' or test_from_prod:
-        chats_with_compared_messages = chats_with_compared_messages[:5]  #  For testing 5 items  for economy
-    else:
-        chats_with_compared_messages = chats_with_compared_messages[:15]
+async def messaging_total_analyze(chats_with_compared_messages: list, test_from_prod: bool,
+                                  avito_account: AvitoAccount):
+
     for chat in chats_with_compared_messages:
         chat_text = "\n".join(
             [message.get('direction') + ": " + message.get('content').get("text") for message in chat.get('messages') if
@@ -100,49 +101,57 @@ def messaging_total_analyze(chats_with_compared_messages: list, test_from_prod: 
     return chats_with_compared_messages
 
 
-async def analyze_by_criteria(chats_with_compared_messages: list, avito_account: AvitoAccount):
-    criteria = None
+class CriterionAnalyzeSchema(BaseModel):
+    criterion_id: int
+    meets_criterion: bool
+    criterion: str
+
+
+async def analyze_by_criteria(chats_with_compared_messages: list, test_from_prod: bool, avito_account: AvitoAccount):
     if avito_account.analytic_schema_id:
         criteria = await sync_to_async(list)(Criterion.objects.filter(schema_id=avito_account.analytic_schema_id))
-        criteria_dict = {criterion.id: criterion.name for criterion in criteria}
-        analyze_all_chats = []
+    else:
+        criteria = await sync_to_async(list)(Criterion.objects.filter(schema_id=1))
 
-        for chat in chats_with_compared_messages:
-            prompt = (
-                    "Дан разговор между оператором колл-центра и клиентом, "
-                    + (
-                        "и словарь критериев с идентификаторами критериев в качестве ключей и критериями в качестве значений, "
-                        if criteria
-                        else ""
-                    )
-                    + "выполните следующие шаги: "
-                      "\n - Разделите разговор по ролям, создавая отдельные записи для каждого фрагмента диалога в массиве JSON."
-                    + ("\n - Дайте оценку для каждого критерия." if criteria else "")
-                    + "\n Предоставьте результат в следующем формате JSON:"
-                      '\n {"conversation": [{"agent": "text of agent here"}, {"customer": "text of customer here"}, ...], '
-                    + (
-                        '"criteria": {"criterion_id_1": {"meets_criterion": true/false, "evaluation": "your evaluation here"},'
-                        ' "criterion_id_2": {"meets_criterion": true/false, "evaluation": "your evaluation here"}, ...} '
-                        if criteria
-                        else ""
-                    )
-                    + "}"
-            )
+    criteria_dict = {criterion.id: criterion.name for criterion in criteria}
+    for chat in chats_with_compared_messages:
+        chat_text = "\n".join(
+            [message.get('direction') + ": " + message.get('content').get("text") for message in
+             chat.get('messages') if
+             message.get('type', None) == 'text'])
 
-            user_content = (
-                    f"Conversation:\n{chat['messages']}"
-                    + ("\nCriteria:\n" + str(criteria_dict) if criteria else "")
-            )
+        prompt = (
+                f"Here is a conversation between a call center operator and a client: {chat_text}"
+                "Format of the conversation:"
+                "- First, the role of the speaker is described, followed by their text"
+                "- 'in' indicates the client"
+                "- 'out' indicates the manager"
+                + (
+                    f"and a dictionary of criteria with criterion identifiers as keys and criteria as "
+                    f"values, {criteria_dict}" if criteria else ""
+                )
+                + "perform the following steps: "
+                + ("\n - Evaluate each criterion." if criteria else "")
+        )
+        response = client.chat.completions.create(
+            model=MODEL,
+            messages=[
+                {"role": "system", "content": prompt},
+            ],
+            temperature=1.0,
+            tools=[openai.pydantic_function_tool(CriterionAnalyzeSchema)]
+        )
+        raw_result = [x.function.arguments for x in response.choices[0].message.tool_calls]
 
-            response = client.chat.completions.create(
-                model="gpt-4o",
-                response_format={"type": "json_object"},
-                temperature=0,
-                messages=[
-                    {"role": "system", "content": prompt},
-                    {"role": "user", "content": user_content},
-                ],
-            )
-            analyze_all_chats.append(response.choices[0].message.content)
+        # Converting raw_result do usable DICT
+        result = {}
+        for item in raw_result:
+            item_dict = json.loads(item)
+            criterion_id = item_dict['criterion_id']
+            result[criterion_id] = {
+                "meets_criterion": item_dict['meets_criterion'],
+                "criterion": item_dict['criterion']
+            }
 
-    return analyze_all_chats
+        chat["analyze_by_criteria"] = result
+    return chats_with_compared_messages
