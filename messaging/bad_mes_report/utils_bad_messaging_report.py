@@ -113,7 +113,10 @@ async def get_messaging_week_report_pdf(avito_accounts_id, test_from_prod: bool)
             analyze_all_chats["compared_messages"] = "Чаты не найдены"
 
         #TODO PDF CREATING
-        wkhtmltopdf_path = "/usr/bin/wkhtmltopdf"
+        if ENVIRONMENT == 'DEVELOPMENT':
+            wkhtmltopdf_path = "/usr/local/bin/wkhtmltopdf"  # For testing 5 items  for economy
+        else:
+            wkhtmltopdf_path = "/usr/bin/wkhtmltopdf"
 
         html_content = await bad_messaging_report_generate_html(analyze_all_chats=analyze_all_chats)
         config = pdfkit.configuration(wkhtmltopdf=wkhtmltopdf_path)
