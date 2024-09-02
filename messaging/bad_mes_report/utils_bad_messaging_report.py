@@ -20,8 +20,10 @@ from messaging.bad_mes_report.statistics.total_statistics_utils import get_stati
 from messaging.bad_mes_report.utils_open_ai import messaging_total_analyze, analyze_by_criteria
 from messaging.views import get_chats_for_last_week
 import re
+
 load_dotenv()
 ENVIRONMENT = os.getenv('ENVIRONMENT')
+
 
 def adding_manager_info_for_chats(chats):
     manager_pattern = re.compile(r'^([А-ЯЁ][а-яё]+(?:\s[А-ЯЁ][а-яё]+){1,2}):\s*\n')
@@ -79,7 +81,8 @@ async def get_messaging_week_report_pdf(avito_accounts_id, test_from_prod: bool)
 
                 # Checking count of messages for analytics
                 if ENVIRONMENT == 'DEVELOPMENT' or test_from_prod:
-                    filtered_chats_only_with_text = filtered_chats_only_with_text[:5]  # For testing 5 items  for economy
+                    filtered_chats_only_with_text = filtered_chats_only_with_text[
+                                                    :5]  # For testing 5 items  for economy
                 else:
                     filtered_chats_only_with_text = filtered_chats_only_with_text[:15]
 
@@ -110,8 +113,13 @@ async def get_messaging_week_report_pdf(avito_accounts_id, test_from_prod: bool)
             analyze_all_chats["compared_messages"] = "Чаты не найдены"
 
         #TODO PDF CREATING
+        if ENVIRONMENT == 'DEVELOPMENT' or test_from_prod:
+            wkhtmltopdf_path = "/usr/local/bin/wkhtmltopdf"  # For testing 5 items  for economy
+        else:
+            wkhtmltopdf_path = "/usr/bin/wkhtmltopdf"
+
         html_content = await bad_messaging_report_generate_html(analyze_all_chats=analyze_all_chats)
-        config = pdfkit.configuration(wkhtmltopdf="/usr/local/bin/wkhtmltopdf")
+        config = pdfkit.configuration(wkhtmltopdf=wkhtmltopdf_path)
         # Define the directory and file path with the date
         reports_dir = Path("messaging/bad_mes_report/PDFs")
         reports_dir.mkdir(parents=True, exist_ok=True)
