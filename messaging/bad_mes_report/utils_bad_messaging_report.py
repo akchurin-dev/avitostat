@@ -1,5 +1,8 @@
+import os
+
 import pdfkit
 import sentry_sdk
+from dotenv import load_dotenv
 
 from avito_account.models import AvitoAccount
 from exceptions import HTTPException
@@ -17,7 +20,8 @@ from messaging.bad_mes_report.statistics.total_statistics_utils import get_stati
 from messaging.bad_mes_report.utils_open_ai import messaging_total_analyze, analyze_by_criteria
 from messaging.views import get_chats_for_last_week
 import re
-
+load_dotenv()
+ENVIRONMENT = os.getenv('ENVIRONMENT')
 
 def adding_manager_info_for_chats(chats):
     manager_pattern = re.compile(r'^([А-ЯЁ][а-яё]+(?:\s[А-ЯЁ][а-яё]+){1,2}):\s*\n')
@@ -59,6 +63,7 @@ async def get_messaging_week_report_pdf(avito_accounts_id, test_from_prod: bool)
             if chats:
                 actual_chats = await get_chats_for_last_week(chats)
                 actual_chats_with_messages = await get_chats_messages(avito_account, actual_chats)
+
                 if len(actual_chats_with_messages) < 2:
                     return False
                 else:
@@ -70,13 +75,19 @@ async def get_messaging_week_report_pdf(avito_accounts_id, test_from_prod: bool)
 
                 #  Separated by managers statistics
                 compared_messages_with_manager = adding_manager_info_for_chats(actual_chats_with_messages)
+                filtered_chats_only_with_text = filter_chats_only_with_text(compared_messages_with_manager)
+
+                # Checking count of messages for analytics
+                if ENVIRONMENT == 'DEVELOPMENT' or test_from_prod:
+                    filtered_chats_only_with_text = filtered_chats_only_with_text[:5]  # For testing 5 items  for economy
+                else:
+                    filtered_chats_only_with_text = filtered_chats_only_with_text[:15]
+
                 statistics_splitted_by_managers = await get_statistics_total_splitted_by_managers(
-                    actual_chats_with_messages=compared_messages_with_manager
+                    actual_chats_with_messages=filtered_chats_only_with_text
                 )
                 if statistics_splitted_by_managers:
                     analyze_all_chats["statistics_splitted_by_managers"] = statistics_splitted_by_managers
-
-                filtered_chats_only_with_text = filter_chats_only_with_text(compared_messages_with_manager)
                 analyze_messaging = await messaging_total_analyze(filtered_chats_only_with_text,
                                                                   test_from_prod,
                                                                   avito_account)

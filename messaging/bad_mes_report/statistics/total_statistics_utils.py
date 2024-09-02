@@ -69,6 +69,11 @@ async def get_statistics_total(actual_chats_with_messages: list):
     total_first_touches = []
 
     for chat in actual_chats_with_messages:
+        statistics['first_touches_average'] = {  #  Default values if cant calculate it
+            "value": "не удалось рассчитать",
+            "color": '#C04D3D'
+        }
+
         first_incoming_time = None
         first_outgoing_time = None
 
@@ -122,7 +127,7 @@ async def get_statistics_total(actual_chats_with_messages: list):
             "value": average_duration_formatted,
             "color": color
         }
-    elif total_sum == 0:   # Если небыло второго касания вообще -
+    elif total_sum == 0:  # Если небыло второго касания вообще -
         statistics["second_touches_duration_average"] = {
             "value": "отсутствует",
             "color": '#C04D3D'  # red

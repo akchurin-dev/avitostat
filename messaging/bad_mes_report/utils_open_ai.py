@@ -18,11 +18,6 @@ client = OpenAI(api_key=os.environ.get("OPENAI_SECRET_KEY"))
 # TODO I tried change to ASYNC methods for analyze , but not see different in speed
 async def messaging_total_analyze(chats_with_compared_messages: list, test_from_prod: bool,
                                   avito_account: AvitoAccount):
-    # Checking count of messages fo analytics
-    if ENVIRONMENT == 'DEVELOPMENT' or test_from_prod:
-        chats_with_compared_messages = chats_with_compared_messages[:5]  #  For testing 5 items  for economy
-    else:
-        chats_with_compared_messages = chats_with_compared_messages[:15]
 
     for chat in chats_with_compared_messages:
         chat_text = "\n".join(
@@ -113,11 +108,6 @@ class CriterionAnalyzeSchema(BaseModel):
 
 
 async def analyze_by_criteria(chats_with_compared_messages: list, test_from_prod: bool, avito_account: AvitoAccount):
-    if ENVIRONMENT == 'DEVELOPMENT' or test_from_prod:
-        chats_with_compared_messages = chats_with_compared_messages[:5]  #  For testing 5 items  for economy
-    else:
-        chats_with_compared_messages = chats_with_compared_messages[:15]
-
     if avito_account.analytic_schema_id:
         criteria = await sync_to_async(list)(Criterion.objects.filter(schema_id=avito_account.analytic_schema_id))
     else:
