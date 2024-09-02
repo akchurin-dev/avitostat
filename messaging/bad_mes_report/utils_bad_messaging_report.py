@@ -113,7 +113,7 @@ async def get_messaging_week_report_pdf(avito_accounts_id, test_from_prod: bool)
             analyze_all_chats["compared_messages"] = "Чаты не найдены"
 
         #TODO PDF CREATING
-        if ENVIRONMENT == 'DEVELOPMENT' or test_from_prod:
+        if ENVIRONMENT == 'DEVELOPMENT':
             wkhtmltopdf_path = "/usr/local/bin/wkhtmltopdf"  # For testing 5 items  for economy
         else:
             wkhtmltopdf_path = "/usr/bin/wkhtmltopdf"
