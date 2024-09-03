@@ -98,6 +98,10 @@ async def messaging_total_analyze(chats_with_compared_messages: list, test_from_
             temperature=1.0
         )
         chat["analyze"] = completion.choices[0].message.content
+        chat["tokens_total_analyze"] = {
+            "prompt_tokens": completion.usage.prompt_tokens,
+            "completion_tokens": completion.usage.completion_tokens
+        }
     return chats_with_compared_messages
 
 
@@ -154,4 +158,8 @@ async def analyze_by_criteria(chats_with_compared_messages: list, test_from_prod
             }
 
         chat["analyze_by_criteria"] = result
+        chat["tokens_by_criteria_analyze"] = {
+            "prompt_tokens": response.usage.prompt_tokens,
+            "completion_tokens": response.usage.completion_tokens
+        }
     return chats_with_compared_messages

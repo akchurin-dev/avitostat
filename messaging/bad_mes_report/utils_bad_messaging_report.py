@@ -52,6 +52,27 @@ def filter_chats_only_with_text(chats):
     return filtered_chats
 
 
+def get_tokens_information(analyze_by_criteria_raw_result: list):
+    # BY CRITERIA
+    by_criteria_completion = [x["tokens_by_criteria_analyze"].get("completion_tokens") for x in
+                              analyze_by_criteria_raw_result]
+    by_criteria_prompt = [x["tokens_by_criteria_analyze"].get("prompt_tokens") for x in analyze_by_criteria_raw_result]
+
+    # TOTAL ANALYZE
+    total_analyze_completion = [x["tokens_total_analyze"].get("completion_tokens") for x in
+                                analyze_by_criteria_raw_result]
+    total_analyze_prompt = [x["tokens_total_analyze"].get("prompt_tokens") for x in analyze_by_criteria_raw_result]
+
+    total_completion = sum(total_analyze_completion) + sum(by_criteria_completion)
+    total_prompt = sum(by_criteria_prompt) + sum(total_analyze_prompt)
+
+    print(f"Всего токенов completion {total_completion}")
+    print(f"Всего токенов prompt {total_prompt}")
+    print(f"Среднее количество токенов completion на чат {total_completion / len(analyze_by_criteria_raw_result)}")
+    print(f"Всего количество токенов prompt на чат {total_prompt / len(analyze_by_criteria_raw_result)}")
+    print(f"Чатов обработано {len(analyze_by_criteria_raw_result)}")
+
+
 async def get_messaging_week_report_pdf(avito_accounts_id, test_from_prod: bool):
     avito_account = await sync_to_async(AvitoAccount.objects.filter(id=avito_accounts_id).last)()
     if avito_account:
@@ -89,6 +110,7 @@ async def get_messaging_week_report_pdf(avito_accounts_id, test_from_prod: bool)
                 statistics_splitted_by_managers = await get_statistics_total_splitted_by_managers(
                     actual_chats_with_messages=filtered_chats_only_with_text
                 )
+
                 if statistics_splitted_by_managers:
                     analyze_all_chats["statistics_splitted_by_managers"] = statistics_splitted_by_managers
                 analyze_messaging = await messaging_total_analyze(filtered_chats_only_with_text,
@@ -111,6 +133,10 @@ async def get_messaging_week_report_pdf(avito_accounts_id, test_from_prod: bool)
             return False
         else:
             analyze_all_chats["compared_messages"] = "Чаты не найдены"
+
+        # tokens counting
+        if analyze_by_criteria_raw_result:
+            get_tokens_information(analyze_by_criteria_raw_result)
 
         #TODO PDF CREATING
         if ENVIRONMENT == 'DEVELOPMENT':
