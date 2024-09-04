@@ -52,6 +52,10 @@ sudo journalctl -u celery-beat.service -e
     celery -A base worker -l info --pool=solo
     celery -A base beat -l info
 
+# Почистить старые задачи 
+    redis-cli flushall
+
+
 
 # Копирование базы
 

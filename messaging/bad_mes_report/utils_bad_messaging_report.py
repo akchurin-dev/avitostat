@@ -91,10 +91,6 @@ async def get_messaging_week_report_pdf(avito_accounts_id, test_from_prod: bool)
                     return False
                 else:
                     analyze_all_chats["chats_count"] = len(actual_chats_with_messages)
-                #  Total statistics
-                statistics_total = await get_statistics_total(actual_chats_with_messages=actual_chats_with_messages)
-                if statistics_total:
-                    analyze_all_chats["header_with_statistics"] = statistics_total
 
                 #  Separated by managers statistics
                 compared_messages_with_manager = adding_manager_info_for_chats(actual_chats_with_messages)
@@ -106,6 +102,11 @@ async def get_messaging_week_report_pdf(avito_accounts_id, test_from_prod: bool)
                                                     :5]  # For testing 5 items  for economy
                 else:
                     filtered_chats_only_with_text = filtered_chats_only_with_text[:15]
+
+                #  Total statistics
+                statistics_total = await get_statistics_total(filtered_chats_only_with_text)
+                if statistics_total:
+                    analyze_all_chats["header_with_statistics"] = statistics_total
 
                 statistics_splitted_by_managers = await get_statistics_total_splitted_by_managers(
                     actual_chats_with_messages=filtered_chats_only_with_text
