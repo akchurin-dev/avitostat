@@ -4,7 +4,7 @@ import pdfkit
 import sentry_sdk
 from dotenv import load_dotenv
 
-from avito_account.models import AvitoAccount
+from avito_account.models import AvitoAccount, WorkSchedule
 from exceptions import HTTPException
 from messaging.api import get_chats, get_chats_messages
 from jinja2 import Template
@@ -52,6 +52,11 @@ def filter_chats_only_with_text(chats):
     return filtered_chats
 
 
+async def scheduler_filtering_chats(filtered_chats_only_with_text: list, avito_account: AvitoAccount):
+    schedule = await sync_to_async(WorkSchedule.objects.filter(id=1).last)()
+    return filtered_chats_only_with_text
+
+
 def get_tokens_information(analyze_by_criteria_raw_result: list):
     # BY CRITERIA
     by_criteria_completion = [x["tokens_by_criteria_analyze"].get("completion_tokens") for x in
@@ -84,6 +89,7 @@ async def get_messaging_week_report_pdf(avito_accounts_id, test_from_prod: bool)
                 "avito_account_id": avito_account.id,
             }
             if chats:
+                # Chats actual filtered getting
                 actual_chats = await get_chats_for_last_week(chats)
                 actual_chats_with_messages = await get_chats_messages(avito_account, actual_chats)
 
@@ -95,11 +101,14 @@ async def get_messaging_week_report_pdf(avito_accounts_id, test_from_prod: bool)
                 #  Separated by managers statistics
                 compared_messages_with_manager = adding_manager_info_for_chats(actual_chats_with_messages)
                 filtered_chats_only_with_text = filter_chats_only_with_text(compared_messages_with_manager)
+                filtered_chats_by_schedule = await scheduler_filtering_chats(
+                    filtered_chats_only_with_text,
+                    avito_account=avito_account
+                )
 
                 # Checking count of messages for analytics
                 if ENVIRONMENT == 'DEVELOPMENT' or test_from_prod:
-                    filtered_chats_only_with_text = filtered_chats_only_with_text[
-                                                    :5]  # For testing 5 items  for economy
+                    filtered_chats_only_with_text = filtered_chats_only_with_text[:5]  # For testing 5items for economy
                 else:
                     filtered_chats_only_with_text = filtered_chats_only_with_text[:15]
 
