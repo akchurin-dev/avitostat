@@ -1,8 +1,7 @@
-from asgiref.sync import async_to_sync
 from django.contrib import admin
 from django.contrib.admin import site
 from django.db.models import Q
-from avito_account.models import AvitoAccount, AnalyticSchema, Criterion
+from avito_account.models import AvitoAccount, AnalyticSchema, Criterion, WorkSchedule
 import logging
 from messaging.tasks import bad_messaging_week_report_async, bad_messaging_week_report_async_task
 
@@ -11,6 +10,12 @@ logger = logging.getLogger(__name__)
 
 class CriterionInline(admin.TabularInline):
     model = Criterion
+    extra = 0
+
+
+class WorkScheduleInline(admin.StackedInline):
+    model = WorkSchedule
+    can_delete = False
     extra = 0
 
 
@@ -27,6 +32,8 @@ class AnalyticSchemaAdmin(admin.ModelAdmin):
 class AvitoAccountAdmin(admin.ModelAdmin):
     list_display = ('company', 'name', 'telegram_id', 'phone', 'profile_url')
     readonly_fields = ('id',)
+    inlines = [WorkScheduleInline]
+
     # exclude = ('access_token', 'refresh_token')
 
     def get_queryset(self, request):
@@ -36,8 +43,8 @@ class AvitoAccountAdmin(admin.ModelAdmin):
             queryset = super().get_queryset(request).filter(Q(company_id=request.user.pk) | Q(company_id=None))
         return queryset
 
-    def has_add_permission(self, request):
-        return False
+    # def has_add_permission(self, request):
+    #     return False
 
     def get_fields(self, request, obj=None):  # Only for view id in details and hide in list
         fields = super().get_fields(request, obj)
@@ -65,6 +72,18 @@ class AvitoAccountAdmin(admin.ModelAdmin):
 
     run_weekly_report.short_description = "Отправить недельный отчет анализа переписок"
 
+    def get_fieldsets(self, request, obj=None):
+        fieldsets = [
+            (None, {
+                'fields': (
+                    'company', 'name', 'telegram_id', 'phone',
+                    'profile_url', 'analytic_schema', 'id',
+                ),
+            }),
+        ]
+        return fieldsets
 
+
+admin.site.register(WorkSchedule)   # TODO only for superuser open it
 site.register(AvitoAccount, AvitoAccountAdmin)
 site.register(AnalyticSchema, AnalyticSchemaAdmin)
