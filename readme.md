@@ -65,6 +65,10 @@ sudo journalctl -u celery-beat.service -e
 
 # ОБЛАЧНАЯ БД
 
+сделать бекап
+pg_dump -h wokrofanu.beget.app -p 5432 -U cloud_user -d default_db -F c -f "local_db_dump_$(date +%Y-%m-%d).sql
+вводим пароль из учётки
+
 подключение 
 psql -h wokrofanu.beget.app -p 5432 -U cloud_user -d default_db
 вводим пароль из учётки
