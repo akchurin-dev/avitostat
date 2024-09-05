@@ -4,22 +4,22 @@ import pdfkit
 import sentry_sdk
 from dotenv import load_dotenv
 
-from avito_account.models import AvitoAccount, WorkSchedule
+from avito_account.models import AvitoAccount, WorkSchedule, moscow_time, MOSCOW_TZ
 from exceptions import HTTPException
 from messaging.api import get_chats, get_chats_messages
 from jinja2 import Template
-from weasyprint import HTML
 from asgiref.sync import sync_to_async
 from pathlib import Path
-from datetime import datetime, timedelta
+from datetime import datetime, time, timedelta
 
 from messaging.bad_mes_report.statistics.statistics_by_criteria_utils import \
-    get_statistics_by_criteria_splitted_by_managers
+    get_stat_by_crit_split_by_man
 from messaging.bad_mes_report.statistics.total_statistics_utils import get_statistics_total, \
-    get_statistics_total_splitted_by_managers
+    get_stat_total_split_by_man
 from messaging.bad_mes_report.utils_open_ai import messaging_total_analyze, analyze_by_criteria
 from messaging.views import get_chats_for_last_week
 import re
+import pytz
 
 load_dotenv()
 ENVIRONMENT = os.getenv('ENVIRONMENT')
@@ -52,9 +52,58 @@ def filter_chats_only_with_text(chats):
     return filtered_chats
 
 
-async def scheduler_filtering_chats(filtered_chats_only_with_text: list, avito_account: AvitoAccount):
-    schedule = await sync_to_async(WorkSchedule.objects.filter(id=1).last)()
-    return filtered_chats_only_with_text
+async def schedule_filter_chats(filtered_chats_only_with_text: list, avito_account: AvitoAccount):
+    filtered_chats = []
+    schedule = await sync_to_async(WorkSchedule.objects.filter(avito_account_id=avito_account.id).last)()
+    if schedule is None:
+        schedule = await sync_to_async(WorkSchedule.objects.filter(id=1).last)()
+
+    for chat in filtered_chats_only_with_text:
+        timestamp = chat.get('created')
+        # Московский часовой пояс
+        moscow_tz = pytz.timezone('Europe/Moscow')
+
+        # Преобразование timestamp в datetime с учётом московского часового пояса
+        dt_object = datetime.fromtimestamp(timestamp, tz=moscow_tz)
+
+        # Предположим, у нас есть объект расписания, который мы получили из базы данных
+        work_schedule = schedule
+
+        # Определяем день недели (0 - Понедельник, 6 - Воскресенье)
+        weekday = dt_object.weekday()
+
+        # Проверяем рабочие часы в зависимости от дня недели
+        if weekday < 5:  # Понедельник-Пятница
+            start_time = work_schedule.weekday_start
+            end_time = work_schedule.weekday_end
+        elif weekday == 5:  # Суббота
+            if work_schedule.saturday_is_day_off:
+                print("Суббота - выходной.")
+                continue
+            else:
+                start_time = work_schedule.saturday_start
+                end_time = work_schedule.saturday_end
+        elif weekday == 6:  # Воскресенье
+            if work_schedule.sunday_is_day_off:
+                print("Воскресенье - выходной.")
+                continue
+            else:
+                start_time = work_schedule.sunday_start
+                end_time = work_schedule.sunday_end
+
+        # Если день рабочий, сравниваем время
+        if 'start_time' in locals() and 'end_time' in locals():
+            # Преобразуем время начала и окончания работы в объекты datetime с учётом часового пояса
+            start_dt = moscow_tz.localize(datetime.combine(dt_object.date(), start_time))
+            end_dt = moscow_tz.localize(datetime.combine(dt_object.date(), end_time))
+
+            if start_dt <= dt_object <= end_dt:
+                print(f"Время в рамках рабочего времени.{dt_object.time(), dt_object.weekday()}")
+                filtered_chats.append(chat)
+            else:
+                print(f"Время вне рабочего времени.{dt_object.time(), dt_object.weekday()}")
+
+    return filtered_chats
 
 
 def get_tokens_information(analyze_by_criteria_raw_result: list):
@@ -91,51 +140,45 @@ async def get_messaging_week_report_pdf(avito_accounts_id, test_from_prod: bool)
             if chats:
                 # Chats actual filtered getting
                 actual_chats = await get_chats_for_last_week(chats)
-                actual_chats_with_messages = await get_chats_messages(avito_account, actual_chats)
+                actual_chats_with_mes = await get_chats_messages(avito_account, actual_chats)
 
-                if len(actual_chats_with_messages) < 2:
+                if len(actual_chats_with_mes) < 2:
                     return False
                 else:
-                    analyze_all_chats["chats_count"] = len(actual_chats_with_messages)
+                    analyze_all_chats["chats_count"] = len(actual_chats_with_mes)
 
                 #  Separated by managers statistics
-                compared_messages_with_manager = adding_manager_info_for_chats(actual_chats_with_messages)
-                filtered_chats_only_with_text = filter_chats_only_with_text(compared_messages_with_manager)
-                filtered_chats_by_schedule = await scheduler_filtering_chats(
-                    filtered_chats_only_with_text,
-                    avito_account=avito_account
-                )
+                comp_mes_with_man = adding_manager_info_for_chats(actual_chats_with_mes)
+                fil_chats_only_with_text = filter_chats_only_with_text(comp_mes_with_man)
+                # fil_chats_by_sched = fil_chats_only_with_text
+                fil_chats_by_sched = await schedule_filter_chats(fil_chats_only_with_text, avito_account)
 
                 # Checking count of messages for analytics
                 if ENVIRONMENT == 'DEVELOPMENT' or test_from_prod:
-                    filtered_chats_only_with_text = filtered_chats_only_with_text[:5]  # For testing 5items for economy
+                    fil_chats_by_sched = fil_chats_by_sched[:10]  # For testing 5items for economy
                 else:
-                    filtered_chats_only_with_text = filtered_chats_only_with_text[:15]
+                    fil_chats_by_sched = fil_chats_by_sched[:15]
 
                 #  Total statistics
-                statistics_total = await get_statistics_total(filtered_chats_only_with_text)
+                statistics_total = await get_statistics_total(fil_chats_by_sched)
                 if statistics_total:
                     analyze_all_chats["header_with_statistics"] = statistics_total
 
-                statistics_splitted_by_managers = await get_statistics_total_splitted_by_managers(
-                    actual_chats_with_messages=filtered_chats_only_with_text
-                )
+                stat_split_by_man = await get_stat_total_split_by_man(fil_chats_by_sched)
 
-                if statistics_splitted_by_managers:
-                    analyze_all_chats["statistics_splitted_by_managers"] = statistics_splitted_by_managers
-                analyze_messaging = await messaging_total_analyze(filtered_chats_only_with_text,
+                if stat_split_by_man:
+                    analyze_all_chats["statistics_splitted_by_managers"] = stat_split_by_man
+                analyze_messaging = await messaging_total_analyze(fil_chats_by_sched,
                                                                   test_from_prod,
                                                                   avito_account)
                 if analyze_messaging:
                     analyze_all_chats["chats"] = analyze_messaging
 
-                analyze_by_criteria_raw_result = await analyze_by_criteria(filtered_chats_only_with_text,
-                                                                           test_from_prod,
-                                                                           avito_account)
-                if analyze_by_criteria_raw_result:
-                    analyze_by_criteria_splitted_by_managers = \
-                        await get_statistics_by_criteria_splitted_by_managers(filtered_chats_only_with_text)
-                    analyze_all_chats["analyze_by_criteria"] = analyze_by_criteria_splitted_by_managers
+                analyze_by_crit_raw_res = await analyze_by_criteria(fil_chats_by_sched, test_from_prod,
+                                                                    avito_account)
+                if analyze_by_crit_raw_res:
+                    analyze_by_crit_split_by_man = await get_stat_by_crit_split_by_man(fil_chats_by_sched)
+                    analyze_all_chats["analyze_by_criteria"] = analyze_by_crit_split_by_man
         except Exception as send_error:
             sentry_sdk.capture_exception(send_error)
             print(send_error)
@@ -145,8 +188,8 @@ async def get_messaging_week_report_pdf(avito_accounts_id, test_from_prod: bool)
             analyze_all_chats["compared_messages"] = "Чаты не найдены"
 
         # tokens counting
-        if analyze_by_criteria_raw_result:
-            get_tokens_information(analyze_by_criteria_raw_result)
+        if analyze_by_crit_raw_res:
+            get_tokens_information(analyze_by_crit_raw_res)
 
         #TODO PDF CREATING
         if ENVIRONMENT == 'DEVELOPMENT':

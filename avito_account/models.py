@@ -145,7 +145,11 @@ class WorkSchedule(models.Model):
     sunday_end = models.TimeField("Воскресенье - окончание работы", default=moscow_time(16, 0))
 
     def __str__(self):
-        return "Рабочий график"
+        if self.avito_account:
+            return f"Рабочий график для {self.avito_account.name} id-{self.id}"
+        else:
+            return f"Рабочий график по умолчанию id-{self.id}"
+
 
     class Meta:
         verbose_name = "Рабочий график (время Московское)"
