@@ -1,24 +1,10 @@
 import datetime
 from avito_account.models import AvitoAccount
-from messaging.api import get_chats, get_chats_messages
+from messaging.bad_mes_report.utils_chats import get_ready_chats
 from messaging.utils_duration import get_second_touches_durations_seconds
 from django.http import JsonResponse
 from django.views import View
 from asgiref.sync import sync_to_async
-
-
-async def get_chats_for_last_week(chats: list) -> list:
-    filtered_chats = []
-    now = datetime.datetime.now()
-
-    if len(chats) > 0:
-        for chat in chats:
-            created = datetime.datetime.fromtimestamp(chat.get('created'))
-            timedelta = now - created
-            if 14 >= timedelta.days > -1:
-                filtered_chats.append(chat)
-        print(f"{len(filtered_chats)} chats loaded: ")
-        return filtered_chats
 
 
 async def convert_seconds(seconds):
@@ -62,12 +48,10 @@ class DurationWeekStatisticsView(View):
         avito_account = await sync_to_async(AvitoAccount.objects.filter(id=avito_id).last)()
 
         if avito_account:
-            chats = await get_chats(avito_account)
-
-            if chats:
-                actual_chats = await get_chats_for_last_week(chats)
-                actual_chats_with_messages = await get_chats_messages(avito_account, actual_chats)
-                durations = await get_second_touches_durations_seconds(actual_chats_with_messages)
+            ready_chats = await get_ready_chats(avito_account)
+            if len(ready_chats) > 1:
+                #PROCESSING WITH FILTERED CHATS
+                durations = await get_second_touches_durations_seconds(ready_chats)
                 duration_statistics = await get_duration_statistics(durations)
                 return JsonResponse(duration_statistics, safe=False)
             else:
