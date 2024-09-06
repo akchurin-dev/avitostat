@@ -63,6 +63,7 @@ class DurationWeekStatisticsView(View):
 
         if avito_account:
             chats = await get_chats(avito_account)
+
             if chats:
                 actual_chats = await get_chats_for_last_week(chats)
                 actual_chats_with_messages = await get_chats_messages(avito_account, actual_chats)

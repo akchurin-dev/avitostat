@@ -150,7 +150,6 @@ async def get_messaging_week_report_pdf(avito_accounts_id, test_from_prod: bool)
                 #  Separated by managers statistics
                 comp_mes_with_man = adding_manager_info_for_chats(actual_chats_with_mes)
                 fil_chats_only_with_text = filter_chats_only_with_text(comp_mes_with_man)
-                # fil_chats_by_sched = fil_chats_only_with_text
                 fil_chats_by_sched = await schedule_filter_chats(fil_chats_only_with_text, avito_account)
 
                 # Checking count of messages for analytics
