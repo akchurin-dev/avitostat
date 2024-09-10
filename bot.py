@@ -13,8 +13,8 @@ from aiogram.types import Message
 from dotenv import load_dotenv
 
 from bot.week_report import get_week_report_text
-from tg_bot.api.week_report import get_avito_account_all_ids, get_bad_messaging_week_report_all_to_users, \
-    get_bad_messaging_week_report_all_to_admin
+from tg_bot.api.week_report import get_avito_account_all_ids, get_pdf_report_all_to_users, \
+    get_pdf_report_all_to_admin
 from tg_bot.cleaner.cleaner import Cleaner
 from tg_bot.cleaner.cleaner_middleware import CleanerMiddleware
 
@@ -48,7 +48,7 @@ async def trigger_error():
 async def scheduler_setup(scheduler: AsyncIOScheduler):
     moscow_tz = pytz.timezone('Europe/Moscow')
     scheduler.add_job(
-        send_week_report_to_all_accounts,
+        send_text_report_all,
         'cron',
         day_of_week='mon',
         hour=13,
@@ -58,18 +58,18 @@ async def scheduler_setup(scheduler: AsyncIOScheduler):
     scheduler.start()
 
 
-async def send_week_report_to_all_accounts():
+async def send_text_report_all(test_from_prod: bool = False):
     avito_account_ids = get_avito_account_all_ids()
     if avito_account_ids:
         for account_id in avito_account_ids:
-            await send_week_report(int(account_id))
+            await send_week_report(int(account_id), test_from_prod=test_from_prod)
 
 
-async def send_week_report(telegram_chat_id: int):
+async def send_week_report(telegram_chat_id: int, test_from_prod: bool = False):
     text = await get_week_report_text(telegram_chat_id, bot=bot)
 
     ENVIRONMENT = os.getenv('ENVIRONMENT')
-    if ENVIRONMENT == 'DEVELOPMENT':
+    if ENVIRONMENT == 'DEVELOPMENT' or test_from_prod:
         chat_id = "-4221870448"
     else:
         chat_id = telegram_chat_id
@@ -90,28 +90,34 @@ async def echo(message: Message, bot: Bot):
     if msg == "/week@avitostata_bot":
         await send_week_report(message.chat.id)
     if message.from_user.id == 5640395403:
-        if msg == "/week_all@avitostata_bot":
-            await send_week_report_to_all_accounts()
+        if msg == "/text_report_all_users@avitostata_bot":
+            await send_text_report_all()
+        if msg == "/text_report_all_admin@avitostata_bot":
+            await send_text_report_all(test_from_prod=True)
 
-        if msg == "/messaging_week_all_to_users@avitostata_bot":
+        if msg == "/PDF_all_to_users@avitostata_bot":
             # TODO check error when you tap on command
-            await get_bad_messaging_week_report_all_to_users()
-
-        if msg == "/messaging_week_all_to_admin@avitostata_bot":
-            await get_bad_messaging_week_report_all_to_admin()
+            await get_pdf_report_all_to_users()
+        if msg == "/PDF_all_to_admin@avitostata_bot":
+            await get_pdf_report_all_to_admin()
 
         if msg == "/sentry_log@avitostata_bot":
             await trigger_error()
 
         if msg in ["/help@avitostata_bot", "/help", "help"]:
-            await message.reply("/help - список команд \n"
-                                "/week@avitostata_bot - отчёт текстовый индивидуально \n"
-                                "/week_all@avitostata_bot - отчёт текстовый всем \n"
-                                "/messaging_week_all_to_users@avitostata_bot - отчёт ПДФ всем \n"
-                                
-                                "ТЕСТИРОВАНИЕ С ПРОДА \n"
-                                "/messaging_week_all_to_admin@avitostata_bot - переписка отчёт всем \n"
-                                "/sentry_log - пробная ошибка на сентри \n")
+            await message.reply(
+                "\nТЕСТИРОВАНИЕ С ПРОДА \n"
+                "/text_report_all_admin@avitostata_bot - текстовый все аккаунты админу \n"
+                "/PDF_all_to_admin@avitostata_bot - пдф все админу \n"
+                "/sentry_log - пробная ошибка на сентри \n"
+
+                
+                "\nЮЗЕРАМ\n"
+                "/week@avitostata_bot - отчёт текстовый индивидуально \n"
+                "/text_report_all_users@avitostata_bot - отчёт текстовый юзерам \n"
+                "/PDF_all_to_users@avitostata_bot - отчёт ПДФ всем \n"
+            )
+
         else:
             pass
 
