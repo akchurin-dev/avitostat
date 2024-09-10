@@ -9,7 +9,7 @@ from asgiref.sync import sync_to_async
 from pathlib import Path
 from datetime import datetime, timedelta
 from messaging.bad_mes_report.statistics.statistics_by_criteria_utils import \
-    get_stat_by_crit_split_by_man
+    get_stat_by_criteria_splitted_by_managers
 from messaging.bad_mes_report.statistics.total_statistics_utils import get_statistics_total, \
     get_stat_total_split_by_man
 from messaging.bad_mes_report.utils_chats import get_ready_chats
@@ -19,34 +19,10 @@ load_dotenv()
 ENVIRONMENT = os.getenv('ENVIRONMENT')
 
 
-def get_tokens_information(analyze_by_criteria_raw_result: list):
-    # # BY CRITERIA
-    # by_criteria_completion = [x["tokens_by_criteria_analyze"].get("completion_tokens") for x in
-    #                           analyze_by_criteria_raw_result]
-    # by_criteria_prompt = [x["tokens_by_criteria_analyze"].get("prompt_tokens") for x in analyze_by_criteria_raw_result]
-    #
-    # # TOTAL ANALYZE
-    # total_analyze_completion = [x["tokens_total_analyze"].get("completion_tokens") for x in
-    #                             analyze_by_criteria_raw_result]
-    # total_analyze_prompt = [x["tokens_total_analyze"].get("prompt_tokens") for x in analyze_by_criteria_raw_result]
-    #
-    # total_completion = sum(total_analyze_completion) + sum(by_criteria_completion)
-    # total_prompt = sum(by_criteria_prompt) + sum(total_analyze_prompt)
-    #
-    # print(f"Всего токенов completion {total_completion}")
-    # print(f"Всего токенов prompt {total_prompt}")
-    # print(f"Среднее количество токенов completion на чат {total_completion / len(analyze_by_criteria_raw_result)}")
-    # print(f"Всего количество токенов prompt на чат {total_prompt / len(analyze_by_criteria_raw_result)}")
-    print(f"Чатов обработано {len(analyze_by_criteria_raw_result)}")
-
-
-async def get_messaging_week_report_pdf(avito_accounts_id, test_from_prod: bool):
-    avito_account = await sync_to_async(AvitoAccount.objects.filter(id=avito_accounts_id).last)()
+async def get_messaging_week_report_pdf(avito_account_id, test_from_prod: bool):
+    avito_account = await sync_to_async(AvitoAccount.objects.filter(id=avito_account_id).last)()
     if avito_account:
-        analyze_all_chats = {
-            "avito_account_name": avito_account.name,
-            "avito_account_id": avito_account.id,
-        }
+        analyze_all_chats = {"avito_account_name": avito_account.name, "avito_account_id": avito_account.id, }
         try:
             ready_chats = await get_ready_chats(avito_account)
             # PROCESSING WITH FILTERED CHATS
@@ -58,29 +34,25 @@ async def get_messaging_week_report_pdf(avito_accounts_id, test_from_prod: bool)
             # Checking count of messages for analytics
             if ENVIRONMENT == 'DEVELOPMENT' or test_from_prod:
                 ready_chats = ready_chats[:10]  # For testing 5items for economy
-            else:
-                ready_chats = ready_chats[:15]
 
             #  Total statistics
             statistics_total = await get_statistics_total(ready_chats)
             if statistics_total:
                 analyze_all_chats["header_with_statistics"] = statistics_total
 
-            stat_split_by_man = await get_stat_total_split_by_man(ready_chats)
+            stat_splitted_by_managers = await get_stat_total_split_by_man(ready_chats)
+            if stat_splitted_by_managers:
+                analyze_all_chats["statistics_splitted_by_managers"] = stat_splitted_by_managers
 
-            if stat_split_by_man:
-                analyze_all_chats["statistics_splitted_by_managers"] = stat_split_by_man
-            analyze_messaging = await messaging_total_analyze(ready_chats,
-                                                              test_from_prod,
-                                                              avito_account)
+            analyze_messaging = await messaging_total_analyze(ready_chats, test_from_prod, avito_account)
             if analyze_messaging:
                 analyze_all_chats["chats"] = analyze_messaging
 
-            analyze_by_crit_raw_res = await analyze_by_criteria(ready_chats, test_from_prod,
-                                                                avito_account)
-            if analyze_by_crit_raw_res:
-                analyze_by_crit_split_by_man = await get_stat_by_crit_split_by_man(ready_chats)
+            analyze_by_criteria_raw_res = await analyze_by_criteria(ready_chats, test_from_prod, avito_account)
+            if analyze_by_criteria_raw_res:
+                analyze_by_crit_split_by_man = await get_stat_by_criteria_splitted_by_managers(ready_chats)
                 analyze_all_chats["analyze_by_criteria"] = analyze_by_crit_split_by_man
+
         except Exception as send_error:
             sentry_sdk.capture_exception(send_error)
             print(send_error)
@@ -90,28 +62,30 @@ async def get_messaging_week_report_pdf(avito_accounts_id, test_from_prod: bool)
             analyze_all_chats["compared_messages"] = "Чаты не найдены"
 
         # tokens counting
-        if analyze_by_crit_raw_res:
-            get_tokens_information(analyze_by_crit_raw_res)
+        if analyze_by_criteria_raw_res:
+            get_tokens_information(analyze_by_criteria_raw_res)
 
-        #TODO PDF CREATING
-        if ENVIRONMENT == 'DEVELOPMENT':
-            wkhtmltopdf_path = "/usr/local/bin/wkhtmltopdf"  # For testing 5 items  for economy
-        else:
-            wkhtmltopdf_path = "/usr/bin/wkhtmltopdf"
-
-        html_content = await bad_messaging_report_generate_html(analyze_all_chats=analyze_all_chats)
-        config = pdfkit.configuration(wkhtmltopdf=wkhtmltopdf_path)
-        # Define the directory and file path with the date
-        reports_dir = Path("messaging/bad_mes_report/PDFs")
-        reports_dir.mkdir(parents=True, exist_ok=True)
-        # Get the current date in dd.mm.yyyy format
-        current_date = datetime.now().strftime("%d.%m.%Y")
-        pdf_path = reports_dir / f"bad_mes_report_{current_date}_{avito_accounts_id}.pdf"
-        pdfkit.from_string(html_content, pdf_path, configuration=config)
-        return pdf_path
-
+        return await get_pdf_report(avito_account_id, analyze_all_chats)
     else:
         raise HTTPException(status_code=404, detail="error: Аккаунт Avito не найден")
+
+
+async def get_pdf_report(avito_account_id, analyze_all_chats):
+    if ENVIRONMENT == 'DEVELOPMENT':
+        wkhtmltopdf_path = "/usr/local/bin/wkhtmltopdf"  # For testing 5 items  for economy
+    else:
+        wkhtmltopdf_path = "/usr/bin/wkhtmltopdf"
+
+    html_content = await bad_messaging_report_generate_html(analyze_all_chats=analyze_all_chats)
+    config = pdfkit.configuration(wkhtmltopdf=wkhtmltopdf_path)
+    # Define the directory and file path with the date
+    reports_dir = Path("messaging/bad_mes_report/PDFs")
+    reports_dir.mkdir(parents=True, exist_ok=True)
+    # Get the current date in dd.mm.yyyy format
+    current_date = datetime.now().strftime("%d.%m.%Y")
+    pdf_path = reports_dir / f"bad_mes_report_{current_date}_{avito_account_id}.pdf"
+    pdfkit.from_string(html_content, pdf_path, configuration=config)
+    return pdf_path
 
 
 async def bad_messaging_report_generate_html(analyze_all_chats):
@@ -134,5 +108,25 @@ async def bad_messaging_report_generate_html(analyze_all_chats):
                            chats=analyze_all_chats.get('chats', []),
                            statistics_total=analyze_all_chats.get("header_with_statistics"),
                            statistics_by_managers=analyze_all_chats.get("statistics_splitted_by_managers"),
-                           analyze_by_criteria=analyze_all_chats.get("analyze_by_criteria"),
-                           )
+                           analyze_by_criteria=analyze_all_chats.get("analyze_by_criteria"), )
+
+
+def get_tokens_information(analyze_by_criteria_raw_result: list):
+    # # BY CRITERIA
+    # by_criteria_completion = [x["tokens_by_criteria_analyze"].get("completion_tokens") for x in
+    #                           analyze_by_criteria_raw_result]
+    # by_criteria_prompt = [x["tokens_by_criteria_analyze"].get("prompt_tokens") for x in analyze_by_criteria_raw_result]
+    #
+    # # TOTAL ANALYZE
+    # total_analyze_completion = [x["tokens_total_analyze"].get("completion_tokens") for x in
+    #                             analyze_by_criteria_raw_result]
+    # total_analyze_prompt = [x["tokens_total_analyze"].get("prompt_tokens") for x in analyze_by_criteria_raw_result]
+    #
+    # total_completion = sum(total_analyze_completion) + sum(by_criteria_completion)
+    # total_prompt = sum(by_criteria_prompt) + sum(total_analyze_prompt)
+    #
+    # print(f"Всего токенов completion {total_completion}")
+    # print(f"Всего токенов prompt {total_prompt}")
+    # print(f"Среднее количество токенов completion на чат {total_completion / len(analyze_by_criteria_raw_result)}")
+    # print(f"Всего количество токенов prompt на чат {total_prompt / len(analyze_by_criteria_raw_result)}")
+    print(f"Чатов обработано {len(analyze_by_criteria_raw_result)}")

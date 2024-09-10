@@ -1,7 +1,7 @@
 from messaging.bad_mes_report.statistics.total_statistics_utils import grouping_chats_by_managers
 
 
-async def get_stat_by_crit_split_by_man(filtered_chats_only_with_text: list):
+async def get_stat_by_criteria_splitted_by_managers(filtered_chats_only_with_text: list):
     grouped_chats = await grouping_chats_by_managers(filtered_chats_only_with_text)
 
     if len(grouped_chats) > 0:

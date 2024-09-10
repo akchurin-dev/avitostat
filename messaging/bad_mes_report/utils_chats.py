@@ -1,7 +1,6 @@
 import pytz
 from asgiref.sync import sync_to_async
 import re
-
 from avito_account.models import AvitoAccount, WorkSchedule
 from messaging.api import get_chats, get_chats_messages
 import datetime
@@ -15,7 +14,7 @@ async def get_chats_for_last_week(chats: list) -> list:
         for chat in chats:
             created = datetime.datetime.fromtimestamp(chat.get('created'))
             timedelta = now - created
-            if 14 >= timedelta.days > -1:
+            if 7 >= timedelta.days > -1:
                 filtered_chats.append(chat)
         print(f"{len(filtered_chats)} chats loaded")
         return filtered_chats
