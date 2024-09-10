@@ -105,9 +105,9 @@ async def echo(message: Message, bot: Bot):
 
         if msg in ["/help@avitostata_bot", "/help", "help"]:
             await message.reply("/help - список команд \n"
-                                "/week@avitostata_bot - отчёт статистика индивидуально \n"
-                                "/week_all@avitostata_bot - отчёт статистика всем \n"
-                                "/messaging_week_all_to_users@avitostata_bot - переписка отчёт всем \n"
+                                "/week@avitostata_bot - отчёт текстовый индивидуально \n"
+                                "/week_all@avitostata_bot - отчёт текстовый всем \n"
+                                "/messaging_week_all_to_users@avitostata_bot - отчёт ПДФ всем \n"
                                 
                                 "ТЕСТИРОВАНИЕ \n"
                                 "/messaging_week_all_to_admin@avitostata_bot - переписка отчёт всем \n"
