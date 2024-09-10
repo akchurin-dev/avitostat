@@ -58,8 +58,6 @@ sudo journalctl -u celery-beat.service -e
 # Почистить старые задачи 
     redis-cli flushall
 
-
-
 # Копирование базы
 
     sudo docker ps -a

@@ -84,6 +84,6 @@ class AvitoAccountAdmin(admin.ModelAdmin):
         return fieldsets
 
 
-# admin.site.register(WorkSchedule)   # TODO only for superuser open it
+# admin.site.register(WorkSchedule)   # TODO if you need it - only for superuser open it
 site.register(AvitoAccount, AvitoAccountAdmin)
 site.register(AnalyticSchema, AnalyticSchemaAdmin)
