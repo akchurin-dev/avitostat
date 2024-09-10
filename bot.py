@@ -68,11 +68,18 @@ async def send_week_report_to_all_accounts():
 async def send_week_report(telegram_chat_id: int):
     text = await get_week_report_text(telegram_chat_id, bot=bot)
 
+    ENVIRONMENT = os.getenv('ENVIRONMENT')
+    if ENVIRONMENT == 'DEVELOPMENT':
+        chat_id = "-4221870448"
+    else:
+        chat_id = telegram_chat_id
+
     while text:
         await bot.send_message(
-            chat_id=telegram_chat_id,
+            chat_id=chat_id,
             text=text,
-            parse_mode=ParseMode.HTML
+            parse_mode="Markdown",
+            disable_web_page_preview=True
         )
         text = text[4000:]
 

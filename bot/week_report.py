@@ -20,7 +20,7 @@ async def get_week_report_text(telegram_chat_id: int, bot: Bot):
             try:
                 if ENVIRONMENT == 'DEVELOPMENT':
                     await bot.send_message(
-                        chat_id=telegram_chat_id,
+                        chat_id="-4221870448",
                         text="📊 Ожидайте, формируется отчёт..."
                     )
 
@@ -38,12 +38,7 @@ async def get_week_report_text(telegram_chat_id: int, bot: Bot):
                 if duration_report_data:
                     report_text += generate_duration_report_text(duration_report_data)
 
-                await bot.send_message(
-                    chat_id=telegram_chat_id,
-                    text=report_text,
-                    parse_mode="Markdown",
-                    disable_web_page_preview=True
-                )
+                return report_text
             except Exception as e:
                 sentry_sdk.capture_exception(e)
                 print(f"Account_id: {avito_id}\n"
