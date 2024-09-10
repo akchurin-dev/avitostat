@@ -1,4 +1,5 @@
 import httpx
+import pytz
 import sentry_sdk
 from asgiref.sync import sync_to_async
 from django.db import models
@@ -7,10 +8,19 @@ import os
 import requests
 from dotenv import load_dotenv
 from exceptions import HTTPException
+import datetime
 
 load_dotenv()
 client_id = os.getenv('AVITO_CLIENT_ID')
 client_secret = os.getenv('AVITO_CLIENT_SECRET')
+
+MOSCOW_TZ = pytz.timezone('Europe/Moscow')
+
+
+def moscow_time(hour, minute):
+    # Use pytz to get Moscow time for given hour and minute
+    dt = datetime.datetime.now(MOSCOW_TZ).replace(hour=hour, minute=minute, second=0, microsecond=0)
+    return dt.time()
 
 
 class BaseModel(models.Model):
@@ -114,3 +124,34 @@ class AvitoAccount(models.Model):
 
     def __str__(self):
         return f"{self.name}, {self.telegram_id}"
+
+
+class WorkSchedule(models.Model):
+    avito_account = models.OneToOneField(AvitoAccount, on_delete=models.CASCADE, related_name="work_schedules", null=True,
+                                      blank=True)
+
+    # Рабочие дни с понедельника по пятницу
+    # TODO try to delete moscow_time - как будто не будет никакой разницы
+    weekday_start = models.TimeField("Начало работы (Пн-Пт)", default=moscow_time(10, 0))
+    weekday_end = models.TimeField("Окончание работы (Пн-Пт)", default=moscow_time(18, 0))
+
+    # Суббота
+    saturday_is_day_off = models.BooleanField("Суббота - выходной?", default=True)
+    saturday_start = models.TimeField("Суббота - начало работы", default=moscow_time(10, 0))
+    saturday_end = models.TimeField("Суббота - окончание работы", default=moscow_time(16, 0))
+
+    # Воскресенье
+    sunday_is_day_off = models.BooleanField("Воскресенье - выходной?", default=True)
+    sunday_start = models.TimeField("Воскресенье - начало работы", default=moscow_time(10, 0))
+    sunday_end = models.TimeField("Воскресенье - окончание работы", default=moscow_time(16, 0))
+
+    def __str__(self):
+        if self.avito_account:
+            return f"Рабочий график для {self.avito_account.name} id-{self.id}"
+        else:
+            return f"Рабочий график по умолчанию id-{self.id}"
+
+
+    class Meta:
+        verbose_name = "Рабочий график (время Московское)"
+        verbose_name_plural = "Рабочие графики"

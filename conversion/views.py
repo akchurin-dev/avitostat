@@ -4,7 +4,7 @@ from django.utils.decorators import method_decorator
 from django.views import View
 from django.views.decorators.csrf import csrf_exempt
 from avito_account.models import AvitoAccount
-from conversion.utils_week_report import get_week_report
+from conversion.utils_week_report import get_text_statistics_report
 from exceptions import HTTPException
 
 
@@ -16,7 +16,7 @@ class WeekReportView(View):
         if avito_account:
             await avito_account.update_refresh_token_async()
             try:
-                week_report = await get_week_report(avito_account=avito_account)
+                week_report = await get_text_statistics_report(avito_account=avito_account)
                 return JsonResponse(status=200, data=week_report)
             except HTTPException as e:
                 return JsonResponse(status=e.status_code, data={"error": e.detail})

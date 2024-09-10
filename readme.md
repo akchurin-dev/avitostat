@@ -7,6 +7,9 @@ gunicorn -c gunicorn_config.py base.wsgi:application
 celery -A base worker -l info --pool=solo   # на маке объязательно соло опцию включать 
 celery -A base beat -l info
 
+# Почистить старые задачи 
+    redis-cli flushall
+
 убить гуникорн все процессы
 ps aux | grep gunicorn | grep -v grep | awk '{print $2}' | xargs kill
 
@@ -52,6 +55,8 @@ sudo journalctl -u celery-beat.service -e
     celery -A base worker -l info --pool=solo
     celery -A base beat -l info
 
+# Почистить старые задачи 
+    redis-cli flushall
 
 # Копирование базы
 
@@ -64,6 +69,10 @@ sudo journalctl -u celery-beat.service -e
 
 
 # ОБЛАЧНАЯ БД
+
+сделать бекап
+pg_dump -h wokrofanu.beget.app -p 5432 -U cloud_user -d default_db -F c -f "local_db_dump_$(date +%Y-%m-%d).sql
+вводим пароль из учётки
 
 подключение 
 psql -h wokrofanu.beget.app -p 5432 -U cloud_user -d default_db
@@ -101,3 +110,13 @@ psql -h wokrofanu.beget.app -p 5432 -U cloud_user -d default_db -f local_db_dump
 АЙПИ прописываем в конфиге джанго в АЛЛОВЕД-хостс, а так же в настройка подключения БД
 3) Возможно атк же поможет
 https://proghunter.ru/articles/django-base-2023-installing-postgresql-in-django
+
+# Дропнуть БД в контейнере
+
+docker exec -it avitostata_db /bin/sh
+psql -U postgres -d template1
+DROP DATABASE postgres;
+CREATE DATABASE postgres;
+./manage.py makemigrations
+./manage.py migrate
+./manage.py createsuperuser

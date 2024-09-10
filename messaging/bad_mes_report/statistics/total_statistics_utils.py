@@ -63,12 +63,12 @@ def get_color_touches_count_in_chat_average(messages_count_in_chat_average: floa
     return color
 
 
-async def get_statistics_total(actual_chats_with_messages: list):
+async def get_statistics_total(filtered_chats_only_with_text: list):
     statistics = {}
     #TODO First touch
     total_first_touches = []
 
-    for chat in actual_chats_with_messages:
+    for chat in filtered_chats_only_with_text:
         statistics['first_touches_average'] = {  #  Default values if cant calculate it
             "value": "не удалось рассчитать",
             "color": '#C04D3D'
@@ -116,7 +116,7 @@ async def get_statistics_total(actual_chats_with_messages: list):
         }
 
     # TODO Duration average
-    durations = await get_second_touches_durations_seconds(actual_chats_with_messages)
+    durations = await get_second_touches_durations_seconds(filtered_chats_only_with_text)
     total_sum = sum([chat[0] for chat in durations])
     total_len = len(durations)
     if total_sum > 0 and total_len > 0:
@@ -135,7 +135,7 @@ async def get_statistics_total(actual_chats_with_messages: list):
 
     #TODO Touches in chat count average
     counts = [len([chat for chat in chat.get("messages") if chat.get("direction") == "out"]) for chat in
-              actual_chats_with_messages]
+              filtered_chats_only_with_text]
     touches_in_chat_average = sum(counts) / len(counts)
     color = get_color_touches_count_in_chat_average(round(touches_in_chat_average, 1))
     statistics["touches_in_chat_average"] = {
@@ -165,13 +165,14 @@ async def grouping_chats_by_managers(sorted_chats: list) -> list:
     return grouped_chats
 
 
-async def get_statistics_total_splitted_by_managers(actual_chats_with_messages: list):
+async def get_stat_total_splitted_by_managers(actual_chats_with_messages: list):
     grouped_chats = await grouping_chats_by_managers(actual_chats_with_messages)
 
     if len(grouped_chats) > 0:
         for manager_chats in grouped_chats:
             manager_chats["statistics"] = []
-            statistics_for_manager = await get_statistics_total(actual_chats_with_messages=manager_chats.get("chats"))
+            statistics_for_manager = await get_statistics_total(
+                filtered_chats_only_with_text=manager_chats.get("chats"))
             if statistics_for_manager:
                 manager_chats.get("statistics").append(statistics_for_manager)
 

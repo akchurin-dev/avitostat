@@ -1,8 +1,7 @@
-from asgiref.sync import async_to_sync
 from django.contrib import admin
 from django.contrib.admin import site
 from django.db.models import Q
-from avito_account.models import AvitoAccount, AnalyticSchema, Criterion
+from avito_account.models import AvitoAccount, AnalyticSchema, Criterion, WorkSchedule
 import logging
 from messaging.tasks import bad_messaging_week_report_async, bad_messaging_week_report_async_task
 
@@ -11,6 +10,12 @@ logger = logging.getLogger(__name__)
 
 class CriterionInline(admin.TabularInline):
     model = Criterion
+    extra = 0
+
+
+class WorkScheduleInline(admin.StackedInline):
+    model = WorkSchedule
+    can_delete = False
     extra = 0
 
 
@@ -27,7 +32,9 @@ class AnalyticSchemaAdmin(admin.ModelAdmin):
 class AvitoAccountAdmin(admin.ModelAdmin):
     list_display = ('company', 'name', 'telegram_id', 'phone', 'profile_url')
     readonly_fields = ('id',)
-    # exclude = ('access_token', 'refresh_token')
+    inlines = [WorkScheduleInline]
+
+    exclude = ('access_token', 'refresh_token')
 
     def get_queryset(self, request):
         if request.user.is_superuser:
@@ -65,6 +72,18 @@ class AvitoAccountAdmin(admin.ModelAdmin):
 
     run_weekly_report.short_description = "Отправить недельный отчет анализа переписок"
 
+    def get_fieldsets(self, request, obj=None):
+        fieldsets = [
+            (None, {
+                'fields': (
+                    'company', 'name', 'telegram_id', 'phone',
+                    'profile_url', 'analytic_schema', 'id',
+                ),
+            }),
+        ]
+        return fieldsets
 
+
+# admin.site.register(WorkSchedule)   # TODO if you need it - only for superuser open it
 site.register(AvitoAccount, AvitoAccountAdmin)
 site.register(AnalyticSchema, AnalyticSchemaAdmin)
