@@ -34,7 +34,7 @@ class AvitoAccountAdmin(admin.ModelAdmin):
     readonly_fields = ('id',)
     inlines = [WorkScheduleInline]
 
-    # exclude = ('access_token', 'refresh_token')
+    exclude = ('access_token', 'refresh_token')
 
     def get_queryset(self, request):
         if request.user.is_superuser:
@@ -43,8 +43,8 @@ class AvitoAccountAdmin(admin.ModelAdmin):
             queryset = super().get_queryset(request).filter(Q(company_id=request.user.pk) | Q(company_id=None))
         return queryset
 
-    # def has_add_permission(self, request):
-    #     return False
+    def has_add_permission(self, request):
+        return False
 
     def get_fields(self, request, obj=None):  # Only for view id in details and hide in list
         fields = super().get_fields(request, obj)
@@ -84,6 +84,6 @@ class AvitoAccountAdmin(admin.ModelAdmin):
         return fieldsets
 
 
-admin.site.register(WorkSchedule)   # TODO only for superuser open it
+# admin.site.register(WorkSchedule)   # TODO only for superuser open it
 site.register(AvitoAccount, AvitoAccountAdmin)
 site.register(AnalyticSchema, AnalyticSchemaAdmin)

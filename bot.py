@@ -109,7 +109,7 @@ async def echo(message: Message, bot: Bot):
                                 "/week_all@avitostata_bot - отчёт текстовый всем \n"
                                 "/messaging_week_all_to_users@avitostata_bot - отчёт ПДФ всем \n"
                                 
-                                "ТЕСТИРОВАНИЕ \n"
+                                "ТЕСТИРОВАНИЕ С ПРОДА \n"
                                 "/messaging_week_all_to_admin@avitostata_bot - переписка отчёт всем \n"
                                 "/sentry_log - пробная ошибка на сентри \n")
         else:

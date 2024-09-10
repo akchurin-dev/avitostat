@@ -11,7 +11,7 @@ from datetime import datetime, timedelta
 from messaging.bad_mes_report.statistics.statistics_by_criteria_utils import \
     get_stat_by_criteria_splitted_by_managers
 from messaging.bad_mes_report.statistics.total_statistics_utils import get_statistics_total, \
-    get_stat_total_split_by_man
+    get_stat_total_splitted_by_managers
 from messaging.bad_mes_report.utils_chats import get_ready_chats
 from messaging.bad_mes_report.utils_open_ai import messaging_total_analyze, analyze_by_criteria
 
@@ -40,7 +40,7 @@ async def get_messaging_week_report_pdf(avito_account_id, test_from_prod: bool):
             if statistics_total:
                 analyze_all_chats["header_with_statistics"] = statistics_total
 
-            stat_splitted_by_managers = await get_stat_total_split_by_man(ready_chats)
+            stat_splitted_by_managers = await get_stat_total_splitted_by_managers(ready_chats)
             if stat_splitted_by_managers:
                 analyze_all_chats["statistics_splitted_by_managers"] = stat_splitted_by_managers
 
@@ -112,21 +112,21 @@ async def bad_messaging_report_generate_html(analyze_all_chats):
 
 
 def get_tokens_information(analyze_by_criteria_raw_result: list):
-    # # BY CRITERIA
-    # by_criteria_completion = [x["tokens_by_criteria_analyze"].get("completion_tokens") for x in
-    #                           analyze_by_criteria_raw_result]
-    # by_criteria_prompt = [x["tokens_by_criteria_analyze"].get("prompt_tokens") for x in analyze_by_criteria_raw_result]
-    #
-    # # TOTAL ANALYZE
-    # total_analyze_completion = [x["tokens_total_analyze"].get("completion_tokens") for x in
-    #                             analyze_by_criteria_raw_result]
-    # total_analyze_prompt = [x["tokens_total_analyze"].get("prompt_tokens") for x in analyze_by_criteria_raw_result]
-    #
-    # total_completion = sum(total_analyze_completion) + sum(by_criteria_completion)
-    # total_prompt = sum(by_criteria_prompt) + sum(total_analyze_prompt)
-    #
-    # print(f"Всего токенов completion {total_completion}")
-    # print(f"Всего токенов prompt {total_prompt}")
-    # print(f"Среднее количество токенов completion на чат {total_completion / len(analyze_by_criteria_raw_result)}")
-    # print(f"Всего количество токенов prompt на чат {total_prompt / len(analyze_by_criteria_raw_result)}")
+    # BY CRITERIA
+    by_criteria_completion = [x["tokens_by_criteria_analyze"].get("completion_tokens") for x in
+                              analyze_by_criteria_raw_result]
+    by_criteria_prompt = [x["tokens_by_criteria_analyze"].get("prompt_tokens") for x in analyze_by_criteria_raw_result]
+
+    # TOTAL ANALYZE
+    total_analyze_completion = [x["tokens_total_analyze"].get("completion_tokens") for x in
+                                analyze_by_criteria_raw_result]
+    total_analyze_prompt = [x["tokens_total_analyze"].get("prompt_tokens") for x in analyze_by_criteria_raw_result]
+
+    total_completion = sum(total_analyze_completion) + sum(by_criteria_completion)
+    total_prompt = sum(by_criteria_prompt) + sum(total_analyze_prompt)
+
+    print(f"Всего токенов completion {total_completion}")
+    print(f"Всего токенов prompt {total_prompt}")
+    print(f"Среднее количество токенов completion на чат {total_completion / len(analyze_by_criteria_raw_result)}")
+    print(f"Всего количество токенов prompt на чат {total_prompt / len(analyze_by_criteria_raw_result)}")
     print(f"Чатов обработано {len(analyze_by_criteria_raw_result)}")

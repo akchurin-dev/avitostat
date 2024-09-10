@@ -7,9 +7,8 @@ gunicorn -c gunicorn_config.py base.wsgi:application
 celery -A base worker -l info --pool=solo   # на маке объязательно соло опцию включать 
 celery -A base beat -l info
 
-очистка очереди в редис
-redis-cli
-FLUSHDB
+# Почистить старые задачи 
+    redis-cli flushall
 
 убить гуникорн все процессы
 ps aux | grep gunicorn | grep -v grep | awk '{print $2}' | xargs kill

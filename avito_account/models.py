@@ -131,6 +131,7 @@ class WorkSchedule(models.Model):
                                       blank=True)
 
     # Рабочие дни с понедельника по пятницу
+    # TODO try to delete moscow_time - как будто не будет никакой разницы
     weekday_start = models.TimeField("Начало работы (Пн-Пт)", default=moscow_time(10, 0))
     weekday_end = models.TimeField("Окончание работы (Пн-Пт)", default=moscow_time(18, 0))
 
