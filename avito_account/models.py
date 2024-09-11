@@ -9,6 +9,7 @@ import requests
 from dotenv import load_dotenv
 from exceptions import HTTPException
 import datetime
+from django.utils import timezone
 
 load_dotenv()
 client_id = os.getenv('AVITO_CLIENT_ID')
@@ -127,8 +128,9 @@ class AvitoAccount(models.Model):
 
 
 class WorkSchedule(models.Model):
-    avito_account = models.OneToOneField(AvitoAccount, on_delete=models.CASCADE, related_name="work_schedules", null=True,
-                                      blank=True)
+    avito_account = models.OneToOneField(AvitoAccount, on_delete=models.CASCADE, related_name="work_schedules",
+                                         null=True,
+                                         blank=True)
 
     # Рабочие дни с понедельника по пятницу
     # TODO try to delete moscow_time - как будто не будет никакой разницы
@@ -151,7 +153,48 @@ class WorkSchedule(models.Model):
         else:
             return f"Рабочий график по умолчанию id-{self.id}"
 
-
     class Meta:
         verbose_name = "Рабочий график (время Московское)"
         verbose_name_plural = "Рабочие графики"
+
+
+class SendingCampaign(models.Model):
+    PDF = 'PDF'
+    TEXT = 'TXT'
+
+    SENDING_TYPE_CHOICES = [
+        (PDF, 'PDF'),
+        (TEXT, 'Text'),
+    ]
+
+    name = models.CharField(max_length=255)
+    test_from_prod = models.BooleanField(default=False)
+    sending_type = models.CharField(
+        max_length=3,
+        choices=SENDING_TYPE_CHOICES,
+        default=PDF,
+    )
+    created_at = models.DateTimeField(default=timezone.now)
+
+    class Meta:
+        verbose_name = "Рассылка"
+        verbose_name_plural = "Рассылки"
+
+    def __str__(self):
+        return f"Рассылка {self.name} ({self.get_sending_type_display()}) в {self.created_at}"
+
+
+class SendingReport(models.Model):
+    avito_account = models.ForeignKey('AvitoAccount', on_delete=models.CASCADE)
+    campaign = models.ForeignKey('SendingCampaign', on_delete=models.CASCADE, related_name='reports')
+    success = models.BooleanField(default=False)
+    error_message = models.CharField(null=True, blank=True, max_length=50)
+    pdf_path = models.CharField(max_length=255, null=True, blank=True)
+    timestamp = models.DateTimeField(default=timezone.now)
+
+    class Meta:
+        verbose_name = "Отчёт о рассылке"
+        verbose_name_plural = "отчёты о рассылках"
+
+    def __str__(self):
+        return f"Отчёт о рассылке для {self.avito_account.name} в {self.timestamp}"

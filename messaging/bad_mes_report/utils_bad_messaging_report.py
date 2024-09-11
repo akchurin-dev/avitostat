@@ -27,7 +27,8 @@ async def get_messaging_week_report_pdf(avito_account_id, test_from_prod: bool):
             ready_chats = await get_ready_chats(avito_account)
             # PROCESSING WITH FILTERED CHATS
             if len(ready_chats) < 2:
-                return False
+                raise HTTPException(status_code=404, detail="Нет чатов для анализа")
+                # return False
             else:
                 analyze_all_chats["chats_count"] = len(ready_chats)
 
@@ -56,8 +57,8 @@ async def get_messaging_week_report_pdf(avito_account_id, test_from_prod: bool):
         except Exception as send_error:
             sentry_sdk.capture_exception(send_error)
             print(send_error)
-            # raise send_error
-            return False
+            raise send_error
+            # return False
         else:
             analyze_all_chats["compared_messages"] = "Чаты не найдены"
 

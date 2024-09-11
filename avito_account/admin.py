@@ -1,7 +1,7 @@
 from django.contrib import admin
 from django.contrib.admin import site
 from django.db.models import Q
-from avito_account.models import AvitoAccount, AnalyticSchema, Criterion, WorkSchedule
+from avito_account.models import AvitoAccount, AnalyticSchema, Criterion, WorkSchedule, SendingCampaign, SendingReport
 import logging
 from messaging.tasks import bad_messaging_week_report_async, bad_messaging_week_report_async_task
 
@@ -84,6 +84,21 @@ class AvitoAccountAdmin(admin.ModelAdmin):
         return fieldsets
 
 
+class SendingReportInline(admin.TabularInline):
+    model = SendingReport
+    extra = 0  # Количество дополнительных пустых форм для создания новых объектов
+    fields = ['avito_account', 'success', 'error_message', 'pdf_path', 'timestamp']
+    readonly_fields = ['timestamp']
+
+
+class SendingCampaignAdmin(admin.ModelAdmin):
+    inlines = [SendingReportInline]
+    list_display = ['sending_type', 'created_at', 'name',]
+    list_filter = ['sending_type', 'created_at']
+    search_fields = ['name']
+
+
 # admin.site.register(WorkSchedule)   # TODO if you need it - only for superuser open it
 site.register(AvitoAccount, AvitoAccountAdmin)
 site.register(AnalyticSchema, AnalyticSchemaAdmin)
+admin.site.register(SendingCampaign, SendingCampaignAdmin)

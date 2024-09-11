@@ -95,10 +95,10 @@ async def echo(message: Message, bot: Bot):
         if msg == "/text_report_all_admin@avitostata_bot":
             await send_text_report_all(test_from_prod=True)
 
-        if msg == "/PDF_all_to_users@avitostata_bot":
+        if msg == "/pdf_all_to_users@avitostata_bot":
             # TODO check error when you tap on command
             await get_pdf_report_all_to_users()
-        if msg == "/PDF_all_to_admin@avitostata_bot":
+        if msg == "/pdf_all_to_admin@avitostata_bot":
             await get_pdf_report_all_to_admin()
 
         if msg == "/sentry_log@avitostata_bot":
@@ -108,14 +108,14 @@ async def echo(message: Message, bot: Bot):
             await message.reply(
                 "\nТЕСТИРОВАНИЕ С ПРОДА \n"
                 "/text_report_all_admin@avitostata_bot - текстовый все аккаунты админу \n"
-                "/PDF_all_to_admin@avitostata_bot - пдф все админу \n"
+                "/pdf_all_to_admin@avitostata_bot - пдф все админу \n"
                 "/sentry_log - пробная ошибка на сентри \n"
 
                 
                 "\nЮЗЕРАМ\n"
                 "/week@avitostata_bot - отчёт текстовый индивидуально \n"
                 "/text_report_all_users@avitostata_bot - отчёт текстовый юзерам \n"
-                "/PDF_all_to_users@avitostata_bot - отчёт ПДФ всем \n"
+                "/pdf_all_to_users@avitostata_bot - отчёт ПДФ всем \n"
             )
 
         else:
