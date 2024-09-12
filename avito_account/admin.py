@@ -3,6 +3,8 @@ from django.contrib.admin import site
 from django.db.models import Q
 from avito_account.models import AvitoAccount, AnalyticSchema, Criterion, WorkSchedule, SendingCampaign, SendingReport
 import logging
+
+from conversion.tasks import send_txt_week_report_async_task
 from messaging.tasks import bad_messaging_week_report_async, bad_messaging_week_report_async_task
 
 logger = logging.getLogger(__name__)
@@ -58,9 +60,9 @@ class AvitoAccountAdmin(admin.ModelAdmin):
             readonly_fields = ['id'] + list(readonly_fields)
         return readonly_fields
 
-    actions = ['run_weekly_report']
+    actions = ['run_pdf_report', 'run_txt_report']
 
-    def run_weekly_report(self, request, queryset):
+    def run_pdf_report(self, request, queryset):
         object_ids = list(queryset.values_list('id', flat=True))
 
         try:
@@ -70,7 +72,22 @@ class AvitoAccountAdmin(admin.ModelAdmin):
             logger.error(f"Ошибка при отправке отчета: {e}", exc_info=True)
             self.message_user(request, f"Отчет не удалось отправить" f" Ошибка сервера - {e}", level='error')
 
-    run_weekly_report.short_description = "Отправить недельный отчет анализа переписок"
+    run_pdf_report.short_description = "ПДФ отчет отправить"
+
+    def run_txt_report(self, request, queryset):
+        telegram_chat_ids = list(queryset.values_list('telegram_id', flat=True))
+
+        telegram_chat_id = queryset.last().telegram_id
+
+
+        try:
+            send_txt_week_report_async_task(telegram_chat_id=telegram_chat_id)
+            self.message_user(request, "Отчет успешно сгенерирован и отправлен.", level='success')
+        except Exception as e:
+            logger.error(f"Ошибка при отправке отчета: {e}", exc_info=True)
+            self.message_user(request, f"Отчет не удалось отправить" f" Ошибка сервера - {e}", level='error')
+
+    run_txt_report.short_description = "ТЕКСТОВЫЙ отчет отправить"
 
     def get_fieldsets(self, request, obj=None):
         fieldsets = [
@@ -93,8 +110,8 @@ class SendingReportInline(admin.TabularInline):
 
 class SendingCampaignAdmin(admin.ModelAdmin):
     inlines = [SendingReportInline]
-    list_display = ['sending_type', 'created_at', 'name',]
-    list_filter = ['sending_type', 'created_at']
+    list_display = ['sending_type', 'created_at', 'name', ]
+    list_filter = ['sending_type', 'test_from_prod', 'created_at']
     search_fields = ['name']
 
 

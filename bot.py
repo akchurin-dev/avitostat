@@ -87,6 +87,8 @@ async def send_week_report(telegram_chat_id: int, test_from_prod: bool = False):
 @router.message()
 async def echo(message: Message, bot: Bot):
     msg = message.text.lower()
+
+    # TODO ПЕРЕНЕСТИ на ДЖАНГО
     if msg == "/week@avitostata_bot":
         await send_week_report(message.chat.id)
     if message.from_user.id == 5640395403:
@@ -95,6 +97,7 @@ async def echo(message: Message, bot: Bot):
         if msg == "/text_report_all_admin@avitostata_bot":
             await send_text_report_all(test_from_prod=True)
 
+        # TODO ПЕРЕНОСИТЬ НЕНУЖНО
         if msg == "/pdf_all_to_users@avitostata_bot":
             # TODO check error when you tap on command
             await get_pdf_report_all_to_users()
