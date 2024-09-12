@@ -1,24 +1,21 @@
 import openai
 from asgiref.sync import sync_to_async
 from dotenv import load_dotenv
-from openai import OpenAI
+from openai import OpenAI, AsyncOpenAI
 import os
 from pydantic import BaseModel
 import json
 from avito_account.models import AvitoAccount, Criterion
-from exceptions import HTTPException
 
 load_dotenv()
 ENVIRONMENT = os.getenv('ENVIRONMENT')
 
 MODEL = "gpt-4o-2024-08-06"
-client = OpenAI(api_key=os.environ.get("OPENAI_SECRET_KEY"))
+client = AsyncOpenAI(api_key=os.environ.get("OPENAI_SECRET_KEY"))
 
 
 # TODO I tried change to ASYNC methods for analyze , but not see different in speed
-async def messaging_total_analyze(chats_with_compared_messages: list, test_from_prod: bool,
-                                  avito_account: AvitoAccount):
-
+async def messaging_total_analyze(chats_with_compared_messages: list, test_from_prod: bool,avito_account: AvitoAccount):
     for chat in chats_with_compared_messages:
         chat_text = "\n".join(
             [message.get('direction') + ": " + message.get('content').get("text") for message in chat.get('messages') if
@@ -90,7 +87,7 @@ async def messaging_total_analyze(chats_with_compared_messages: list, test_from_
                             {chat_text}
                             """
 
-        completion = client.chat.completions.create(
+        completion = await client.chat.completions.create(
             model=MODEL,
             messages=[
                 {"role": "system", "content": prompt},
@@ -137,7 +134,7 @@ async def analyze_by_criteria(chats_with_compared_messages: list, test_from_prod
                 + "perform the following steps: "
                 + ("\n - Evaluate each criterion." if criteria else "")
         )
-        response = client.chat.completions.create(
+        response = await client.chat.completions.create(
             model=MODEL,
             messages=[
                 {"role": "system", "content": prompt},

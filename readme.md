@@ -120,3 +120,13 @@ CREATE DATABASE postgres;
 ./manage.py makemigrations
 ./manage.py migrate
 ./manage.py createsuperuser
+
+
+# ОТКАТ МИГРАЦИЙ
+
+-посмотреть названия миграций
+python manage.py showmigrations  
+
+-указываем миграцию - которая должна стать текущей и название приложения сперва
+python manage.py migrate avito_account 0003_workschedule
+
