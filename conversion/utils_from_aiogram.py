@@ -4,7 +4,6 @@ import sentry_sdk
 from aiogram import Bot
 from aiogram.exceptions import AiogramError
 from asgiref.sync import sync_to_async
-from django.http import JsonResponse
 from dotenv import load_dotenv
 from telegram_bot import bot
 
@@ -16,13 +15,23 @@ from messaging.utils_duration import get_second_touches_durations_seconds
 from messaging.views import get_duration_statistics
 
 
-def get_avito_account_all_ids():
-    url = f"{BASE_URL}/oauth/avito_accounts_list/"
-    response = requests.get(url=url)
-    if response.status_code == 200:
-        return response.json()
+# def get_avito_account_all_ids():
+#     url = f"{BASE_URL}/oauth/avito_accounts_list/"
+#     response = requests.get(url=url)
+#     if response.status_code == 200:
+#         return response.json()
+#     else:
+#         raise HTTPException(status_code=response.status_code, detail=response.text)
+
+async def get_avito_account_all_ids():
+    avito_accounts = await sync_to_async(list)(AvitoAccount.objects.all())
+    avito_account_ids = [avito_account.telegram_id for avito_account in avito_accounts if
+                         avito_account.telegram_id]
+    unique_avito_account_ids = list(set(avito_account_ids))
+    if unique_avito_account_ids:
+        return unique_avito_account_ids
     else:
-        raise HTTPException(status_code=response.status_code, detail=response.text)
+        raise HTTPException(status_code=404, detail="Not found any Avito accounts")
 
 
 # def get_avito_ids_by_telegram_id(telegram_chat_id: int):
@@ -96,7 +105,7 @@ async def handle_avito_account_not_found(telegram_chat_id: int, bot: Bot):
             "🛠️ Пожалуйста, проверьте настройки и повторите попытку."
         )
     )
-    raise AiogramError("Avito account not found")
+    raise HTTPException(status_code=404, detail="Avito account not found")
 
 
 async def handle_avito_account_have_not_active_items_for_period(telegram_chat_id: int, bot: Bot):
@@ -106,7 +115,7 @@ async def handle_avito_account_have_not_active_items_for_period(telegram_chat_id
             "⚠️ Ошибка: Для данного Авито аккаунта нет активных объявлений за отчётный период \n"
         )
     )
-    raise AiogramError("Avito account does not have active items in period")
+    raise HTTPException(status_code=404, detail="Avito account does not have active items in period")
 
 
 async def generate_week_report_text(week_report_data):
@@ -163,33 +172,6 @@ async def generate_duration_report_text(duration_report_data):
 
         duration_report_text += f"        📌[{duration[0]}]({url}){manager}\n"
     return duration_report_text
-
-
-async def send_text_report_all(test_from_prod: bool = False):
-    avito_account_ids = get_avito_account_all_ids()
-    if avito_account_ids:
-        for account_id in avito_account_ids:
-            await send_week_report(int(account_id), test_from_prod=test_from_prod)
-
-
-#
-# async def send_week_report(telegram_chat_id: int, test_from_prod: bool = False):
-#     text = await get_week_report_text(telegram_chat_id)
-#
-#     ENVIRONMENT = os.getenv('ENVIRONMENT')
-#     if ENVIRONMENT == 'DEVELOPMENT' or test_from_prod:
-#         chat_id = "-4221870448"
-#     else:
-#         chat_id = telegram_chat_id
-#
-#     while text:
-#         await bot.send_message(
-#             chat_id=chat_id,
-#             text=text,
-#             parse_mode="Markdown",
-#             disable_web_page_preview=True
-#         )
-#         text = text[4000:]
 
 
 async def get_week_report_text(telegram_chat_id: int,

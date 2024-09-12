@@ -10,14 +10,6 @@ load_dotenv()
 BASE_URL = 'http://' + os.getenv('LOCALHOST_IP')
 
 
-def get_avito_account_all_ids():
-    url = f"{BASE_URL}/oauth/avito_accounts_list/"
-    response = requests.get(url=url)
-    if response.status_code == 200:
-        return response.json()
-    else:
-        raise HTTPException(status_code=response.status_code, detail=response.text)
-
 
 def get_avito_ids_by_telegram_id(telegram_chat_id: int):
     url = f"{BASE_URL}/oauth/avito_ids_list/{telegram_chat_id}"

@@ -4,8 +4,8 @@ from django.db.models import Q
 from avito_account.models import AvitoAccount, AnalyticSchema, Criterion, WorkSchedule, SendingCampaign, SendingReport
 import logging
 
-from conversion.tasks import send_txt_week_report_async_task
-from messaging.tasks import bad_messaging_week_report_async, bad_messaging_week_report_async_task
+from conversion.tasks import send_text_report_all_async_task
+from messaging.tasks import bad_messaging_week_report_async_task
 
 logger = logging.getLogger(__name__)
 
@@ -60,34 +60,40 @@ class AvitoAccountAdmin(admin.ModelAdmin):
             readonly_fields = ['id'] + list(readonly_fields)
         return readonly_fields
 
-    actions = ['run_pdf_report', 'run_txt_report']
+    actions = ['run_pdf_report', 'run_txt_report', 'run_txt_all_report']
 
     def run_pdf_report(self, request, queryset):
         object_ids = list(queryset.values_list('id', flat=True))
 
         try:
             bad_messaging_week_report_async_task(only_for_users=object_ids)
-            self.message_user(request, "Отчет успешно сгенерирован и отправлен.", level='success')
+            self.message_user(request, "ПДФ отчет успешно сгенерирован и отправлен.", level='success')
         except Exception as e:
             logger.error(f"Ошибка при отправке отчета: {e}", exc_info=True)
-            self.message_user(request, f"Отчет не удалось отправить" f" Ошибка сервера - {e}", level='error')
+            self.message_user(request, f"ПДФ отчет не удалось отправить" f" Ошибка сервера - {e}", level='error')
 
     run_pdf_report.short_description = "ПДФ отчет отправить"
 
     def run_txt_report(self, request, queryset):
         telegram_chat_ids = list(queryset.values_list('telegram_id', flat=True))
-
-        telegram_chat_id = queryset.last().telegram_id
-
-
         try:
-            send_txt_week_report_async_task(telegram_chat_id=telegram_chat_id)
-            self.message_user(request, "Отчет успешно сгенерирован и отправлен.", level='success')
+            send_text_report_all_async_task(only_for_users=telegram_chat_ids)
+            self.message_user(request, "ТЕКСТОВЫЙ отчет успешно сгенерирован и отправлен.", level='success')
         except Exception as e:
-            logger.error(f"Ошибка при отправке отчета: {e}", exc_info=True)
+            logger.error(f"ТЕКСТОВЫЙ ошибка при отправке отчета: {e}", exc_info=True)
             self.message_user(request, f"Отчет не удалось отправить" f" Ошибка сервера - {e}", level='error')
 
     run_txt_report.short_description = "ТЕКСТОВЫЙ отчет отправить"
+
+    def run_txt_all_report(self, request, queryset):
+        try:
+            send_text_report_all_async_task()
+            self.message_user(request, "ТЕКСТОВЫЙ ВСЕМ отчет успешно сгенерирован и отправлен.", level='success')
+        except Exception as e:
+            logger.error(f"ТЕКСТОВЫЙ ВСЕМ ошибка при отправке отчета: {e}", exc_info=True)
+            self.message_user(request, f"Отчет не удалось отправить" f" Ошибка сервера - {e}", level='error')
+
+    run_txt_all_report.short_description = "ТЕКСТОВЫЙ ВСЕМ отчет отправить"
 
     def get_fieldsets(self, request, obj=None):
         fieldsets = [
