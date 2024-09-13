@@ -2,27 +2,19 @@ import os
 import datetime
 import sentry_sdk
 from aiogram import Bot
-from aiogram.exceptions import AiogramError
 from asgiref.sync import sync_to_async
 from dotenv import load_dotenv
 from telegram_bot import bot
-
 from avito_account.models import AvitoAccount
 from conversion.utils_week_report import get_text_statistics_report
 from exceptions import HTTPException
+from messaging.bad_mes_report.statistics.total_statistics_utils import get_duration_statistics
 from messaging.bad_mes_report.utils_chats import get_ready_chats
 from messaging.utils_duration import get_second_touches_durations_seconds
-from messaging.views import get_duration_statistics
+
 load_dotenv()
 ENVIRONMENT = os.getenv('ENVIRONMENT')
 
-# def get_avito_account_all_ids():
-#     url = f"{BASE_URL}/oauth/avito_accounts_list/"
-#     response = requests.get(url=url)
-#     if response.status_code == 200:
-#         return response.json()
-#     else:
-#         raise HTTPException(status_code=response.status_code, detail=response.text)
 
 async def get_all_telegram_ids():
     avito_accounts = await sync_to_async(list)(AvitoAccount.objects.all())
@@ -33,32 +25,6 @@ async def get_all_telegram_ids():
         return unique_avito_account_ids
     else:
         raise HTTPException(status_code=404, detail="Not found any Avito accounts")
-
-
-# def get_avito_ids_by_telegram_id(telegram_chat_id: int):
-#     url = f"{BASE_URL}/oauth/avito_ids_list/{telegram_chat_id}"
-#     response = requests.get(url=url)
-#     return response.json()
-
-
-# async def get_avito_ids_by_telegram_id(telegram_id):
-#     avito_accounts = await sync_to_async(list)(
-#         AvitoAccount.objects.filter(telegram_id=telegram_id, company__is_active=True))
-#     avito_account_ids = [avito_account.id for avito_account in avito_accounts]
-#     unique_avito_account_ids = sorted(list(set(avito_account_ids)))
-#     if avito_account_ids:
-#         return unique_avito_account_ids
-#     else:
-#         raise HTTPException(status_code=404, detail="Not found any Avito accounts")
-
-
-# def get_week_report_by_avito_id(avito_id: int):
-#     url = f"{BASE_URL}/conversion/week_report/{avito_id}"
-#     response = requests.get(url=url)
-#     if response.status_code == 200:
-#         return response.json()
-#     else:
-#         raise HTTPException(status_code=response.status_code, detail=response.text)
 
 
 async def get_week_report_by_avito_id(avito_id: int):
@@ -73,14 +39,6 @@ async def get_week_report_by_avito_id(avito_id: int):
     else:
         raise HTTPException(status_code=404, detail="Avito account not found")
 
-
-# def get_duration_report_by_avito_id(avito_id: int):
-#     url = f"{BASE_URL}/messaging/week_report/{avito_id}"
-#     response = requests.get(url=url, timeout=360)
-#     if response.status_code == 200:
-#         return response.json()
-#     else:
-#         raise HTTPException(status_code=response.status_code, detail=response.text)
 
 async def get_duration_report_by_avito_id(avito_id):
     avito_account = await sync_to_async(AvitoAccount.objects.filter(id=avito_id).last)()

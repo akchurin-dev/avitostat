@@ -1,7 +1,41 @@
 from datetime import datetime
 from messaging.utils_duration import get_second_touches_durations_seconds
-from messaging.views import convert_seconds
 from datetime import timedelta
+
+
+async def convert_seconds(seconds):
+    td = timedelta(seconds=seconds)
+    days = td.days
+    hours, remainder = divmod(td.seconds, 3600)
+    minutes, seconds = divmod(remainder, 60)
+
+    parts = []
+    if days > 0:
+        parts.append(f"{days} д")
+    if hours > 0:
+        parts.append(f"{hours} ч")
+    if minutes > 0:
+        parts.append(f"{minutes} м")
+    if seconds > 0:
+        parts.append(f"{seconds} с")
+
+    return ": ".join(parts)
+
+
+async def get_duration_statistics(chats: list):
+    statistics = {}
+    total_sum = sum([chat[0] for chat in chats])
+    total_len = len(chats)
+    if total_sum > 0 and total_len > 0:
+        average_duration = total_sum / total_len
+        average_duration_formatted = await convert_seconds(average_duration)
+        statistics["average_duration"] = average_duration_formatted
+
+    top_durations = sorted(chats, key=lambda x: x[0])[::-1][:10]
+    top_durations_formatted = [[await convert_seconds(duration[0]), duration[1], duration[2]] for duration in
+                               top_durations]
+    statistics["top_durations"] = top_durations_formatted
+    return statistics
 
 
 def time_str_to_seconds(time_str):

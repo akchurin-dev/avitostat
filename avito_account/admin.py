@@ -60,7 +60,7 @@ class AvitoAccountAdmin(admin.ModelAdmin):
             readonly_fields = ['id'] + list(readonly_fields)
         return readonly_fields
 
-    actions = ['run_pdf_report', 'run_txt_report', 'run_txt_all_report']
+    actions = ['run_pdf_report', 'run_pdf_all_report', 'run_txt_report', 'run_txt_all_report']
 
     def run_pdf_report(self, request, queryset):
         object_ids = list(queryset.values_list('id', flat=True))
@@ -73,6 +73,16 @@ class AvitoAccountAdmin(admin.ModelAdmin):
             self.message_user(request, f"ПДФ отчет не удалось отправить" f" Ошибка сервера - {e}", level='error')
 
     run_pdf_report.short_description = "ПДФ отчет отправить"
+
+    def run_pdf_all_report(self, request, queryset):
+        try:
+            bad_messaging_week_report_async_task()
+            self.message_user(request, "ПДФ ВСЕМ отчет успешно сгенерирован и отправлен.", level='success')
+        except Exception as e:
+            logger.error(f"Ошибка при отправке отчета: {e}", exc_info=True)
+            self.message_user(request, f"ПДФ ВСЕМ отчет не удалось отправить" f" Ошибка сервера - {e}", level='error')
+
+    run_pdf_all_report.short_description = "ПДФ ВСЕМ отчет отправить"
 
     def run_txt_report(self, request, queryset):
         avito_account_ids = list(queryset.values_list('id', flat=True))
@@ -87,7 +97,7 @@ class AvitoAccountAdmin(admin.ModelAdmin):
 
     def run_txt_all_report(self, request, queryset):
         try:
-            send_text_report_all_async_task()
+            send_text_report_all_async_task.delay()
             self.message_user(request, "ТЕКСТОВЫЙ ВСЕМ отчет успешно сгенерирован и отправлен.", level='success')
         except Exception as e:
             logger.error(f"ТЕКСТОВЫЙ ВСЕМ ошибка при отправке отчета: {e}", exc_info=True)

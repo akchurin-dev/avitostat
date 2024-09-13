@@ -36,7 +36,7 @@ async def bad_messaging_week_report_async(test_from_prod: bool = False, only_for
         test_from_prod = True
 
     # Create a new SendingCampaign
-    campaign = await sync_to_async(SendingCampaign.objects.acreate)(
+    campaign = await SendingCampaign.objects.acreate(
         name="weekly",
         test_from_prod=test_from_prod,
         sending_type=SendingCampaign.PDF,
@@ -73,7 +73,7 @@ async def bad_messaging_week_report_async(test_from_prod: bool = False, only_for
             error_message = str(e)[:50]
 
         # Save SendingReport
-        await sync_to_async(SendingReport.objects.acreate)(
+        await SendingReport.objects.acreate(
             avito_account=avito_account,
             campaign=campaign,
             success=success,
