@@ -13,7 +13,8 @@ from exceptions import HTTPException
 from messaging.bad_mes_report.utils_chats import get_ready_chats
 from messaging.utils_duration import get_second_touches_durations_seconds
 from messaging.views import get_duration_statistics
-
+load_dotenv()
+ENVIRONMENT = os.getenv('ENVIRONMENT')
 
 # def get_avito_account_all_ids():
 #     url = f"{BASE_URL}/oauth/avito_accounts_list/"
@@ -40,15 +41,15 @@ async def get_all_telegram_ids():
 #     return response.json()
 
 
-async def get_avito_ids_by_telegram_id(telegram_id):
-    avito_accounts = await sync_to_async(list)(
-        AvitoAccount.objects.filter(telegram_id=telegram_id, company__is_active=True))
-    avito_account_ids = [avito_account.id for avito_account in avito_accounts]
-    unique_avito_account_ids = list(set(avito_account_ids))
-    if avito_account_ids:
-        return unique_avito_account_ids
-    else:
-        raise HTTPException(status_code=404, detail="Not found any Avito accounts")
+# async def get_avito_ids_by_telegram_id(telegram_id):
+#     avito_accounts = await sync_to_async(list)(
+#         AvitoAccount.objects.filter(telegram_id=telegram_id, company__is_active=True))
+#     avito_account_ids = [avito_account.id for avito_account in avito_accounts]
+#     unique_avito_account_ids = sorted(list(set(avito_account_ids)))
+#     if avito_account_ids:
+#         return unique_avito_account_ids
+#     else:
+#         raise HTTPException(status_code=404, detail="Not found any Avito accounts")
 
 
 # def get_week_report_by_avito_id(avito_id: int):
@@ -97,7 +98,7 @@ async def get_duration_report_by_avito_id(avito_id):
         raise HTTPException(status_code=404, detail="Авито аккаунт не найден")
 
 
-async def handle_avito_account_not_found(telegram_chat_id: int, bot: Bot):
+async def handle_avito_account_not_found(telegram_chat_id: str, bot: Bot):
     await bot.send_message(
         chat_id=telegram_chat_id,
         text=(
@@ -108,7 +109,7 @@ async def handle_avito_account_not_found(telegram_chat_id: int, bot: Bot):
     raise HTTPException(status_code=404, detail="Avito account not found")
 
 
-async def handle_avito_account_have_not_active_items_for_period(telegram_chat_id: int, bot: Bot):
+async def handle_avito_account_have_not_active_items_for_period(telegram_chat_id: str, bot: Bot):
     await bot.send_message(
         chat_id=telegram_chat_id,
         text=(
@@ -174,37 +175,34 @@ async def generate_duration_report_text(duration_report_data):
     return duration_report_text
 
 
-async def get_week_report_text(telegram_chat_id: int):
-    avito_ids = await get_avito_ids_by_telegram_id(telegram_chat_id)
-    if avito_ids:
-        for avito_id in avito_ids:
-            load_dotenv()
-            ENVIRONMENT = os.getenv('ENVIRONMENT')
+async def get_week_report_text(avito_account: AvitoAccount):
+    avito_id = avito_account.id
+    telegram_chat_id = avito_account.telegram_id
 
-            try:
-                if ENVIRONMENT == 'DEVELOPMENT':
-                    await sync_to_async(bot.send_raw, thread_sensitive=False)(
-                        chat_id="-4221870448",
-                        function="send_message",
-                        text="📊 Ожидайте, формируется отчёт...",
-                    )
+    try:
+        if ENVIRONMENT == 'DEVELOPMENT':
+            await sync_to_async(bot.send_raw, thread_sensitive=False)(
+                chat_id="-4221870448",
+                function="send_message",
+                text="📊 Ожидайте, формируется отчёт...",
+            )
 
-                week_report_data = await get_week_report_by_avito_id(avito_id=avito_id)
-                if week_report_data.get("error") == "Avito account not found":
-                    await handle_avito_account_not_found(telegram_chat_id, bot)
-                    return
-                elif week_report_data.get("error") == "Avito account does not have active items in period":
-                    await handle_avito_account_have_not_active_items_for_period(telegram_chat_id, bot)
-                    return
+        week_report_data = await get_week_report_by_avito_id(avito_id=avito_id)
+        if week_report_data.get("error") == "Avito account not found":
+            await handle_avito_account_not_found(telegram_chat_id, bot)
+            return
+        elif week_report_data.get("error") == "Avito account does not have active items in period":
+            await handle_avito_account_have_not_active_items_for_period(telegram_chat_id, bot)
+            return
 
-                report_text = await generate_week_report_text(week_report_data)
+        report_text = await generate_week_report_text(week_report_data)
 
-                duration_report_data = await get_duration_report_by_avito_id(avito_id=avito_id)
-                if duration_report_data:
-                    report_text += await generate_duration_report_text(duration_report_data)
+        duration_report_data = await get_duration_report_by_avito_id(avito_id=avito_id)
+        if duration_report_data:
+            report_text += await generate_duration_report_text(duration_report_data)
 
-                return report_text
-            except Exception as e:
-                sentry_sdk.capture_exception(e)
-                print(f"Account_id: {avito_id}\n"
-                      f"Exception occurred: {e}")
+        return report_text
+    except Exception as e:
+        sentry_sdk.capture_exception(e)
+        print(f"Account_id: {avito_id}\n"
+              f"Exception occurred: {e}")
