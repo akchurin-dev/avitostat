@@ -75,9 +75,9 @@ class AvitoAccountAdmin(admin.ModelAdmin):
     run_pdf_report.short_description = "ПДФ отчет отправить"
 
     def run_txt_report(self, request, queryset):
-        avito_account_ids = list(queryset.values_list('id', flat=True))
+        telegram_chat_ids = list(queryset.values_list('telegram_id', flat=True))
         try:
-            send_text_report_all_async_task(only_for_users=avito_account_ids)
+            send_text_report_all_async_task(only_for_users=telegram_chat_ids)
             self.message_user(request, "ТЕКСТОВЫЙ отчет успешно сгенерирован и отправлен.", level='success')
         except Exception as e:
             logger.error(f"ТЕКСТОВЫЙ ошибка при отправке отчета: {e}", exc_info=True)

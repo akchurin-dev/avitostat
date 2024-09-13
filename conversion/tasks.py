@@ -2,20 +2,19 @@ import os
 from asgiref.sync import async_to_sync, sync_to_async
 from django.utils import timezone
 from telegram_bot import bot
-
-from avito_account.models import SendingCampaign, SendingReport, AvitoAccount
+from avito_account.models import SendingCampaign, AvitoAccount, SendingReport
 from base.celery import celery_app
 from conversion.utils_from_aiogram import get_week_report_text, get_all_telegram_ids
 
 
-async def send_txt_week_report_individual_async(avito_account: AvitoAccount, test_from_prod: bool = False):
-    text = await get_week_report_text(avito_account)
+async def send_txt_week_report_individual_async(telegram_chat_id: int, test_from_prod: bool = False):
+    text = await get_week_report_text(telegram_chat_id)
 
     ENVIRONMENT = os.getenv('ENVIRONMENT')
     if ENVIRONMENT == 'DEVELOPMENT' or test_from_prod:
         chat_id = "-4221870448"
     else:
-        chat_id = avito_account.telegram_id
+        chat_id = telegram_chat_id
 
     while text:
         await sync_to_async(bot.send_raw, thread_sensitive=False)(
@@ -38,21 +37,23 @@ async def send_text_report_all_async(test_from_prod: bool = False, only_for_user
     if ENVIRONMENT == 'DEVELOPMENT':
         test_from_prod = True
 
-    campaign = await SendingCampaign.objects.acreate(
-        name='weekly',
-        test_from_prod=test_from_prod,
-        sending_type=SendingCampaign.TEXT,
-        created_at=timezone.now(),
-    )
+    # campaign = await SendingCampaign.objects.acreate(
+    #     name='weekly',
+    #     test_from_prod=test_from_prod,
+    #     sending_type=SendingCampaign.TEXT,
+    #     created_at=timezone.now(),
+    # )
 
     if only_for_users is not None:
-        avito_accounts = await sync_to_async(list)(AvitoAccount.objects.filter(id__in=only_for_users, company__is_active=True))
+        telegram_ids = only_for_users
     else:
-        avito_accounts = await sync_to_async(list)(AvitoAccount.objects.filter(company__is_active=True))
+        telegram_ids = await get_all_telegram_ids()
 
-    for avito_account in avito_accounts:
+    # queryset = await sync_to_async(AvitoAccount.objects.filter)(id__in=avito_account_ids)
+    for telegram_id in telegram_ids:
+        # avito_account = await AvitoAccount.objects.aget(telegram_id=telegram_id)
         try:
-            await send_txt_week_report_individual_async(avito_account, test_from_prod=test_from_prod)
+            await send_txt_week_report_individual_async(int(telegram_id), test_from_prod=test_from_prod)
             success = True
             error_message = None
 
@@ -61,11 +62,11 @@ async def send_text_report_all_async(test_from_prod: bool = False, only_for_user
             error_message = str(e)[:50]
             print(e)
 
-        await SendingReport.objects.acreate(
-            avito_account=avito_account,
-            campaign=campaign,
-            success=success,
-            error_message=error_message,
-            timestamp=timezone.now(),
-            pdf_path=None
-        )
+        # await SendingReport.objects.acreate(
+        #     avito_account=avito_account,
+        #     campaign=campaign,
+        #     success=success,
+        #     error_message=error_message,
+        #     timestamp=timezone.now(),
+        #     pdf_path=None
+        # )
