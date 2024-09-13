@@ -204,5 +204,4 @@ async def get_week_report_text(avito_account: AvitoAccount):
         return report_text
     except Exception as e:
         sentry_sdk.capture_exception(e)
-        print(f"Account_id: {avito_id}\n"
-              f"Exception occurred: {e}")
+        raise

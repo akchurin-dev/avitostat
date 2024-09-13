@@ -32,7 +32,7 @@ class AnalyticSchemaAdmin(admin.ModelAdmin):
 
 
 class AvitoAccountAdmin(admin.ModelAdmin):
-    list_display = ('company', 'name', 'telegram_id', 'phone', 'profile_url')
+    list_display = ('name', 'company', 'telegram_id', 'phone')
     readonly_fields = ('id',)
     inlines = [WorkScheduleInline]
 
