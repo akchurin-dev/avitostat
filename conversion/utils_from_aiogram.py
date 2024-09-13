@@ -23,7 +23,7 @@ from messaging.views import get_duration_statistics
 #     else:
 #         raise HTTPException(status_code=response.status_code, detail=response.text)
 
-async def get_avito_account_all_ids():
+async def get_all_telegram_ids():
     avito_accounts = await sync_to_async(list)(AvitoAccount.objects.all())
     avito_account_ids = [avito_account.telegram_id for avito_account in avito_accounts if
                          avito_account.telegram_id]
@@ -174,9 +174,7 @@ async def generate_duration_report_text(duration_report_data):
     return duration_report_text
 
 
-async def get_week_report_text(telegram_chat_id: int,
-                               # bot: Bot
-                               ):
+async def get_week_report_text(telegram_chat_id: int):
     avito_ids = await get_avito_ids_by_telegram_id(telegram_chat_id)
     if avito_ids:
         for avito_id in avito_ids:
