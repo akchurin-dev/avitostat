@@ -38,17 +38,20 @@ async def send_text_report_all_async(test_from_prod: bool = False, only_for_user
     if ENVIRONMENT == 'DEVELOPMENT':
         test_from_prod = True
 
+    if only_for_users is not None:
+        avito_accounts = await sync_to_async(list)(
+            AvitoAccount.objects.filter(id__in=only_for_users, company__is_active=True))
+    else:
+        avito_accounts = await sync_to_async(list)(AvitoAccount.objects.filter(company__is_active=True))
+
     campaign = await SendingCampaign.objects.acreate(
         name='weekly',
         test_from_prod=test_from_prod,
         sending_type=SendingCampaign.TEXT,
         created_at=timezone.now(),
+        accounts_presented_count=len(avito_accounts),
+        accounts_presented=avito_accounts
     )
-
-    if only_for_users is not None:
-        avito_accounts = await sync_to_async(list)(AvitoAccount.objects.filter(id__in=only_for_users, company__is_active=True))
-    else:
-        avito_accounts = await sync_to_async(list)(AvitoAccount.objects.filter(company__is_active=True))
 
     for avito_account in avito_accounts:
         print(avito_account.name)
@@ -59,7 +62,7 @@ async def send_text_report_all_async(test_from_prod: bool = False, only_for_user
 
         except Exception as e:
             success = False
-            error_message = str(e)[:50]
+            error_message = str(e)[:255]
             print(e)
 
         await SendingReport.objects.acreate(

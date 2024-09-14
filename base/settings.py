@@ -1,19 +1,12 @@
-"""
-For more information on this file, see
-https://docs.djangoproject.com/en/5.0/topics/settings/
-
-For the full list of settings and their values, see
-https://docs.djangoproject.com/en/5.0/ref/settings/
-"""
 import os
 from pathlib import Path
 
+import pytz
 from celery.schedules import crontab
 from dotenv import load_dotenv
 from sentry_sdk.integrations.celery import CeleryIntegration
 from sentry_sdk.integrations.django import DjangoIntegration
-
-from avito_account.models import MOSCOW_TZ
+MOSCOW_TZ = pytz.timezone('Europe/Moscow')
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent

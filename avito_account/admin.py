@@ -131,7 +131,7 @@ class SendingCampaignAdmin(admin.ModelAdmin):
     search_fields = ['name']
 
 
-# admin.site.register(WorkSchedule)   # TODO if you need it - only for superuser open it
+admin.site.register(WorkSchedule)   # TODO if you need it - only for superuser open it
 site.register(AvitoAccount, AvitoAccountAdmin)
 site.register(AnalyticSchema, AnalyticSchemaAdmin)
 admin.site.register(SendingCampaign, SendingCampaignAdmin)

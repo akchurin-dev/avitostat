@@ -60,6 +60,10 @@ class AnalyticSchema(BaseModel):
     def __str__(self):
         return self.name
 
+    class Meta:
+        verbose_name = "Схема аналитики"
+        verbose_name_plural = "Схемы аналитики"
+
 
 class Criterion(BaseModel):
     schema = models.ForeignKey(AnalyticSchema, on_delete=models.CASCADE, related_name="criteria")
@@ -67,6 +71,10 @@ class Criterion(BaseModel):
 
     def __str__(self):
         return self.name
+
+    class Meta:
+        verbose_name = "Критерий оценки"
+        verbose_name_plural = "Критерии оценки"
 
 
 class AvitoAccount(models.Model):
@@ -126,6 +134,10 @@ class AvitoAccount(models.Model):
     def __str__(self):
         return f"{self.name}, {self.telegram_id}"
 
+    class Meta:
+        verbose_name = "Авито аккаунт"
+        verbose_name_plural = "Авито аккаунты"
+
 
 class WorkSchedule(models.Model):
     avito_account = models.OneToOneField(AvitoAccount, on_delete=models.CASCADE, related_name="work_schedules",
@@ -169,12 +181,11 @@ class SendingCampaign(models.Model):
 
     name = models.CharField(max_length=255)
     test_from_prod = models.BooleanField(default=False)
-    sending_type = models.CharField(
-        max_length=3,
-        choices=SENDING_TYPE_CHOICES,
-        default=PDF,
-    )
+    sending_type = models.CharField(max_length=3, choices=SENDING_TYPE_CHOICES, default=PDF)
     created_at = models.DateTimeField(default=timezone.now)
+
+    accounts_presented_count = models.IntegerField(default=0)
+    accounts_presented = models.ForeignKey(AvitoAccount, on_delete=models.CASCADE, related_name="accounts_presented", null=True,)
 
     class Meta:
         verbose_name = "Рассылка"
@@ -188,7 +199,7 @@ class SendingReport(models.Model):
     avito_account = models.ForeignKey('AvitoAccount', on_delete=models.CASCADE)
     campaign = models.ForeignKey('SendingCampaign', on_delete=models.CASCADE, related_name='reports')
     success = models.BooleanField(default=False)
-    error_message = models.CharField(null=True, blank=True, max_length=50)
+    error_message = models.CharField(null=True, blank=True, max_length=255)
     pdf_path = models.CharField(max_length=255, null=True, blank=True)
     timestamp = models.DateTimeField(default=timezone.now)
 

@@ -40,7 +40,10 @@ async def bad_messaging_week_report_async(test_from_prod: bool = False, only_for
         name="weekly",
         test_from_prod=test_from_prod,
         sending_type=SendingCampaign.PDF,
-        created_at=timezone.now()
+        created_at=timezone.now(),
+        accounts_presented_count=len(all_avito_accounts),
+        accounts_presented=all_avito_accounts
+
     )
 
     # CORE logic
@@ -62,7 +65,7 @@ async def bad_messaging_week_report_async(test_from_prod: bool = False, only_for
                     sentry_sdk.capture_exception(send_error)
                     print(send_error)
                     success = False
-                    error_message = str(send_error)[:50]
+                    error_message = str(send_error)[:255]
             else:
                 success = False
                 error_message = "Failed to generate PDF"
@@ -70,7 +73,7 @@ async def bad_messaging_week_report_async(test_from_prod: bool = False, only_for
             sentry_sdk.capture_exception(e)
             print(e)
             success = False
-            error_message = str(e)[:50]
+            error_message = str(e)[:255]
 
         # Save SendingReport
         await SendingReport.objects.acreate(
