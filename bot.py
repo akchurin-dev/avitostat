@@ -41,20 +41,6 @@ async def trigger_error():
     division_by_zero = 1 / 0
 
 
-# async def scheduler_setup(scheduler: AsyncIOScheduler):
-#     moscow_tz = pytz.timezone('Europe/Moscow')
-#     scheduler.add_job(
-#         send_text_report_all,
-#         'cron',
-#         day_of_week='mon',
-#         hour=13,
-#         minute=0,
-#         timezone=moscow_tz
-#     )
-#     scheduler.start()
-
-
-
 @router.message()
 async def echo(message: Message, bot: Bot):
     msg = message.text.lower()
@@ -79,7 +65,6 @@ async def echo(message: Message, bot: Bot):
                 "\nЮЗЕРАМ\n"
                 "/pdf_all_to_users@avitostata_bot - отчёт ПДФ всем \n"
             )
-
         else:
             pass
 
