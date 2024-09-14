@@ -13,6 +13,8 @@ from dotenv import load_dotenv
 from sentry_sdk.integrations.celery import CeleryIntegration
 from sentry_sdk.integrations.django import DjangoIntegration
 
+from avito_account.models import MOSCOW_TZ
+
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
@@ -225,7 +227,10 @@ if ENVIRONMENT == 'PRODUCTION':
         'bad_messaging_week_report_task': {
             'task': 'messaging.tasks.bad_messaging_week_report_async_task',
             'schedule': crontab(hour=6, minute=0, day_of_week=5),
-            # 6 - это суббота (0 - воскресенье, 1 - понедельник и т.д.)
+        },
+        'send_text_report_all_async_task': {
+            'task': 'conversion.tasks.send_text_report_all_async_task',
+            'schedule': crontab(day_of_week='mon', hour=13, minute=0, timezone=MOSCOW_TZ),
         },
         'bad_messaging_week_report_folder_cleaner_task': {
             'task': 'messaging.tasks.bad_mes_report_pdfs_folder_cleaner_task',

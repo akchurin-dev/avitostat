@@ -10,6 +10,10 @@ celery -A base beat -l info
 # Почистить старые задачи 
     redis-cli flushall
 
+# Освободить порт на маке
+    lsof -i :8000
+    kill -9 СВОЙ ПИД
+
 убить гуникорн все процессы
 ps aux | grep gunicorn | grep -v grep | awk '{print $2}' | xargs kill
 

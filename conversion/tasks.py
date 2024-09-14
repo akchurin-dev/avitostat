@@ -5,7 +5,7 @@ from telegram_bot import bot
 
 from avito_account.models import SendingCampaign, SendingReport, AvitoAccount
 from base.celery import celery_app
-from conversion.utils_from_aiogram import get_week_report_text, get_all_telegram_ids
+from conversion.utils_from_aiogram import get_week_report_text
 
 
 async def send_txt_week_report_individual_async(avito_account: AvitoAccount, test_from_prod: bool = False):
@@ -51,6 +51,7 @@ async def send_text_report_all_async(test_from_prod: bool = False, only_for_user
         avito_accounts = await sync_to_async(list)(AvitoAccount.objects.filter(company__is_active=True))
 
     for avito_account in avito_accounts:
+        print(avito_account.name)
         try:
             await send_txt_week_report_individual_async(avito_account, test_from_prod=test_from_prod)
             success = True

@@ -102,7 +102,6 @@ async def schedule_filter_chats(filtered_chats_only_with_text: list, avito_accou
 
 
 async def get_ready_chats(avito_account: AvitoAccount):
-    print(f"{avito_account.name}")
     chats = await get_chats(avito_account)
     if chats:
         # Chats with messages getting
