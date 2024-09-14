@@ -223,7 +223,7 @@ if ENVIRONMENT == 'PRODUCTION':
         },
         'send_text_report_all_async_task': {
             'task': 'conversion.tasks.send_text_report_all_async_task',
-            'schedule': crontab(day_of_week='mon', hour=13, minute=0, timezone=MOSCOW_TZ),
+            'schedule': crontab(day_of_week='mon', hour=10, minute=0),
         },
         'bad_messaging_week_report_folder_cleaner_task': {
             'task': 'messaging.tasks.bad_mes_report_pdfs_folder_cleaner_task',
