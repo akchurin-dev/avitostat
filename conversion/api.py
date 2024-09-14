@@ -12,12 +12,12 @@ import httpx
 async def get_statistics_for_period(avito_account: AvitoAccount, period: str):
     date_from, date_to = await dates_for_period_without_extra_reserve(period=period)
     date_from = date_from.strftime("%Y-%m-%d")
-    date_to -= timedelta(hours=12)   # поправка для синхронизации значений статистики со значениями авито
+    date_to -= timedelta(hours=12)  # поправка для синхронизации значений статистики со значениями авито
     date_to = date_to.strftime("%Y-%m-%d")
 
     items = await get_items_list(avito_account)
     if type(items) is not list:
-        return JsonResponse(status=404, data={"error": "Avito account not have active items in period"})
+        raise HTTPException(status_code=404, detail="Avito account not have active items in period")
     item_ids = [item.get('id') for item in items]
 
     url = f"https://api.avito.ru/stats/v1/accounts/{avito_account.id}/items"
@@ -51,4 +51,3 @@ async def get_statistics_for_period(avito_account: AvitoAccount, period: str):
                 raise HTTPException(status_code=response.status_code, detail=response.text)
 
     return all_statistics, items, date_from, date_to
-

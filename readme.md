@@ -10,6 +10,10 @@ celery -A base beat -l info
 # Почистить старые задачи 
     redis-cli flushall
 
+# Освободить порт на маке
+    lsof -i :8000
+    kill -9 СВОЙ ПИД
+
 убить гуникорн все процессы
 ps aux | grep gunicorn | grep -v grep | awk '{print $2}' | xargs kill
 
@@ -71,7 +75,7 @@ sudo journalctl -u celery-beat.service -e
 # ОБЛАЧНАЯ БД
 
 сделать бекап
-pg_dump -h wokrofanu.beget.app -p 5432 -U cloud_user -d default_db -F c -f "local_db_dump_$(date +%Y-%m-%d).sql
+PGPASSWORD='xxxxxx' pg_dump -h wokrofanu.beget.app -p 5432 -U cloud_user -d default_db -F c -f "local_db_dump_$(date +%Y-%m-%d).sql"
 вводим пароль из учётки
 
 подключение 
@@ -120,3 +124,13 @@ CREATE DATABASE postgres;
 ./manage.py makemigrations
 ./manage.py migrate
 ./manage.py createsuperuser
+
+
+# ОТКАТ МИГРАЦИЙ
+
+-посмотреть названия миграций
+python manage.py showmigrations
+
+-указываем миграцию - которая должна стать текущей и название приложения сперва
+python manage.py migrate avito_account 0003_workschedule
+

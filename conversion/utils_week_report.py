@@ -118,3 +118,6 @@ async def get_text_statistics_report(avito_account: AvitoAccount):
         "date_to": date_to
     }
     return metrics
+
+
+
