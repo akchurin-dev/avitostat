@@ -2,10 +2,8 @@ import asyncio
 import logging
 import os
 import sys
-
 import sentry_sdk
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
-
 from aiogram import Bot, Dispatcher, Router
 from aiogram.types import Message
 from dotenv import load_dotenv
@@ -58,6 +56,7 @@ async def echo(message: Message, bot: Bot):
         if msg in ["/help@avitostata_bot", "/help", "help"]:
             await message.reply(
                 "\nТЕСТИРОВАНИЕ С ПРОДА \n"
+                # TODO Добавить текстовые все АДМИНУ
                 "/pdf_all_to_admin@avitostata_bot - пдф все админу \n"
                 "/sentry_log - пробная ошибка на сентри \n"
 
@@ -74,8 +73,6 @@ async def main() -> None:
 
     cleaner = Cleaner(limit=100)
     dp.update.middleware(CleanerMiddleware(cleaner))
-
-    # await scheduler_setup(scheduler)
 
     await bot.delete_webhook(drop_pending_updates=True)
     await dp.start_polling(bot)
