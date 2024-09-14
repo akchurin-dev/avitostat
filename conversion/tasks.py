@@ -50,8 +50,8 @@ async def send_text_report_all_async(test_from_prod: bool = False, only_for_user
         sending_type=SendingCampaign.TEXT,
         created_at=timezone.now(),
         accounts_presented_count=len(avito_accounts),
-        accounts_presented=avito_accounts
     )
+    await sync_to_async(campaign.accounts_presented.add)(*avito_accounts)
 
     for avito_account in avito_accounts:
         print(avito_account.name)

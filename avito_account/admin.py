@@ -126,7 +126,7 @@ class SendingReportInline(admin.TabularInline):
 
 class SendingCampaignAdmin(admin.ModelAdmin):
     inlines = [SendingReportInline]
-    list_display = ['sending_type', 'created_at', 'name', ]
+    list_display = ['sending_type', 'created_at', 'test_from_prod', 'name', ]
     list_filter = ['sending_type', 'test_from_prod', 'created_at']
     search_fields = ['name']
 

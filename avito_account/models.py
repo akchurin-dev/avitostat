@@ -185,7 +185,7 @@ class SendingCampaign(models.Model):
     created_at = models.DateTimeField(default=timezone.now)
 
     accounts_presented_count = models.IntegerField(default=0)
-    accounts_presented = models.ForeignKey(AvitoAccount, on_delete=models.CASCADE, related_name="accounts_presented", null=True,)
+    accounts_presented = models.ManyToManyField(AvitoAccount, related_name="campaigns_presented", blank=True)
 
     class Meta:
         verbose_name = "Рассылка"

@@ -42,9 +42,9 @@ async def bad_messaging_week_report_async(test_from_prod: bool = False, only_for
         sending_type=SendingCampaign.PDF,
         created_at=timezone.now(),
         accounts_presented_count=len(all_avito_accounts),
-        accounts_presented=all_avito_accounts
-
     )
+    await sync_to_async(campaign.accounts_presented.add)(*all_avito_accounts)
+
 
     # CORE logic
     for avito_account in all_avito_accounts:
