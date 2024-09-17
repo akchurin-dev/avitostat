@@ -41,7 +41,7 @@ def get_avito_account_info(access_token: str):
         raise HTTPException(status_code=response.status_code, detail=response.text)
 
 
-def create_or_update_avito_account(code: str) -> AvitoAccount:
+def create_or_update_avito_account(code: str, state: int) -> AvitoAccount:
     # try:
     token_data = get_avito_tokens(code)
     access_token = token_data.get('access_token')
@@ -55,6 +55,7 @@ def create_or_update_avito_account(code: str) -> AvitoAccount:
     avito_account.name = account_info.get('name')
     avito_account.phone = account_info.get('phone')
     avito_account.profile_url = account_info.get('profile_url')
+    avito_account.company_id = state
     avito_account.save()
 
     return avito_account

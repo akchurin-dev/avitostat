@@ -9,8 +9,9 @@ from avito_account.oauth_utils import create_or_update_avito_account
 class CallbackView(View):
     def get(self, request, *args, **kwargs):
         code = request.GET.get("code", None)
+        state = request.GET.get("state", None)
         if code:
-            avito_account = create_or_update_avito_account(code=code)
+            avito_account = create_or_update_avito_account(code=code, state=int(state))
             # items_to_db(avito_account) # надо сделать всё асинхронно если есть в записи айтемов необходимость
             return JsonResponse({"message": "Hello, you will redirect"})
         else:

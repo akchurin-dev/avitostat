@@ -1,6 +1,8 @@
 from django.contrib import admin
 from django.contrib.admin import site
 from django.db.models import Q
+from django.shortcuts import redirect
+
 from avito_account.models import AvitoAccount, AnalyticSchema, Criterion, WorkSchedule, SendingCampaign, SendingReport
 import logging
 
@@ -45,8 +47,10 @@ class AvitoAccountAdmin(admin.ModelAdmin):
             queryset = super().get_queryset(request).filter(Q(company_id=request.user.pk) | Q(company_id=None))
         return queryset
 
-    def has_add_permission(self, request):
-        return False
+    def add_view(self, request, form_url="", extra_context=None):
+        return redirect("https://www.avito.ru/oauth?response_type=code&client_id=_pBlAY6LnBWr_sKlgHfX&scope=messenger"
+                        ":read,messenger:write,user_balance:read,user_operations:read,user:read,autoload:reports,"
+                        f"items:info,items:apply_vas,stats:read&state={request.user.id}")
 
     def get_fields(self, request, obj=None):  # Only for view id in details and hide in list
         fields = super().get_fields(request, obj)
