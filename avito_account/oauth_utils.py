@@ -48,14 +48,13 @@ def create_or_update_avito_account(code: str, state: int) -> AvitoAccount:
     account_info = get_avito_account_info(access_token)
 
     avito_id = int(account_info.get("id"))
-    avito_account, created = AvitoAccount.objects.get_or_create(id=avito_id)
+    avito_account, created = AvitoAccount.objects.get_or_create(id=avito_id, created_by_id=state)
 
     avito_account.access_token = token_data.get('access_token')
     avito_account.refresh_token = token_data.get('refresh_token')
     avito_account.name = account_info.get('name')
     avito_account.phone = account_info.get('phone')
     avito_account.profile_url = account_info.get('profile_url')
-    avito_account.company_id = state
     avito_account.save()
 
     return avito_account

@@ -14,12 +14,10 @@ from django.utils import timezone
 load_dotenv()
 client_id = os.getenv('AVITO_CLIENT_ID')
 client_secret = os.getenv('AVITO_CLIENT_SECRET')
-
 MOSCOW_TZ = pytz.timezone('Europe/Moscow')
 
 
 def moscow_time(hour, minute):
-    # Use pytz to get Moscow time for given hour and minute
     dt = datetime.datetime.now(MOSCOW_TZ).replace(hour=hour, minute=minute, second=0, microsecond=0)
     return dt.time()
 
@@ -27,17 +25,13 @@ def moscow_time(hour, minute):
 class BaseModel(models.Model):
     created_by = models.ForeignKey(
         verbose_name="Created by",
-        null=True,
         to=User,
-        on_delete=models.SET_NULL,
-        default=None,
+        on_delete=models.CASCADE,
         related_name="%(app_label)s_%(class)s_created_by",
-        editable=False,
     )
     created_at = models.DateTimeField(
         verbose_name="Created At",
         auto_now_add=True,
-        editable=False
     )
 
     @classmethod
@@ -65,7 +59,7 @@ class AnalyticSchema(BaseModel):
         verbose_name_plural = "Схемы аналитики"
 
 
-class Criterion(BaseModel):
+class Criterion(models.Model):  # Не BaseModel тк привязываемся к схеме и этого достаточно
     schema = models.ForeignKey(AnalyticSchema, on_delete=models.CASCADE, related_name="criteria")
     name = models.CharField(verbose_name="Name")
 
@@ -77,8 +71,7 @@ class Criterion(BaseModel):
         verbose_name_plural = "Критерии оценки"
 
 
-class AvitoAccount(models.Model):
-    company = models.ForeignKey(User, on_delete=models.CASCADE, null=True, blank=True)
+class AvitoAccount(BaseModel):
     name = models.CharField(max_length=255, null=True)
     telegram_id = models.CharField(max_length=255, null=True, blank=True)
     phone = models.CharField(max_length=255, null=True)
@@ -139,7 +132,7 @@ class AvitoAccount(models.Model):
         verbose_name_plural = "Авито аккаунты"
 
 
-class WorkSchedule(models.Model):
+class WorkSchedule(models.Model):  # Не BaseModel тк привязываемся к AvitoAccount и этого достаточно
     avito_account = models.OneToOneField(AvitoAccount, on_delete=models.CASCADE, related_name="work_schedules",
                                          null=True,
                                          blank=True)
@@ -170,7 +163,7 @@ class WorkSchedule(models.Model):
         verbose_name_plural = "Рабочие графики"
 
 
-class SendingCampaign(models.Model):
+class SendingCampaign(models.Model):  # Не BaseModel тк рассылки общие и мы их не можем привязывать к юзеру
     PDF = 'PDF'
     TEXT = 'TXT'
 
@@ -195,7 +188,7 @@ class SendingCampaign(models.Model):
         return f"Рассылка {self.name} ({self.get_sending_type_display()}) в {self.created_at}"
 
 
-class SendingReport(models.Model):
+class SendingReport(models.Model):  # Не BaseModel тк репорпты должны привязываться к аккаунту а не к юзеру
     avito_account = models.ForeignKey('AvitoAccount', on_delete=models.CASCADE)
     campaign = models.ForeignKey('SendingCampaign', on_delete=models.CASCADE, related_name='reports')
     success = models.BooleanField(default=False)

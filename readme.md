@@ -137,3 +137,17 @@ python manage.py showmigrations
 -указываем миграцию - которая должна стать текущей и название приложения сперва
 python manage.py migrate avito_account 0003_workschedule
 
+
+
+#  ПОЧИНИТЬ ЛОГАУТ в ДЖЕТ ДЖАНГО
+
+файл venv/lib/python3.12/site-packages/django/contrib/auth/views.py
+меняем
+     http_method_names = ["post", "options"]
+на   http_method_names = ["get", "options"]
+
+меняем
+        def post(self, request, *args, **kwargs):
+на      def get(self, request, *args, **kwargs):
+
+

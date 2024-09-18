@@ -40,9 +40,9 @@ async def send_text_report_all_async(test_from_prod: bool = False, only_for_user
 
     if only_for_users is not None:
         avito_accounts = await sync_to_async(list)(
-            AvitoAccount.objects.filter(id__in=only_for_users, company__is_active=True))
+            AvitoAccount.objects.filter(id__in=only_for_users, created_by__is_active=True))
     else:
-        avito_accounts = await sync_to_async(list)(AvitoAccount.objects.filter(company__is_active=True))
+        avito_accounts = await sync_to_async(list)(AvitoAccount.objects.filter(created_by__is_active=True))
 
     campaign = await SendingCampaign.objects.acreate(
         name='weekly',
