@@ -99,13 +99,16 @@ psql -h wokrofanu.beget.app -p 5432 -U cloud_user -d default_db -f local_db_dump
 3)Централизация переписки в аккаунтах на один аккаунт телеграм(для того чтобы не прыгать по всем аккаунтам)
 
 # Технические особенности реализации:
-1) OAUTH2 avito  - доступ к аккаунтам передаётся сервису посредством перехода по ссылке клиентом и подтвеждения.
-2) Асинхронность, тк количетсво запросов может достигать 200-300 для формирования одного отчёта когда в аккаунте к прмиеру 
-20000 объявлений
+1) OAUTH2 avito  - доступ к множественным аккаунтам передаётся сервису посредством перехода по ссылке
+2) Асинхронность везде где это имеет смысл+возможность релизовать, тк количетсво запросов может достигать 
+200-300 для формирования одного отчёта когда в аккаунте к прмиеру 20000 объявлений
 3) Sentry для удобного логирования ошибок
 4) Селери - для создания рассылок отчетов по расписанию
 5) Редис для создания очердей Селери
-6) Рассылка отчётов в телеграм группы непосредственно из Селери.(без аиограмм)
+6) Рассылка отчётов в телеграм группы непосредственно из Джанго.(без аиограмм)
+7) Облачная БД тк для тестовых прогонов необходимы рабочие токены авито
+8) Система отслеживания успешности отправленных отчётов самописная
+9) Джаго Джет для более приятного вида админки
 
 
 # Поднятие ПОСТГРЕСС ЛОКАЛЬНО
@@ -118,13 +121,12 @@ https://proghunter.ru/articles/django-base-2023-installing-postgresql-in-django
 
 # Дропнуть БД в контейнере
 
-docker exec -it avitostata_db /bin/sh
-psql -U postgres -d template1
-DROP DATABASE postgres;
-CREATE DATABASE postgres;
+docker exec -it avitostata_db psql -U postgres -d template1 -c "DROP DATABASE IF EXISTS postgres;"
+docker exec -it avitostata_db psql -U postgres -d template1 -c "CREATE DATABASE postgres;"
 ./manage.py makemigrations
 ./manage.py migrate
-./manage.py createsuperuser
+./manage.py populate_db
+./manage.py runserver
 
 
 # ОТКАТ МИГРАЦИЙ
@@ -134,4 +136,18 @@ python manage.py showmigrations
 
 -указываем миграцию - которая должна стать текущей и название приложения сперва
 python manage.py migrate avito_account 0003_workschedule
+
+
+
+#  ПОЧИНИТЬ ЛОГАУТ в ДЖЕТ ДЖАНГО
+
+файл venv/lib/python3.12/site-packages/django/contrib/auth/views.py
+меняем
+     http_method_names = ["post", "options"]
+на   http_method_names = ["get", "options"]
+
+меняем
+        def post(self, request, *args, **kwargs):
+на      def get(self, request, *args, **kwargs):
+
 

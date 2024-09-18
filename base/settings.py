@@ -6,6 +6,7 @@ from celery.schedules import crontab
 from dotenv import load_dotenv
 from sentry_sdk.integrations.celery import CeleryIntegration
 from sentry_sdk.integrations.django import DjangoIntegration
+
 MOSCOW_TZ = pytz.timezone('Europe/Moscow')
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
@@ -32,6 +33,7 @@ ALLOWED_HOSTS = ["172.22.0.2", "localhost", "127.0.0.1", "45.12.238.229", "*", "
 
 INSTALLED_APPS = [
     'jet',
+    'django_extensions',  # shell_plus
     'telegram_bot',
     'django.contrib.admin',
     'django.contrib.auth',
@@ -112,7 +114,7 @@ AUTH_PASSWORD_VALIDATORS = [
 # https://docs.djangoproject.com/en/5.0/topics/i18n/
 
 LANGUAGE_CODE = 'ru-RU'
-TIME_ZONE = 'UTC'
+TIME_ZONE = 'Europe/Moscow'
 USE_I18N = True
 USE_TZ = True
 

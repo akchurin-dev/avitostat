@@ -1,6 +1,9 @@
+import json
+
 from django.contrib import admin
-from django.contrib.admin import site
 from django.db.models import Q
+from django.shortcuts import redirect
+
 from avito_account.models import AvitoAccount, AnalyticSchema, Criterion, WorkSchedule, SendingCampaign, SendingReport
 import logging
 
@@ -10,19 +13,25 @@ from messaging.tasks import bad_messaging_week_report_async_task
 logger = logging.getLogger(__name__)
 
 
-class CriterionInline(admin.TabularInline):
-    model = Criterion
-    extra = 0
-
-
 class WorkScheduleInline(admin.StackedInline):
     model = WorkSchedule
     can_delete = False
     extra = 0
 
 
+class CriterionInline(admin.TabularInline):
+    model = Criterion
+    extra = 0
+    exclude = ('created_by',)
+
+    def save_model(self, request, obj, form, change):
+        obj.created_by = request.user
+        super().save_model(request, obj, form, change)
+
+
 class AnalyticSchemaAdmin(admin.ModelAdmin):
     inlines = [CriterionInline, ]
+    exclude = ('created_by',)
 
     def get_queryset(self, request):
         queryset = super().get_queryset(request)
@@ -30,10 +39,14 @@ class AnalyticSchemaAdmin(admin.ModelAdmin):
             return queryset
         return queryset.filter(created_by=request.user)
 
+    def save_model(self, request, obj, form, change):
+        obj.created_by = request.user
+        super().save_model(request, obj, form, change)
+
 
 class AvitoAccountAdmin(admin.ModelAdmin):
-    list_display = ('name', 'company', 'telegram_id', 'phone')
-    readonly_fields = ('id',)
+    list_display = ('name', 'telegram_id', 'phone')
+    readonly_fields = ('id', 'created_by',)
     inlines = [WorkScheduleInline]
 
     exclude = ('access_token', 'refresh_token')
@@ -42,11 +55,22 @@ class AvitoAccountAdmin(admin.ModelAdmin):
         if request.user.is_superuser:
             queryset = super().get_queryset(request)
         else:
-            queryset = super().get_queryset(request).filter(Q(company_id=request.user.pk) | Q(company_id=None))
+            queryset = super().get_queryset(request).filter(Q(created_by_id=request.user.pk))
         return queryset
 
-    def has_add_permission(self, request):
-        return False
+    def formfield_for_foreignkey(self, db_field, request, **kwargs):  #  Фильтрует выпадающие связанные списки
+        if db_field.name == "analytic_schema":
+            if not request.user.is_superuser:
+                kwargs["queryset"] = AnalyticSchema.objects.filter(created_by=request.user)
+        return super().formfield_for_foreignkey(db_field, request, **kwargs)
+
+    def add_view(self, request, form_url="", extra_context=None):
+        state = {
+            "created_by_id": request.user.id,
+        }
+        return redirect("https://www.avito.ru/oauth?response_type=code&client_id=_pBlAY6LnBWr_sKlgHfX&scope=messenger"
+                        ":read,messenger:write,user_balance:read,user_operations:read,user:read,autoload:reports,"
+                        f"items:info,items:apply_vas,stats:read&state={json.dumps(state)}")
 
     def get_fields(self, request, obj=None):  # Only for view id in details and hide in list
         fields = super().get_fields(request, obj)
@@ -109,8 +133,8 @@ class AvitoAccountAdmin(admin.ModelAdmin):
         fieldsets = [
             (None, {
                 'fields': (
-                    'company', 'name', 'telegram_id', 'phone',
-                    'profile_url', 'analytic_schema', 'id',
+                    'name', 'telegram_id', 'phone',
+                    'profile_url', 'analytic_schema', 'id', 'created_by',
                 ),
             }),
         ]
@@ -131,7 +155,12 @@ class SendingCampaignAdmin(admin.ModelAdmin):
     search_fields = ['name']
 
 
-admin.site.register(WorkSchedule)   # TODO if you need it - only for superuser open it
-site.register(AvitoAccount, AvitoAccountAdmin)
-site.register(AnalyticSchema, AnalyticSchemaAdmin)
+class WorkScheduleAdmin(admin.ModelAdmin):
+    def has_module_permission(self, request):
+        return request.user.is_superuser
+
+
+admin.site.register(WorkSchedule, WorkScheduleAdmin)
+admin.site.register(AvitoAccount, AvitoAccountAdmin)
+admin.site.register(AnalyticSchema, AnalyticSchemaAdmin)
 admin.site.register(SendingCampaign, SendingCampaignAdmin)
