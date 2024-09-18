@@ -120,13 +120,12 @@ https://proghunter.ru/articles/django-base-2023-installing-postgresql-in-django
 
 # Дропнуть БД в контейнере
 
-docker exec -it avitostata_db /bin/sh
-psql -U postgres -d template1
-DROP DATABASE postgres;
-CREATE DATABASE postgres;
+docker exec -it avitostata_db psql -U postgres -d template1 -c "DROP DATABASE IF EXISTS postgres;"
+docker exec -it avitostata_db psql -U postgres -d template1 -c "CREATE DATABASE postgres;"
 ./manage.py makemigrations
 ./manage.py migrate
-./manage.py createsuperuser
+./manage.py populate_db
+./manage.py runserver
 
 
 # ОТКАТ МИГРАЦИЙ
