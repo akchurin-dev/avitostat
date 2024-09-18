@@ -1,3 +1,5 @@
+import json
+
 from django.contrib import admin
 from django.db.models import Q
 from django.shortcuts import redirect
@@ -63,9 +65,12 @@ class AvitoAccountAdmin(admin.ModelAdmin):
         return super().formfield_for_foreignkey(db_field, request, **kwargs)
 
     def add_view(self, request, form_url="", extra_context=None):
+        state = {
+            "created_by_id": request.user.id,
+        }
         return redirect("https://www.avito.ru/oauth?response_type=code&client_id=_pBlAY6LnBWr_sKlgHfX&scope=messenger"
                         ":read,messenger:write,user_balance:read,user_operations:read,user:read,autoload:reports,"
-                        f"items:info,items:apply_vas,stats:read&state={request.user.id}")
+                        f"items:info,items:apply_vas,stats:read&state={json.dumps(state)}")
 
     def get_fields(self, request, obj=None):  # Only for view id in details and hide in list
         fields = super().get_fields(request, obj)

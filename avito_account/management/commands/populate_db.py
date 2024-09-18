@@ -1,8 +1,8 @@
-from django.core.management.base import BaseCommand
 from django.contrib.auth.models import User
-from avito_account.models import AnalyticSchema, AvitoAccount, WorkSchedule, SendingCampaign, SendingReport
-import random
+from avito_account.models import AnalyticSchema, AvitoAccount, WorkSchedule, SendingCampaign, SendingReport, Criterion
+from django.core.management.base import BaseCommand
 from django.utils import timezone
+import random
 
 
 class Command(BaseCommand):
@@ -25,6 +25,13 @@ class Command(BaseCommand):
                 created_by=user
             )
             schemas.append(schema)
+
+            # Создаём критерии для каждой схемы аналитики
+            for j in range(3):  # Создаём 3 критерия для каждой схемы
+                Criterion.objects.create(
+                    schema=schema,
+                    name=f"Criterion {i + 1}.{j + 1}"
+                )
 
         # Создаём Avito аккаунты
         accounts = []

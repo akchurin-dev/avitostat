@@ -41,14 +41,14 @@ def get_avito_account_info(access_token: str):
         raise HTTPException(status_code=response.status_code, detail=response.text)
 
 
-def create_or_update_avito_account(code: str, state: int) -> AvitoAccount:
+def create_or_update_avito_account(code: str, created_by_id: int) -> AvitoAccount:
     # try:
     token_data = get_avito_tokens(code)
     access_token = token_data.get('access_token')
     account_info = get_avito_account_info(access_token)
 
     avito_id = int(account_info.get("id"))
-    avito_account, created = AvitoAccount.objects.get_or_create(id=avito_id, created_by_id=state)
+    avito_account, created = AvitoAccount.objects.get_or_create(id=avito_id, created_by_id=created_by_id)
 
     avito_account.access_token = token_data.get('access_token')
     avito_account.refresh_token = token_data.get('refresh_token')
