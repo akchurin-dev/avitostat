@@ -79,7 +79,7 @@ class AvitoAccount(BaseModel):
     access_token = models.CharField(max_length=255, null=True)
     refresh_token = models.CharField(max_length=255, null=True)
 
-    analytic_schema = models.ForeignKey(AnalyticSchema, on_delete=models.PROTECT, null=True, blank=True)
+    analytic_schema = models.ForeignKey(AnalyticSchema, on_delete=models.SET_NULL, null=True, blank=True)
 
     def update_refresh_token(self):
         url = 'https://api.avito.ru/token/'
