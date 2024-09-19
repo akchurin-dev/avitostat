@@ -46,7 +46,7 @@ class AnalyticSchemaAdmin(admin.ModelAdmin):
 
 class AvitoAccountAdmin(admin.ModelAdmin):
     list_display = ('name', 'telegram_id', 'phone')
-    readonly_fields = ('id', 'created_by',)
+    readonly_fields = ('id',)
     inlines = [WorkScheduleInline]
 
     exclude = ('access_token', 'refresh_token')
@@ -57,6 +57,13 @@ class AvitoAccountAdmin(admin.ModelAdmin):
         else:
             queryset = super().get_queryset(request).filter(Q(created_by_id=request.user.pk))
         return queryset
+
+    def save_model(self, request, obj, form, change):
+        super().save_model(request, obj, form, change)
+
+        # Проверяем, есть ли уже связанный объект WorkSchedule, если нет - создаем
+        if not hasattr(obj, 'work_schedules') or obj.work_schedules is None:
+            WorkSchedule.objects.get_or_create(avito_account=obj)
 
     def formfield_for_foreignkey(self, db_field, request, **kwargs):  #  Фильтрует выпадающие связанные списки
         if db_field.name == "analytic_schema":
@@ -160,7 +167,8 @@ class WorkScheduleAdmin(admin.ModelAdmin):
         return request.user.is_superuser
 
 
-admin.site.register(WorkSchedule, WorkScheduleAdmin)
+admin.site.register(WorkSchedule)
 admin.site.register(AvitoAccount, AvitoAccountAdmin)
 admin.site.register(AnalyticSchema, AnalyticSchemaAdmin)
 admin.site.register(SendingCampaign, SendingCampaignAdmin)
+admin.site.register(SendingReport)
