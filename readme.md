@@ -34,6 +34,7 @@ sudo systemctl stop  celery-worker
 sudo systemctl stop  celery-beat
 redis-cli flushall
 
+redis-cli flushall
 systemctl daemon-reload
 sudo systemctl start gunicorn
 sudo systemctl start aiogram

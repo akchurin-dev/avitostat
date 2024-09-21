@@ -1,12 +1,9 @@
 import json
-
 from django.contrib import admin
 from django.db.models import Q
 from django.shortcuts import redirect
-
 from avito_account.models import AvitoAccount, AnalyticSchema, Criterion, WorkSchedule, SendingCampaign, SendingReport
 import logging
-
 from conversion.tasks import send_text_report_all_async_task
 from messaging.tasks import bad_messaging_week_report_async_task
 
@@ -158,16 +155,37 @@ class SendingReportInline(admin.TabularInline):
 class SendingCampaignAdmin(admin.ModelAdmin):
     inlines = [SendingReportInline]
     list_display = ['sending_type', 'created_at', 'test_from_prod', 'name', ]
-    list_filter = ['sending_type', 'test_from_prod', 'created_at']
+    list_filter = ['accounts_presented', 'sending_type', 'test_from_prod', 'created_at']
     search_fields = ['name']
+
+    def get_queryset(self, request):
+        # Получаем исходный queryset
+        queryset = super().get_queryset(request)
+
+        # Если пользователь суперпользователь, то показываем все записи
+        if request.user.is_superuser:
+            return queryset
+
+        # Получаем все аккаунты, созданные текущим пользователем
+        user_created_accounts = AvitoAccount.objects.filter(created_by=request.user)
+
+        # Фильтруем рассылки, в которых в поле `accounts_presented` есть аккаунты, созданные этим пользователем
+        return queryset.filter(accounts_presented__in=user_created_accounts).distinct()
 
 
 class WorkScheduleAdmin(admin.ModelAdmin):
     def has_module_permission(self, request):
         return request.user.is_superuser
 
+    def get_queryset(self, request):
+        if request.user.is_superuser:
+            queryset = super().get_queryset(request)
+        else:
+            queryset = super().get_queryset(request).filter(Q(avito_account__created_by_id=request.user.pk))
+        return queryset
 
-admin.site.register(WorkSchedule)
+
+admin.site.register(WorkSchedule, WorkScheduleAdmin)
 admin.site.register(AvitoAccount, AvitoAccountAdmin)
 admin.site.register(AnalyticSchema, AnalyticSchemaAdmin)
 admin.site.register(SendingCampaign, SendingCampaignAdmin)
