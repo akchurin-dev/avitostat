@@ -1,7 +1,12 @@
 import json
+
+import math
 from django.contrib import admin
-from django.db.models import Q
+from django.db.models import Q, Sum, ExpressionWrapper
+from django.forms import FloatField
 from django.shortcuts import redirect
+from django.template.response import TemplateResponse
+
 from avito_account.models import AvitoAccount, AnalyticSchema, Criterion, WorkSchedule, SendingCampaign, SendingReport
 import logging
 from conversion.tasks import send_text_report_all_async_task
@@ -172,20 +177,56 @@ class SendingCampaignAdmin(admin.ModelAdmin):
         # Фильтруем рассылки, в которых в поле `accounts_presented` есть аккаунты, созданные этим пользователем
         return queryset.filter(accounts_presented__in=user_created_accounts).distinct()
 
-
+from django.db.models import Sum, F, ExpressionWrapper, FloatField
 class SendingReportAdmin(admin.ModelAdmin):
     list_filter = ('avito_account', 'campaign', 'success', 'error_message', 'pdf_path', 'timestamp')
-    list_display = ['avito_account', 'tokens_completion', 'tokens_prompt', 'timestamp',]
+    list_display = ['avito_account', 'tokens_completion', 'tokens_prompt', 'tokens_price', 'timestamp']
 
     def has_module_permission(self, request):
         return request.user.is_superuser
 
+    # def get_queryset(self, request):
+    #     return super().get_queryset(request).filter(
+    #         campaign__sending_type=SendingCampaign.PDF,
+    #         campaign__test_from_prod=False,
+    #         success=True
+    #     )
+
     def get_queryset(self, request):
-        return super().get_queryset(request).filter(
-            campaign__sending_type=SendingCampaign.PDF,  # доступ к полю sending_type модели SendingCampaign
-            campaign__test_from_prod=False,  # доступ к полю test_from_prod модели SendingCampaign
-            success=True
+        qs = super().get_queryset(request)
+        # Аннотация для вычисления стоимости токенов в базе данных
+        return qs.annotate(
+            tokens_price=ExpressionWrapper(
+                F('tokens_prompt') * 0.000125 + F('tokens_completion') * 0.0005,
+                output_field=FloatField()
+            )
         )
+
+    def tokens_price(self, obj):
+        # Здесь добавьте логику для вычисления значения
+        return round(obj.tokens_prompt * 0.000125 + obj.tokens_completion * 0.0005, 1)  # Например, это просто возвращает значение поля success
+
+    tokens_price.short_description = 'стоимость токенов'
+
+    def changelist_view(self, request, extra_context=None):
+        response = super().changelist_view(request, extra_context=extra_context)
+
+        # Убедимся, что response — это TemplateResponse
+        if isinstance(response, TemplateResponse):
+            # Получаем queryset
+            qs = self.get_queryset(request)
+
+            # Суммируем нужные поля и аннотированное поле
+            total_tokens_completion = qs.aggregate(Sum('tokens_completion'))['tokens_completion__sum'] or 0
+            total_tokens_prompt = qs.aggregate(Sum('tokens_prompt'))['tokens_prompt__sum'] or 0
+            total_tokens_price = qs.aggregate(Sum('tokens_price'))['tokens_price__sum'] or 0
+
+            # Передаем итоговые суммы в контекст
+            response.context_data['total_tokens_completion'] = total_tokens_completion
+            response.context_data['total_tokens_prompt'] = total_tokens_prompt
+            response.context_data['total_tokens_price'] = round(total_tokens_price, 1)
+
+        return response
 
 
 class WorkScheduleAdmin(admin.ModelAdmin):

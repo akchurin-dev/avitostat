@@ -1,0 +1,14 @@
+{% extends "admin/change_list.html" %}
+
+{% block result_list %}
+    {{ block.super }}
+    <tfoot>
+        <tr class="total">
+            <td colspan="4" style="text-align: right;"><strong>Итого:</strong></td>
+            <td>{{ total_tokens_completion }}</td>
+            <td>{{ total_tokens_prompt }}</td>
+            <td>{{ total_tokens_price }} руб.</td>
+            <td></td>  <!-- Пустая ячейка для последней колонки (timestamp) -->
+        </tr>
+    </tfoot>
+{% endblock %}
