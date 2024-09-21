@@ -94,7 +94,7 @@ class AvitoAccountAdmin(admin.ModelAdmin):
         object_ids = list(queryset.values_list('id', flat=True))
 
         try:
-            bad_messaging_week_report_async_task.delay(only_for_users=object_ids)
+            bad_messaging_week_report_async_task(only_for_users=object_ids)
             self.message_user(request, "ПДФ отчет успешно сгенерирован и отправлен.", level='success')
         except Exception as e:
             logger.error(f"Ошибка при отправке отчета: {e}", exc_info=True)
@@ -148,7 +148,7 @@ class AvitoAccountAdmin(admin.ModelAdmin):
 class SendingReportInline(admin.TabularInline):
     model = SendingReport
     extra = 0  # Количество дополнительных пустых форм для создания новых объектов
-    fields = ['avito_account', 'success', 'error_message', 'pdf_path', 'timestamp']
+    fields = ['avito_account', 'success', 'error_message', 'timestamp', 'tokens_prompt', 'tokens_completion']
     readonly_fields = ['timestamp']
 
 
@@ -173,6 +173,21 @@ class SendingCampaignAdmin(admin.ModelAdmin):
         return queryset.filter(accounts_presented__in=user_created_accounts).distinct()
 
 
+class SendingReportAdmin(admin.ModelAdmin):
+    list_filter = ('avito_account', 'campaign', 'success', 'error_message', 'pdf_path', 'timestamp')
+    list_display = ['avito_account', 'tokens_completion', 'tokens_prompt', 'timestamp',]
+
+    def has_module_permission(self, request):
+        return request.user.is_superuser
+
+    def get_queryset(self, request):
+        return super().get_queryset(request).filter(
+            campaign__sending_type=SendingCampaign.PDF,  # доступ к полю sending_type модели SendingCampaign
+            campaign__test_from_prod=False,  # доступ к полю test_from_prod модели SendingCampaign
+            success=True
+        )
+
+
 class WorkScheduleAdmin(admin.ModelAdmin):
     def has_module_permission(self, request):
         return request.user.is_superuser
@@ -189,4 +204,4 @@ admin.site.register(WorkSchedule, WorkScheduleAdmin)
 admin.site.register(AvitoAccount, AvitoAccountAdmin)
 admin.site.register(AnalyticSchema, AnalyticSchemaAdmin)
 admin.site.register(SendingCampaign, SendingCampaignAdmin)
-admin.site.register(SendingReport)
+admin.site.register(SendingReport, SendingReportAdmin)

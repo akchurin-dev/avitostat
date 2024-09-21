@@ -196,6 +196,9 @@ class SendingReport(models.Model):  # Не BaseModel тк репорпты до�
     pdf_path = models.CharField(max_length=255, null=True, blank=True)
     timestamp = models.DateTimeField(default=timezone.now)
 
+    tokens_completion = models.IntegerField(default=0)
+    tokens_prompt = models.IntegerField(default=0)
+
     class Meta:
         verbose_name = "Отчёт о рассылке"
         verbose_name_plural = "отчёты о рассылках"
