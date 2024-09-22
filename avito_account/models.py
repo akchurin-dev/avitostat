@@ -24,13 +24,13 @@ def moscow_time(hour, minute):
 
 class BaseModel(models.Model):
     created_by = models.ForeignKey(
-        verbose_name="Created by",
+        verbose_name="Кем создано",
         to=User,
         on_delete=models.CASCADE,
         related_name="%(app_label)s_%(class)s_created_by",
     )
     created_at = models.DateTimeField(
-        verbose_name="Created At",
+        verbose_name="Согда создано",
         auto_now_add=True,
     )
 
@@ -49,7 +49,7 @@ class BaseModel(models.Model):
 
 
 class AnalyticSchema(BaseModel):
-    name = models.CharField(max_length=32, verbose_name="Schemas Name")
+    name = models.CharField(max_length=32, verbose_name="Название схемы")
 
     def __str__(self):
         return self.name
@@ -60,8 +60,8 @@ class AnalyticSchema(BaseModel):
 
 
 class Criterion(models.Model):  # Не BaseModel тк привязываемся к схеме и этого достаточно
-    schema = models.ForeignKey(AnalyticSchema, on_delete=models.CASCADE, related_name="criteria")
-    name = models.CharField(verbose_name="Name")
+    schema = models.ForeignKey(AnalyticSchema, on_delete=models.CASCADE, related_name="criteria", verbose_name="Схема аналитики")
+    name = models.CharField(verbose_name="Название")
 
     def __str__(self):
         return self.name
@@ -72,14 +72,14 @@ class Criterion(models.Model):  # Не BaseModel тк привязываемся
 
 
 class AvitoAccount(BaseModel):
-    name = models.CharField(max_length=255, null=True)
-    telegram_id = models.CharField(max_length=255, null=True, blank=True)
-    phone = models.CharField(max_length=255, null=True)
-    profile_url = models.CharField(max_length=255, null=True)
-    access_token = models.CharField(max_length=255, null=True)
-    refresh_token = models.CharField(max_length=255, null=True)
+    name = models.CharField(max_length=255, null=True, verbose_name="Название аккаунта")
+    telegram_id = models.CharField(max_length=255, null=True, blank=True, verbose_name="Телеграм ID")
+    phone = models.CharField(max_length=255, null=True, verbose_name="Номер телефона")
+    profile_url = models.CharField(max_length=255, null=True, verbose_name="Ссылка на профиль")
+    access_token = models.CharField(max_length=255, null=True, verbose_name="Токен доступа")
+    refresh_token = models.CharField(max_length=255, null=True, verbose_name="Токен обновления")
 
-    analytic_schema = models.ForeignKey(AnalyticSchema, on_delete=models.SET_NULL, null=True, blank=True)
+    analytic_schema = models.ForeignKey(AnalyticSchema, on_delete=models.SET_NULL, null=True, blank=True, verbose_name="Схема аналитики")
 
     def update_refresh_token(self):
         url = 'https://api.avito.ru/token/'
@@ -135,7 +135,8 @@ class AvitoAccount(BaseModel):
 class WorkSchedule(models.Model):  # Не BaseModel тк привязываемся к AvitoAccount и этого достаточно
     avito_account = models.OneToOneField(AvitoAccount, on_delete=models.CASCADE, related_name="work_schedules",
                                          null=True,
-                                         blank=True)
+                                         blank=True
+                                         , verbose_name="Авито аккаунт")
 
     # Рабочие дни с понедельника по пятницу
     # TODO try to delete moscow_time - как будто не будет никакой разницы
@@ -172,13 +173,13 @@ class SendingCampaign(models.Model):  # Не BaseModel тк рассылки о�
         (TEXT, 'Text'),
     ]
 
-    name = models.CharField(max_length=255)
-    test_from_prod = models.BooleanField(default=False)
-    sending_type = models.CharField(max_length=3, choices=SENDING_TYPE_CHOICES, default=PDF)
-    created_at = models.DateTimeField(default=timezone.now)
+    name = models.CharField(max_length=255, verbose_name="Название рассылки")
+    test_from_prod = models.BooleanField(default=False, verbose_name="Тестирование с прода")
+    sending_type = models.CharField(max_length=3, choices=SENDING_TYPE_CHOICES, default=PDF, verbose_name="Тип рассылки")
+    created_at = models.DateTimeField(default=timezone.now, verbose_name="Когда создано")
 
-    accounts_presented_count = models.IntegerField(default=0)
-    accounts_presented = models.ManyToManyField(AvitoAccount, related_name="campaigns_presented", blank=True)
+    accounts_presented_count = models.IntegerField(default=0, verbose_name="Аккаунтов к анализу")
+    accounts_presented = models.ManyToManyField(AvitoAccount, related_name="campaigns_presented", blank=True, verbose_name="Аккаунты к анализу")
 
     class Meta:
         verbose_name = "Рассылка"
@@ -189,15 +190,15 @@ class SendingCampaign(models.Model):  # Не BaseModel тк рассылки о�
 
 
 class SendingReport(models.Model):  # Не BaseModel тк репорпты должны привязываться к аккаунту а не к юзеру
-    avito_account = models.ForeignKey('AvitoAccount', on_delete=models.CASCADE)
-    campaign = models.ForeignKey('SendingCampaign', on_delete=models.CASCADE, related_name='reports')
-    success = models.BooleanField(default=False)
-    error_message = models.CharField(null=True, blank=True, max_length=255)
-    pdf_path = models.CharField(max_length=255, null=True, blank=True)
-    timestamp = models.DateTimeField(default=timezone.now)
+    avito_account = models.ForeignKey('AvitoAccount', on_delete=models.CASCADE, verbose_name="Авито аккаунт")
+    campaign = models.ForeignKey('SendingCampaign', on_delete=models.CASCADE, related_name='reports', verbose_name="Рассылка")
+    success = models.BooleanField(default=False, verbose_name="Успешно")
+    error_message = models.CharField(null=True, blank=True, max_length=255, verbose_name="Сообщение ошибки")
+    pdf_path = models.CharField(max_length=255, null=True, blank=True, verbose_name="Ссылка к пдф отчёту")
+    timestamp = models.DateTimeField(default=timezone.now, verbose_name="Дата создания")
 
-    tokens_completion = models.IntegerField(default=0)
-    tokens_prompt = models.IntegerField(default=0)
+    tokens_completion = models.IntegerField(default=0, verbose_name="Токены на вычисления")
+    tokens_prompt = models.IntegerField(default=0, verbose_name="Токены на контекст")
 
     class Meta:
         verbose_name = "Отчёт о рассылке"

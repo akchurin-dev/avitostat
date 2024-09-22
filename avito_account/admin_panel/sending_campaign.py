@@ -28,16 +28,16 @@ class SendingCampaignAdmin(admin.ModelAdmin):
     def get_queryset(self, request):
         # Получаем исходный queryset
         queryset = super().get_queryset(request)
-
         # Если пользователь суперпользователь, то показываем все записи
         if request.user.is_superuser:
             return queryset
-
         # Получаем все аккаунты, созданные текущим пользователем
         user_created_accounts = AvitoAccount.objects.filter(created_by=request.user)
-
         # Фильтруем рассылки, в которых в поле `accounts_presented` есть аккаунты, созданные этим пользователем
-        return queryset.filter(accounts_presented__in=user_created_accounts).distinct()
+        return queryset.filter(
+            accounts_presented__in=user_created_accounts,
+            test_from_prod=False,
+        ).distinct()
 
 
 class SendingReportAdmin(admin.ModelAdmin):
