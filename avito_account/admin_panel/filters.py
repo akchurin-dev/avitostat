@@ -1,6 +1,5 @@
 from django.contrib.admin import SimpleListFilter
 from django.contrib.auth.models import User
-
 from avito_account.models import AvitoAccount
 
 
@@ -19,7 +18,7 @@ class ContragentFilter(SimpleListFilter):
 
 
 class TestFromProdFilter(SimpleListFilter):
-    title = 'Тестовые отчёты'
+    title = 'Для тестирования'
     parameter_name = 'test_from_prod'
 
     def lookups(self, request, model_admin):
