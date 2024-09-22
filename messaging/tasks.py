@@ -45,13 +45,13 @@ async def bad_messaging_week_report_async(test_from_prod: bool = False, only_for
     )
     await sync_to_async(campaign.accounts_presented.add)(*all_avito_accounts)
 
-
     # CORE logic
     for avito_account in all_avito_accounts:
         print(avito_account.name)
         pdf_path = None
+        tokens = {"completion": -99, "prompt": -99}  # default values
         try:
-            pdf_path = await get_messaging_week_report_pdf(avito_account.id, test_from_prod)
+            pdf_path, tokens = await get_messaging_week_report_pdf(avito_account.id, test_from_prod)
             if pdf_path:
                 chat_id = "-4221870448" if test_from_prod else avito_account.telegram_id
                 try:
@@ -82,7 +82,9 @@ async def bad_messaging_week_report_async(test_from_prod: bool = False, only_for
             success=success,
             error_message=error_message,
             pdf_path=pdf_path,
-            timestamp=timezone.now()
+            timestamp=timezone.now(),
+            tokens_completion=tokens.get("completion"),
+            tokens_prompt=tokens.get("prompt"),
         )
 
 

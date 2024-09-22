@@ -63,10 +63,11 @@ async def get_messaging_week_report_pdf(avito_account_id, test_from_prod: bool):
             analyze_all_chats["compared_messages"] = "Чаты не найдены"
 
         # tokens counting
+        tokens = None
         if analyze_by_criteria_raw_res:
-            get_tokens_information(analyze_by_criteria_raw_res)
+            tokens = await get_tokens_information(analyze_by_criteria_raw_res)
 
-        return await get_pdf_report(avito_account_id, analyze_all_chats)
+        return await get_pdf_report(avito_account_id, analyze_all_chats), tokens
     else:
         raise HTTPException(status_code=404, detail="error: Аккаунт Avito не найден")
 
@@ -112,7 +113,7 @@ async def bad_messaging_report_generate_html(analyze_all_chats):
                            analyze_by_criteria=analyze_all_chats.get("analyze_by_criteria"), )
 
 
-def get_tokens_information(analyze_by_criteria_raw_result: list):
+async def get_tokens_information(analyze_by_criteria_raw_result: list):
     # BY CRITERIA
     by_criteria_completion = [x["tokens_by_criteria_analyze"].get("completion_tokens") for x in
                               analyze_by_criteria_raw_result]
@@ -131,3 +132,8 @@ def get_tokens_information(analyze_by_criteria_raw_result: list):
     print(f"Среднее количество токенов completion на чат {total_completion / len(analyze_by_criteria_raw_result)}")
     print(f"Всего количество токенов prompt на чат {total_prompt / len(analyze_by_criteria_raw_result)}")
     print(f"Чатов обработано {len(analyze_by_criteria_raw_result)}")
+
+    return {
+        "completion": total_completion,
+        "prompt": total_prompt
+    }
