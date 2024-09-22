@@ -30,7 +30,7 @@ class BaseModel(models.Model):
         related_name="%(app_label)s_%(class)s_created_by",
     )
     created_at = models.DateTimeField(
-        verbose_name="Согда создано",
+        verbose_name="Когда создано",
         auto_now_add=True,
     )
 
