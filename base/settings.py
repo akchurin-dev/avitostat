@@ -27,7 +27,7 @@ if ENVIRONMENT == 'DEVELOPMENT':
 else:
     DEBUG = False
 
-ALLOWED_HOSTS = ["172.22.0.2", "localhost", "127.0.0.1", "45.12.238.229", "*", "avitostata.ru"]
+ALLOWED_HOSTS = ["172.22.0.2", "localhost", "127.0.0.1", "45.12.238.229", "avitostata.ru"]
 
 # Application definition
 
