@@ -7,7 +7,7 @@ from django.contrib.auth.models import User
 import os
 import requests
 from dotenv import load_dotenv
-from exceptions import HTTPException
+from base.exceptions import HTTPException
 import datetime
 from django.utils import timezone
 

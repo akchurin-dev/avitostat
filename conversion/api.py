@@ -1,11 +1,9 @@
 from datetime import timedelta
 
-from django.http import JsonResponse
-
 from avito_account.api.api import get_items_list
 from avito_account.models import AvitoAccount
 from conversion.utils import dates_for_period_without_extra_reserve
-from exceptions import HTTPException
+from base.exceptions import HTTPException
 import httpx
 
 

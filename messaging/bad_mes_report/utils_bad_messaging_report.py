@@ -3,7 +3,7 @@ import pdfkit
 import sentry_sdk
 from dotenv import load_dotenv
 from avito_account.models import AvitoAccount
-from exceptions import HTTPException
+from base.exceptions import HTTPException
 from jinja2 import Template
 from asgiref.sync import sync_to_async
 from pathlib import Path

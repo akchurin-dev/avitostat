@@ -1,5 +1,5 @@
 from avito_account.models import AvitoAccount
-from exceptions import HTTPException
+from base.exceptions import HTTPException
 import httpx
 from httpx import HTTPStatusError
 
