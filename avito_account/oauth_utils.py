@@ -3,7 +3,7 @@ import requests
 from dotenv import load_dotenv
 
 from avito_account.models import AvitoAccount
-from exceptions import HTTPException
+from base.exceptions import HTTPException
 
 load_dotenv()
 client_id = os.getenv('AVITO_CLIENT_ID')

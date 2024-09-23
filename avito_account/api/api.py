@@ -1,11 +1,8 @@
-from functools import wraps
-
 import httpx
 import requests
-from django.http import JsonResponse
 
 from avito_account.models import AvitoAccount
-from exceptions import HTTPException
+from base.exceptions import HTTPException
 
 
 # def handle_403_and_retry(func):

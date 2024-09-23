@@ -7,7 +7,7 @@ from dotenv import load_dotenv
 from telegram_bot import bot
 from avito_account.models import AvitoAccount
 from conversion.utils_week_report import get_text_statistics_report
-from exceptions import HTTPException
+from base.exceptions import HTTPException
 from messaging.bad_mes_report.statistics.total_statistics_utils import get_duration_statistics
 from messaging.bad_mes_report.utils_chats import get_ready_chats
 from messaging.utils_duration import get_second_touches_durations_seconds
