@@ -25,8 +25,19 @@ class AvitoAccountAdmin(admin.ModelAdmin):
     list_display = ('name', 'telegram_id', 'phone')
     readonly_fields = ('id',)
     inlines = [WorkScheduleInline]
+    actions = ['run_txt_report', 'run_pdf_report', 'run_txt_all_report', 'run_pdf_all_report']
 
     exclude = ('access_token', 'refresh_token')
+
+    def get_actions(self, request):
+        actions = super().get_actions(request)
+        if not request.user.is_superuser:
+            # Удаляем только определенные экшены для не-суперадминов
+            restricted_actions = ['run_txt_all_report', 'run_pdf_all_report']
+            for action in restricted_actions:
+                if action in actions:
+                    del actions[action]
+        return actions
 
     def get_queryset(self, request):
         if request.user.is_superuser:
@@ -68,7 +79,6 @@ class AvitoAccountAdmin(admin.ModelAdmin):
             readonly_fields = ['id'] + list(readonly_fields)
         return readonly_fields
 
-    actions = ['run_pdf_report', 'run_pdf_all_report', 'run_txt_report', 'run_txt_all_report']
 
     def run_pdf_report(self, request, queryset):
         object_ids = list(queryset.values_list('id', flat=True))
