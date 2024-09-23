@@ -242,6 +242,10 @@ if ENVIRONMENT == 'PRODUCTION':
     }
 else:
     CELERY_BEAT_SCHEDULE = {
+        'db_auto_creator_task': {
+            'task': 'messaging.tasks.db_backup_auto_creator_task',
+            'schedule': crontab(hour=6, minute=25),
+        },
         # 'bad_messaging_week_report_task_DEBUG': {
         #     'task': 'messaging.tasks.bad_messaging_week_report_async_task',
         #     'schedule': 150.0,  #  каждые 100 секунд
