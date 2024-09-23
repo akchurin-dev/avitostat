@@ -237,7 +237,7 @@ if ENVIRONMENT == 'PRODUCTION':
 
         'db_auto_creator_task': {
             'task': 'messaging.tasks.db_backup_auto_creator_task',
-            'schedule': crontab(hour=6, minute=48),
+            'schedule': crontab(hour=0, minute=0),
         },
     }
 else:
