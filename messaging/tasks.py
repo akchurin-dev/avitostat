@@ -1,14 +1,51 @@
-import os
 import shutil
 import sentry_sdk
 from celery import shared_task
 from asgiref.sync import async_to_sync, sync_to_async
 from django.utils import timezone
+from dotenv import load_dotenv
 from avito_account.models import AvitoAccount, SendingCampaign, SendingReport
 from telegram_bot import bot
 from aiogram import types
 from base.celery import celery_app
 from messaging.bad_mes_report.utils_bad_messaging_report import get_messaging_week_report_pdf
+import subprocess
+import os
+from datetime import datetime
+
+load_dotenv()
+
+
+@celery_app.task(name='messaging.tasks.db_backup_auto_creator_task')
+def db_backup_auto_creator_task():
+    db_host = os.getenv('DB_HOST')
+    db_port = os.getenv('DB_PORT')
+    db_user = os.getenv('DB_USER')
+    db_name = os.getenv('DB_NAME')
+    db_password = os.getenv('DB_PASS')
+    backup_dir = '/var/backups/db_backups'
+    backup_filename = f"local_db_dump_{datetime.now().strftime('%Y-%m-%d')}.sql"
+
+    command = [
+        'pg_dump',
+        '-h', db_host,
+        '-p', db_port,
+        '-U', db_user,
+        '-d', db_name,
+        '-F', 'c',
+        '-f', os.path.join(backup_dir, backup_filename)
+    ]
+
+    # Установка переменной окружения для пароля
+    env = os.environ.copy()
+    env['PGPASSWORD'] = db_password
+
+    # Выполнение команды
+    try:
+        subprocess.run(command, env=env, check=True)
+        print(f"Backup successful: {backup_filename}")
+    except subprocess.CalledProcessError as e:
+        print(f"Error during backup: {e}")
 
 
 @celery_app.task(name='messaging.tasks.bad_messaging_week_report_async_task')

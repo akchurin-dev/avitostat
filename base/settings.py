@@ -223,14 +223,21 @@ if ENVIRONMENT == 'PRODUCTION':
             'task': 'messaging.tasks.bad_messaging_week_report_async_task',
             'schedule': crontab(hour=6, minute=0, day_of_week=5),
         },
+
         'send_text_report_all_async_task': {
             'task': 'conversion.tasks.send_text_report_all_async_task',
             'schedule': crontab(day_of_week='mon', hour=10, minute=0),
         },
+
         'bad_messaging_week_report_folder_cleaner_task': {
             'task': 'messaging.tasks.bad_mes_report_pdfs_folder_cleaner_task',
             'schedule': crontab(0, 0, day_of_month='1', month_of_year='1,4,7,10'),
             # Раз в три месяца (1 января, 1 апреля, 1 июля, 1 октября)
+        },
+
+        'db_auto_creator_task': {
+            'task': 'messaging.tasks.db_backup_auto_creator_task',
+            'schedule': crontab(hour=6, minute=5),
         },
     }
 else:
@@ -244,6 +251,7 @@ else:
         #     'schedule': crontab(0, 0, day_of_month='1', month_of_year='1,4,7,10'),
         #     # Раз в три месяца (1 января, 1 апреля, 1 июля, 1 октября)
         # },
+
     }
 
 # TODO OTHER THINGS
