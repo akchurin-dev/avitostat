@@ -237,7 +237,7 @@ if ENVIRONMENT == 'PRODUCTION':
 
         'db_auto_creator_task': {
             'task': 'messaging.tasks.db_backup_auto_creator_task',
-            'schedule': crontab(hour=8, minute=3),
+            'schedule': crontab(hour=0, minute=0),
         },
     }
 else:
@@ -251,6 +251,7 @@ else:
         #     'schedule': crontab(0, 0, day_of_month='1', month_of_year='1,4,7,10'),
         #     # Раз в три месяца (1 января, 1 апреля, 1 июля, 1 октября)
         # },
+
     }
 
 # TODO OTHER THINGS
