@@ -10,7 +10,7 @@ from conversion.utils_week_report import get_text_statistics_report
 from base.exceptions import HTTPException
 from messaging.bad_mes_report.statistics.total_statistics_utils import get_duration_statistics
 from messaging.bad_mes_report.utils_chats import get_ready_chats
-from messaging.utils_duration import get_second_touches_durations_seconds
+from messaging.utils_duration import get_durations_seconds
 
 load_dotenv()
 ENVIRONMENT = os.getenv('ENVIRONMENT')
@@ -47,7 +47,7 @@ async def get_duration_report_by_avito_id(avito_id):
         ready_chats = await get_ready_chats(avito_account)
         if len(ready_chats) > 1:
             #PROCESSING WITH FILTERED CHATS
-            durations = await get_second_touches_durations_seconds(ready_chats)
+            durations = await get_durations_seconds(ready_chats)
             duration_statistics = await get_duration_statistics(durations)
             return duration_statistics
         else:
