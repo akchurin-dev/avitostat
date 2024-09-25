@@ -571,7 +571,7 @@
             {% for message in chat.messages %}
             {% if message.direction == 'in' and message.type == "text" %}
             <div class="chat__item chat__item--client">
-                <span class="chat__item-time">10:15</span>
+                <span class="chat__item-time">{{ message.created|date:"H:i" }}</span>
                 <span class="chat__item-author">Клиент:</span>
                 <span class="chat__item-message"> {{ message.content.text }}</span>
             </div>

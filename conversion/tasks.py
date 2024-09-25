@@ -2,7 +2,6 @@ import os
 from asgiref.sync import async_to_sync, sync_to_async
 from django.utils import timezone
 from telegram_bot import bot
-
 from avito_account.models import SendingCampaign, SendingReport, AvitoAccount
 from base.celery import celery_app
 from conversion.utils_from_aiogram import get_week_report_text
