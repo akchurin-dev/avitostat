@@ -10,7 +10,7 @@ from conversion.utils_week_report import get_text_statistics_report
 from base.exceptions import HTTPException
 from messaging.bad_mes_report.statistics.total_statistics_utils import get_duration_statistics
 from messaging.bad_mes_report.utils_chats import get_ready_chats
-from messaging.utils_duration import get_second_touches_durations_seconds
+from messaging.utils_duration import get_durations_seconds
 
 load_dotenv()
 ENVIRONMENT = os.getenv('ENVIRONMENT')
@@ -47,7 +47,7 @@ async def get_duration_report_by_avito_id(avito_id):
         ready_chats = await get_ready_chats(avito_account)
         if len(ready_chats) > 1:
             #PROCESSING WITH FILTERED CHATS
-            durations = await get_second_touches_durations_seconds(ready_chats)
+            durations = await get_durations_seconds(ready_chats)
             duration_statistics = await get_duration_statistics(durations)
             return duration_statistics
         else:
@@ -99,7 +99,7 @@ async def generate_week_report_text(week_report_data):
             f"📞 *Запрошено контактов:* {total_contacts_count}\n"
             f"👁️ *Просмотров:* {total_views_count}\n"
             f"💸 *Затраты:* {round(total_coast, 2)} р\n"
-            f"💰 *Цена за контакт:* {total_coast_per_contact} р\n\n")
+            f"💰 *Цена за контакт:* {round(total_coast_per_contact, 2)} р\n\n")
 
     text += await generate_top_items_text(week_report_data.get("top"))
     return text
@@ -113,9 +113,9 @@ async def generate_top_items_text(top_items):
                                  f"🔹 *Название:* {item_data.get('itemTitle', 'Без названия')}\n"
                                  f"🔸 *Запрошен контакт:* {item_data.get('uniqContacts', 0)}\n"
                                  f"🔸 *Просмотры:* {item_data.get('uniqViews', 0)}\n"
-                                 f"🔸 *Затраты:* {item_data.get('coast', 0)} р\n"
-                                 f"🔸 *Цена за контакт:* {item_data.get('amount_per_contact', 0)} р\n"
-                                 f"🔸 *Цена за просмотр:* {item_data.get('amount_per_view', 0)} р\n")
+                                 f"🔸 *Затраты:* {round(item_data.get('coast', 0), 2)} р\n"
+                                 f"🔸 *Цена за контакт:* {round(item_data.get('amount_per_contact', 0), 2)} р\n"
+                                 f"🔸 *Цена за просмотр:* {round(item_data.get('amount_per_view', 0), 2)} р\n")
     return statistics_total
 
 
