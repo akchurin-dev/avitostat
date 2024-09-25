@@ -299,6 +299,15 @@
             padding: 5px;
             border-radius: 5px;
         }
+        .chat__item-time {
+            display: inline-block;
+            margin-bottom: 1px;
+            min-width: 30px;
+            color: #009AD8;
+            font-size: 12px;
+            font-weight: 400;
+            letter-spacing: -.4px;
+        }
         .chat__item--client {
             background-color: #F3F5F8;
         }
@@ -553,6 +562,7 @@
             {% for message in chat.messages %}
             {% if message.direction == 'in' and message.type == "text" %}
             <div class="chat__item chat__item--client">
+                <span class="chat__item-time">10:15</span>
                 <span class="chat__item-author">Клиент:</span>
                 <span class="chat__item-message"> {{ message.content.text }}</span>
             </div>
@@ -560,6 +570,7 @@
 
             {% if message.direction == 'out' and message.type == "text" %}
             <div class="chat__item">
+                <span class="chat__item-time">10:15</span>
                 <span class="chat__item-author">Менеджер:</span>
                 <span class="chat__item-message"> {{ message.content.text }}</span>
             </div>
