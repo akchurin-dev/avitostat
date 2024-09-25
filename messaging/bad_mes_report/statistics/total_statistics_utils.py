@@ -1,5 +1,5 @@
 from datetime import datetime
-from messaging.utils_duration import get_second_touches_durations_seconds
+from messaging.utils_duration import get_durations_seconds
 from datetime import timedelta
 
 
@@ -32,8 +32,10 @@ async def get_duration_statistics(chats: list):
         statistics["average_duration"] = average_duration_formatted
 
     top_durations = sorted(chats, key=lambda x: x[0])[::-1][:10]
-    top_durations_formatted = [[await convert_seconds(duration[0]), duration[1], duration[2]] for duration in
-                               top_durations]
+    top_durations_formatted = []
+    for duration in top_durations:
+        top_durations_formatted.append([await convert_seconds(duration[0]), duration[1], duration[2]])
+
     statistics["top_durations"] = top_durations_formatted
     return statistics
 
@@ -150,7 +152,7 @@ async def get_statistics_total(filtered_chats_only_with_text: list):
         }
 
     # TODO Duration average
-    durations = await get_second_touches_durations_seconds(filtered_chats_only_with_text)
+    durations = await get_durations_seconds(filtered_chats_only_with_text)
     total_sum = sum([chat[0] for chat in durations])
     total_len = len(durations)
     if total_sum > 0 and total_len > 0:

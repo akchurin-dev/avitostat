@@ -2,7 +2,7 @@ from datetime import datetime
 from typing import Dict, Any, List
 
 
-async def get_second_touches_durations_seconds(chats: List[Dict[str, Any]]):
+async def get_durations_seconds(chats: List[Dict[str, Any]]):
     duration_times = []
 
     for chat in chats:
@@ -18,12 +18,8 @@ async def get_second_touches_durations_seconds(chats: List[Dict[str, Any]]):
                 duration = (out_time - in_time).total_seconds()
 
                 chat_id = chat.get('id')
-                content_text = message.get('content', None).get('text', None)
-
-                author = None
-                if content_text and ':' in content_text:
-                    author = content_text.split(":")[0]
-                duration_times.append([duration, chat_id, author])
+                manager_name = chat.get("manager_name")
+                duration_times.append([duration, chat_id, manager_name])
 
                 last_in_message = None
 
