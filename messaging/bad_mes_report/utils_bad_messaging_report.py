@@ -77,10 +77,10 @@ async def get_messaging_week_report_pdf(avito_account_id, test_from_prod: bool):
 
 async def converting_created_timestamp_to_datetime(analyze_all_chats):
     try:
-        for chat in analyze_all_chats:
+        for chat in analyze_all_chats.get("chats"):
             for message in chat.get("messages"):
                 timestamp = message.get("created")
-                message["created_datetime"] = datetime.fromtimestamp(timestamp)
+                message["created_time"] = datetime.fromtimestamp(timestamp).time()
         return analyze_all_chats
     except Exception:
         raise Exception
