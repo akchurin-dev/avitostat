@@ -1,13 +1,22 @@
 import json
 from django.contrib import admin
-from django.db.models import Q, Sum, ExpressionWrapper
+from django.db.models import Q
 from django.shortcuts import redirect
 from avito_account.admin_panel.avito_account_actions import run_txt_all_test_from_prod_report, run_txt_report, \
     run_pdf_report, run_txt_all_report, run_pdf_all_report, run_pdf_all_test_from_prod_report
-from avito_account.models import AvitoAccount, AnalyticSchema, Criterion, WorkSchedule, SendingCampaign, SendingReport
+from avito_account.models import AnalyticSchema, Criterion, WorkSchedule, SendingCampaign, SendingReport, \
+    ExcludedItem
 import logging
 
 logger = logging.getLogger(__name__)
+
+
+class ExcludedItemInline(admin.TabularInline):
+    model = ExcludedItem
+    extra = 5  # Количество пустых строк для добавления новых значений в админке
+    verbose_name = "Объявление исключённое"
+    verbose_name_plural = "Объявления исключённые "
+    readonly_fields = ["title",]
 
 
 class WorkScheduleInline(admin.StackedInline):
@@ -19,7 +28,7 @@ class WorkScheduleInline(admin.StackedInline):
 class AvitoAccountAdmin(admin.ModelAdmin):
     list_display = ('name', 'telegram_id', 'phone')
     readonly_fields = ('id',)
-    inlines = [WorkScheduleInline]
+    inlines = [WorkScheduleInline, ExcludedItemInline]
     actions = [run_txt_all_test_from_prod_report, run_pdf_all_test_from_prod_report,
                run_txt_report, run_pdf_report,
                run_txt_all_report, run_pdf_all_report]

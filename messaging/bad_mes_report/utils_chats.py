@@ -112,7 +112,16 @@ async def get_ready_chats(avito_account: AvitoAccount):
         comp_mes_with_man = adding_manager_info_for_chats(actual_chats_with_mes)
         fil_chats_only_with_text = filter_chats_only_with_text(comp_mes_with_man)
         fil_chats_by_sched = await schedule_filter_chats(fil_chats_only_with_text, avito_account)
-        print(f"{len(fil_chats_by_sched)} chats after filtering")
-        return fil_chats_by_sched
+        fil_by_excluded_items = await excluded_items_filter_chats(fil_chats_by_sched, avito_account)
+        print(f"{len(fil_by_excluded_items)} chats after filtering")
+        return fil_by_excluded_items
     else:
         return []
+
+
+async def excluded_items_filter_chats(fil_chats_by_sched, avito_account):
+    filtered_chats = []
+    for chat in fil_chats_by_sched:
+        if chat.get("context").get("value").get("id") not in [4213549400,]:
+            filtered_chats.append(chat)
+    return filtered_chats

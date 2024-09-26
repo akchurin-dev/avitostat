@@ -1,3 +1,5 @@
+import logging
+
 import httpx
 import pytz
 import sentry_sdk
@@ -10,6 +12,8 @@ from dotenv import load_dotenv
 from base.exceptions import HTTPException
 import datetime
 from django.utils import timezone
+
+logger = logging.getLogger(__name__)
 
 load_dotenv()
 client_id = os.getenv('AVITO_CLIENT_ID')
@@ -60,7 +64,8 @@ class AnalyticSchema(BaseModel):
 
 
 class Criterion(models.Model):  # Не BaseModel тк привязываемся к схеме и этого достаточно
-    schema = models.ForeignKey(AnalyticSchema, on_delete=models.CASCADE, related_name="criteria", verbose_name="Схема аналитики")
+    schema = models.ForeignKey(AnalyticSchema, on_delete=models.CASCADE, related_name="criteria",
+                               verbose_name="Схема аналитики")
     name = models.CharField(verbose_name="Название")
 
     def __str__(self):
@@ -79,7 +84,8 @@ class AvitoAccount(BaseModel):
     access_token = models.CharField(max_length=255, null=True, verbose_name="Токен доступа")
     refresh_token = models.CharField(max_length=255, null=True, verbose_name="Токен обновления")
 
-    analytic_schema = models.ForeignKey(AnalyticSchema, on_delete=models.SET_NULL, null=True, blank=True, verbose_name="Схема аналитики")
+    analytic_schema = models.ForeignKey(AnalyticSchema, on_delete=models.SET_NULL, null=True, blank=True,
+                                        verbose_name="Схема аналитики")
 
     def update_refresh_token(self):
         url = 'https://api.avito.ru/token/'
@@ -175,11 +181,13 @@ class SendingCampaign(models.Model):  # Не BaseModel тк рассылки о�
 
     name = models.CharField(max_length=255, verbose_name="Название рассылки")
     test_from_prod = models.BooleanField(default=False, verbose_name="Тестирование с прода")
-    sending_type = models.CharField(max_length=3, choices=SENDING_TYPE_CHOICES, default=PDF, verbose_name="Тип рассылки")
+    sending_type = models.CharField(max_length=3, choices=SENDING_TYPE_CHOICES, default=PDF,
+                                    verbose_name="Тип рассылки")
     created_at = models.DateTimeField(default=timezone.now, verbose_name="Когда создано")
 
     accounts_presented_count = models.IntegerField(default=0, verbose_name="Аккаунтов к анализу")
-    accounts_presented = models.ManyToManyField(AvitoAccount, related_name="campaigns_presented", blank=True, verbose_name="Аккаунты к анализу")
+    accounts_presented = models.ManyToManyField(AvitoAccount, related_name="campaigns_presented", blank=True,
+                                                verbose_name="Аккаунты к анализу")
 
     class Meta:
         verbose_name = "Рассылка"
@@ -191,7 +199,8 @@ class SendingCampaign(models.Model):  # Не BaseModel тк рассылки о�
 
 class SendingReport(models.Model):  # Не BaseModel тк репорпты должны привязываться к аккаунту а не к юзеру
     avito_account = models.ForeignKey('AvitoAccount', on_delete=models.CASCADE, verbose_name="Авито аккаунт")
-    campaign = models.ForeignKey('SendingCampaign', on_delete=models.CASCADE, related_name='reports', verbose_name="Рассылка")
+    campaign = models.ForeignKey('SendingCampaign', on_delete=models.CASCADE, related_name='reports',
+                                 verbose_name="Рассылка")
     success = models.BooleanField(default=False, verbose_name="Успешно")
     error_message = models.CharField(null=True, blank=True, max_length=255, verbose_name="Сообщение ошибки")
     pdf_path = models.CharField(max_length=255, null=True, blank=True, verbose_name="Ссылка к пдф отчёту")
@@ -206,3 +215,31 @@ class SendingReport(models.Model):  # Не BaseModel тк репорпты до�
 
     def __str__(self):
         return f"Отчёт о рассылке для {self.avito_account.name} в {self.timestamp}"
+
+
+class ExcludedItem(models.Model):
+    avito_account = models.ForeignKey(
+        'AvitoAccount',
+        on_delete=models.CASCADE,
+        related_name='excluded_items',
+        verbose_name="Аккаунт Avito"
+    )
+    id = models.IntegerField(
+        verbose_name="ID объявления",
+        primary_key=True
+    )
+    title = models.CharField(max_length=255, verbose_name="Название объявления", null=True, blank=True)
+
+    class Meta:
+        verbose_name = "Объявление исключённое"
+        verbose_name_plural = "Объявления исключённые"
+        unique_together = (("avito_account", "id"),)
+
+    def save(self, *args, **kwargs):
+        super().save(*args, **kwargs)
+        # Запуск таски которая заполнит тайтл
+        logger.warning(f"Новое исключённое объявление добавлено: {self.id}")
+
+    def __str__(self):
+        return str(self.id)
+
