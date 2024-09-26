@@ -67,9 +67,25 @@ async def get_messaging_week_report_pdf(avito_account_id, test_from_prod: bool):
         if analyze_by_criteria_raw_res:
             tokens = await get_tokens_information(analyze_by_criteria_raw_res)
 
+        if analyze_all_chats:
+            analyze_all_chats = await converting_created_timestamp_to_datetime(analyze_all_chats)
+
         return await get_pdf_report(avito_account_id, analyze_all_chats), tokens
     else:
         raise HTTPException(status_code=404, detail="error: Аккаунт Avito не найден")
+
+
+async def converting_created_timestamp_to_datetime(analyze_all_chats):
+    try:
+        for chat in analyze_all_chats.get("chats"):
+            timestamp = chat.get("created")
+            chat["created_date"] = datetime.fromtimestamp(timestamp).strftime('%d.%m.%Y')
+            for message in chat.get("messages"):
+                timestamp = message.get("created")
+                message["created_time"] = datetime.fromtimestamp(timestamp).time()
+        return analyze_all_chats
+    except Exception:
+        raise Exception
 
 
 async def get_pdf_report(avito_account_id, analyze_all_chats):

@@ -287,6 +287,14 @@
             letter-spacing: -.4px;
             margin-bottom: 20px;
         }
+        .chat__info-date {
+            color: #20232B;
+            font-size: 14px;
+            font-weight: 500;
+            letter-spacing: -.4px;
+            float: right;
+            margin-top: 2px;
+        }
         .chat__info-link {
             color: #009AD8;
             font-size: 16px;
@@ -298,6 +306,15 @@
             margin-bottom: 10px;
             padding: 5px;
             border-radius: 5px;
+        }
+        .chat__item-time {
+            display: inline-block;
+            margin-bottom: 1px;
+            min-width: 30px;
+            color: #009AD8;
+            font-size: 12px;
+            font-weight: 400;
+            letter-spacing: -.4px;
         }
         .chat__item--client {
             background-color: #F3F5F8;
@@ -486,55 +503,6 @@
     </div>
     {% endfor %}
 
-
-{#    <div class="reports">#}
-{#        <div class="reports__top d-flex items-center justify-between">#}
-{#            <div class="reports__top-info d-flex items-center">#}
-{#                <span class="reports__top-manager">Менеджер Айдар</span>#}
-{#            </div>#}
-{#        </div>#}
-{##}
-{#        <div class="report">#}
-{#            <div class="report__inner d-flex items-center">#}
-{#                <span class="report__title">Приветствие менеджера</span>#}
-{#                <div class="report__info d-flex items-center justify-between">#}
-{#                    <b>5</b>/ 10#}
-{#                    <div class="report__info-status d-flex items-center" style="background-color: #E4A03B">средне</div>#}
-{#                </div>#}
-{#            </div>#}
-{#        </div>#}
-{##}
-{#        <div class="report">#}
-{#            <div class="report__inner d-flex items-center">#}
-{#                <span class="report__title">Закрыл сделку</span>#}
-{#                <div class="report__info d-flex items-center justify-between">#}
-{#                    <b>10</b>/ 10#}
-{#                    <div class="report__info-status d-flex items-center" style="background-color: #73C356">отлично</div>#}
-{#                </div>#}
-{#            </div>#}
-{#        </div>#}
-{##}
-{#        <div class="report">#}
-{#            <div class="report__inner d-flex items-center">#}
-{#                <span class="report__title">Запросил номер WhatsApp</span>#}
-{#                <div class="report__info d-flex items-center justify-between">#}
-{#                    <b>5</b>/ 10#}
-{#                    <div class="report__info-status d-flex items-center" style="background-color: #E4A03B">средне</div>#}
-{#                </div>#}
-{#            </div>#}
-{#        </div>#}
-{##}
-{#        <div class="report">#}
-{#            <div class="report__inner d-flex items-center">#}
-{#                <span class="report__title">Вежливость</span>#}
-{#                <div class="report__info d-flex items-center justify-between">#}
-{#                    <b>3</b>/ 10#}
-{#                    <div class="report__info-status d-flex items-center" style="background-color: #C14D3D">плохо</div>#}
-{#                </div>#}
-{#            </div>#}
-{#        </div>#}
-{#    </div>#}
-
     <div class="page__title">Анализ переписок</div>
 
     <div class="chats">
@@ -549,10 +517,12 @@
             </span>
             <div class="chat__info">
                 Ссылка на чат (неоходима авторизация на Авито): <a href="https://www.avito.ru/profile/messenger/channel/{{ chat.chat_id }}" class="chat__info-link" target="_blank">Перейти в чат</a>
+                <span class="chat__info-date">{{ chat.created_date }}</span>
             </div>
             {% for message in chat.messages %}
             {% if message.direction == 'in' and message.type == "text" %}
             <div class="chat__item chat__item--client">
+                <span class="chat__item-time">{{ message.created_time }}</span>
                 <span class="chat__item-author">Клиент:</span>
                 <span class="chat__item-message"> {{ message.content.text }}</span>
             </div>
@@ -560,6 +530,7 @@
 
             {% if message.direction == 'out' and message.type == "text" %}
             <div class="chat__item">
+                <span class="chat__item-time">{{ message.created_time }}</span>
                 <span class="chat__item-author">Менеджер:</span>
                 <span class="chat__item-message"> {{ message.content.text }}</span>
             </div>
