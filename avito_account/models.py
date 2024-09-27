@@ -12,7 +12,6 @@ from dotenv import load_dotenv
 from base.exceptions import HTTPException
 import datetime
 from django.utils import timezone
-from avito_account.tasks import excluded_item_get_title_task
 
 logger = logging.getLogger(__name__)
 
