@@ -1,10 +1,21 @@
 from datetime import timedelta
-
+from asgiref.sync import sync_to_async
 from avito_account.api.api import get_items_list
-from avito_account.models import AvitoAccount
+from avito_account.models.excluded_items import ExcludedItem
+from avito_account.models.models import AvitoAccount
 from conversion.utils import dates_for_period_without_extra_reserve
 from base.exceptions import HTTPException
 import httpx
+
+
+async def items_excluded_filter(avito_account: AvitoAccount, items: list):
+    filtered_items = []
+    excluded_items = await sync_to_async(list)(ExcludedItem.objects.filter(avito_account_id=avito_account.id))
+    excluded_ids = [item.id for item in excluded_items]
+    for item in items:
+        if item.get("id") not in excluded_ids:
+            filtered_items.append(item)
+    return filtered_items
 
 
 async def get_statistics_for_period(avito_account: AvitoAccount, period: str):
@@ -16,6 +27,10 @@ async def get_statistics_for_period(avito_account: AvitoAccount, period: str):
     items = await get_items_list(avito_account)
     if type(items) is not list:
         raise HTTPException(status_code=404, detail="Avito account not have active items in period")
+
+    if type(items) is list:
+        items = await items_excluded_filter(avito_account, items)
+
     item_ids = [item.get('id') for item in items]
 
     url = f"https://api.avito.ru/stats/v1/accounts/{avito_account.id}/items"

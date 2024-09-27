@@ -7,7 +7,6 @@ from django.shortcuts import redirect
 from django.template.response import TemplateResponse
 
 from avito_account.admin_panel.sending_campaign import SendingCampaignAdmin, SendingReportAdmin
-from avito_account.models import AvitoAccount, AnalyticSchema, Criterion, WorkSchedule, SendingCampaign, SendingReport
 import logging
 from conversion.tasks import send_text_report_all_async_task
 from messaging.tasks import bad_messaging_week_report_async_task
@@ -57,7 +56,7 @@ run_pdf_all_test_from_prod_report.short_description = "ПДФ ВСЕМ ТЕСТ 
 def run_txt_report(self, request, queryset):
     avito_account_ids = list(queryset.values_list('id', flat=True))
     try:
-        send_text_report_all_async_task.delay(only_for_users=avito_account_ids)
+        send_text_report_all_async_task(only_for_users=avito_account_ids)
         self.message_user(request, "ТЕКСТОВЫЙ отчет успешно сгенерирован и отправлен.", level='success')
     except Exception as e:
         logger.error(f"ТЕКСТОВЫЙ ошибка при отправке отчета: {e}", exc_info=True)

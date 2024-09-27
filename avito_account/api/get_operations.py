@@ -2,7 +2,10 @@ import re
 import httpx
 from datetime import datetime, timedelta
 import pytz
-from avito_account.models import AvitoAccount
+from asgiref.sync import sync_to_async
+
+from avito_account.models.excluded_items import ExcludedItem
+from avito_account.models.models import AvitoAccount
 from conversion.utils import dates_for_period_with_extra_reserve, active_services_for_period_filtering
 from base.exceptions import HTTPException
 
@@ -50,7 +53,7 @@ async def add_custom_calculations(operations_list: list) -> list:
 
             operation |= {
                 'amount_per_day': operation.get('amountRub') / int(duration),
-                'duration':  int(duration),
+                'duration': int(duration),
                 'finishAt': finish_at.isoformat(),
             }
             if days_left and days_left > 0:
@@ -95,7 +98,8 @@ async def get_active_operations_for_period(avito_account: AvitoAccount, period: 
         current_start = current_end
         current_end = min(current_start + timedelta(days=7), end_date_dt)
 
-    operations_splitted_by_weeks = [item[1] for item in all_statistics.items() if item[1] is not None]  # Исключаем все пустые данные об операциях
+    operations_splitted_by_weeks = [item[1] for item in all_statistics.items() if
+                                    item[1] is not None]  # Исключаем все пустые данные об операциях
 
     operations_splitted_by_weeks = [item.get("result").get("operations") for item in operations_splitted_by_weeks]
     operations_list = []
@@ -105,4 +109,19 @@ async def get_active_operations_for_period(avito_account: AvitoAccount, period: 
     operations_list_with_calculations = await add_custom_calculations(operations_list)
     active_operations = await active_services_for_period_filtering(period=period,
                                                                    operations=operations_list_with_calculations)
+
+    active_operations = await operations_filter_excluded_items(active_operations, avito_account)
+
     return active_operations
+
+
+async def operations_filter_excluded_items(active_operations, avito_account) -> list:
+    filtered_operations = []
+    excluded_items = await sync_to_async(list)(ExcludedItem.objects.filter(avito_account_id=avito_account.id))
+    excluded_ids = [item.id for item in excluded_items]
+
+    for operation in active_operations:
+        if operation.get("'itemId'") not in excluded_ids:
+            filtered_operations.append(operation)
+
+    return filtered_operations

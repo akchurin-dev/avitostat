@@ -5,7 +5,7 @@ from aiogram import Bot
 from asgiref.sync import sync_to_async
 from dotenv import load_dotenv
 from telegram_bot import bot
-from avito_account.models import AvitoAccount
+from avito_account.models.models import AvitoAccount
 from conversion.utils_week_report import get_text_statistics_report
 from base.exceptions import HTTPException
 from messaging.bad_mes_report.statistics.total_statistics_utils import get_duration_statistics

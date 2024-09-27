@@ -1,7 +1,5 @@
 from django.db import models
 
-from avito_account.models import AvitoAccount
-
 
 # class Item(models.Model):
 #     avito_account = models.ForeignKey(AvitoAccount, on_delete=models.CASCADE)

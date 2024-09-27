@@ -1,6 +1,6 @@
 # from avito_account.api.api import get_items_list
 # from avito_account.api.get_operations import get_active_operations_for_period
-# from avito_account.models import AvitoAccount, Item
+# from avito_account.models.models import AvitoAccount, Item
 # from conversion.models import ServiceType, Operation, Statistic
 #
 #

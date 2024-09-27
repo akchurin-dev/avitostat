@@ -1,5 +1,5 @@
 from avito_account.api.get_operations import get_active_operations_for_period
-from avito_account.models import AvitoAccount
+from avito_account.models.models import AvitoAccount
 from conversion.api import get_statistics_for_period
 import math
 

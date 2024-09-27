@@ -7,7 +7,7 @@ from openai import OpenAI, AsyncOpenAI
 import os
 from pydantic import BaseModel
 import json
-from avito_account.models import AvitoAccount, Criterion
+from avito_account.models.models import AvitoAccount, Criterion
 
 load_dotenv()
 ENVIRONMENT = os.getenv('ENVIRONMENT')
