@@ -1,6 +1,10 @@
+import time
+
 import pytz
 from asgiref.sync import sync_to_async
 import re
+
+from avito_account.models.excluded_items import ExcludedItem
 from avito_account.models.models import AvitoAccount, WorkSchedule
 from messaging.api import get_chats, get_chats_messages
 import datetime
@@ -121,7 +125,9 @@ async def get_ready_chats(avito_account: AvitoAccount):
 
 async def excluded_items_filter_chats(fil_chats_by_sched, avito_account):
     filtered_chats = []
+    excluded_items = await sync_to_async(list)(ExcludedItem.objects.filter(avito_account_id=avito_account.id))
+    excluded_ids = [item.id for item in excluded_items]
     for chat in fil_chats_by_sched:
-        if chat.get("context").get("value").get("id") not in [4213549400,]:
+        if chat.get("context").get("value").get("id") not in excluded_ids:
             filtered_chats.append(chat)
     return filtered_chats

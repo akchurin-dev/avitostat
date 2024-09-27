@@ -27,7 +27,6 @@ class ExcludedItemInline(admin.TabularInline):
     extra = 5  # Количество пустых строк для добавления новых значений в админке
     verbose_name = "Объявление исключённое"
     verbose_name_plural = "Объявления исключённые "
-    readonly_fields = ["title", ]
 
 
 class WorkScheduleInline(admin.StackedInline):
