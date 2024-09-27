@@ -1,4 +1,5 @@
 import json
+from django import forms
 from django.contrib import admin
 from django.db.models import Q
 from django.shortcuts import redirect
@@ -11,12 +12,22 @@ import logging
 logger = logging.getLogger(__name__)
 
 
+class ExcludedItemForm(forms.ModelForm):
+    class Meta:
+        model = ExcludedItem
+        fields = '__all__'
+        widgets = {
+            'id': forms.NumberInput(attrs={'style': 'width: 300px;'}),  # Установите нужную ширину
+        }
+
+
 class ExcludedItemInline(admin.TabularInline):
     model = ExcludedItem
+    form = ExcludedItemForm
     extra = 5  # Количество пустых строк для добавления новых значений в админке
     verbose_name = "Объявление исключённое"
     verbose_name_plural = "Объявления исключённые "
-    readonly_fields = ["title",]
+    readonly_fields = ["title", ]
 
 
 class WorkScheduleInline(admin.StackedInline):

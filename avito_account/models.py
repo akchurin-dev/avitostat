@@ -12,6 +12,7 @@ from dotenv import load_dotenv
 from base.exceptions import HTTPException
 import datetime
 from django.utils import timezone
+from avito_account.tasks import excluded_item_get_title_task
 
 logger = logging.getLogger(__name__)
 
@@ -238,6 +239,7 @@ class ExcludedItem(models.Model):
     def save(self, *args, **kwargs):
         super().save(*args, **kwargs)
         # Запуск таски которая заполнит тайтл
+        excluded_item_get_title_task(self)
         logger.warning(f"Новое исключённое объявление добавлено: {self.id}")
 
     def __str__(self):
