@@ -1,7 +1,7 @@
 import pytz
 from asgiref.sync import sync_to_async
 import re
-from avito_account.models import AvitoAccount, WorkSchedule
+from avito_account.models.models import AvitoAccount, WorkSchedule
 from messaging.api import get_chats, get_chats_messages
 import datetime
 

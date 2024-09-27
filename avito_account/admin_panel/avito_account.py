@@ -5,8 +5,8 @@ from django.db.models import Q
 from django.shortcuts import redirect
 from avito_account.admin_panel.avito_account_actions import run_txt_all_test_from_prod_report, run_txt_report, \
     run_pdf_report, run_txt_all_report, run_pdf_all_report, run_pdf_all_test_from_prod_report
-from avito_account.models import AnalyticSchema, Criterion, WorkSchedule, SendingCampaign, SendingReport, \
-    ExcludedItem
+from avito_account.models.excluded_items import ExcludedItem
+from avito_account.models.models import AnalyticSchema, WorkSchedule
 import logging
 
 logger = logging.getLogger(__name__)

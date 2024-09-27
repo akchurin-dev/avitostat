@@ -4,7 +4,7 @@ from celery import shared_task
 from asgiref.sync import async_to_sync, sync_to_async
 from django.utils import timezone
 from dotenv import load_dotenv
-from avito_account.models import AvitoAccount, SendingCampaign, SendingReport
+from avito_account.models.models import AvitoAccount, SendingCampaign, SendingReport
 from telegram_bot import bot
 from aiogram import types
 from base.celery import celery_app

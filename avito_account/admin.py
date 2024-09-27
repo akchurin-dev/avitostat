@@ -2,8 +2,9 @@ from django.contrib import admin
 from django.db.models import Q
 from avito_account.admin_panel.avito_account import AvitoAccountAdmin
 from avito_account.admin_panel.sending_campaign import SendingCampaignAdmin, SendingReportAdmin
-from avito_account.models import AvitoAccount, AnalyticSchema, Criterion, WorkSchedule, SendingCampaign, SendingReport
+from avito_account.models.models import AvitoAccount, AnalyticSchema, Criterion, WorkSchedule, SendingCampaign, SendingReport
 import logging
+
 
 logger = logging.getLogger(__name__)
 

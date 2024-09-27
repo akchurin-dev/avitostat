@@ -7,7 +7,6 @@ from django.shortcuts import redirect
 from django.template.response import TemplateResponse
 
 from avito_account.admin_panel.sending_campaign import SendingCampaignAdmin, SendingReportAdmin
-from avito_account.models import AvitoAccount, AnalyticSchema, Criterion, WorkSchedule, SendingCampaign, SendingReport
 import logging
 from conversion.tasks import send_text_report_all_async_task
 from messaging.tasks import bad_messaging_week_report_async_task

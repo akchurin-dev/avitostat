@@ -1,6 +1,6 @@
 from django.contrib.admin import SimpleListFilter
 from django.contrib.auth.models import User
-from avito_account.models import AvitoAccount
+from avito_account.models.models import AvitoAccount
 
 
 class ContragentFilter(SimpleListFilter):

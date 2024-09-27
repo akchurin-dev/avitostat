@@ -2,7 +2,7 @@ import os
 import pdfkit
 import sentry_sdk
 from dotenv import load_dotenv
-from avito_account.models import AvitoAccount
+from avito_account.models.models import AvitoAccount
 from base.exceptions import HTTPException
 from jinja2 import Template
 from asgiref.sync import sync_to_async

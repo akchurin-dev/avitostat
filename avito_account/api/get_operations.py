@@ -2,7 +2,7 @@ import re
 import httpx
 from datetime import datetime, timedelta
 import pytz
-from avito_account.models import AvitoAccount
+from avito_account.models.models import AvitoAccount
 from conversion.utils import dates_for_period_with_extra_reserve, active_services_for_period_filtering
 from base.exceptions import HTTPException
 
