@@ -7,6 +7,8 @@ from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from aiogram import Bot, Dispatcher, Router
 from aiogram.types import Message
 from dotenv import load_dotenv
+
+from base import settings
 from tg_bot.api.week_report import get_pdf_report_all_to_users, \
     get_pdf_report_all_to_admin
 from tg_bot.cleaner.cleaner import Cleaner
@@ -23,11 +25,11 @@ load_dotenv()
 # t.me/avitostata_bot           DEVELOPMENT
 # t.me/avitostata_ru_bot        PRODUCTION
 
-ENVIRONMENT = os.getenv('ENVIRONMENT')
+ENVIRONMENT = settings.ENVIRONMENT
 if ENVIRONMENT == 'PRODUCTION':
-    bot = Bot(os.getenv('TELEGRAM_BOT_TOKEN_PROD'))
+    bot = Bot(settings.TELEGRAM_BOT_TOKEN_PROD)
 else:
-    bot = Bot(os.getenv('TELEGRAM_BOT_TOKEN'))
+    bot = Bot(settings.TELEGRAM_BOT_TOKEN)
 
 dp = Dispatcher()
 logging.basicConfig(level=logging.INFO)

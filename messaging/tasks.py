@@ -3,26 +3,25 @@ import sentry_sdk
 from celery import shared_task
 from asgiref.sync import async_to_sync, sync_to_async
 from django.utils import timezone
-from dotenv import load_dotenv
 from avito_account.models.models import AvitoAccount, SendingCampaign, SendingReport
 from telegram_bot import bot
 from aiogram import types
+
+from base import settings
 from base.celery import celery_app
 from messaging.bad_mes_report.utils_bad_messaging_report import get_messaging_week_report_pdf
 import subprocess
 import os
 from datetime import datetime
 
-load_dotenv()
-
 
 @celery_app.task(name='messaging.tasks.db_backup_auto_creator_task')
 def db_backup_auto_creator_task():
-    db_host = os.getenv('DB_HOST')
-    db_port = os.getenv('DB_PORT')
-    db_user = os.getenv('DB_USER')
-    db_name = os.getenv('DB_NAME')
-    db_password = os.getenv('DB_PASS')
+    db_host = settings.DB_HOST
+    db_port = settings.DB_PORT
+    db_user = settings.DB_USER
+    db_name = settings.DB_NAME
+    db_password = settings.DB_PASS
     backup_dir = '/var/backups/db_backups'
     backup_filename = f"local_db_dump_{datetime.now().strftime('%Y-%m-%d')}.sql"
 
@@ -68,8 +67,7 @@ async def bad_messaging_week_report_async(test_from_prod: bool = False, only_for
             return None
 
     # DEVELOPMENT testing checking
-    ENVIRONMENT = os.getenv('ENVIRONMENT')
-    if ENVIRONMENT == 'DEVELOPMENT':
+    if settings.ENVIRONMENT == 'DEVELOPMENT':
         test_from_prod = True
 
     # Create a new SendingCampaign

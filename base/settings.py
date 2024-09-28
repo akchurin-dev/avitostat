@@ -10,6 +10,7 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 
 # SECURITY WARNING: keep the secret key used in production secret!
 load_dotenv()
+ENVIRONMENT = os.getenv('ENVIRONMENT')
 SECRET_KEY = os.getenv('SECRET_KEY')
 GITHUB_TOKEN = os.getenv('GITHUB_TOKEN')
 AVITO_CLIENT_ID = os.getenv('AVITO_CLIENT_ID')
@@ -30,7 +31,6 @@ DB_NAME = os.getenv('DB_NAME')
 # SECURITY WARNING: don't run with debug turned on in production!
 ALLOWED_HOSTS = ["172.22.0.2", "localhost", "127.0.0.1", "45.12.238.229", "avitostata.ru"]
 
-ENVIRONMENT = os.getenv('ENVIRONMENT')
 if ENVIRONMENT == 'DEVELOPMENT':
     DEBUG = True
 else:
