@@ -27,6 +27,14 @@ if ENVIRONMENT == 'DEVELOPMENT':
 else:
     DEBUG = False
 
+# YOUKASSA
+if ENVIRONMENT == 'PRODUCTION':
+    YOOKASSA_SHOP_ID = 'Твой ID магазина'
+    YOOKASSA_SECRET_KEY = 'Твой секретный ключ'
+else:
+    YOOKASSA_SHOP_ID = 'Твой ID магазина'
+    YOOKASSA_SECRET_KEY = 'Твой секретный ключ'
+
 ALLOWED_HOSTS = ["172.22.0.2", "localhost", "127.0.0.1", "45.12.238.229", "avitostata.ru"]
 
 # Application definition
@@ -46,6 +54,7 @@ INSTALLED_APPS = [
     'conversion',
     'messaging',
     'deep_tests',
+    'payments',
 ]
 
 MIDDLEWARE = [
