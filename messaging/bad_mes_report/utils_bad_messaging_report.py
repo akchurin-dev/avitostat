@@ -1,8 +1,7 @@
-import os
 import pdfkit
 import sentry_sdk
-from dotenv import load_dotenv
 from avito_account.models.models import AvitoAccount
+from base import settings
 from base.exceptions import HTTPException
 from jinja2 import Template
 from asgiref.sync import sync_to_async
@@ -14,9 +13,6 @@ from messaging.bad_mes_report.statistics.total_statistics_utils import get_stati
     get_stat_total_splitted_by_managers
 from messaging.bad_mes_report.utils_chats import get_ready_chats
 from messaging.bad_mes_report.utils_open_ai import messaging_total_analyze, analyze_by_criteria
-
-load_dotenv()
-ENVIRONMENT = os.getenv('ENVIRONMENT')
 
 
 async def get_messaging_week_report_pdf(avito_account_id, test_from_prod: bool):
@@ -33,7 +29,7 @@ async def get_messaging_week_report_pdf(avito_account_id, test_from_prod: bool):
                 analyze_all_chats["chats_count"] = len(ready_chats)
 
             # Checking count of messages for analytics
-            if ENVIRONMENT == 'DEVELOPMENT' or test_from_prod:
+            if settings.ENVIRONMENT == 'DEVELOPMENT' or test_from_prod:
                 ready_chats = ready_chats[:10]  # For testing 5items for economy
 
             #  Total statistics

@@ -1,19 +1,14 @@
 import asyncio
-
 import openai
 from asgiref.sync import sync_to_async
-from dotenv import load_dotenv
-from openai import OpenAI, AsyncOpenAI
-import os
+from openai import AsyncOpenAI
 from pydantic import BaseModel
 import json
 from avito_account.models.models import AvitoAccount, Criterion
-
-load_dotenv()
-ENVIRONMENT = os.getenv('ENVIRONMENT')
+from base import settings
 
 MODEL = "gpt-4o-2024-08-06"
-client = AsyncOpenAI(api_key=os.environ.get("OPENAI_SECRET_KEY"))
+client = AsyncOpenAI(api_key=settings.OPENAI_SECRET_KEY)
 
 
 # TODO I tried change to ASYNC methods for analyze , but not see different in speed

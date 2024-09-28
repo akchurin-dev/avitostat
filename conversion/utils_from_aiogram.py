@@ -1,19 +1,15 @@
-import os
 import datetime
 import sentry_sdk
 from aiogram import Bot
 from asgiref.sync import sync_to_async
-from dotenv import load_dotenv
 from telegram_bot import bot
 from avito_account.models.models import AvitoAccount
+from base import settings
 from conversion.utils_week_report import get_text_statistics_report
 from base.exceptions import HTTPException
 from messaging.bad_mes_report.statistics.total_statistics_utils import get_duration_statistics
 from messaging.bad_mes_report.utils_chats import get_ready_chats
 from messaging.utils_duration import get_durations_seconds
-
-load_dotenv()
-ENVIRONMENT = os.getenv('ENVIRONMENT')
 
 
 async def get_all_telegram_ids():
@@ -138,7 +134,7 @@ async def get_week_report_text(avito_account: AvitoAccount):
     telegram_chat_id = avito_account.telegram_id
 
     try:
-        if ENVIRONMENT == 'DEVELOPMENT':
+        if settings.ENVIRONMENT == 'DEVELOPMENT':
             await sync_to_async(bot.send_raw, thread_sensitive=False)(
                 chat_id="-4221870448",
                 function="send_message",

@@ -151,12 +151,12 @@ CSRF_COOKIE_SECURE = True
 if ENVIRONMENT == 'PRODUCTION':
     TELEGRAM_BOT = {
         'REDIS_URL': "redis://redis:6379/0",
-        'TOKEN': os.getenv('TELEGRAM_BOT_TOKEN_PROD')
+        'TOKEN': TELEGRAM_BOT_TOKEN_PROD
     }
 else:
     TELEGRAM_BOT = {
         'REDIS_URL': "redis://redis:6379/0",
-        'TOKEN': os.getenv('TELEGRAM_BOT_TOKEN')
+        'TOKEN': TELEGRAM_BOT_TOKEN
     }
 
 # TODO CELERY settings
