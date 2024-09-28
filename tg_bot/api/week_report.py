@@ -1,10 +1,8 @@
-import os
 import requests
-from dotenv import load_dotenv
+from base import settings
 
-load_dotenv()
 
-BASE_URL = 'http://' + os.getenv('LOCALHOST_IP')
+BASE_URL = 'http://' + settings.LOCALHOST_IP
 
 
 def get_pdf_report_all_to_users():

@@ -1,33 +1,40 @@
 import os
 from pathlib import Path
-
 import pytz
 from celery.schedules import crontab
 from dotenv import load_dotenv
-from sentry_sdk.integrations.celery import CeleryIntegration
-from sentry_sdk.integrations.django import DjangoIntegration
 
-MOSCOW_TZ = pytz.timezone('Europe/Moscow')
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-load_dotenv()
-
-# Quick-start development settings - unsuitable for production
-# See https://docs.djangoproject.com/en/5.0/howto/deployment/checklist/
-
 # SECURITY WARNING: keep the secret key used in production secret!
+load_dotenv()
+ENVIRONMENT = os.getenv('ENVIRONMENT')
 SECRET_KEY = os.getenv('SECRET_KEY')
+GITHUB_TOKEN = os.getenv('GITHUB_TOKEN')
+AVITO_CLIENT_ID = os.getenv('AVITO_CLIENT_ID')
+AVITO_CLIENT_SECRET = os.getenv('AVITO_CLIENT_SECRET')
+OPENAI_SECRET_KEY = os.getenv('OPENAI_SECRET_KEY')
+YOOKASSA_SHOP_ID = os.getenv('YOOKASSA_SHOP_ID')
+YOOKASSA_SECRET_KEY = os.getenv('YOOKASSA_SECRET_KEY')
+LOCALHOST_IP = os.getenv('LOCALHOST_IP')
+TELEGRAM_BOT_TOKEN = os.getenv('TELEGRAM_BOT_TOKEN')
+TELEGRAM_BOT_TOKEN_PROD = os.getenv('TELEGRAM_BOT_TOKEN_PROD')
+
+DB_HOST = os.getenv('DB_HOST')
+DB_PORT = os.getenv('DB_PORT')
+DB_USER = os.getenv('DB_USER')
+DB_PASS = os.getenv('DB_PASS')
+DB_NAME = os.getenv('DB_NAME')
 
 # SECURITY WARNING: don't run with debug turned on in production!
-ENVIRONMENT = os.getenv('ENVIRONMENT')
+ALLOWED_HOSTS = ["172.22.0.2", "localhost", "127.0.0.1", "45.12.238.229", "avitostata.ru"]
+
 if ENVIRONMENT == 'DEVELOPMENT':
     DEBUG = True
 else:
     DEBUG = False
-
-ALLOWED_HOSTS = ["172.22.0.2", "localhost", "127.0.0.1", "45.12.238.229", "avitostata.ru"]
 
 # Application definition
 
@@ -84,17 +91,16 @@ WSGI_APPLICATION = 'base.wsgi.application'
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.postgresql',
-        'NAME': os.getenv('DB_NAME'),
-        'USER': os.getenv('DB_USER'),
-        'PASSWORD': os.getenv('DB_PASS'),
-        'HOST': os.getenv('DB_HOST'),
-        'PORT': os.getenv('DB_PORT'),
+        'NAME': DB_NAME,
+        'USER': DB_USER,
+        'PASSWORD': DB_PASS,
+        'HOST': DB_HOST,
+        'PORT': DB_PORT,
     }
 }
 
 # Password validation
 # https://docs.djangoproject.com/en/5.0/ref/settings/#auth-password-validators
-
 AUTH_PASSWORD_VALIDATORS = [
     {
         'NAME': 'django.contrib.auth.password_validation.UserAttributeSimilarityValidator',
@@ -112,18 +118,11 @@ AUTH_PASSWORD_VALIDATORS = [
 
 # Internationalization
 # https://docs.djangoproject.com/en/5.0/topics/i18n/
-
+MOSCOW_TZ = pytz.timezone('Europe/Moscow')
 LANGUAGE_CODE = 'ru-RU'
 TIME_ZONE = 'UTC'
 USE_I18N = True
 USE_TZ = True
-
-import os
-from pathlib import Path
-
-# Определите BASE_DIR
-BASE_DIR = Path(__file__).resolve().parent.parent
-LOCALHOST_IP = os.getenv('LOCALHOST_IP', '127.0.0.1:8000')
 
 # URL для доступа к статическим файлам
 STATIC_URL = '/static/'
@@ -131,9 +130,7 @@ STATIC_ROOT = os.path.join(BASE_DIR, 'static')
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/5.0/ref/settings/#default-auto-field
-
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
-
 # for httpS settings
 USE_X_FORWARDED_HOST = True
 SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
@@ -144,7 +141,6 @@ CSRF_TRUSTED_ORIGINS = [
     'https://avitostata.ru',
     'https://www.avitostata.ru',
 ]
-
 SECURE_HSTS_SECONDS = 31536000  # 1 year
 SECURE_HSTS_INCLUDE_SUBDOMAINS = True
 SECURE_HSTS_PRELOAD = True
@@ -152,62 +148,18 @@ SECURE_HSTS_PRELOAD = True
 SESSION_COOKIE_SECURE = True
 CSRF_COOKIE_SECURE = True
 
-# TODO SENTRY SETTINGS
-
-if ENVIRONMENT == 'PRODUCTION':
-    import sentry_sdk
-
-    sentry_sdk.init(
-        dsn="https://26cd6adb31a7d912277757045055f118@o4506274465972224.ingest.us.sentry.io/4507378908004352",
-        integrations=[
-            DjangoIntegration(),
-            CeleryIntegration(),
-        ],
-        traces_sample_rate=1.0,
-        profiles_sample_rate=1.0,
-    )
-
-    LOGGING = {
-        'version': 1,
-        'disable_existing_loggers': False,
-        'handlers': {
-            'sentry': {
-                'level': 'ERROR',
-                'class': 'sentry_sdk.integrations.logging.EventHandler',
-            },
-            'console': {
-                'level': 'DEBUG',
-                'class': 'sentry_sdk.integrations.logging.EventHandler',
-            },
-        },
-        'loggers': {
-            'django': {
-                'handlers': ['console', 'sentry'],
-                'level': 'DEBUG',
-                'propagate': True,
-            },
-            'celery': {
-                'handlers': ['console', 'sentry'],
-                'level': 'DEBUG',
-                'propagate': True,
-            },
-        },
-    }
-
-# TODO django-redis-aiogram sender SETTINGS
 if ENVIRONMENT == 'PRODUCTION':
     TELEGRAM_BOT = {
         'REDIS_URL': "redis://redis:6379/0",
-        'TOKEN': os.getenv('TELEGRAM_BOT_TOKEN_PROD')
+        'TOKEN': TELEGRAM_BOT_TOKEN_PROD
     }
 else:
     TELEGRAM_BOT = {
         'REDIS_URL': "redis://redis:6379/0",
-        'TOKEN': os.getenv('TELEGRAM_BOT_TOKEN')
+        'TOKEN': TELEGRAM_BOT_TOKEN
     }
 
 # TODO CELERY settings
-
 # Добавляем настройки для Celery
 CELERY_BROKER_URL = 'redis://localhost:6379/0'
 CELERY_RESULT_BACKEND = 'redis://localhost:6379/1'
@@ -291,3 +243,48 @@ JET_THEMES = [
         'title': 'Light Gray'
     }
 ]
+
+# TODO SENTRY SETTINGS
+
+# if ENVIRONMENT == 'PRODUCTION':
+#     import sentry_sdk
+#
+#     sentry_sdk.init(
+#         dsn="https://26cd6adb31a7d912277757045055f118@o4506274465972224.ingest.us.sentry.io/4507378908004352",
+#         integrations=[
+#             DjangoIntegration(),
+#             CeleryIntegration(),
+#         ],
+#         traces_sample_rate=1.0,
+#         profiles_sample_rate=1.0,
+#     )
+#
+#     LOGGING = {
+#         'version': 1,
+#         'disable_existing_loggers': False,
+#         'handlers': {
+#             'sentry': {
+#                 'level': 'ERROR',
+#                 'class': 'sentry_sdk.integrations.logging.EventHandler',
+#             },
+#             'console': {
+#                 'level': 'DEBUG',
+#                 'class': 'sentry_sdk.integrations.logging.EventHandler',
+#             },
+#         },
+#         'loggers': {
+#             'django': {
+#                 'handlers': ['console', 'sentry'],
+#                 'level': 'DEBUG',
+#                 'propagate': True,
+#             },
+#             'celery': {
+#                 'handlers': ['console', 'sentry'],
+#                 'level': 'DEBUG',
+#                 'propagate': True,
+#             },
+#         },
+#     }
+
+# TODO django-redis-aiogram sender SETTINGS
+

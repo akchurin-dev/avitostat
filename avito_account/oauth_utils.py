@@ -1,13 +1,11 @@
 import os
 import requests
-from dotenv import load_dotenv
-
 from avito_account.models.models import AvitoAccount
+from base import settings
 from base.exceptions import HTTPException
 
-load_dotenv()
-client_id = os.getenv('AVITO_CLIENT_ID')
-client_secret = os.getenv('AVITO_CLIENT_SECRET')
+client_id = settings.AVITO_CLIENT_ID
+client_secret = settings.AVITO_CLIENT_SECRET
 
 
 def get_avito_tokens(code: str):  # Если использованный токен -должен быть ексепшн, просто обновить код надо

@@ -1,11 +1,8 @@
-import os
 from datetime import datetime
-
 import sentry_sdk
 from aiogram import Bot
 from aiogram.exceptions import AiogramError
-from dotenv import load_dotenv
-
+from base import settings
 from tg_bot.api.week_report import get_week_report_by_avito_id, get_duration_report_by_avito_id, \
     get_avito_ids_by_telegram_id
 
@@ -14,11 +11,8 @@ async def get_week_report_text(telegram_chat_id: int, bot: Bot):
     avito_ids = get_avito_ids_by_telegram_id(telegram_chat_id)
     if avito_ids:
         for avito_id in avito_ids:
-            load_dotenv()
-            ENVIRONMENT = os.getenv('ENVIRONMENT')
-
             try:
-                if ENVIRONMENT == 'DEVELOPMENT':
+                if settings.ENVIRONMENT == 'DEVELOPMENT':
                     await bot.send_message(
                         chat_id="-4221870448",
                         text="📊 Ожидайте, формируется отчёт..."
