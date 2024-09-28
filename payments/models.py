@@ -2,6 +2,7 @@
 from django.db import models
 from django.utils import timezone
 
+
 class Payment(models.Model):
     ORDER_STATUS_CHOICES = (
         ('pending', 'Ожидает оплаты'),
