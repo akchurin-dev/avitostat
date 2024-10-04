@@ -12,6 +12,7 @@ urlpatterns = [
     path('admin/', admin.site.urls),
     path("oauth/", include("avito_account.urls")),
     path("messaging/", include("messaging.urls")),
+    path("ai_messaging/", include("ai_messaging.urls")),
     path("deep_tests/", include("deep_tests.urls")),
     path('sentry-debug/', trigger_error),
 ]

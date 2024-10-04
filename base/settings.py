@@ -29,12 +29,14 @@ DB_PASS = os.getenv('DB_PASS')
 DB_NAME = os.getenv('DB_NAME')
 
 # SECURITY WARNING: don't run with debug turned on in production!
-ALLOWED_HOSTS = ["172.22.0.2", "localhost", "127.0.0.1", "45.12.238.229", "avitostata.ru"]
 
 if ENVIRONMENT == 'DEVELOPMENT':
     DEBUG = True
+    ALLOWED_HOSTS = ["*",]
 else:
     DEBUG = False
+    ALLOWED_HOSTS = ["172.22.0.2", "localhost", "127.0.0.1", "45.12.238.229", "avitostata.ru"]
+
 
 # Application definition
 
@@ -53,6 +55,7 @@ INSTALLED_APPS = [
     'conversion',
     'messaging',
     'deep_tests',
+    'ai_messaging'
 ]
 
 MIDDLEWARE = [
