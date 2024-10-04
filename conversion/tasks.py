@@ -3,6 +3,7 @@ from asgiref.sync import async_to_sync, sync_to_async
 from django.utils import timezone
 from telegram_bot import bot
 from avito_account.models.models import SendingCampaign, SendingReport, AvitoAccount
+from base import settings
 from base.celery import celery_app
 from conversion.utils_from_aiogram import get_week_report_text
 
@@ -10,8 +11,7 @@ from conversion.utils_from_aiogram import get_week_report_text
 async def send_txt_week_report_individual_async(avito_account: AvitoAccount, test_from_prod: bool = False):
     text = await get_week_report_text(avito_account)
 
-    ENVIRONMENT = os.getenv('ENVIRONMENT')
-    if ENVIRONMENT == 'DEVELOPMENT' or test_from_prod:
+    if settings.ENVIRONMENT == 'DEVELOPMENT' or test_from_prod:
         chat_id = "-4221870448"
     else:
         chat_id = avito_account.telegram_id
@@ -33,8 +33,7 @@ def send_text_report_all_async_task(test_from_prod=False, only_for_users=None):
 
 
 async def send_text_report_all_async(test_from_prod: bool = False, only_for_users=None):
-    ENVIRONMENT = os.getenv('ENVIRONMENT')
-    if ENVIRONMENT == 'DEVELOPMENT':
+    if settings.ENVIRONMENT == 'DEVELOPMENT':
         test_from_prod = True
 
     if only_for_users is not None:

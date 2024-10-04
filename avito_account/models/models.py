@@ -1,23 +1,21 @@
 import logging
-
 import httpx
 import pytz
 import sentry_sdk
 from asgiref.sync import sync_to_async
 from django.db import models
 from django.contrib.auth.models import User
-import os
 import requests
-from dotenv import load_dotenv
+
+from base import settings
 from base.exceptions import HTTPException
 import datetime
 from django.utils import timezone
 
 logger = logging.getLogger(__name__)
 
-load_dotenv()
-client_id = os.getenv('AVITO_CLIENT_ID')
-client_secret = os.getenv('AVITO_CLIENT_SECRET')
+client_id = settings.AVITO_CLIENT_ID
+client_secret = settings.AVITO_CLIENT_SECRET
 MOSCOW_TZ = pytz.timezone('Europe/Moscow')
 
 
