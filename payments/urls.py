@@ -1,7 +1,7 @@
 from django.urls import path
-from .views import create_payment, check_payment_status
+from .views import create_payment, PaymentView
 
 urlpatterns = [
+    path('payment/', PaymentView.as_view(), name='payment'),  # template of payment yookassa
     path('create/', create_payment, name='create_payment'),
-    path('status/<str:order_id>/', check_payment_status, name='check_payment_status'),
 ]

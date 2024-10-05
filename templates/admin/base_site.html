@@ -1,6 +1,35 @@
 {% extends "admin/base_site.html" %}
 
 {% block branding %}
-<h1 id="site-name"><a href="{% url 'admin:index' %}">AVITOSTATA</a></h1>
-<h1 id="site-name"><a href="{% url 'admin:index' %}">Личный кабинет</a></h1>
+<div style="text-align: center; margin-bottom: 20px;">
+    <h1 id="site-name" style="font-size: 24px; font-weight: bold; margin: 0;">
+        <a href="{% url 'admin:index' %}" style="text-decoration: none; color: yellowgreen;">AVITOSTATA</a>
+    </h1>
+    <h2 style="font-size: 16px; margin: 10px 0; color: yellowgreen;">Личный кабинет</h2>
+    
+    <div style="display: inline-block; margin: 5px;">
+        <span style="font-size: 16px; color: yellowgreen; font-weight: bold;">Баланс: 1390</span>
+    </div>
+    
+    <div style="display: inline-block; margin: 5px;">
+        <span style="font-size: 16px; color: yellowgreen;">Осталось дней: 12</span>
+    </div>
+</div>
+
+<!-- Плашка для пополнения баланса -->
+<div style="text-align: center; margin: 20px;">
+    <a href="#" id="top-up-balance" style="padding: 5px 10px; background-color: #e2e6ea; border-radius: 5px; color: #0056b3; font-weight: bold; text-decoration: none; font-size: 12px;">
+        Пополнить баланс
+    </a>
+</div>
+
+<script>
+    // Скрипт для открытия формы в новом окне
+    document.getElementById('top-up-balance').addEventListener('click', function(event) {
+        event.preventDefault();
+        var newWindow = window.open("{% url 'payment' %}", '_blank', 'width=600,height=600'); // Замените 'payment' на имя вашего URL для payment.html
+        newWindow.focus();
+    });
+</script>
+
 {% endblock %}
