@@ -269,24 +269,39 @@ JET_THEMES = [
 LOGGING = {
     'version': 1,
     'disable_existing_loggers': False,
+    'formatters': {
+        'verbose': {
+            'format': '{levelname} {asctime} {module} {message}',
+            'style': '{',
+        },
+    },
     'handlers': {
         'console': {
-            'level': 'INFO',
+            'level': 'DEBUG',
             'class': 'logging.StreamHandler',
+            'formatter': 'verbose',
         },
     },
     'loggers': {
+        'django': {
+            'handlers': ['console'],
+            'level': 'INFO',
+            'propagate': True,
+        },
         'django.server': {
             'handlers': ['console'],
             'level': 'INFO',
             'propagate': False,
         },
+        'django.request': {
+            'handlers': ['console'],
+            'level': 'INFO',
+            'propagate': False,
+        },
+        'django.db.backends': {
+            'handlers': ['console'],
+            'level': 'ERROR',  # Установите INFO или DEBUG для вывода SQL-запросов
+            'propagate': False,
+        },
     },
 }
-
-# Переопределяем поведение стандартного логгера для 'django.server'
-# для вывода информации о запросах в консоль
-logging.getLogger('django.server').addHandler(logging.StreamHandler())
-
-# TODO django-redis-aiogram sender SETTINGS
-
