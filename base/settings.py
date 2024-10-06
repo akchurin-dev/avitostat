@@ -1,3 +1,4 @@
+import logging
 import os
 from pathlib import Path
 import pytz
@@ -29,7 +30,13 @@ DB_PASS = os.getenv('DB_PASS')
 DB_NAME = os.getenv('DB_NAME')
 
 # SECURITY WARNING: don't run with debug turned on in production!
-ALLOWED_HOSTS = ["172.22.0.2", "localhost", "127.0.0.1", "45.12.238.229", "avitostata.ru"]
+ALLOWED_HOSTS = [
+    "localhost", "127.0.0.1", "avitostata.ru",
+
+    #Yookassa webhook
+    "185.71.76.0/27", "185.71.77.0/27", "77.75.153.0/25", "77.75.156.11",
+    "77.75.156.35", "77.75.154.128/25", "2a02:5180::/32",
+]
 
 if ENVIRONMENT == 'DEVELOPMENT':
     DEBUG = True
@@ -259,32 +266,27 @@ JET_THEMES = [
 #         profiles_sample_rate=1.0,
 #     )
 #
-#     LOGGING = {
-#         'version': 1,
-#         'disable_existing_loggers': False,
-#         'handlers': {
-#             'sentry': {
-#                 'level': 'ERROR',
-#                 'class': 'sentry_sdk.integrations.logging.EventHandler',
-#             },
-#             'console': {
-#                 'level': 'DEBUG',
-#                 'class': 'sentry_sdk.integrations.logging.EventHandler',
-#             },
-#         },
-#         'loggers': {
-#             'django': {
-#                 'handlers': ['console', 'sentry'],
-#                 'level': 'DEBUG',
-#                 'propagate': True,
-#             },
-#             'celery': {
-#                 'handlers': ['console', 'sentry'],
-#                 'level': 'DEBUG',
-#                 'propagate': True,
-#             },
-#         },
-#     }
+LOGGING = {
+    'version': 1,
+    'disable_existing_loggers': False,
+    'handlers': {
+        'console': {
+            'level': 'INFO',
+            'class': 'logging.StreamHandler',
+        },
+    },
+    'loggers': {
+        'django.server': {
+            'handlers': ['console'],
+            'level': 'INFO',
+            'propagate': False,
+        },
+    },
+}
+
+# Переопределяем поведение стандартного логгера для 'django.server'
+# для вывода информации о запросах в консоль
+logging.getLogger('django.server').addHandler(logging.StreamHandler())
 
 # TODO django-redis-aiogram sender SETTINGS
 
