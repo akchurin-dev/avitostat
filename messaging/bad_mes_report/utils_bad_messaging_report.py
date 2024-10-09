@@ -85,7 +85,7 @@ async def converting_created_timestamp_to_datetime(analyze_all_chats):
 
 
 async def get_pdf_report(avito_account_id, analyze_all_chats):
-    if ENVIRONMENT == 'DEVELOPMENT':
+    if settings.ENVIRONMENT == 'DEVELOPMENT':
         wkhtmltopdf_path = "/usr/local/bin/wkhtmltopdf"  # For testing 5 items  for economy
     else:
         wkhtmltopdf_path = "/usr/bin/wkhtmltopdf"

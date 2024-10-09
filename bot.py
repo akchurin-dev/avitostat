@@ -20,8 +20,7 @@ from tg_bot.cleaner.cleaner_middleware import CleanerMiddleware
 # t.me/avitostata_bot           DEVELOPMENT
 # t.me/avitostata_ru_bot        PRODUCTION
 
-ENVIRONMENT = settings.ENVIRONMENT
-if ENVIRONMENT == 'PRODUCTION':
+if settings.ENVIRONMENT == 'PRODUCTION':
     bot = Bot(settings.TELEGRAM_BOT_TOKEN_PROD)
 else:
     bot = Bot(settings.TELEGRAM_BOT_TOKEN)
