@@ -47,39 +47,44 @@ class PaymentCreateView(View):
         yookassa.Configuration.account_id = settings.YOOKASSA_TEST_SHOP_ID
         yookassa.Configuration.secret_key = settings.YOOKASSA_TEST_SECRET_KEY
 
-        amount = 1
-        order_id = Payment.objects.last().id + 1
         user = User.objects.filter(id=args[0].user.id).last()
+        amount = 1
+        payment = Payment.objects.create(
+            user_id=user.id,
+            amount=amount,
+            # status=payment_response['status'],
+            # confirmation_url=payment_response['confirmation']['confirmation_url']
+        )
 
         payment_response = yookassa.Payment.create(
             {
                 "amount": {
-                    "value": amount,
+                    "value": 1,
                     "currency": "RUB"
                 },
                 "confirmation": {
                     "type": "redirect",
-                    "return_url": "http://127.0.0.1:8000/admin"
+                    "return_url": "https://avitostata.ru/admin"
                 },
                 "capture": True,
-                "description": f"Заказ №{order_id} для {user.first_name}",
+                "description": payment.id,
                 "metadata": {
-                    'orderNumber': order_id,
+                    'orderNumber': payment.id
                 },
+                "receipt": {
+                    "customer": {
+                        "full_name": "Ivanov Ivan Ivanovich123",
+                        "email": "email@email.ru",
+                    },
+                }
             }
         )
 
-        payment_response = var_dump.var_dump(payment_response)
-
-
-
-        # Сохранение информации о платеже в базу
-        Payment.objects.create(
-            user_id=user.id,
-            amount=amount,
-            status=payment_response['status'],
-            confirmation_url=payment_response['confirmation']['confirmation_url']
-        )
+        # if payment_response:
+            # Сохранение информации о платеже в базу
+        payment.status = "sdad"
+        payment.confirmation_url = payment_response['confirmation']['confirmation_url']
+        payment.save()
 
         return HttpResponseRedirect(payment_response['confirmation']['confirmation_url'])
 

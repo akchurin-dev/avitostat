@@ -17,9 +17,9 @@ res = yookassa.Payment.create(
             "return_url": "https://avitostata.ru/admin"
         },
         "capture": True,
-        "description": "Заказ №97",
+        "description": "Заказ №197",
         "metadata": {
-            'orderNumber': '97'
+            'orderNumber': '197'
         },
         "receipt": {
             "customer": {
