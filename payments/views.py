@@ -49,7 +49,9 @@ class WebhookView(View):
 
         payment.test = bool(object.get("test"))
         payment.paid = bool(object.get("paid"))
-        payment.confirmation_url = object.get("confirmation_url")
+
+        if object.get("confirmation_url"):
+            payment.confirmation_url = object.get("confirmation_url")
         payment.description = object.get("description")
         payment.save()
 
