@@ -76,9 +76,21 @@ class PaymentCreateView(View):
         # Логика создания платежа
         yookassa.Configuration.account_id = settings.YOOKASSA_TEST_SHOP_ID
         yookassa.Configuration.secret_key = settings.YOOKASSA_TEST_SECRET_KEY
-
         user = User.objects.filter(id=args[0].user.id).last()
-        amount = 2000
+
+        period = int(kwargs.get('period'))
+        if period == 1:
+            amount = 2000
+            description = "1 месяц по 2000 рублей"
+        if period == 3:
+            amount = 5400
+            description = "3 месяца по 1800 рублей"
+        if period == 6:
+            amount = 9000
+            description = "6 месяцев по 1500 рублей"
+
+
+
         payment = Payment.objects.create(
             user_id=user.id,
             amount=amount,
@@ -95,15 +107,10 @@ class PaymentCreateView(View):
                     "return_url": "http://127.0.0.1:8000.ru/admin"
                 },
                 "capture": True,
-                "description": f"Заказ №{payment.id}",
+                "description": description,
                 "metadata": {
                     'orderNumber': payment.id
                 },
-                "receipt": {
-                    "customer": {
-                        "email": "email@email.ru",
-                    },
-                }
             }
         )
 

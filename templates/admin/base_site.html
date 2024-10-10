@@ -25,17 +25,17 @@
 
 <!-- Ссылки для пополнения на разные периоды -->
 <div id="top-up-options" style="text-align: center; display: none; margin-top: 10px;">
-    <a href="{% url 'create_payment' %}" target="_blank" style="display: block; margin: 5px; padding: 5px 10px; background-color: #e2e6ea; border-radius: 5px; color: #0056b3; font-weight: bold; text-decoration: none; font-size: 12px;">
+    <a href="{% url 'create_payment' 1 %}" target="_blank" style="display: block; margin: 5px; padding: 5px 10px; background-color: #e2e6ea; border-radius: 5px; color: #0056b3; font-weight: bold; text-decoration: none; font-size: 12px;">
         📆 1 месяц (2000х1)
         <br>
         <span style="color: red;">без скидки 🚫</span>
     </a>
-    <a href="{% url 'create_payment' %}" target="_blank" style="display: block; margin: 5px; padding: 5px 10px; background-color: #e2e6ea; border-radius: 5px; color: #0056b3; font-weight: bold; text-decoration: none; font-size: 12px;">
+    <a href="{% url 'create_payment' 3 %}" target="_blank" style="display: block; margin: 5px; padding: 5px 10px; background-color: #e2e6ea; border-radius: 5px; color: #0056b3; font-weight: bold; text-decoration: none; font-size: 12px;">
         📅 3 месяца (1800х3)
         <br>
         <span style="color: red;">скидка 10% 🎉</span>
     </a>
-    <a href="{% url 'create_payment' %}" target="_blank" style="display: block; margin: 5px; padding: 5px 10px; background-color: #e2e6ea; border-radius: 5px; color: #0056b3; font-weight: bold; text-decoration: none; font-size: 12px;">
+    <a href="{% url 'create_payment' 6 %}" target="_blank" style="display: block; margin: 5px; padding: 5px 10px; background-color: #e2e6ea; border-radius: 5px; color: #0056b3; font-weight: bold; text-decoration: none; font-size: 12px;">
         🗓️ 6 месяцев (1500х6)
         <br>
         <span style="color: red;">скидка 25% 🔥</span>
