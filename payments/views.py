@@ -14,6 +14,7 @@ from base import settings
 from django.views.generic import TemplateView
 
 from payments.models import Payment
+from dateutil.parser import parse
 
 
 class PaymentView(TemplateView):
@@ -44,8 +45,9 @@ class WebhookView(View):
         payment.income_amount = float(object.get("income_amount").get("value"))
 
         payment.payment_method = object.get("payment_method").get("type")
-        # payment.created_at = timezone.now()
-        # payment.updated_at = timezone.now()
+
+        payment.created_at = parse(object.get("created_at"))  # Дата создания платежа
+        payment.updated_at = parse(object.get("captured_at"))  # Дата списания платежа
 
         payment.test = bool(object.get("test"))
         payment.paid = bool(object.get("paid"))
