@@ -1,7 +1,18 @@
-import uuid
 from django.conf import settings
+from django.contrib.auth.models import User
 from django.db import models
-from django.utils import timezone
+
+
+class UserProfile(models.Model):
+    user = models.OneToOneField(User, on_delete=models.CASCADE)
+    balance = models.FloatField(default=0)
+
+    def __str__(self):
+        return f"{self.user.username} - баланс {self.balance}"
+
+    class Meta:
+        verbose_name = "Профиль пользователя"
+        verbose_name_plural = "Профили пользователей"
 
 
 class Payment(models.Model):
@@ -20,9 +31,10 @@ class Payment(models.Model):
     user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, verbose_name="Пользователь")
     uuid = models.CharField(max_length=50, blank=True, null=True, editable=False, verbose_name="Уникальный номер")
 
-    status = models.CharField(max_length=30, choices=PAYMENT_STATUS_CHOICES, default=PAYMENT_STATUS_PENDING, verbose_name="Статус платежа")
+    status = models.CharField(max_length=30, choices=PAYMENT_STATUS_CHOICES, default=PAYMENT_STATUS_PENDING,
+                              verbose_name="Статус платежа")
     currency = models.CharField(max_length=3, default='RUB', verbose_name="Валюта")
-    amount = models.FloatField(blank=True, null=True, verbose_name="Сумма списана")
+    amount = models.FloatField(blank=True, null=True, verbose_name="Сумма к списанию")
     income_amount = models.FloatField(blank=True, null=True, verbose_name="Сумма получена")
 
     payment_method = models.CharField(max_length=50, null=True, blank=True, verbose_name="Метод оплаты")
@@ -31,9 +43,10 @@ class Payment(models.Model):
 
     test = models.BooleanField(default=False, verbose_name="Тест")
     paid = models.BooleanField(default=False, verbose_name="Оплачено")
-    confirmation_url = models.URLField(max_length=255, blank=True, null=True, verbose_name="Ссылка для оплаты")  # Ссылка для подтверждения оплаты
-    description = models.TextField(null=True, blank=True, verbose_name="Описание платежа")  # Дополнительное описание платежа
-
+    confirmation_url = models.URLField(max_length=255, blank=True, null=True,
+                                       verbose_name="Ссылка для оплаты")  # Ссылка для подтверждения оплаты
+    description = models.TextField(null=True, blank=True,
+                                   verbose_name="Описание платежа")  # Дополнительное описание платежа
 
     def __str__(self):
         return f'{self.user.username} - {self.status}'

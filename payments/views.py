@@ -1,18 +1,14 @@
 import json
-from datetime import timezone
-
-import var_dump
 import yookassa
 from django.contrib.auth.models import User
+from payments.models import UserProfile
 from django.http import HttpResponseRedirect, HttpResponse, JsonResponse
 from django.shortcuts import render
 from django.utils.decorators import method_decorator
 from django.views import View
 from django.views.decorators.csrf import csrf_exempt
-
 from base import settings
 from django.views.generic import TemplateView
-
 from payments.models import Payment
 from dateutil.parser import parse
 
@@ -33,64 +29,46 @@ class PaymentView(TemplateView):
 
 @method_decorator(csrf_exempt, name='dispatch')
 class WebhookView(View):
+    def update_payment(self, object: dict):
+        payment = Payment.objects.get(uuid=object.get("id"))
+
+        # Обновление полей платежа с проверкой на наличие значений
+        payment.status = object.get("status", payment.status)  # Оставляем текущее значение, если нет нового
+        payment.currency = object.get("amount", {}).get("currency", payment.currency)
+        payment.amount = float(object.get("amount", {}).get("value", payment.amount))
+        payment.income_amount = float(object.get("income_amount", {}).get("value", payment.income_amount))
+
+        payment.payment_method = object.get("payment_method", {}).get("type", payment.payment_method)
+
+        payment.created_at = parse(object.get("created_at", payment.created_at))  # Дата создания платежа
+        payment.updated_at = parse(object.get("captured_at", payment.updated_at))  # Дата списания платежа
+
+        payment.test = bool(object.get("test", payment.test))  # Оставляем текущее значение, если нет нового
+        payment.paid = bool(object.get("paid", payment.paid))  # Оставляем текущее значение, если нет нового
+
+        # Установка URL подтверждения, если он присутствует
+        if "confirmation_url" in object:
+            payment.confirmation_url = object.get("confirmation_url")
+
+        payment.description = object.get("description",
+                                         payment.description)  # Оставляем текущее значение, если нет нового
+
+        payment.save()
+
+    def update_balance(self, request, object: dict):
+        payment = Payment.objects.get(uuid=object.get("id"))
+        user_profile = UserProfile.objects.get_or_create(user_id=payment.user.id)[0]
+        user_profile.balance += float(object.get("income_amount").get("value"))
+        user_profile.save()
+
     def post(self, request):
         # Декодируем байтовую строку в обычную строку
         decoded_data = request.body.decode('utf-8')
         object = json.loads(decoded_data).get("object")
-
-        payment = Payment.objects.get(uuid=object.get("id"))
-        payment.status = object.get("status")
-        payment.currency = object.get("amount").get("currency")
-        payment.amount = float(object.get("amount").get("value"))
-        payment.income_amount = float(object.get("income_amount").get("value"))
-
-        payment.payment_method = object.get("payment_method").get("type")
-
-        payment.created_at = parse(object.get("created_at"))  # Дата создания платежа
-        payment.updated_at = parse(object.get("captured_at"))  # Дата списания платежа
-
-        payment.test = bool(object.get("test"))
-        payment.paid = bool(object.get("paid"))
-
-        if object.get("confirmation_url"):
-            payment.confirmation_url = object.get("confirmation_url")
-        payment.description = object.get("description")
-        payment.save()
+        self.update_payment(object)
+        self.update_balance(request, object)
 
         return HttpResponse(status=200)
-
-        # {'event': 'payment.succeeded',
-        #  'object': {'amount': {'currency': 'RUB', 'value': '1.00'},
-        #             'authorization_details': {'auth_code': '143906',
-        #                                       'rrn': '320912593370888',
-        #                                       'three_d_secure': {'applied': False,
-        #                                                          'challenge_completed': False,
-        #                                                          'method_completed': False}},
-        #             'captured_at': '2024-10-09T07:58:02.429Z',
-        #             'created_at': '2024-10-09T07:57:53.634Z',
-        #             'description': '44',
-        #             'id': '2e984b41-000f-5000-a000-1a08957a5e35',
-        #             'income_amount': {'currency': 'RUB', 'value': '0.96'},
-        #             'metadata': {'cms_name': 'yookassa_sdk_python',
-        #                          'orderNumber': '44'},
-        #             'paid': True,
-        #             'payment_method': {'card': {'card_product': {'code': 'E'},
-        #                                         'card_type': 'MasterCard',
-        #                                         'expiry_month': '11',
-        #                                         'expiry_year': '2011',
-        #                                         'first6': '555555',
-        #                                         'issuer_country': 'US',
-        #                                         'last4': '4444'},
-        #                                'id': '2e984b41-000f-5000-a000-1a08957a5e35',
-        #                                'saved': False,
-        #                                'title': 'Bank card *4444',
-        #                                'type': 'bank_card'},
-        #             'recipient': {'account_id': '469140', 'gateway_id': '2324047'},
-        #             'refundable': True,
-        #             'refunded_amount': {'currency': 'RUB', 'value': '0.00'},
-        #             'status': 'succeeded',
-        #             'test': True},
-        #  'type': 'notification'}
 
 
 @method_decorator(csrf_exempt, name='dispatch')
@@ -141,13 +119,3 @@ class PaymentCreateView(View):
         else:
             return JsonResponse(status=401, data={"Cant get payment response"})
 
-# def check_payment_status(request, order_id):
-#     payment = get_object_or_404(Payment, order_id=order_id)
-#     yookassa = YookassaService()
-#     status_response = yookassa.get_payment_status(payment.order_id)
-#
-#     # Обновление статуса в базе данных
-#     payment.status = status_response['status']
-#     payment.save()
-#
-#     return JsonResponse({'status': payment.status})
