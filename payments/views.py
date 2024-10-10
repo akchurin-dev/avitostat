@@ -17,7 +17,6 @@ class PaymentView(TemplateView):
     template_name = 'payment.html'  # Путь к вашему шаблону payment.html
 
     def get(self, request, *args, **kwargs):
-        # Получаем ID текущего пользователя
         user_id = request.user.id
         # Формируем контекст с ID пользователя
         context = {
@@ -79,7 +78,7 @@ class PaymentCreateView(View):
         yookassa.Configuration.secret_key = settings.YOOKASSA_TEST_SECRET_KEY
 
         user = User.objects.filter(id=args[0].user.id).last()
-        amount = 1000
+        amount = 2000
         payment = Payment.objects.create(
             user_id=user.id,
             amount=amount,

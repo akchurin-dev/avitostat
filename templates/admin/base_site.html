@@ -8,27 +8,50 @@
     <h2 style="font-size: 16px; margin: 10px 0; color: yellowgreen;">Личный кабинет</h2>
     
     <div style="display: inline-block; margin: 5px;">
-        <span style="font-size: 16px; color: yellowgreen; font-weight: bold;">Баланс: {{ balance }}</span>
+        <span style="font-size: 16px; color: yellowgreen; font-weight: bold;">💰 Баланс: {{ balance }}</span>
     </div>
     
     <div style="display: inline-block; margin: 5px;">
-        <span style="font-size: 16px; color: yellowgreen;">Осталось дней: 12</span>
+        <span style="font-size: 16px; color: yellowgreen;">📅 Осталось дней: {{ days_left }}</span>
     </div>
 </div>
 
 <!-- Плашка для пополнения баланса -->
 <div style="text-align: center; margin: 20px;">
     <a href="#" id="top-up-balance" style="padding: 5px 10px; background-color: #e2e6ea; border-radius: 5px; color: #0056b3; font-weight: bold; text-decoration: none; font-size: 12px;">
-        Пополнить на 2000
+        💳 Пополнить
+    </a>
+</div>
+
+<!-- Ссылки для пополнения на разные периоды -->
+<div id="top-up-options" style="text-align: center; display: none; margin-top: 10px;">
+    <a href="{% url 'create_payment' %}" target="_blank" style="display: block; margin: 5px; padding: 5px 10px; background-color: #e2e6ea; border-radius: 5px; color: #0056b3; font-weight: bold; text-decoration: none; font-size: 12px;">
+        📆 1 месяц (2000х1)
+        <br>
+        <span style="color: red;">без скидки 🚫</span>
+    </a>
+    <a href="{% url 'create_payment' %}" target="_blank" style="display: block; margin: 5px; padding: 5px 10px; background-color: #e2e6ea; border-radius: 5px; color: #0056b3; font-weight: bold; text-decoration: none; font-size: 12px;">
+        📅 3 месяца (1800х3)
+        <br>
+        <span style="color: red;">скидка 10% 🎉</span>
+    </a>
+    <a href="{% url 'create_payment' %}" target="_blank" style="display: block; margin: 5px; padding: 5px 10px; background-color: #e2e6ea; border-radius: 5px; color: #0056b3; font-weight: bold; text-decoration: none; font-size: 12px;">
+        🗓️ 6 месяцев (1500х6)
+        <br>
+        <span style="color: red;">скидка 25% 🔥</span>
     </a>
 </div>
 
 <script>
-    // Скрипт для открытия формы в новом окне
+    // Скрипт для отображения ссылок пополнения
     document.getElementById('top-up-balance').addEventListener('click', function(event) {
         event.preventDefault();
-        var newWindow = window.open("{% url 'create_payment' %}", '_blank', 'width=600,height=600'); // Замените 'payment' на имя вашего URL для payment.html
-        newWindow.focus();
+        var optionsDiv = document.getElementById("top-up-options");
+        if (optionsDiv.style.display === "none") {
+            optionsDiv.style.display = "block";
+        } else {
+            optionsDiv.style.display = "none";
+        }
     });
 </script>
 
