@@ -10,33 +10,73 @@ from base import settings
 from payments.models import Payment
 
 
+class PRICE:
+    RATE_FREELANCER = 'freelancer'
+    RATE_BUSINESS = 'business'
+    RATE_STUDIO = 'studio'
+    RATE_AGENCY = 'agency'
+
+    PRICES = {
+        'freelancer': 2000,
+        'business': 1950,
+        'studio': 1900,
+        'agency': 1850,
+    }
+
+    @classmethod
+    def get_price(cls, rate):
+        return cls.PRICES.get(rate)
+
+    @staticmethod
+    def get_rate(active_accounts: int):
+        if 0 < active_accounts <= 10:
+            return PRICE.RATE_FREELANCER
+        elif 11 <= active_accounts <= 20:
+            return PRICE.RATE_BUSINESS
+        elif 21 <= active_accounts <= 40:
+            return PRICE.RATE_STUDIO
+        elif active_accounts >= 41:
+            return PRICE.RATE_AGENCY
+
+    @staticmethod
+    def get_discount(months_count: int):
+        if 0 < months_count < 3:
+            return 1
+        elif 3 <= months_count <= 6:
+            return 0.97
+        if 6 <= months_count:
+            return 0.95
+
+
 @method_decorator(csrf_exempt, name='dispatch')
 class PaymentCreateView(View):
     def get(request, *args, **kwargs):
-        # Логика создания платежа
         yookassa.Configuration.account_id = settings.YOOKASSA_TEST_SHOP_ID
         yookassa.Configuration.secret_key = settings.YOOKASSA_TEST_SECRET_KEY
+
         user = User.objects.filter(id=args[0].user.id).last()
         active_accounts = AvitoAccount.objects.filter(created_by=user).count()
+        months_count = int(kwargs.get('months'))
 
-        if settings.ENVIRONMENT == "DEVELOPMENT":   # TODO change script filling test DB and remove this code
+        if settings.ENVIRONMENT == "DEVELOPMENT":  # TODO change script filling test DB and remove this code
             active_accounts = 5
 
-        rate = int(kwargs.get('rate'))
-        if rate == 1:
-            amount = 2000 * active_accounts
-            description = f"Тариф 'Фрилансер' 2000р для {active_accounts} аккаунтов = {amount} рублей"
-        if rate == 2:
-            amount = 1950 * active_accounts
-            description = f"Тариф 'Фрилансер' 1950р для {active_accounts} аккаунтов = {amount} рублей"
-        if rate == 3:
-            amount = 1900 * active_accounts
-            description = f"Тариф 'Фрилансер' 1900р для {active_accounts} аккаунтов = {amount} рублей"
+        rate = PRICE.get_rate(active_accounts=active_accounts)
+        price = PRICE.get_price(rate=rate)
+        discount = PRICE.get_discount(months_count=months_count)
+        discount_percents = int((1 - discount) * 100)
+        balance_tokens = 2000 * active_accounts * months_count
 
+        amount = price * active_accounts * months_count * discount
+        description = (f"Тариф: {rate} - Цена: {price} р ///"
+                       f"Аккаунтов к оплате: {active_accounts} ///"
+                       f"Скидка: {discount_percents}% при оплате за {months_count} месяц(а) ///"
+                       f"Итого к оплате: {amount} р")
 
         payment = Payment.objects.create(
+            created_by=user,
             amount=amount,
-            created_by=user
+            balance_tokens=balance_tokens,
         )
 
         payment_response = yookassa.Payment.create(

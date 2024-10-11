@@ -1,4 +1,3 @@
-from django.conf import settings
 from django.contrib.auth.models import User
 from django.db import models
 
@@ -37,6 +36,7 @@ class Payment(BaseModel):
     currency = models.CharField(max_length=3, default='RUB', verbose_name="Валюта")
     amount = models.FloatField(blank=True, null=True, verbose_name="Сумма к списанию")
     income_amount = models.FloatField(blank=True, null=True, verbose_name="Сумма получена")
+    balance_tokens = models.IntegerField(default=0, verbose_name="Токенов к зачислению")
 
     payment_method = models.CharField(max_length=50, null=True, blank=True, verbose_name="Метод оплаты")
     created_at = models.DateTimeField(null=True, verbose_name="Cоздан платёж")

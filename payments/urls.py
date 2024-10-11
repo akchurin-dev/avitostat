@@ -5,5 +5,5 @@ from payments.views.webhook import WebhookView
 
 urlpatterns = [
     path('webhook/', WebhookView.as_view(), name='webhook'),
-    path('create_payment/<int:rate>/', PaymentCreateView.as_view(), name='create_payment'),
+    path('create_payment/<int:months>/', PaymentCreateView.as_view(), name='create_payment'),
 ]
