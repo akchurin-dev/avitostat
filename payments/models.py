@@ -2,6 +2,8 @@ from django.conf import settings
 from django.contrib.auth.models import User
 from django.db import models
 
+from avito_account.models.models import BaseModel
+
 
 class UserProfile(models.Model):
     user = models.OneToOneField(User, on_delete=models.CASCADE)
@@ -15,7 +17,7 @@ class UserProfile(models.Model):
         verbose_name_plural = "Профили пользователей"
 
 
-class Payment(models.Model):
+class Payment(BaseModel):
     PAYMENT_STATUS_PENDING = 'pending'
     PAYMENT_STATUS_CANCELED = 'canceled'
     PAYMENT_STATUS_WAITING_FOR_CAPTURE = 'waiting_for_capture'
@@ -28,7 +30,6 @@ class Payment(models.Model):
         ('succeeded', 'Оплачен'),
     )
 
-    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, verbose_name="Пользователь")
     uuid = models.CharField(max_length=50, blank=True, null=True, editable=False, verbose_name="Уникальный номер")
 
     status = models.CharField(max_length=30, choices=PAYMENT_STATUS_CHOICES, default=PAYMENT_STATUS_PENDING,
@@ -49,7 +50,7 @@ class Payment(models.Model):
                                    verbose_name="Описание платежа")  # Дополнительное описание платежа
 
     def __str__(self):
-        return f'{self.user.username} - {self.status}'
+        return f'{self.created_by.username} - {self.status}'
 
     class Meta:
         verbose_name = "Платёж"
