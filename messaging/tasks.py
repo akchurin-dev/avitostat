@@ -14,6 +14,8 @@ import subprocess
 import os
 from datetime import datetime
 
+from payments.utils import waste_of_balance
+
 
 @celery_app.task(name='messaging.tasks.db_backup_auto_creator_task')
 def db_backup_auto_creator_task():
@@ -52,7 +54,12 @@ def bad_messaging_week_report_async_task(only_for_users=None, test_from_prod=Fal
     async_to_sync(bad_messaging_week_report_async)(only_for_users=only_for_users, test_from_prod=test_from_prod)
 
 
-async def bad_messaging_week_report_async(test_from_prod: bool = False, only_for_users=None):
+@celery_app.task(name='messaging.tasks.bad_messaging_week_report_async_task_auto_generated')
+def bad_messaging_week_report_async_task_auto_generated(only_for_users=None, test_from_prod=False, auto_generated=True):
+    async_to_sync(bad_messaging_week_report_async)(only_for_users=only_for_users, test_from_prod=test_from_prod, auto_generated=auto_generated)
+
+
+async def bad_messaging_week_report_async(only_for_users=None, test_from_prod: bool = False, auto_generated=False):
     # Queryset filtering logic
     if only_for_users is None:
         all_avito_accounts = await sync_to_async(list)(AvitoAccount.objects.filter(
@@ -84,6 +91,7 @@ async def bad_messaging_week_report_async(test_from_prod: bool = False, only_for
     for avito_account in all_avito_accounts:
         print(avito_account.name)
         pdf_path = None
+        balance_decrease = 0
         tokens = {"completion": -99, "prompt": -99}  # default values
         try:
             pdf_path, tokens = await get_messaging_week_report_pdf(avito_account.id, test_from_prod)
@@ -96,6 +104,12 @@ async def bad_messaging_week_report_async(test_from_prod: bool = False, only_for
                         document=types.FSInputFile(pdf_path))
                     success = True
                     error_message = None
+                    if auto_generated and (not test_from_prod):
+                        balance_decrease = 500
+                        campaign.auto_generated = True
+                        await campaign.asave()
+                        await waste_of_balance(avito_account, balance_decrease)
+
                 except Exception as send_error:
                     sentry_sdk.capture_exception(send_error)
                     print(send_error)
@@ -120,6 +134,7 @@ async def bad_messaging_week_report_async(test_from_prod: bool = False, only_for
             timestamp=timezone.now(),
             tokens_completion=tokens.get("completion"),
             tokens_prompt=tokens.get("prompt"),
+            balance_decrease=balance_decrease,
         )
 
 

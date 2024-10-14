@@ -187,12 +187,12 @@ CELERY_TIMEZONE = 'UTC'
 if ENVIRONMENT == 'PRODUCTION':
     CELERY_BEAT_SCHEDULE = {
         'bad_messaging_week_report_task': {
-            'task': 'messaging.tasks.bad_messaging_week_report_async_task',
+            'task': 'messaging.tasks.bad_messaging_week_report_async_task_auto_generated',
             'schedule': crontab(hour=6, minute=0, day_of_week=5),
         },
 
         'send_text_report_all_async_task': {
-            'task': 'conversion.tasks.send_text_report_all_async_task',
+            'task': 'conversion.tasks.send_text_report_all_async_task_auto_generated',
             'schedule': crontab(day_of_week='mon', hour=10, minute=0),
         },
 
@@ -209,10 +209,14 @@ if ENVIRONMENT == 'PRODUCTION':
     }
 else:
     CELERY_BEAT_SCHEDULE = {
-        # 'db_auto_creator_task': {
-        #     'task': 'messaging.tasks.db_backup_auto_creator_task',
-        #     'schedule': crontab(hour=6, minute=25),
-        # },
+        'bad_messaging_week_report_task_auto': {
+            'task': 'messaging.tasks.bad_messaging_week_report_async_task_auto_generated',
+            'schedule': 150.0,
+        },
+        'send_text_report_all_async_task': {
+            'task': 'conversion.tasks.send_text_report_all_async_task_auto_generated',
+            'schedule': 10.0,
+        },
         # 'bad_messaging_week_report_task_DEBUG': {
         #     'task': 'messaging.tasks.bad_messaging_week_report_async_task',
         #     'schedule': 150.0,  #  каждые 100 секунд

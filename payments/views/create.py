@@ -59,7 +59,7 @@ class PaymentCreateView(View):
         months_count = int(kwargs.get('months'))
 
         if settings.ENVIRONMENT == "DEVELOPMENT":  # TODO change script filling test DB and remove this code
-            active_accounts = 5
+            active_accounts = 31
 
         rate = PRICE.get_rate(active_accounts=active_accounts)
         price = PRICE.get_price(rate=rate)

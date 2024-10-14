@@ -187,6 +187,8 @@ class SendingCampaign(models.Model):  # Не BaseModel тк рассылки о�
     accounts_presented = models.ManyToManyField(AvitoAccount, related_name="campaigns_presented", blank=True,
                                                 verbose_name="Аккаунты к анализу")
 
+    auto_generated = models.BooleanField(default=False, verbose_name="Автоматически")
+
     class Meta:
         verbose_name = "Рассылка"
         verbose_name_plural = "Рассылки"
@@ -206,6 +208,8 @@ class SendingReport(models.Model):  # Не BaseModel тк репорпты до�
 
     tokens_completion = models.IntegerField(default=0, verbose_name="Токены на вычисления")
     tokens_prompt = models.IntegerField(default=0, verbose_name="Токены на контекст")
+
+    balance_decrease = models.IntegerField(default=0, verbose_name="К списанию с баланса")
 
     class Meta:
         verbose_name = "Отчёт о рассылке"

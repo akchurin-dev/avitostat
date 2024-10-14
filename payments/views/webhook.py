@@ -40,7 +40,7 @@ class WebhookView(View):
     def update_balance(self, request, object: dict):
         payment = Payment.objects.get(uuid=object.get("id"))
         user_profile = UserProfile.objects.get_or_create(user_id=payment.created_by.id)[0]
-        user_profile.balance += payment.amount
+        user_profile.balance += payment.balance_tokens
         user_profile.save()
 
     def post(self, request):

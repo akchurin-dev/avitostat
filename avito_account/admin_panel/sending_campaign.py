@@ -22,7 +22,7 @@ class SendingReportInline(admin.TabularInline):
 class SendingCampaignAdmin(admin.ModelAdmin):
     inlines = [SendingReportInline]
     list_display = ['sending_type', 'created_at', 'test_from_prod', 'name', ]
-    list_filter = ['accounts_presented', 'sending_type', 'test_from_prod', 'created_at']
+    list_filter = ['accounts_presented', 'sending_type', 'test_from_prod', 'created_at', 'auto_generated']
     search_fields = ['name']
 
     def get_queryset(self, request):
@@ -41,8 +41,9 @@ class SendingCampaignAdmin(admin.ModelAdmin):
 
 
 class SendingReportAdmin(admin.ModelAdmin):
-    list_filter = (ContragentFilter, TestFromProdFilter, 'avito_account', 'success', 'timestamp', )
-    list_display = ['avito_account', 'tokens_completion', 'tokens_prompt', 'tokens_price', 'timestamp']
+    list_filter = (ContragentFilter, TestFromProdFilter, 'avito_account', 'success', 'timestamp',)
+    list_display = ['avito_account', 'tokens_completion', 'tokens_prompt', 'tokens_price', 'timestamp',
+                    'balance_decrease']
 
     def has_module_permission(self, request):
         return request.user.is_superuser
@@ -79,11 +80,12 @@ class SendingReportAdmin(admin.ModelAdmin):
             total_tokens_completion = qs.aggregate(Sum('tokens_completion'))['tokens_completion__sum'] or 0
             total_tokens_prompt = qs.aggregate(Sum('tokens_prompt'))['tokens_prompt__sum'] or 0
             total_tokens_price = qs.aggregate(Sum('tokens_price'))['tokens_price__sum'] or 0
+            total_balance_decrease = qs.aggregate(Sum('balance_decrease'))['balance_decrease__sum'] or 0
 
             # Передаем итоговые суммы в контекст
             response.context_data['total_tokens_completion'] = total_tokens_completion
             response.context_data['total_tokens_prompt'] = total_tokens_prompt
             response.context_data['total_tokens_price'] = round(total_tokens_price, 1)
+            response.context_data['total_balance_decrease'] = round(total_balance_decrease, 1)
 
         return response
-
