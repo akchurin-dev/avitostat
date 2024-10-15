@@ -33,11 +33,16 @@ class UserProfileInline(admin.TabularInline):
 
 
 class PaymentAdmin(SuperModelAdmin):
-    pass
+    list_display = ('created_by', 'amount', 'balance_tokens', 'created_at', 'status')
+    list_filter = ('status',)
+
+    def get_queryset(self, request):
+        return super().get_queryset(request).filter(paid=True, status=Payment.PAYMENT_STATUS_SUCCEEDED)
 
 
 class UserProfileAdmin(SuperModelAdmin):
-    pass
+    def get_queryset(self, request):
+        return super().get_queryset(request).filter(user=request.user)
 
 
 # Register your models here.

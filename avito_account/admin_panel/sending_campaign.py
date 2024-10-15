@@ -25,37 +25,19 @@ class SendingCampaignAdmin(SuperModelAdmin):
     inlines = [SendingReportInline]
     list_display = ['name', 'sending_type', 'auto_generated', 'test_from_prod', 'created_at', ]
     list_filter = ['accounts_presented', 'sending_type', 'test_from_prod', 'created_at', 'auto_generated']
-    search_fields = ['name']
 
     def get_queryset(self, request):
-        # Получаем исходный queryset
         queryset = super().get_queryset(request)
-        # Если пользователь суперпользователь, то показываем все записи
         if request.user.is_superuser:
             return queryset
-        # Получаем все аккаунты, созданные текущим пользователем
         user_accounts = AvitoAccount.objects.filter(created_by=request.user)
-        # Фильтруем рассылки, в которых в поле `accounts_presented` есть аккаунты, созданные этим пользователем
-        return queryset.filter(
-            accounts_presented__in=user_accounts,
-            test_from_prod=False,
-        ).distinct()
-
-    def changelist_view(self, request, extra_context=None):
-        if not request.GET.get('auto_generated'):
-            # Копируем параметры запроса и добавляем auto_generated=True
-            request.GET = request.GET.copy()
-            request.GET['auto_generated'] = 'True'
-        return super().changelist_view(request, extra_context)
+        return queryset.filter(accounts_presented__in=user_accounts).distinct()
 
 
-class SendingReportAdmin(admin.ModelAdmin):
+class SendingReportAdmin(SuperModelAdmin):
     list_filter = (ContragentFilter, TestFromProdFilter, 'avito_account', 'success', 'timestamp',)
-    list_display = ['avito_account', 'tokens_completion', 'tokens_prompt', 'tokens_price', 'timestamp',
+    list_display = ['avito_account', 'success', 'tokens_completion', 'tokens_prompt', 'tokens_price', 'timestamp',
                     'balance_decrease']
-
-    def has_module_permission(self, request):
-        return request.user.is_superuser
 
     def get_queryset(self, request):
         qs = super().get_queryset(request)

@@ -50,7 +50,7 @@ class Payment(BaseModel):
                                    verbose_name="Описание платежа")  # Дополнительное описание платежа
 
     def __str__(self):
-        return f'{self.created_by.username} - {self.status}'
+        return f'{self.created_by.username}'
 
     class Meta:
         verbose_name = "Платёж"
