@@ -5,6 +5,8 @@ from avito_account.admin_panel.filters import ContragentFilter, TestFromProdFilt
 from avito_account.models.models import AvitoAccount, SendingCampaign, SendingReport
 from django.db.models import Sum, F, ExpressionWrapper, FloatField
 
+from payments.admin import SuperModelAdmin
+
 
 class SendingReportInline(admin.TabularInline):
     model = SendingReport
@@ -19,9 +21,9 @@ class SendingReportInline(admin.TabularInline):
         return fields
 
 
-class SendingCampaignAdmin(admin.ModelAdmin):
+class SendingCampaignAdmin(SuperModelAdmin):
     inlines = [SendingReportInline]
-    list_display = ['sending_type', 'created_at', 'test_from_prod', 'name', ]
+    list_display = ['name', 'sending_type', 'auto_generated', 'test_from_prod', 'created_at', ]
     list_filter = ['accounts_presented', 'sending_type', 'test_from_prod', 'created_at', 'auto_generated']
     search_fields = ['name']
 
@@ -32,12 +34,19 @@ class SendingCampaignAdmin(admin.ModelAdmin):
         if request.user.is_superuser:
             return queryset
         # Получаем все аккаунты, созданные текущим пользователем
-        user_created_accounts = AvitoAccount.objects.filter(created_by=request.user)
+        user_accounts = AvitoAccount.objects.filter(created_by=request.user)
         # Фильтруем рассылки, в которых в поле `accounts_presented` есть аккаунты, созданные этим пользователем
         return queryset.filter(
-            accounts_presented__in=user_created_accounts,
+            accounts_presented__in=user_accounts,
             test_from_prod=False,
         ).distinct()
+
+    def changelist_view(self, request, extra_context=None):
+        if not request.GET.get('auto_generated'):
+            # Копируем параметры запроса и добавляем auto_generated=True
+            request.GET = request.GET.copy()
+            request.GET['auto_generated'] = 'True'
+        return super().changelist_view(request, extra_context)
 
 
 class SendingReportAdmin(admin.ModelAdmin):
@@ -59,7 +68,7 @@ class SendingReportAdmin(admin.ModelAdmin):
         )
 
         return queryset.filter(
-            campaign__sending_type=SendingCampaign.PDF,
+            # campaign__sending_type=SendingCampaign.PDF,
             success=True
         )
 
@@ -72,7 +81,7 @@ class SendingReportAdmin(admin.ModelAdmin):
         response = super().changelist_view(request, extra_context=extra_context)
 
         # Убедимся, что response — это TemplateResponse
-        if isinstance(response, TemplateResponse):
+        if isinstance(response, TemplateResponse) and 'cl' in response.context_data:
             # Получаем отфильтрованный queryset
             qs = response.context_data['cl'].queryset
 

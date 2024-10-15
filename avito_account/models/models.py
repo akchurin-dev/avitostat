@@ -178,7 +178,7 @@ class SendingCampaign(models.Model):  # Не BaseModel тк рассылки о�
     ]
 
     name = models.CharField(max_length=255, verbose_name="Название рассылки")
-    test_from_prod = models.BooleanField(default=False, verbose_name="Тестирование с прода")
+    test_from_prod = models.BooleanField(default=False, verbose_name="Тест")
     sending_type = models.CharField(max_length=3, choices=SENDING_TYPE_CHOICES, default=PDF,
                                     verbose_name="Тип рассылки")
     created_at = models.DateTimeField(default=timezone.now, verbose_name="Когда создано")
