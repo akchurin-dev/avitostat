@@ -1,7 +1,8 @@
 from django.contrib.auth.models import User
+from django.core.exceptions import ValidationError
 from django.db import models
 
-from avito_account.models.models import BaseModel, AvitoAccount
+from avito_account.models.models import BaseModel, AvitoAccount, SendingReport
 
 
 class UserProfile(models.Model):
@@ -14,23 +15,6 @@ class UserProfile(models.Model):
     class Meta:
         verbose_name = "Профиль пользователя"
         verbose_name_plural = "Профиль"
-
-
-class BalanceHistory(models.Model):
-    BALANCE_INCOMING = 'incoming'
-    BALANCE_OUTGOING = 'outgoing'
-
-    BALANCE_HISTORY_TYPE_CHOICES = (
-        ('incoming', 'Пополнение'),
-        ('outgoing', 'Списание'),
-    )
-
-    avito_account = models.ForeignKey(AvitoAccount, on_delete=models.CASCADE)
-    user_profile = models.OneToOneField(UserProfile, on_delete=models.CASCADE)
-    type = models.CharField(max_length=30, choices=BALANCE_HISTORY_TYPE_CHOICES,
-                            verbose_name="Тип действия")
-    amount = models.FloatField(default=0)
-    created_at = models.DateTimeField(auto_now_add=True)
 
 
 class Payment(BaseModel):
@@ -72,3 +56,33 @@ class Payment(BaseModel):
     class Meta:
         verbose_name = "Пополнение"
         verbose_name_plural = "Пополнения"
+
+
+class BalanceHistory(models.Model):
+    BALANCE_INCOMING = 'incoming'
+    BALANCE_OUTGOING = 'outgoing'
+
+    BALANCE_HISTORY_TYPE_CHOICES = (
+        ('incoming', 'Пополнение'),
+        ('outgoing', 'Списание'),
+    )
+
+    avito_account = models.ForeignKey(AvitoAccount, on_delete=models.CASCADE)
+    user_profile = models.OneToOneField(UserProfile, on_delete=models.CASCADE)
+    type = models.CharField(max_length=30, choices=BALANCE_HISTORY_TYPE_CHOICES,
+                            verbose_name="Тип действия")
+    amount = models.FloatField(default=0)
+
+    payment = models.ForeignKey(Payment, on_delete=models.CASCADE)
+    sending_report = models.ForeignKey(SendingReport, on_delete=models.CASCADE)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def clean(self):
+        # Проверяем, что заполнено одно и только одно из полей: либо payment, либо sending_report
+        if (self.payment and self.sending_report) or (not self.payment and not self.sending_report):
+            raise ValidationError("Укажите либо 'payment', либо 'sending_report', но не оба одновременно.")
+
+    def save(self, *args, **kwargs):
+        # Вызываем метод clean() перед сохранением
+        self.clean()
+        super().save(*args, **kwargs)
