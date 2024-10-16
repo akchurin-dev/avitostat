@@ -34,10 +34,15 @@ class SendingCampaignAdmin(SuperModelAdmin):
         return queryset.filter(accounts_presented__in=user_accounts).distinct()
 
 
-class SendingReportAdmin(SuperModelAdmin):
+class SendingReportAdmin(admin.ModelAdmin):
     list_filter = (ContragentFilter, TestFromProdFilter, 'avito_account', 'success', 'timestamp',)
-    list_display = ['avito_account', 'success', 'tokens_completion', 'tokens_prompt', 'tokens_price', 'timestamp',
-                    'balance_decrease']
+
+    def get_list_display(self, request):
+        # Определяем, какие поля отображать в зависимости от прав пользователя
+        base_display = ['avito_account', 'success', 'timestamp', 'balance_decrease']
+        if request.user.is_superuser:
+            return base_display + ['tokens_completion', 'tokens_prompt', 'tokens_price']
+        return base_display
 
     def get_queryset(self, request):
         qs = super().get_queryset(request)

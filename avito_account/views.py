@@ -16,7 +16,7 @@ class CallbackView(View):
             state_dict = json.loads(state)
             created_by_id = state_dict.get("created_by_id", None)
             if code:
-                avito_account = create_or_update_avito_account(code=code, created_by_id=int(created_by_id))
+                create_or_update_avito_account(code=code, created_by_id=int(created_by_id))
                 # items_to_db(avito_account) # надо сделать всё асинхронно если есть в записи айтемов необходимость
                 return JsonResponse({"message": "Hello, you will redirect"})
             else:

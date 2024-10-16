@@ -215,7 +215,7 @@ else:
         },
         'send_text_report_all_async_task': {
             'task': 'conversion.tasks.send_text_report_all_async_task_auto_generated',
-            'schedule': 10.0,
+            'schedule': 100.0,
         },
         # 'bad_messaging_week_report_task_DEBUG': {
         #     'task': 'messaging.tasks.bad_messaging_week_report_async_task',
