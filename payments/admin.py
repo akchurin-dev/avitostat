@@ -23,21 +23,22 @@ class SuperModelAdmin(admin.ModelAdmin):  # ТОЛЬКО ПРОСМОТР ДЛЯ
             return False
 
 
-class UserProfileInline(admin.TabularInline):
-    model = UserProfile
-    verbose_name_plural = 'Профиль пользователя'
-    extra = 0
-    can_delete = False
-    can_create = False
-    can_edit = False
-
-
 class PaymentAdmin(SuperModelAdmin):
     list_display = ('created_by', 'amount', 'balance_tokens', 'created_at', 'status')
     list_filter = ('status',)
 
     def get_queryset(self, request):
         return super().get_queryset(request).filter(paid=True, status=Payment.PAYMENT_STATUS_SUCCEEDED)
+
+
+class PaymentInline(admin.TabularInline):
+    model = Payment
+    extra = 1
+    fields = ['status', 'currency', 'amount', 'created_at']
+
+    def get_queryset(self, request):
+        qs = super().get_queryset(request)
+        return qs.filter(created_by=request.user)
 
 
 class UserProfileAdmin(SuperModelAdmin):

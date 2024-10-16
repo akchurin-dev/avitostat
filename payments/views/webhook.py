@@ -1,6 +1,7 @@
 import json
 
 from dateutil.parser import parse
+from django.core.exceptions import ObjectDoesNotExist
 from django.http import HttpResponse
 from django.utils.decorators import method_decorator
 from django.views import View
@@ -12,8 +13,10 @@ from payments.models import Payment, UserProfile
 @method_decorator(csrf_exempt, name='dispatch')
 class WebhookView(View):
     def update_payment(self, object: dict):
-        payment = Payment.objects.get(uuid=object.get("id"))
-
+        try:
+            payment = Payment.objects.get(uuid=object.get("id"))
+        except ObjectDoesNotExist:
+            return
         # Обновление полей платежа с проверкой на наличие значений
         payment.status = object.get("status", payment.status)  # Оставляем текущее значение, если нет нового
         payment.currency = object.get("amount", {}).get("currency", payment.currency)

@@ -1,7 +1,7 @@
 from django.contrib.auth.models import User
 from django.db import models
 
-from avito_account.models.models import BaseModel
+from avito_account.models.models import BaseModel, AvitoAccount
 
 
 class UserProfile(models.Model):
@@ -13,7 +13,24 @@ class UserProfile(models.Model):
 
     class Meta:
         verbose_name = "Профиль пользователя"
-        verbose_name_plural = "Профили пользователей"
+        verbose_name_plural = "Профиль"
+
+
+class BalanceHistory(models.Model):
+    BALANCE_INCOMING = 'incoming'
+    BALANCE_OUTGOING = 'outgoing'
+
+    BALANCE_HISTORY_TYPE_CHOICES = (
+        ('incoming', 'Пополнение'),
+        ('outgoing', 'Списание'),
+    )
+
+    avito_account = models.ForeignKey(AvitoAccount, on_delete=models.CASCADE)
+    user_profile = models.OneToOneField(UserProfile, on_delete=models.CASCADE)
+    type = models.CharField(max_length=30, choices=BALANCE_HISTORY_TYPE_CHOICES,
+                            verbose_name="Тип действия")
+    amount = models.FloatField(default=0)
+    created_at = models.DateTimeField(auto_now_add=True)
 
 
 class Payment(BaseModel):
@@ -53,5 +70,5 @@ class Payment(BaseModel):
         return f'{self.created_by.username}'
 
     class Meta:
-        verbose_name = "Платёж"
-        verbose_name_plural = "Платежи"
+        verbose_name = "Пополнение"
+        verbose_name_plural = "Пополнения"
