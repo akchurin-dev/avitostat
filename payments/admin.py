@@ -1,6 +1,5 @@
 from django.contrib import admin
-
-from payments.models import Payment, UserProfile
+from payments.models import Payment, UserProfile, BalanceHistory
 
 
 class SuperModelAdmin(admin.ModelAdmin):  # ТОЛЬКО ПРОСМОТР ДЛЯ НЕСУПЕРОВ
@@ -41,7 +40,27 @@ class PaymentInline(admin.TabularInline):
         return qs.filter(created_by=request.user)
 
 
+class BalanceHistoryInline(admin.TabularInline):
+    model = BalanceHistory
+    can_delete = False
+    extra = 0
+
+    fields = ['type', 'payment', 'sending_report']
+
+    def get_queryset(self, request):
+        qs = super().get_queryset(request)
+        return qs.filter(user_profile__user=request.user)
+
+    def has_change_permission(self, request, obj=None):
+        return False
+
+    def has_delete_permission(self, request, obj=None):
+        return False
+
+
 class UserProfileAdmin(SuperModelAdmin):
+    inlines = [BalanceHistoryInline]
+
     def get_queryset(self, request):
         return super().get_queryset(request).filter(user=request.user)
 

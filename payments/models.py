@@ -1,20 +1,8 @@
 from django.contrib.auth.models import User
-from django.core.exceptions import ValidationError
+from django.core.exceptions import ValidationError, ObjectDoesNotExist
 from django.db import models
-
+from dateutil.parser import parse
 from avito_account.models.models import BaseModel, AvitoAccount, SendingReport
-
-
-class UserProfile(models.Model):
-    user = models.OneToOneField(User, on_delete=models.CASCADE)
-    balance = models.FloatField(default=0)
-
-    def __str__(self):
-        return f"{self.user.username} - баланс {self.balance}"
-
-    class Meta:
-        verbose_name = "Профиль пользователя"
-        verbose_name_plural = "Профиль"
 
 
 class Payment(BaseModel):
@@ -51,11 +39,65 @@ class Payment(BaseModel):
                                    verbose_name="Описание платежа")  # Дополнительное описание платежа
 
     def __str__(self):
-        return f'{self.created_by.username}'
+        return f'{self.balance_tokens} , {self.status}'
 
     class Meta:
         verbose_name = "Пополнение"
         verbose_name_plural = "Пополнения"
+
+    def update_by_object(object: dict):
+        try:
+            payment = Payment.objects.get(uuid=object.get("id"))
+        except ObjectDoesNotExist:
+            return
+        # Обновление полей платежа с проверкой на наличие значений
+        payment.status = object.get("status", payment.status)  # Оставляем текущее значение, если нет нового
+        payment.currency = object.get("amount", {}).get("currency", payment.currency)
+        payment.amount = float(object.get("amount", {}).get("value", payment.amount))
+        payment.income_amount = float(object.get("income_amount", {}).get("value", payment.income_amount))
+
+        payment.payment_method = object.get("payment_method", {}).get("type", payment.payment_method)
+
+        payment.created_at = parse(object.get("created_at", payment.created_at))  # Дата создания платежа
+        payment.updated_at = parse(object.get("captured_at", payment.updated_at))  # Дата списания платежа
+
+        payment.test = bool(object.get("test", payment.test))  # Оставляем текущее значение, если нет нового
+        payment.paid = bool(object.get("paid", payment.paid))  # Оставляем текущее значение, если нет нового
+
+        # Установка URL подтверждения, если он присутствует
+        if "confirmation_url" in object:
+            payment.confirmation_url = object.get("confirmation_url")
+
+        payment.description = object.get("description",
+                                         payment.description)  # Оставляем текущее значение, если нет нового
+
+        payment.save()
+
+
+class UserProfile(models.Model):
+    user = models.OneToOneField(User, on_delete=models.CASCADE)
+    balance = models.FloatField(default=0)
+
+    def __str__(self):
+        return f"{self.user.username} - баланс {self.balance}"
+
+    class Meta:
+        verbose_name = "Профиль пользователя"
+        verbose_name_plural = "Профиль"
+
+    def update_balance_by_object(object: dict):
+        #TODO Если необходимо можно реализовать логику зависящую от BalanceHistory.type(+/-)
+        payment = Payment.objects.get(uuid=object.get("id"))
+        user_profile = UserProfile.objects.get_or_create(user_id=payment.created_by.id)[0]
+        user_profile.balance += payment.balance_tokens
+        user_profile.save()
+
+        BalanceHistory.objects.create(
+            user_profile=user_profile,
+            payment=payment,
+            type=BalanceHistory.BALANCE_INCOMING,
+            amount_tokens=payment.balance_tokens
+        )
 
 
 class BalanceHistory(models.Model):
@@ -67,20 +109,32 @@ class BalanceHistory(models.Model):
         ('outgoing', 'Списание'),
     )
 
-    avito_account = models.ForeignKey(AvitoAccount, on_delete=models.CASCADE)
-    user_profile = models.OneToOneField(UserProfile, on_delete=models.CASCADE)
+    avito_account = models.ForeignKey(AvitoAccount, on_delete=models.CASCADE, blank=True, null=True, )
+    user_profile = models.ForeignKey(UserProfile, on_delete=models.CASCADE)  # for inline viewing in UserProfileAdmin
     type = models.CharField(max_length=30, choices=BALANCE_HISTORY_TYPE_CHOICES,
                             verbose_name="Тип действия")
-    amount = models.FloatField(default=0)
+    amount_tokens = models.FloatField(default=0, verbose_name="Сумма")
 
     payment = models.ForeignKey(Payment, on_delete=models.CASCADE)
-    sending_report = models.ForeignKey(SendingReport, on_delete=models.CASCADE)
+    sending_report = models.ForeignKey(SendingReport, on_delete=models.CASCADE, blank=True, null=True, )
     created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        verbose_name = "Операция с балансом"
+        verbose_name_plural = "Операции с балансом"
 
     def clean(self):
         # Проверяем, что заполнено одно и только одно из полей: либо payment, либо sending_report
         if (self.payment and self.sending_report) or (not self.payment and not self.sending_report):
             raise ValidationError("Укажите либо 'payment', либо 'sending_report', но не оба одновременно.")
+
+        # Проверка, если указан платёж, то поле avito_account должно быть пустым
+        if self.payment and self.avito_account:
+            raise ValidationError("Если указан платёж, поле 'Avito аккаунт' должно быть пустым.")
+
+        # Проверка, если указана рассылка, то поле avito_account обязательно должно быть заполнено
+        if self.sending_report and not self.avito_account:
+            raise ValidationError("Если указана рассылка, поле 'Avito аккаунт' должно быть заполнено.")
 
     def save(self, *args, **kwargs):
         # Вызываем метод clean() перед сохранением
