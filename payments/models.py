@@ -85,6 +85,7 @@ class UserProfile(models.Model):
         verbose_name = "Профиль пользователя"
         verbose_name_plural = "Профиль"
 
+
     def update_balance_by_object(object: dict):
         #TODO Если необходимо можно реализовать логику зависящую от BalanceHistory.type(+/-)
         payment = Payment.objects.get(uuid=object.get("id"))

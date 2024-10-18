@@ -24,10 +24,20 @@ class SuperModelAdmin(admin.ModelAdmin):  # ТОЛЬКО ПРОСМОТР ДЛЯ
 
 class PaymentAdmin(SuperModelAdmin):
     list_display = ('created_by', 'amount', 'balance_tokens', 'created_at', 'status')
-    list_filter = ('status',)
+    list_filter = ('status', "test")
 
     def get_queryset(self, request):
-        return super().get_queryset(request).filter(paid=True, status=Payment.PAYMENT_STATUS_SUCCEEDED)
+        if request.user.is_superuser:
+            return super().get_queryset(request).filter(
+                paid=True,
+                status=Payment.PAYMENT_STATUS_SUCCEEDED,
+            )
+        else:
+            return super().get_queryset(request).filter(
+                paid=True,
+                status=Payment.PAYMENT_STATUS_SUCCEEDED,
+                created_by=request.user,
+            )
 
 
 class PaymentInline(admin.TabularInline):
@@ -51,18 +61,21 @@ class BalanceHistoryInline(admin.TabularInline):
         qs = super().get_queryset(request)
         return qs.filter(user_profile__user=request.user)
 
-    def has_change_permission(self, request, obj=None):
-        return False
-
-    def has_delete_permission(self, request, obj=None):
-        return False
+    # def has_change_permission(self, request, obj=None):
+    #     return False
+    #
+    # def has_delete_permission(self, request, obj=None):
+    #     return False
 
 
 class UserProfileAdmin(SuperModelAdmin):
     inlines = [BalanceHistoryInline]
 
     def get_queryset(self, request):
-        return super().get_queryset(request).filter(user=request.user)
+        if request.user.is_superuser:
+            return super().get_queryset(request)
+        else:
+            return super().get_queryset(request).filter(user=request.user)
 
 
 # Register your models here.
