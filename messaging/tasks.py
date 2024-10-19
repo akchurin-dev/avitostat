@@ -133,15 +133,9 @@ async def bad_messaging_week_report_async(only_for_users=None, test_from_prod: b
             error_message = str(e)[:255]
 
         await SendingReport.objects.acreate(
-            avito_account=avito_account,
-            campaign=campaign,
-            success=success,
-            error_message=error_message,
-            pdf_path=pdf_path,
-            timestamp=timezone.now(),
-            tokens_completion=tokens.get("completion"),
-            tokens_prompt=tokens.get("prompt"),
-            balance_decrease=balance_decrease,
+            avito_account=avito_account, campaign=campaign, success=success, balance_decrease=balance_decrease,
+            error_message=error_message, pdf_path=pdf_path, timestamp=timezone.now(),
+            tokens_completion=tokens.get("completion"), tokens_prompt=tokens.get("prompt"),
         )
 
 

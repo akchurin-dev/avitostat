@@ -56,7 +56,6 @@ class SendingReport(models.Model):  # Не BaseModel тк репорпты до�
 
     def save(self, force_insert=False, force_update=False, using=None, update_fields=None):
         super().save(force_insert, force_update, using, update_fields)
-        print("IM HEREEEEEEEE")
 
         current_user_profile, _ = UserProfile.objects.get_or_create(user_id=self.avito_account.created_by_id)
         # TODO If there are multiple amounts for different deduction operations, additional logic will
@@ -70,5 +69,3 @@ class SendingReport(models.Model):  # Не BaseModel тк репорпты до�
                 amount_tokens=self.balance_decrease,
                 sending_report=self,
             )
-
-
