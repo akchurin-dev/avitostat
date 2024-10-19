@@ -2,9 +2,10 @@ from django.contrib import admin
 from django.forms import FloatField
 from django.template.response import TemplateResponse
 from avito_account.admin_panel.filters import ContragentFilter, TestFromProdFilter
-from avito_account.models.models import AvitoAccount, SendingCampaign, SendingReport
+from avito_account.models.models import AvitoAccount
 from django.db.models import Sum, F, ExpressionWrapper, FloatField
 
+from avito_account.models.sending_report import SendingReport
 from payments.admin import SuperModelAdmin
 
 

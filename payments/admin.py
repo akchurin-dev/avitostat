@@ -52,20 +52,23 @@ class PaymentInline(admin.TabularInline):
 
 class BalanceHistoryInline(admin.TabularInline):
     model = BalanceHistory
-    can_delete = False
     extra = 0
-
-    fields = ['type', 'payment', 'sending_report']
 
     def get_queryset(self, request):
         qs = super().get_queryset(request)
         return qs.filter(user_profile__user=request.user)
 
-    # def has_change_permission(self, request, obj=None):
-    #     return False
-    #
-    # def has_delete_permission(self, request, obj=None):
-    #     return False
+    def has_change_permission(self, request, obj=None):
+        if request.user.is_superuser:
+            return True
+        else:
+            return False
+
+    def has_delete_permission(self, request, obj=None):
+        if request.user.is_superuser:
+            return True
+        else:
+            return False
 
 
 class UserProfileAdmin(SuperModelAdmin):
@@ -81,3 +84,4 @@ class UserProfileAdmin(SuperModelAdmin):
 # Register your models here.
 admin.site.register(Payment, PaymentAdmin)
 admin.site.register(UserProfile, UserProfileAdmin)
+admin.site.register(BalanceHistory)

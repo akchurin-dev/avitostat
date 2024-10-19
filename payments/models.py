@@ -1,8 +1,8 @@
 from django.contrib.auth.models import User
-from django.core.exceptions import ValidationError, ObjectDoesNotExist
+from django.core.exceptions import ObjectDoesNotExist
 from django.db import models
 from dateutil.parser import parse
-from avito_account.models.models import BaseModel, AvitoAccount, SendingReport
+from avito_account.models.models import BaseModel, AvitoAccount
 
 
 class Payment(BaseModel):
@@ -85,7 +85,6 @@ class UserProfile(models.Model):
         verbose_name = "Профиль пользователя"
         verbose_name_plural = "Профиль"
 
-
     def update_balance_by_object(object: dict):
         #TODO Если необходимо можно реализовать логику зависящую от BalanceHistory.type(+/-)
         payment = Payment.objects.get(uuid=object.get("id"))
@@ -116,28 +115,28 @@ class BalanceHistory(models.Model):
                             verbose_name="Тип действия")
     amount_tokens = models.FloatField(default=0, verbose_name="Сумма")
 
-    payment = models.ForeignKey(Payment, on_delete=models.CASCADE)
-    sending_report = models.ForeignKey(SendingReport, on_delete=models.CASCADE, blank=True, null=True, )
+    payment = models.ForeignKey(Payment, on_delete=models.CASCADE, blank=True, null=True)
+    sending_report = models.ForeignKey('avito_account.SendingReport', on_delete=models.CASCADE, blank=True, null=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
         verbose_name = "Операция с балансом"
         verbose_name_plural = "Операции с балансом"
 
-    def clean(self):
-        # Проверяем, что заполнено одно и только одно из полей: либо payment, либо sending_report
-        if (self.payment and self.sending_report) or (not self.payment and not self.sending_report):
-            raise ValidationError("Укажите либо 'payment', либо 'sending_report', но не оба одновременно.")
+    # def clean(self):
+    #     # Проверяем, что заполнено одно и только одно из полей: либо payment, либо sending_report
+    #     if (self.payment and self.sending_report) or (not self.payment and not self.sending_report):
+    #         raise ValidationError("Укажите либо 'payment', либо 'sending_report', но не оба одновременно.")
+    #
+    #     # Проверка, если указан платёж, то поле avito_account должно быть пустым
+    #     if self.payment and self.avito_account:
+    #         raise ValidationError("Если указан платёж, поле 'Avito аккаунт' должно быть пустым.")
+    #
+    #     # Проверка, если указана рассылка, то поле avito_account обязательно должно быть заполнено
+    #     if self.sending_report and not self.avito_account:
+    #         raise ValidationError("Если указана рассылка, поле 'Avito аккаунт' должно быть заполнено.")
 
-        # Проверка, если указан платёж, то поле avito_account должно быть пустым
-        if self.payment and self.avito_account:
-            raise ValidationError("Если указан платёж, поле 'Avito аккаунт' должно быть пустым.")
-
-        # Проверка, если указана рассылка, то поле avito_account обязательно должно быть заполнено
-        if self.sending_report and not self.avito_account:
-            raise ValidationError("Если указана рассылка, поле 'Avito аккаунт' должно быть заполнено.")
-
-    def save(self, *args, **kwargs):
-        # Вызываем метод clean() перед сохранением
-        self.clean()
-        super().save(*args, **kwargs)
+    # def save(self, *args, **kwargs):
+    #     # Вызываем метод clean() перед сохранением
+    #     self.clean()
+    #     super().save(*args, **kwargs)

@@ -3,17 +3,17 @@ import sentry_sdk
 from celery import shared_task
 from asgiref.sync import async_to_sync, sync_to_async
 from django.utils import timezone
-from avito_account.models.models import AvitoAccount, SendingCampaign, SendingReport
+from avito_account.models.models import AvitoAccount
 from telegram_bot import bot
 from aiogram import types
-
+from avito_account.models.sending_report import SendingCampaign, SendingReport
 from base import settings
 from base.celery import celery_app
 from messaging.bad_mes_report.utils_bad_messaging_report import get_messaging_week_report_pdf
 import subprocess
 import os
 from datetime import datetime
-
+from payments.models import UserProfile, BalanceHistory
 from payments.utils import waste_of_balance
 
 
@@ -60,7 +60,7 @@ def bad_messaging_week_report_async_task_auto_generated(only_for_users=None, tes
                                                    auto_generated=auto_generated)
 
 
-async def bad_messaging_week_report_async(only_for_users=None, test_from_prod: bool = False, auto_generated=False):
+async def get_account_for_pdf_reports(only_for_users: list, test_from_prod: bool):
     # Queryset filtering logic
     if only_for_users is None:
         all_avito_accounts = await sync_to_async(list)(AvitoAccount.objects.filter(
@@ -68,17 +68,12 @@ async def bad_messaging_week_report_async(only_for_users=None, test_from_prod: b
             telegram_id__isnull=False))
     else:
         all_avito_accounts = await sync_to_async(list)(AvitoAccount.objects.filter(
-            id__in=only_for_users,
             created_by__is_active=True,
-            telegram_id__isnull=False))
-        if len(all_avito_accounts) == 0:
-            return None
+            telegram_id__isnull=False,
+            id__in=only_for_users, )
+        )
 
-    # DEVELOPMENT testing checking
-    if settings.ENVIRONMENT == 'DEVELOPMENT':
-        test_from_prod = True
-
-    # Create a new SendingCampaign
+        # Create a new SendingCampaign
     campaign = await SendingCampaign.objects.acreate(
         name="weekly",
         test_from_prod=test_from_prod,
@@ -87,6 +82,18 @@ async def bad_messaging_week_report_async(only_for_users=None, test_from_prod: b
         accounts_presented_count=len(all_avito_accounts),
     )
     await sync_to_async(campaign.accounts_presented.add)(*all_avito_accounts)
+    return all_avito_accounts, campaign
+
+
+#TODO change auto_generated=False by default
+async def bad_messaging_week_report_async(only_for_users=None, test_from_prod: bool = True, auto_generated=True):
+    if settings.ENVIRONMENT == 'DEVELOPMENT':
+        test_from_prod = True
+
+    all_avito_accounts, campaign = await get_account_for_pdf_reports(only_for_users=only_for_users, test_from_prod=test_from_prod)
+
+    if len(all_avito_accounts) == 0:
+        return None
 
     # CORE logic
     for avito_account in all_avito_accounts:
@@ -105,13 +112,13 @@ async def bad_messaging_week_report_async(only_for_users=None, test_from_prod: b
                         document=types.FSInputFile(pdf_path))
                     success = True
                     error_message = None
+                    print(auto_generated, test_from_prod)
                     if auto_generated:
                         campaign.auto_generated = True
                         await campaign.asave()
                         if not test_from_prod:
                             balance_decrease = 500
                             await waste_of_balance(avito_account, balance_decrease)
-
 
                 except Exception as send_error:
                     sentry_sdk.capture_exception(send_error)
@@ -128,7 +135,7 @@ async def bad_messaging_week_report_async(only_for_users=None, test_from_prod: b
             error_message = str(e)[:255]
 
         # Save SendingReport
-        await SendingReport.objects.acreate(
+        sending_report = await SendingReport.objects.acreate(
             avito_account=avito_account,
             campaign=campaign,
             success=success,
@@ -139,6 +146,19 @@ async def bad_messaging_week_report_async(only_for_users=None, test_from_prod: b
             tokens_prompt=tokens.get("prompt"),
             balance_decrease=balance_decrease,
         )
+
+        current_user_profile, _ = await UserProfile.objects.aget_or_create(user_id=avito_account.created_by_id)
+        # TODO If there are multiple amounts for different deduction operations, additional logic will
+        # TODO need to be implemented here.
+
+        await BalanceHistory.objects.acreate(
+            avito_account=sending_report.avito_account,
+            user_profile=current_user_profile,
+            type=BalanceHistory.BALANCE_OUTGOING,
+            amount_tokens=500,
+            sending_report=sending_report,
+        )
+        print(123)
 
 
 @shared_task
