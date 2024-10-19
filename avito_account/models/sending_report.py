@@ -54,3 +54,21 @@ class SendingReport(models.Model):  # Не BaseModel тк репорпты до�
     def __str__(self):
         return f"Отчёт о рассылке для {self.avito_account.name} в {self.timestamp}"
 
+    def save(self, force_insert=False, force_update=False, using=None, update_fields=None):
+        super().save(force_insert, force_update, using, update_fields)
+        print("IM HEREEEEEEEE")
+
+        current_user_profile, _ = UserProfile.objects.get_or_create(user_id=self.avito_account.created_by_id)
+        # TODO If there are multiple amounts for different deduction operations, additional logic will
+        # TODO need to be implemented here.
+
+        if self.balance_decrease > 0:
+            BalanceHistory.objects.create(
+                avito_account=self.avito_account,
+                user_profile=current_user_profile,
+                type=BalanceHistory.BALANCE_OUTGOING,
+                amount_tokens=self.balance_decrease,
+                sending_report=self,
+            )
+
+

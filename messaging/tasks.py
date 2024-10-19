@@ -61,7 +61,6 @@ def bad_messaging_week_report_async_task_auto_generated(only_for_users=None, tes
 
 
 async def get_account_for_pdf_reports(only_for_users: list, test_from_prod: bool):
-    # Queryset filtering logic
     if only_for_users is None:
         all_avito_accounts = await sync_to_async(list)(AvitoAccount.objects.filter(
             created_by__is_active=True,
@@ -70,8 +69,7 @@ async def get_account_for_pdf_reports(only_for_users: list, test_from_prod: bool
         all_avito_accounts = await sync_to_async(list)(AvitoAccount.objects.filter(
             created_by__is_active=True,
             telegram_id__isnull=False,
-            id__in=only_for_users, )
-        )
+            id__in=only_for_users, ))
 
         # Create a new SendingCampaign
     campaign = await SendingCampaign.objects.acreate(
@@ -88,7 +86,7 @@ async def get_account_for_pdf_reports(only_for_users: list, test_from_prod: bool
 #TODO change auto_generated=False by default
 async def bad_messaging_week_report_async(only_for_users=None, test_from_prod: bool = True, auto_generated=True):
     if settings.ENVIRONMENT == 'DEVELOPMENT':
-        test_from_prod = True
+        test_from_prod = False
 
     all_avito_accounts, campaign = await get_account_for_pdf_reports(only_for_users=only_for_users, test_from_prod=test_from_prod)
 
@@ -134,8 +132,7 @@ async def bad_messaging_week_report_async(only_for_users=None, test_from_prod: b
             success = False
             error_message = str(e)[:255]
 
-        # Save SendingReport
-        sending_report = await SendingReport.objects.acreate(
+        await SendingReport.objects.acreate(
             avito_account=avito_account,
             campaign=campaign,
             success=success,
@@ -146,19 +143,6 @@ async def bad_messaging_week_report_async(only_for_users=None, test_from_prod: b
             tokens_prompt=tokens.get("prompt"),
             balance_decrease=balance_decrease,
         )
-
-        current_user_profile, _ = await UserProfile.objects.aget_or_create(user_id=avito_account.created_by_id)
-        # TODO If there are multiple amounts for different deduction operations, additional logic will
-        # TODO need to be implemented here.
-
-        await BalanceHistory.objects.acreate(
-            avito_account=sending_report.avito_account,
-            user_profile=current_user_profile,
-            type=BalanceHistory.BALANCE_OUTGOING,
-            amount_tokens=500,
-            sending_report=sending_report,
-        )
-        print(123)
 
 
 @shared_task
