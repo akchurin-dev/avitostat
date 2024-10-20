@@ -59,5 +59,24 @@
         }
     });
 </script>
+    
+<!-- Пустые строки перед кнопкой соглашения -->
+<div style="margin-top: 60px;"></div>
+
+<!-- Текстовая информация с уменьшенным размером шрифта -->
+<div style="text-align: center; margin-bottom: 20px; font-size: 10px;">
+    ИП Дунаев Ришат Рашидович<br>
+    ИНН 164509647007
+</div>
+
+<!-- Кнопка пользовательского соглашения в самом низу -->
+<div style="text-align: center; margin: 20px;">
+    <a href="{% url 'terms_of_service' %}" style="padding: 5px 10px; background-color: #e2e6ea; border-radius: 5px; color: #0056b3; font-weight: bold; text-decoration: none; font-size: 8px;">
+        Польз.соглашение
+    </a>
+</div>
+
+
+    
 {% endif %}
 {% endblock %}

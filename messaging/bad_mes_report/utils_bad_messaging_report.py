@@ -23,7 +23,7 @@ async def get_messaging_week_report_pdf(avito_account_id, test_from_prod: bool):
             ready_chats = await get_ready_chats(avito_account)
             # PROCESSING WITH FILTERED CHATS
             if len(ready_chats) < 2:
-                raise HTTPException(status_code=404, detail="Нет чатов для анализа")
+                raise HTTPException(status_code=404, detail="Нет чатов для анализа, или их менее двух")
                 # return False
             else:
                 analyze_all_chats["chats_count"] = len(ready_chats)

@@ -5,6 +5,7 @@ from django.utils.decorators import method_decorator
 from django.views import View
 from django.views.decorators.csrf import csrf_exempt
 from avito_account.oauth_utils import create_or_update_avito_account
+from django.shortcuts import render
 
 
 @method_decorator(csrf_exempt, name='dispatch')
@@ -22,3 +23,10 @@ class CallbackView(View):
             else:
                 return JsonResponse({"message": "Please provide a code"}, status=400)
 
+
+def terms_of_service(request):
+    return render(request, 'terms_of_service.html')
+
+
+def home(request):
+    return render(request, 'home.html')

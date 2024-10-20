@@ -2,6 +2,8 @@ from django.contrib import admin
 from django.urls import include
 from django.urls import path
 
+from avito_account.views import home, terms_of_service
+
 
 def trigger_error(request):
     division_by_zero = 1 / 0
