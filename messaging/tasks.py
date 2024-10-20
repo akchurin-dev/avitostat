@@ -9,13 +9,11 @@ from aiogram import types
 from avito_account.models.sending_report import SendingCampaign, SendingReport
 from base import settings
 from base.celery import celery_app
-from base.exceptions import HTTPException
 from messaging.bad_mes_report.utils_bad_messaging_report import get_messaging_week_report_pdf
 import subprocess
 import os
 from datetime import datetime
-from payments.models import UserProfile, BalanceHistory
-from payments.utils import waste_of_balance
+from payments.utils import waste_of_balance, check_balance
 
 
 @celery_app.task(name='messaging.tasks.db_backup_auto_creator_task')
@@ -84,15 +82,8 @@ async def get_account_for_pdf_reports(only_for_users: list, test_from_prod: bool
     return all_avito_accounts, campaign
 
 
-@sync_to_async
-def check_balance(avito_account):
-    balance = avito_account.created_by.userprofile.balance
-    if balance < 500:
-        print(f"Недостаточно денег - ({balance})")
-        raise HTTPException(status_code=400, detail=f"Недостаточно денег - ({balance})")
 
-
-#TODO change auto_generated=False by default
+# TODO change auto_generated=False by default
 async def bad_messaging_week_report_async(only_for_users=None, test_from_prod: bool = True, auto_generated=True):
     if settings.ENVIRONMENT == 'DEVELOPMENT':
         test_from_prod = False

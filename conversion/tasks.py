@@ -7,7 +7,7 @@ from avito_account.models.sending_report import SendingCampaign, SendingReport
 from base import settings
 from base.celery import celery_app
 from conversion.utils_from_aiogram import get_week_report_text
-from messaging.tasks import check_balance
+from payments.utils import check_balance
 
 
 async def send_txt_week_report_individual_async(avito_account: AvitoAccount, test_from_prod: bool = False):
