@@ -70,7 +70,6 @@ async def get_account_for_pdf_reports(only_for_users: list, test_from_prod: bool
             telegram_id__isnull=False,
             id__in=only_for_users, ))
 
-        # Create a new SendingCampaign
     campaign = await SendingCampaign.objects.acreate(
         name="weekly",
         test_from_prod=test_from_prod,
@@ -82,24 +81,26 @@ async def get_account_for_pdf_reports(only_for_users: list, test_from_prod: bool
     return all_avito_accounts, campaign
 
 
-
 # TODO change auto_generated=False by default
-async def bad_messaging_week_report_async(only_for_users=None, test_from_prod: bool = True, auto_generated=True):
+async def bad_messaging_week_report_async(only_for_users=None,
+                                          test_from_prod: bool = True,
+                                          auto_generated=True,
+                                          pdf_path=None,
+                                          balance_decrease=0,):
+
     if settings.ENVIRONMENT == 'DEVELOPMENT':
         test_from_prod = False
 
     all_avito_accounts, campaign = await get_account_for_pdf_reports(only_for_users=only_for_users,
-                                                                     test_from_prod=test_from_prod)
+                                                                     test_from_prod=test_from_prod,)
 
-    if len(all_avito_accounts) == 0:
+    if len(all_avito_accounts) == 0:  # will TRY to cut in get_account_for_pdf_reports with raise exception
         return None
 
     # CORE logic
     for avito_account in all_avito_accounts:
+        tokens = {"completion": -99, "prompt": -99}
         print(avito_account.name)
-        pdf_path = None
-        balance_decrease = 0
-        tokens = {"completion": -99, "prompt": -99}  # default values
         try:
             await check_balance(avito_account)
             pdf_path, tokens = await get_messaging_week_report_pdf(avito_account.id, test_from_prod)
@@ -119,7 +120,6 @@ async def bad_messaging_week_report_async(only_for_users=None, test_from_prod: b
                         if not test_from_prod:
                             balance_decrease = 500
                             await waste_of_balance(avito_account, balance_decrease)
-
                 except Exception as send_error:
                     sentry_sdk.capture_exception(send_error)
                     print(send_error)

@@ -1,3 +1,4 @@
+from asgiref.sync import sync_to_async
 from django.contrib.auth.models import User
 from django.core.exceptions import ObjectDoesNotExist
 from django.db import models
@@ -98,6 +99,12 @@ class UserProfile(models.Model):
             type=BalanceHistory.BALANCE_INCOMING,
             amount_tokens=payment.balance_tokens
         )
+
+    async def waste_of_balance(avito_account: AvitoAccount, balance_decrease: int, test_from_prod: bool):
+        if not test_from_prod:
+            user_profile = await sync_to_async(UserProfile.objects.get)(user_id=avito_account.created_by_id)
+            user_profile.balance -= balance_decrease
+            await user_profile.asave()
 
 
 class BalanceHistory(models.Model):

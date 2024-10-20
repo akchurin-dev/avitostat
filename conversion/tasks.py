@@ -1,4 +1,3 @@
-import os
 from asgiref.sync import async_to_sync, sync_to_async
 from django.utils import timezone
 from telegram_bot import bot
