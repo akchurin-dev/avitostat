@@ -126,7 +126,8 @@ docker exec -it avitostata_db psql -U postgres -d template1 -c "DROP DATABASE IF
 docker exec -it avitostata_db psql -U postgres -d template1 -c "CREATE DATABASE postgres;"
 ./manage.py makemigrations
 ./manage.py migrate
-./manage.py populate_db
+
+[//]: # (./manage.py populate_db)
 ./manage.py runserver
 
 
