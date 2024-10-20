@@ -26,7 +26,3 @@ class CallbackView(View):
 
 def terms_of_service(request):
     return render(request, 'terms_of_service.html')
-
-
-def home(request):
-    return render(request, 'home.html')
