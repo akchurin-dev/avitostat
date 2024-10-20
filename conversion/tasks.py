@@ -3,10 +3,11 @@ from asgiref.sync import async_to_sync, sync_to_async
 from django.utils import timezone
 from telegram_bot import bot
 from avito_account.models.models import AvitoAccount
-from avito_account.models.sending_report import SendingCampaign
+from avito_account.models.sending_report import SendingCampaign, SendingReport
 from base import settings
 from base.celery import celery_app
 from conversion.utils_from_aiogram import get_week_report_text
+from messaging.tasks import check_balance
 
 
 async def send_txt_week_report_individual_async(avito_account: AvitoAccount, test_from_prod: bool = False):
@@ -63,6 +64,7 @@ async def send_text_report_all_async(test_from_prod: bool = False,
     for avito_account in avito_accounts:
         print(avito_account.name)
         try:
+            await check_balance(avito_account)
             await send_txt_week_report_individual_async(avito_account, test_from_prod=test_from_prod)
             success = True
             error_message = None

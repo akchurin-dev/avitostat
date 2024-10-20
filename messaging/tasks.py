@@ -9,6 +9,7 @@ from aiogram import types
 from avito_account.models.sending_report import SendingCampaign, SendingReport
 from base import settings
 from base.celery import celery_app
+from base.exceptions import HTTPException
 from messaging.bad_mes_report.utils_bad_messaging_report import get_messaging_week_report_pdf
 import subprocess
 import os
@@ -83,12 +84,21 @@ async def get_account_for_pdf_reports(only_for_users: list, test_from_prod: bool
     return all_avito_accounts, campaign
 
 
+@sync_to_async
+def check_balance(avito_account):
+    balance = avito_account.created_by.userprofile.balance
+    if balance < 500:
+        print(f"Недостаточно денег - ({balance})")
+        raise HTTPException(status_code=400, detail=f"Недостаточно денег - ({balance})")
+
+
 #TODO change auto_generated=False by default
 async def bad_messaging_week_report_async(only_for_users=None, test_from_prod: bool = True, auto_generated=True):
     if settings.ENVIRONMENT == 'DEVELOPMENT':
         test_from_prod = False
 
-    all_avito_accounts, campaign = await get_account_for_pdf_reports(only_for_users=only_for_users, test_from_prod=test_from_prod)
+    all_avito_accounts, campaign = await get_account_for_pdf_reports(only_for_users=only_for_users,
+                                                                     test_from_prod=test_from_prod)
 
     if len(all_avito_accounts) == 0:
         return None
@@ -100,6 +110,7 @@ async def bad_messaging_week_report_async(only_for_users=None, test_from_prod: b
         balance_decrease = 0
         tokens = {"completion": -99, "prompt": -99}  # default values
         try:
+            await check_balance(avito_account)
             pdf_path, tokens = await get_messaging_week_report_pdf(avito_account.id, test_from_prod)
             if pdf_path:
                 chat_id = "-4221870448" if test_from_prod else avito_account.telegram_id
