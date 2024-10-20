@@ -16,38 +16,6 @@ from datetime import datetime
 from payments.utils import waste_of_balance, check_balance
 
 
-@celery_app.task(name='messaging.tasks.db_backup_auto_creator_task')
-def db_backup_auto_creator_task():
-    db_host = settings.DB_HOST
-    db_port = settings.DB_PORT
-    db_user = settings.DB_USER
-    db_name = settings.DB_NAME
-    db_password = settings.DB_PASS
-    backup_dir = '/var/backups/db_backups'
-    backup_filename = f"local_db_dump_{datetime.now().strftime('%Y-%m-%d')}.sql"
-
-    command = [
-        'pg_dump',
-        '-h', db_host,
-        '-p', db_port,
-        '-U', db_user,
-        '-d', db_name,
-        '-F', 'c',
-        '-f', os.path.join(backup_dir, backup_filename)
-    ]
-
-    # Установка переменной окружения для пароля
-    env = os.environ.copy()
-    env['PGPASSWORD'] = db_password
-
-    # Выполнение команды
-    try:
-        subprocess.run(command, env=env, check=True)
-        print(f"Backup successful: {backup_filename}")
-    except subprocess.CalledProcessError as e:
-        print(f"Error during backup: {e}")
-
-
 @celery_app.task(name='messaging.tasks.bad_messaging_week_report_async_task')
 def bad_messaging_week_report_async_task(only_for_users=None, test_from_prod=False):
     async_to_sync(bad_messaging_week_report_async)(only_for_users=only_for_users, test_from_prod=test_from_prod)
@@ -82,18 +50,13 @@ async def get_account_for_pdf_reports(only_for_users: list, test_from_prod: bool
 
 
 # TODO change auto_generated=False by default
-async def bad_messaging_week_report_async(only_for_users=None,
-                                          test_from_prod: bool = True,
-                                          auto_generated=True,
-                                          pdf_path=None,
-                                          balance_decrease=0,):
+async def bad_messaging_week_report_async(only_for_users=None, test_from_prod: bool = True, auto_generated=True,
+                                          pdf_path=None, balance_decrease=0,):
 
     if settings.ENVIRONMENT == 'DEVELOPMENT':
         test_from_prod = False
 
-    all_avito_accounts, campaign = await get_account_for_pdf_reports(only_for_users=only_for_users,
-                                                                     test_from_prod=test_from_prod,)
-
+    all_avito_accounts, campaign = await get_account_for_pdf_reports(only_for_users=only_for_users, test_from_prod=test_from_prod,)
     if len(all_avito_accounts) == 0:  # will TRY to cut in get_account_for_pdf_reports with raise exception
         return None
 
@@ -149,3 +112,35 @@ def bad_mes_report_pdfs_folder_cleaner_task():
 async def bad_mes_report_pdfs_folder_cleaner(folder_path):
     await sync_to_async(shutil.rmtree)(folder_path)
     os.makedirs(folder_path)
+
+
+@celery_app.task(name='messaging.tasks.db_backup_auto_creator_task')
+def db_backup_auto_creator_task():
+    db_host = settings.DB_HOST
+    db_port = settings.DB_PORT
+    db_user = settings.DB_USER
+    db_name = settings.DB_NAME
+    db_password = settings.DB_PASS
+    backup_dir = '/var/backups/db_backups'
+    backup_filename = f"local_db_dump_{datetime.now().strftime('%Y-%m-%d')}.sql"
+
+    command = [
+        'pg_dump',
+        '-h', db_host,
+        '-p', db_port,
+        '-U', db_user,
+        '-d', db_name,
+        '-F', 'c',
+        '-f', os.path.join(backup_dir, backup_filename)
+    ]
+
+    # Установка переменной окружения для пароля
+    env = os.environ.copy()
+    env['PGPASSWORD'] = db_password
+
+    # Выполнение команды
+    try:
+        subprocess.run(command, env=env, check=True)
+        print(f"Backup successful: {backup_filename}")
+    except subprocess.CalledProcessError as e:
+        print(f"Error during backup: {e}")
