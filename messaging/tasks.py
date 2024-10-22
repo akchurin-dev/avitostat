@@ -52,7 +52,7 @@ async def get_account_for_pdf_reports(only_for_users: list, test_from_prod: bool
 # TODO change auto_generated=False by default
 async def bad_messaging_week_report_async(only_for_users=None, test_from_prod: bool = True, auto_generated=True,
                                           pdf_path=None, balance_decrease=0,):
-
+    # TODO change test_from_prod=True
     if settings.ENVIRONMENT == 'DEVELOPMENT':
         test_from_prod = False
 
@@ -76,7 +76,7 @@ async def bad_messaging_week_report_async(only_for_users=None, test_from_prod: b
                         document=types.FSInputFile(pdf_path))
                     success = True
                     error_message = None
-                    print(auto_generated, test_from_prod)
+                    # print(f"auto_generated-{auto_generated}, test_from_prod - {test_from_prod}")
                     if auto_generated:
                         campaign.auto_generated = True
                         await campaign.asave()
