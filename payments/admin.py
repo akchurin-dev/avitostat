@@ -28,14 +28,11 @@ class PaymentAdmin(SuperModelAdmin):
 
     def get_queryset(self, request):
         if request.user.is_superuser:
-            return super().get_queryset(request).filter(
-                paid=True,
-                status=Payment.PAYMENT_STATUS_SUCCEEDED,
-            )
+            return super().get_queryset(request)
         else:
             return super().get_queryset(request).filter(
-                paid=True,
-                status=Payment.PAYMENT_STATUS_SUCCEEDED,
+                # paid=True,
+                # status=Payment.PAYMENT_STATUS_SUCCEEDED,
                 created_by=request.user,
             )
 

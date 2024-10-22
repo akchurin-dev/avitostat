@@ -100,12 +100,6 @@ class UserProfile(models.Model):
             amount_tokens=payment.balance_tokens
         )
 
-    async def waste_of_balance(avito_account: AvitoAccount, balance_decrease: int, test_from_prod: bool):
-        if not test_from_prod:
-            user_profile = await sync_to_async(UserProfile.objects.get)(user_id=avito_account.created_by_id)
-            user_profile.balance -= balance_decrease
-            await user_profile.asave()
-
 
 class BalanceHistory(models.Model):
     BALANCE_INCOMING = 'incoming'
@@ -129,21 +123,3 @@ class BalanceHistory(models.Model):
     class Meta:
         verbose_name = "Операция с балансом"
         verbose_name_plural = "Операции с балансом"
-
-    # def clean(self):
-    #     # Проверяем, что заполнено одно и только одно из полей: либо payment, либо sending_report
-    #     if (self.payment and self.sending_report) or (not self.payment and not self.sending_report):
-    #         raise ValidationError("Укажите либо 'payment', либо 'sending_report', но не оба одновременно.")
-    #
-    #     # Проверка, если указан платёж, то поле avito_account должно быть пустым
-    #     if self.payment and self.avito_account:
-    #         raise ValidationError("Если указан платёж, поле 'Avito аккаунт' должно быть пустым.")
-    #
-    #     # Проверка, если указана рассылка, то поле avito_account обязательно должно быть заполнено
-    #     if self.sending_report and not self.avito_account:
-    #         raise ValidationError("Если указана рассылка, поле 'Avito аккаунт' должно быть заполнено.")
-
-    # def save(self, *args, **kwargs):
-    #     # Вызываем метод clean() перед сохранением
-    #     self.clean()
-    #     super().save(*args, **kwargs)

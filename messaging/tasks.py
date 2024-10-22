@@ -27,7 +27,7 @@ def bad_messaging_week_report_async_task_auto_generated(only_for_users=None, tes
                                                    auto_generated=auto_generated)
 
 
-async def get_account_for_pdf_reports(only_for_users: list, test_from_prod: bool):
+async def get_accounts_for_pdf_reports(only_for_users: list, test_from_prod: bool):
     if only_for_users is None:
         all_avito_accounts = await sync_to_async(list)(AvitoAccount.objects.filter(
             created_by__is_active=True,
@@ -56,7 +56,7 @@ async def bad_messaging_week_report_async(only_for_users=None, test_from_prod: b
     if settings.ENVIRONMENT == 'DEVELOPMENT':
         test_from_prod = False
 
-    all_avito_accounts, campaign = await get_account_for_pdf_reports(only_for_users=only_for_users, test_from_prod=test_from_prod,)
+    all_avito_accounts, campaign = await get_accounts_for_pdf_reports(only_for_users=only_for_users, test_from_prod=test_from_prod, )
     if len(all_avito_accounts) == 0:  # will TRY to cut in get_account_for_pdf_reports with raise exception
         return None
 

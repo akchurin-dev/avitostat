@@ -60,6 +60,9 @@ class PaymentCreateView(View):
 
         if settings.ENVIRONMENT == "DEVELOPMENT":  # TODO change script filling test DB and remove this code
             active_accounts = 31
+            redirect_url = "http://127.0.0.1:8000/admin/payments/payment/"
+        else:
+            redirect_url = "https://avitostata.ru/admin/payments/payment/"
 
         rate = PRICE.get_rate(active_accounts=active_accounts)
         price = PRICE.get_price(rate=rate)
@@ -87,7 +90,7 @@ class PaymentCreateView(View):
                 },
                 "confirmation": {
                     "type": "redirect",
-                    "return_url": "http://127.0.0.1:8000.ru/admin"
+                    "return_url": redirect_url
                 },
                 "capture": True,
                 "description": description,
