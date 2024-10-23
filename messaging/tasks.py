@@ -54,7 +54,7 @@ async def bad_messaging_week_report_async(only_for_users=None, test_from_prod: b
                                           pdf_path=None, balance_decrease=0,):
     # TODO change test_from_prod=True
     if settings.ENVIRONMENT == 'DEVELOPMENT':
-        test_from_prod = False
+        test_from_prod = True
 
     all_avito_accounts, campaign = await get_accounts_for_pdf_reports(only_for_users=only_for_users, test_from_prod=test_from_prod, )
     if len(all_avito_accounts) == 0:  # will TRY to cut in get_account_for_pdf_reports with raise exception

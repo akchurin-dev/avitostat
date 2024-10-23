@@ -380,7 +380,9 @@
         <div class="page__info-items d-flex">
             <div class="page__info-item d-flex items-center">{{ avito_account_name }}</div>
             <div class="page__info-item d-flex items-center">Период с {{ start_date }} по {{ end_date }}</div>
-            <div class="page__info-item d-flex items-center">Кол-во обращений:&nbsp<span> {{  chats_count }}</span></div>
+            <div class="page__info-item d-flex items-center">Обр-ий/звонков/чатов/в раб.время:&nbsp<span>
+                {{  contacts.total }}/{{ contacts.calls }}/{{ contacts.chats_without_filtering_count }}
+                /{{ contacts.chats_at_scheduler_time }}</span></div>
         </div>
     </div>
 

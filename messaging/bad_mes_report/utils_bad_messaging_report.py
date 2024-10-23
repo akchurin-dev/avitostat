@@ -7,6 +7,8 @@ from jinja2 import Template
 from asgiref.sync import sync_to_async
 from pathlib import Path
 from datetime import datetime, timedelta
+
+from conversion.utils_week_report import get_text_statistics_report
 from messaging.bad_mes_report.statistics.statistics_by_criteria_utils import \
     get_stat_by_criteria_splitted_by_managers
 from messaging.bad_mes_report.statistics.total_statistics_utils import get_statistics_total, \
@@ -20,13 +22,14 @@ async def get_messaging_week_report_pdf(avito_account_id, test_from_prod: bool):
     if avito_account:
         analyze_all_chats = {"avito_account_name": avito_account.name, "avito_account_id": avito_account.id, }
         try:
-            ready_chats = await get_ready_chats(avito_account)
+            ready_chats, chats_without_filtering_count = await get_ready_chats(avito_account)
             # PROCESSING WITH FILTERED CHATS
             if len(ready_chats) < 2:
                 raise HTTPException(status_code=404, detail="Нет чатов для анализа, или их менее двух")
                 # return False
             else:
-                analyze_all_chats["chats_count"] = len(ready_chats)
+                analyze_all_chats["chats_for_analyze"] = len(ready_chats)
+                analyze_all_chats["chats_without_filtering_count"] = chats_without_filtering_count
 
             # Checking count of messages for analytics
             if settings.ENVIRONMENT == 'DEVELOPMENT' or test_from_prod:
@@ -36,6 +39,15 @@ async def get_messaging_week_report_pdf(avito_account_id, test_from_prod: bool):
             statistics_total = await get_statistics_total(ready_chats)
             if statistics_total:
                 analyze_all_chats["header_with_statistics"] = statistics_total
+
+            statistics_new = await get_text_statistics_report(avito_account=avito_account)
+            if statistics_new:
+                analyze_all_chats["contacts"] = {
+                    "total": statistics_new.get("total_metrics", {}).get("total_contacts_count", 0),
+                    "chats_without_filtering_count": chats_without_filtering_count,
+                    "chats_at_scheduler_time": len(ready_chats),
+                    "calls": statistics_new.get("total_metrics", {}).get("total_contacts_count", 0) - chats_without_filtering_count
+                }
 
             stat_splitted_by_managers = await get_stat_total_splitted_by_managers(ready_chats)
             if stat_splitted_by_managers:
@@ -118,7 +130,7 @@ async def bad_messaging_report_generate_html(analyze_all_chats):
     return template.render(avito_account_name=avito_account_name,
                            start_date=start_date,
                            end_date=end_date,
-                           chats_count=analyze_all_chats['chats_count'],
+                           contacts=analyze_all_chats.get('contacts'),
                            chats=analyze_all_chats.get('chats', []),
                            statistics_total=analyze_all_chats.get("header_with_statistics"),
                            statistics_by_managers=analyze_all_chats.get("statistics_splitted_by_managers"),
