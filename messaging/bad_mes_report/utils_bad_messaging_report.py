@@ -9,12 +9,14 @@ from pathlib import Path
 from datetime import datetime, timedelta
 
 from conversion.utils_week_report import get_text_statistics_report
+from messaging.api import get_calls_statistic_last_week
 from messaging.bad_mes_report.statistics.statistics_by_criteria_utils import \
     get_stat_by_criteria_splitted_by_managers
 from messaging.bad_mes_report.statistics.total_statistics_utils import get_statistics_total, \
     get_stat_total_splitted_by_managers
 from messaging.bad_mes_report.utils_chats import get_ready_chats
 from messaging.bad_mes_report.utils_open_ai import messaging_total_analyze, analyze_by_criteria
+from messaging.utils_duration import get_calls_count_unique_users_last_week
 
 
 async def get_messaging_week_report_pdf(avito_account_id, test_from_prod: bool):
@@ -40,13 +42,13 @@ async def get_messaging_week_report_pdf(avito_account_id, test_from_prod: bool):
             if statistics_total:
                 analyze_all_chats["header_with_statistics"] = statistics_total
 
-            statistics_new = await get_text_statistics_report(avito_account=avito_account)
-            if statistics_new:
+            calls_unique_users = await get_calls_count_unique_users_last_week(avito_account)
+            if chats_without_filtering_count:
                 analyze_all_chats["contacts"] = {
-                    "total": statistics_new.get("total_metrics", {}).get("total_contacts_count", 0),
-                    "chats_without_filtering_count": chats_without_filtering_count,
-                    "chats_at_scheduler_time": len(ready_chats),
-                    "calls": statistics_new.get("total_metrics", {}).get("total_contacts_count", 0) - chats_without_filtering_count
+                    "total": (chats_without_filtering_count + calls_unique_users) or 0,
+                    "chats_without_filtering_count": chats_without_filtering_count or 0,
+                    "chats_at_scheduler_time": len(ready_chats) or 0,
+                    "calls_unique_users": calls_unique_users or 0
                 }
 
             stat_splitted_by_managers = await get_stat_total_splitted_by_managers(ready_chats)

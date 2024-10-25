@@ -18,7 +18,7 @@ async def get_chats_for_last_week(chats: list) -> list:
         for chat in chats:
             created = datetime.datetime.fromtimestamp(chat.get('created'))
             timedelta = now - created
-            if 7 >= timedelta.days > -1:
+            if 8 >= timedelta.days > 0:
                 filtered_chats.append(chat)
         print(f"{len(filtered_chats)} chats loaded")
         return filtered_chats
@@ -110,12 +110,12 @@ async def get_ready_chats(avito_account: AvitoAccount):
     if chats:
         # Chats with messages getting
         actual_chats = await get_chats_for_last_week(chats)
-        chats_without_filtering_count = len(actual_chats)
         actual_chats_with_mes = await get_chats_messages(avito_account, actual_chats)
 
         #  Filtering and processing before using
         comp_mes_with_man = adding_manager_info_for_chats(actual_chats_with_mes)
         fil_chats_only_with_text = filter_chats_only_with_text(comp_mes_with_man)
+        chats_without_filtering_count = len(fil_chats_only_with_text)
         fil_chats_by_sched = await schedule_filter_chats(fil_chats_only_with_text, avito_account)
         fil_by_excluded_items = await excluded_items_filter_chats(fil_chats_by_sched, avito_account)
         print(f"{len(fil_by_excluded_items)} chats after filtering")
