@@ -8,6 +8,7 @@ from django.views.decorators.csrf import csrf_exempt
 from avito_account.models.models import AvitoAccount
 from base import settings
 from payments.models import Payment
+from django.shortcuts import render
 
 
 class PRICE:
@@ -110,3 +111,7 @@ class PaymentCreateView(View):
 
         else:
             return JsonResponse(status=401, data={"Cant get payment response"})
+
+
+def price_list_view(request):
+    return render(request, 'price_list.html',)
