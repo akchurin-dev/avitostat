@@ -1,10 +1,13 @@
 import json
 import pprint
+from datetime import timedelta
 
 from avito_account.models.models import AvitoAccount
 from base.exceptions import HTTPException
 import httpx
 from httpx import HTTPStatusError
+
+from conversion.utils import dates_for_period_without_extra_reserve
 
 
 # TODO ДОБАВИТЬ ПРОВЕРКУ НА ПРОСРОЧЕННОСТЬ и обновление токена
@@ -68,15 +71,18 @@ async def get_chats_messages(avito_account: AvitoAccount, chats: list) -> list:
 
 async def get_calls_statistic_last_week(avito_account: AvitoAccount):
     await avito_account.update_refresh_token_async()
+    date_from, date_to = await dates_for_period_without_extra_reserve(period="week", date_type="str")
+
     async with httpx.AsyncClient() as client:
         url = f"https://api.avito.ru/core/v1/accounts/{avito_account.id}/calls/stats/"
         headers = {'authorization': f"Bearer {avito_account.access_token}",
                    "Content-Type": "application/json", }
-        params = {"dateFrom": "2024-10-17", "dateTo": "2024-10-24"}
+        params = {"dateFrom": f"{date_from}", "dateTo": f"{date_to}"}
 
         response = await client.post(url, headers=headers, json=params)
         if response.status_code == 200:
             data = json.loads(response.text)
-            return data
+            if data['result']:
+                return data
         else:
             raise HTTPException(status_code=response.status_code, detail=response.text)

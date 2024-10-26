@@ -19,10 +19,7 @@ async def items_excluded_filter(avito_account: AvitoAccount, items: list):
 
 
 async def get_statistics_for_period(avito_account: AvitoAccount, period: str):
-    date_from, date_to = await dates_for_period_without_extra_reserve(period=period)
-    date_from = date_from.strftime("%Y-%m-%d")
-    date_to -= timedelta(hours=12)  # поправка для синхронизации значений статистики со значениями авито
-    date_to = date_to.strftime("%Y-%m-%d")
+    date_from, date_to = await dates_for_period_without_extra_reserve(period=period, date_type="str")
 
     items = await get_items_list(avito_account)
     if type(items) is not list:

@@ -18,10 +18,14 @@ async def dates_for_period_with_extra_reserve(period: str):
     return date_from, date_to
 
 
-async def dates_for_period_without_extra_reserve(period: str):
+async def dates_for_period_without_extra_reserve(period: str, date_type: str = "datetime"):
+    date_types = ["str", "datetime"]
     valid_periods = ['month', 'week', 'day']
     if period not in valid_periods:
         raise ValueError("Invalid period. Please choose from 'month', 'week', or 'day'.")
+
+    if date_type not in date_types:
+        raise ValueError("Invalid type. Please choose from 'datetime', or 'str'.")
 
     date_to = datetime.now()
     if period == 'month':
@@ -30,12 +34,17 @@ async def dates_for_period_without_extra_reserve(period: str):
         date_from = (date_to - timedelta(days=7))
     else:  # Period is 'day'
         date_from = (date_to - timedelta(days=1))
+
+    if date_type == "str":
+        date_from = date_from.strftime("%Y-%m-%d")
+        date_to -= timedelta(hours=12)  # поправка для синхронизации значений статистики со значениями авито
+        date_to = date_to.strftime("%Y-%m-%d")
     return date_from, date_to
 
 
 async def active_services_for_period_filtering(period: str, operations: list) -> list:
     active_services = []
-    date_from, date_to = await dates_for_period_without_extra_reserve(period=period)
+    date_from, date_to = await dates_for_period_without_extra_reserve(period=period, date_type="datetime")
 
     for operation in operations:
         service_start = operation.get("updatedAt")

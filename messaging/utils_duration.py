@@ -29,7 +29,7 @@ async def get_durations_seconds(chats: List[Dict[str, Any]]):
     return duration_times
 
 
-async def get_calls_count_unique_users_last_week(avito_account: AvitoAccount) -> int:
+async def get_calls_count_unique_numbers_last_week(avito_account: AvitoAccount) -> int:
     calls_statictic = await get_calls_statistic_last_week(avito_account=avito_account)
     if calls_statictic:
         total_new_calls = sum(day['new'] for day in calls_statictic['result']['items'][0]['days'])
