@@ -1,5 +1,4 @@
 from django.db import models
-from avito_account.models.models import logger
 
 
 class ExcludedItem(models.Model):

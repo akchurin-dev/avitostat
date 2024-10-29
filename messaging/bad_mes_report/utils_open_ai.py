@@ -123,6 +123,8 @@ async def analyze_by_criteria_chat(chat: list, test_from_prod: bool, avito_accou
         criteria = await sync_to_async(list)(Criterion.objects.filter(schema_id=avito_account.analytic_schema_id))
     else:
         criteria = await sync_to_async(list)(Criterion.objects.filter(schema_id=1))
+    if not criteria:  # Проверяем, есть ли критерии
+        criteria = await sync_to_async(list)(Criterion.objects.filter(schema_id=1))
 
     criteria_dict = {criterion.id: criterion.name for criterion in criteria}
     chat_text = "\n".join(

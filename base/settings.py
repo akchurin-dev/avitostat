@@ -5,7 +5,6 @@ import pytz
 from celery.schedules import crontab
 from dotenv import load_dotenv
 
-
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
@@ -14,11 +13,17 @@ load_dotenv()
 ENVIRONMENT = os.getenv('ENVIRONMENT')
 SECRET_KEY = os.getenv('SECRET_KEY')
 GITHUB_TOKEN = os.getenv('GITHUB_TOKEN')
+
 AVITO_CLIENT_ID = os.getenv('AVITO_CLIENT_ID')
 AVITO_CLIENT_SECRET = os.getenv('AVITO_CLIENT_SECRET')
+
 OPENAI_SECRET_KEY = os.getenv('OPENAI_SECRET_KEY')
-YOOKASSA_SHOP_ID = os.getenv('YOOKASSA_SHOP_ID')
+
 YOOKASSA_SECRET_KEY = os.getenv('YOOKASSA_SECRET_KEY')
+YOOKASSA_SHOP_ID = os.getenv('YOOKASSA_SHOP_ID')
+YOOKASSA_TEST_SHOP_ID = os.getenv('YOOKASSA_TEST_SHOP_ID')
+YOOKASSA_TEST_SECRET_KEY = os.getenv('YOOKASSA_TEST_SECRET_KEY')
+
 LOCALHOST_IP = os.getenv('LOCALHOST_IP')
 TELEGRAM_BOT_TOKEN = os.getenv('TELEGRAM_BOT_TOKEN')
 TELEGRAM_BOT_TOKEN_PROD = os.getenv('TELEGRAM_BOT_TOKEN_PROD')
@@ -40,6 +45,7 @@ ALLOWED_HOSTS = [
 
 if ENVIRONMENT == 'DEVELOPMENT':
     DEBUG = True
+    ALLOWED_HOSTS = ["*", ]
 else:
     DEBUG = False
 
@@ -60,6 +66,7 @@ INSTALLED_APPS = [
     'conversion',
     'messaging',
     'deep_tests',
+    'payments',
 ]
 
 MIDDLEWARE = [
@@ -70,6 +77,7 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
+    'payments.middleware.UserProfileMiddleware',
 ]
 
 ROOT_URLCONF = 'base.urls'
@@ -179,12 +187,12 @@ CELERY_TIMEZONE = 'UTC'
 if ENVIRONMENT == 'PRODUCTION':
     CELERY_BEAT_SCHEDULE = {
         'bad_messaging_week_report_task': {
-            'task': 'messaging.tasks.bad_messaging_week_report_async_task',
+            'task': 'messaging.tasks.bad_messaging_week_report_async_task_auto_generated',
             'schedule': crontab(hour=6, minute=0, day_of_week=5),
         },
 
         'send_text_report_all_async_task': {
-            'task': 'conversion.tasks.send_text_report_all_async_task',
+            'task': 'conversion.tasks.send_text_report_all_async_task_auto_generated',
             'schedule': crontab(day_of_week='mon', hour=10, minute=0),
         },
 
@@ -201,10 +209,14 @@ if ENVIRONMENT == 'PRODUCTION':
     }
 else:
     CELERY_BEAT_SCHEDULE = {
-        # 'db_auto_creator_task': {
-        #     'task': 'messaging.tasks.db_backup_auto_creator_task',
-        #     'schedule': crontab(hour=6, minute=25),
-        # },
+        'bad_messaging_week_report_task_auto': {
+            'task': 'messaging.tasks.bad_messaging_week_report_async_task_auto_generated',
+            'schedule': 150.0,
+        },
+        'send_text_report_all_async_task': {
+            'task': 'conversion.tasks.send_text_report_all_async_task_auto_generated',
+            'schedule': 100.0,
+        },
         # 'bad_messaging_week_report_task_DEBUG': {
         #     'task': 'messaging.tasks.bad_messaging_week_report_async_task',
         #     'schedule': 150.0,  #  каждые 100 секунд

@@ -4,7 +4,7 @@ cd /var/www/avitostat
 
 gunicorn -c gunicorn_config.py base.wsgi:application
 
-celery -A base worker -l info --pool=solo   # на маке объязательно соло опцию включать 
+celery -A base worker -l info --pool=solo
 celery -A base beat -l info
 
 # Почистить старые задачи 
@@ -126,7 +126,8 @@ docker exec -it avitostata_db psql -U postgres -d template1 -c "DROP DATABASE IF
 docker exec -it avitostata_db psql -U postgres -d template1 -c "CREATE DATABASE postgres;"
 ./manage.py makemigrations
 ./manage.py migrate
-./manage.py populate_db
+
+[//]: # (./manage.py populate_db)
 ./manage.py runserver
 
 

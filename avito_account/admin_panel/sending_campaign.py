@@ -2,8 +2,11 @@ from django.contrib import admin
 from django.forms import FloatField
 from django.template.response import TemplateResponse
 from avito_account.admin_panel.filters import ContragentFilter, TestFromProdFilter
-from avito_account.models.models import AvitoAccount, SendingCampaign, SendingReport
+from avito_account.models.models import AvitoAccount
 from django.db.models import Sum, F, ExpressionWrapper, FloatField
+
+from avito_account.models.sending_report import SendingReport
+from payments.admin import SuperModelAdmin
 
 
 class SendingReportInline(admin.TabularInline):
@@ -19,33 +22,28 @@ class SendingReportInline(admin.TabularInline):
         return fields
 
 
-class SendingCampaignAdmin(admin.ModelAdmin):
+class SendingCampaignAdmin(SuperModelAdmin):
     inlines = [SendingReportInline]
-    list_display = ['sending_type', 'created_at', 'test_from_prod', 'name', ]
-    list_filter = ['accounts_presented', 'sending_type', 'test_from_prod', 'created_at']
-    search_fields = ['name']
+    list_display = ['name', 'sending_type', 'auto_generated', 'test_from_prod', 'created_at', ]
+    list_filter = ['accounts_presented', 'sending_type', 'test_from_prod', 'created_at', 'auto_generated']
 
     def get_queryset(self, request):
-        # Получаем исходный queryset
         queryset = super().get_queryset(request)
-        # Если пользователь суперпользователь, то показываем все записи
         if request.user.is_superuser:
             return queryset
-        # Получаем все аккаунты, созданные текущим пользователем
-        user_created_accounts = AvitoAccount.objects.filter(created_by=request.user)
-        # Фильтруем рассылки, в которых в поле `accounts_presented` есть аккаунты, созданные этим пользователем
-        return queryset.filter(
-            accounts_presented__in=user_created_accounts,
-            test_from_prod=False,
-        ).distinct()
+        user_accounts = AvitoAccount.objects.filter(created_by=request.user)
+        return queryset.filter(accounts_presented__in=user_accounts).distinct()
 
 
 class SendingReportAdmin(admin.ModelAdmin):
-    list_filter = (ContragentFilter, TestFromProdFilter, 'avito_account', 'success', 'timestamp', )
-    list_display = ['avito_account', 'tokens_completion', 'tokens_prompt', 'tokens_price', 'timestamp']
+    list_filter = (ContragentFilter, TestFromProdFilter, 'avito_account', 'success', 'timestamp',)
 
-    def has_module_permission(self, request):
-        return request.user.is_superuser
+    def get_list_display(self, request):
+        # Определяем, какие поля отображать в зависимости от прав пользователя
+        base_display = ['avito_account', 'success', 'timestamp', 'balance_decrease']
+        if request.user.is_superuser:
+            return base_display + ['tokens_completion', 'tokens_prompt', 'tokens_price']
+        return base_display
 
     def get_queryset(self, request):
         qs = super().get_queryset(request)
@@ -58,7 +56,7 @@ class SendingReportAdmin(admin.ModelAdmin):
         )
 
         return queryset.filter(
-            campaign__sending_type=SendingCampaign.PDF,
+            # campaign__sending_type=SendingCampaign.PDF,
             success=True
         )
 
@@ -71,7 +69,7 @@ class SendingReportAdmin(admin.ModelAdmin):
         response = super().changelist_view(request, extra_context=extra_context)
 
         # Убедимся, что response — это TemplateResponse
-        if isinstance(response, TemplateResponse):
+        if isinstance(response, TemplateResponse) and 'cl' in response.context_data:
             # Получаем отфильтрованный queryset
             qs = response.context_data['cl'].queryset
 
@@ -79,11 +77,12 @@ class SendingReportAdmin(admin.ModelAdmin):
             total_tokens_completion = qs.aggregate(Sum('tokens_completion'))['tokens_completion__sum'] or 0
             total_tokens_prompt = qs.aggregate(Sum('tokens_prompt'))['tokens_prompt__sum'] or 0
             total_tokens_price = qs.aggregate(Sum('tokens_price'))['tokens_price__sum'] or 0
+            total_balance_decrease = qs.aggregate(Sum('balance_decrease'))['balance_decrease__sum'] or 0
 
             # Передаем итоговые суммы в контекст
             response.context_data['total_tokens_completion'] = total_tokens_completion
             response.context_data['total_tokens_prompt'] = total_tokens_prompt
             response.context_data['total_tokens_price'] = round(total_tokens_price, 1)
+            response.context_data['total_balance_decrease'] = round(total_balance_decrease, 1)
 
         return response
-

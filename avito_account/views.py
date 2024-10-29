@@ -1,10 +1,13 @@
 import json
 
-from django.http import JsonResponse
+from django.http import JsonResponse, HttpResponseRedirect
 from django.utils.decorators import method_decorator
 from django.views import View
 from django.views.decorators.csrf import csrf_exempt
 from avito_account.oauth_utils import create_or_update_avito_account
+from django.shortcuts import render, redirect
+
+from base import settings
 
 
 @method_decorator(csrf_exempt, name='dispatch')
@@ -16,9 +19,16 @@ class CallbackView(View):
             state_dict = json.loads(state)
             created_by_id = state_dict.get("created_by_id", None)
             if code:
-                avito_account = create_or_update_avito_account(code=code, created_by_id=int(created_by_id))
-                # items_to_db(avito_account) # надо сделать всё асинхронно если есть в записи айтемов необходимость
-                return JsonResponse({"message": "Hello, you will redirect"})
+                create_or_update_avito_account(code=code, created_by_id=int(created_by_id))
+                if settings.ENVIRONMENT == "PRODUCTION":
+                    redirect_url = "https://avitostata.ru/admin/avito_account/avitoaccount/"
+                    return HttpResponseRedirect(redirect_url)
+                else:
+                    return JsonResponse(
+                        {"message": "Аккаунт успешно добавлен, вы будете перенаправлены на главную страницу"})
             else:
-                return JsonResponse({"message": "Please provide a code"}, status=400)
+                return JsonResponse({"message": "Предоставьте код авторизации"}, status=400)
 
+
+def terms_of_service(request):
+    return render(request, 'terms_of_service.html')

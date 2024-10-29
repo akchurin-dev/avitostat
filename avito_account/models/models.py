@@ -6,11 +6,9 @@ from asgiref.sync import sync_to_async
 from django.db import models
 from django.contrib.auth.models import User
 import requests
-
 from base import settings
 from base.exceptions import HTTPException
 import datetime
-from django.utils import timezone
 
 logger = logging.getLogger(__name__)
 
@@ -166,52 +164,3 @@ class WorkSchedule(models.Model):  # Не BaseModel тк привязываем�
     class Meta:
         verbose_name = "Рабочий график (время Московское)"
         verbose_name_plural = "Рабочие графики"
-
-
-class SendingCampaign(models.Model):  # Не BaseModel тк рассылки общие и мы их не можем привязывать к юзеру
-    PDF = 'PDF'
-    TEXT = 'TXT'
-
-    SENDING_TYPE_CHOICES = [
-        (PDF, 'PDF'),
-        (TEXT, 'Text'),
-    ]
-
-    name = models.CharField(max_length=255, verbose_name="Название рассылки")
-    test_from_prod = models.BooleanField(default=False, verbose_name="Тестирование с прода")
-    sending_type = models.CharField(max_length=3, choices=SENDING_TYPE_CHOICES, default=PDF,
-                                    verbose_name="Тип рассылки")
-    created_at = models.DateTimeField(default=timezone.now, verbose_name="Когда создано")
-
-    accounts_presented_count = models.IntegerField(default=0, verbose_name="Аккаунтов к анализу")
-    accounts_presented = models.ManyToManyField(AvitoAccount, related_name="campaigns_presented", blank=True,
-                                                verbose_name="Аккаунты к анализу")
-
-    class Meta:
-        verbose_name = "Рассылка"
-        verbose_name_plural = "Рассылки"
-
-    def __str__(self):
-        return f"Рассылка {self.name} ({self.get_sending_type_display()}) в {self.created_at}"
-
-
-class SendingReport(models.Model):  # Не BaseModel тк репорпты должны привязываться к аккаунту а не к юзеру
-    avito_account = models.ForeignKey('AvitoAccount', on_delete=models.CASCADE, verbose_name="Авито аккаунт")
-    campaign = models.ForeignKey('SendingCampaign', on_delete=models.CASCADE, related_name='reports',
-                                 verbose_name="Рассылка")
-    success = models.BooleanField(default=False, verbose_name="Успешно")
-    error_message = models.CharField(null=True, blank=True, max_length=255, verbose_name="Сообщение ошибки")
-    pdf_path = models.CharField(max_length=255, null=True, blank=True, verbose_name="Ссылка к пдф отчёту")
-    timestamp = models.DateTimeField(default=timezone.now, verbose_name="Дата создания")
-
-    tokens_completion = models.IntegerField(default=0, verbose_name="Токены на вычисления")
-    tokens_prompt = models.IntegerField(default=0, verbose_name="Токены на контекст")
-
-    class Meta:
-        verbose_name = "Отчёт о рассылке"
-        verbose_name_plural = "отчёты о рассылках"
-
-    def __str__(self):
-        return f"Отчёт о рассылке для {self.avito_account.name} в {self.timestamp}"
-
-
