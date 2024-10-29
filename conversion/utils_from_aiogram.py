@@ -26,7 +26,7 @@ async def get_all_telegram_ids():
 async def get_week_report_by_avito_id(avito_id: int):
     avito_account = await sync_to_async(AvitoAccount.objects.filter(id=avito_id).last)()
     if avito_account:
-        await avito_account.update_refresh_token_async()
+        # await avito_account.update_refresh_token_async()
         try:
             week_report = await get_text_statistics_report(avito_account=avito_account)
             return week_report

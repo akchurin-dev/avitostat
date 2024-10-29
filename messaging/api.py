@@ -39,7 +39,7 @@ async def get_chats(avito_account: AvitoAccount, max_retries: int = 3) -> dict:
                 params["offset"] += 100
             elif response.status_code == 403:
                 retries += 1
-                await avito_account.update_refresh_token_async()
+                # await avito_account.update_refresh_token_async()
                 if retries > max_retries:
                     raise HTTPStatusError("Превышено максимальное количество попыток обновления токена",
                                           request=response.request, response=response)
@@ -70,7 +70,7 @@ async def get_chats_messages(avito_account: AvitoAccount, chats: list) -> list:
 
 
 async def get_calls_statistic_last_week(avito_account: AvitoAccount):
-    await avito_account.update_refresh_token_async()
+    # await avito_account.update_refresh_token_async()
     date_from, date_to = await dates_for_period_without_extra_reserve(period="week", date_type="str")
 
     async with httpx.AsyncClient() as client:
