@@ -46,14 +46,17 @@ def create_or_update_avito_account(code: str, created_by_id: int) -> AvitoAccoun
     account_info = get_avito_account_info(access_token)
 
     avito_id = int(account_info.get("id"))
-    avito_account, created = AvitoAccount.objects.get_or_create(id=avito_id, created_by_id=created_by_id)
-
-    avito_account.access_token = token_data.get('access_token')
-    avito_account.refresh_token = token_data.get('refresh_token')
-    avito_account.name = account_info.get('name')
-    avito_account.phone = account_info.get('phone')
-    avito_account.profile_url = account_info.get('profile_url')
-    avito_account.save()
+    avito_account, created = AvitoAccount.objects.update_or_create(
+        id=avito_id,
+        defaults={
+            'created_by_id': created_by_id,
+            'access_token': access_token,
+            'refresh_token': token_data.get('refresh_token'),
+            'name': account_info.get('name'),
+            'phone': account_info.get('phone'),
+            'profile_url': account_info.get('profile_url'),
+        }
+    )
 
     return avito_account
 
