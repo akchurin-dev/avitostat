@@ -63,7 +63,6 @@ async def bad_messaging_week_report_async(only_for_users=None, test_from_prod: b
 
     # CORE logic
     for avito_account in all_avito_accounts:
-        await avito_account.update_refresh_token_async()
         tokens = {"completion": -99, "prompt": -99}
         print(avito_account.name)
         try:
