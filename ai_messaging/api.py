@@ -25,6 +25,25 @@ async def subscribe_to_messages(avito_account: AvitoAccount):
             raise HTTPException(status_code=response.status_code, detail=response.text)
 
 
+def send_message_to_avito(avito_account: AvitoAccount, user_id: int, chat_id: str):
+    url = f"https://api.avito.ru/messenger/v1/accounts/{user_id}/chats/{chat_id}/messages"
+    headers = {
+        "Authorization": f"Bearer {avito_account.access_token}",
+        "Content-Type": "application/json"
+    }
+    payload = {
+        "message": {
+            "text": f"API MESSAGE from{avito_account.name}",
+        },
+        "type": "text"
+    }
+
+    with httpx.Client() as client:
+        response = client.post(url, headers=headers, json=payload)
+        response.raise_for_status()
+        return response.json()
+
+
 async def check_subscriptions(avito_account: AvitoAccount):
     url = "https://api.avito.ru/messenger/v1/subscriptions"
     headers = {

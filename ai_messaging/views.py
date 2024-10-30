@@ -7,7 +7,8 @@ from django.utils.decorators import method_decorator
 from django.views import View
 from django.views.decorators.csrf import csrf_exempt
 
-from ai_messaging.api import subscribe_to_messages
+from ai_messaging.ai_utils import ai_answer_assist
+from ai_messaging.api import subscribe_to_messages, send_message_to_avito
 from avito_account.models.models import AvitoAccount
 from messaging.api import get_chats_messages
 
@@ -21,9 +22,11 @@ class WebhookInboxView(View):
         await avito_account.update_refresh_token_async()
         if data.get("payload").get("type") == "message":
             chat_id = data.get("payload").get("value").get("chat_id")
+            author_id = data.get("payload").get("value").get("author_id")
             chat_with_messages = await get_chats_messages(avito_account, chats=[{"id": chat_id}])
-            if chat_with_messages[0]['messages'][0].get("direction") == "in":
-                pass
+            # if chat_with_messages[0].get("messages") and chat_with_messages[0]['messages'][0].get("direction") == "in":  #  TODO добавить проверку что только входящие
+                # ai_answer = await ai_answer_assist(chat=chat_with_messages, avito_account=avito_account, test_from_prod=False)
+            send_message_to_avito(avito_account, author_id, chat_id)
 
         return JsonResponse({"status": "ok"}, status=200)
 
