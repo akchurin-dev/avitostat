@@ -52,7 +52,7 @@ async def get_chats_messages(avito_account: AvitoAccount, chats: list) -> list:
                 headers = {'authorization': f"Bearer {avito_account.access_token}"}
                 params = {"limit": 30}  # TODO Лимит изначально стоял 30
 
-                response = await client.get(url, headers=headers, params=params)
+                response = await client.get(url, headers=headers, params=params, timeout=180)
                 if response.status_code == 200:
                     chat["messages"] = response.json().get("messages")[::-1]
                 else:

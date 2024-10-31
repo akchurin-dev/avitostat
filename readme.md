@@ -1,3 +1,6 @@
+# Запуск локально
+gunicorn base.wsgi:application --workers 4 --access-logfile -
+
 # Запуск вручную
 source /var/www/avitostat/venv/bin/activate
 cd /var/www/avitostat

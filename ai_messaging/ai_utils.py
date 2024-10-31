@@ -1,10 +1,7 @@
-import asyncio
 import openai
-from asgiref.sync import sync_to_async
 from openai import AsyncOpenAI
 from pydantic import BaseModel
-import json
-from avito_account.models.models import AvitoAccount, Criterion
+from avito_account.models.models import AvitoAccount
 from base import settings
 
 MODEL = "gpt-4o-2024-08-06"
@@ -29,6 +26,9 @@ async def ai_answer_assist(chat: list, test_from_prod: bool, avito_account: Avit
                        
                        Стоимость вызда по городу составляет 350 рублей, загородом можешь считать так - 350 + 25 рублей
                         за каждый киломентр(тебе надо будет выяснить сколько километров до населенного пункта.)
+                        
+                        ЗАПРЕЩЕНО:
+                        1) Упоминать что ты виртуальный помошник или каким либо образом демонстрировать это
                        """)
     chat_text = "\n".join(
         [message.get('direction') + ": " + message.get('content').get("text") for message in
