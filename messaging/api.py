@@ -55,6 +55,7 @@ async def get_chats_messages(avito_account: AvitoAccount, chats: list) -> list:
                 response = await client.get(url, headers=headers, params=params, timeout=180)
                 if response.status_code == 200:
                     chat["messages"] = response.json().get("messages")[::-1]
+                    print(321)
                 else:
                     continue
 
