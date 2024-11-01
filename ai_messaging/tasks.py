@@ -1,8 +1,5 @@
-# tasks.py
 import asyncio
-
 from base.celery import celery_app
-
 from ai_messaging.ai_utils import ai_answer_assist
 from ai_messaging.api.core import send_message_to_avito
 from avito_account.models.models import AvitoAccount

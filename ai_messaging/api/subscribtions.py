@@ -13,7 +13,7 @@ async def subscribe_to_messages(avito_account: AvitoAccount):
 
     async with httpx.AsyncClient() as client:
         params = {
-            "url": "https://9d19-31-128-32-122.ngrok-free.app/ai_messaging/webhook_inbox",
+            "url": "https://eb85-31-128-32-122.ngrok-free.app/ai_messaging/webhook_inbox",
         }
 
         response = await client.post(url, headers=headers, json=params)
@@ -31,7 +31,7 @@ async def stop_subscribe_to_messages(avito_account: AvitoAccount):
 
     async with httpx.AsyncClient() as client:
         params = {
-            'url': 'https://eb91-31-128-32-122.ngrok-free.app/ai_messaging/webhook_inbox/',
+            "url": "https://9d19-31-128-32-122.ngrok-free.app/ai_messaging/webhook_inbox",
         }
 
         response = await client.post(url, headers=headers, json=params)
