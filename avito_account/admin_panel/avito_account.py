@@ -43,7 +43,7 @@ class AiAssistantInline(admin.StackedInline):
 
 
 class AvitoAccountAdmin(admin.ModelAdmin):
-    list_display = ('name', 'telegram_id', 'phone')
+    list_display = ('name', 'telegram_id', 'phone', 'created_by')
     readonly_fields = ('id',)
     inlines = [WorkScheduleInline, ExcludedItemInline, AiAssistantInline]
     actions = [run_txt_all_test_from_prod_report, run_pdf_all_test_from_prod_report,

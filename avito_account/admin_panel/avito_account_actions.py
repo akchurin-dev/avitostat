@@ -1,17 +1,6 @@
-import json
-import math
-from django.contrib import admin
-from django.db.models import Q, Sum, ExpressionWrapper
-from django.forms import FloatField
-from django.shortcuts import redirect
-from django.template.response import TemplateResponse
-
-from avito_account.admin_panel.sending_campaign import SendingCampaignAdmin, SendingReportAdmin
 import logging
 from conversion.tasks import send_text_report_all_async_task
 from messaging.tasks import bad_messaging_week_report_async_task
-from django.db.models import Sum, F, ExpressionWrapper, FloatField
-
 logger = logging.getLogger(__name__)
 
 
