@@ -23,9 +23,7 @@ async def process_webhook_async(user_id, data):
 
         chat_with_messages = await get_chats_messages(avito_account, chats=[{"id": chat_id}])
         if author_id != user_id:  # Проверка авторства
-            ai_answer = await ai_answer_assist(chat=chat_with_messages,
-                                               avito_account=avito_account,
-                                               test_from_prod=False)
+            ai_answer = await ai_answer_assist(chat=chat_with_messages)
             if ai_answer:
                 ai_answer += f" answer for {content}"
                 await send_message_to_avito(avito_account, user_id, chat_id, ai_answer)

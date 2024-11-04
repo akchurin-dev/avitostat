@@ -54,7 +54,7 @@ async def ai_answer_assist(chat: list):
     response = await client.chat.completions.create(
         model=MODEL,
         messages=[
-            {"role": "system", "content": prompt},
+            {"role": "assistant", "content": prompt},
         ],
         temperature=0.7,
         max_tokens=400,
@@ -62,5 +62,6 @@ async def ai_answer_assist(chat: list):
     if response is not None:
         message = response.choices[0].message.content
         print(response)
+        print(chat)
         pprint(response.choices[0].message.content)
         return message
