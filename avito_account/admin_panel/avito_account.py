@@ -3,6 +3,8 @@ from django import forms
 from django.contrib import admin
 from django.db.models import Q
 from django.shortcuts import redirect
+
+from ai_messaging.models import AiAssistant
 from avito_account.admin_panel.avito_account_actions import run_txt_all_test_from_prod_report, run_txt_report, \
     run_pdf_report, run_txt_all_report, run_pdf_all_report, run_pdf_all_test_from_prod_report
 from avito_account.models.excluded_items import ExcludedItem
@@ -35,10 +37,15 @@ class WorkScheduleInline(admin.StackedInline):
     extra = 0
 
 
+class AiAssistantInline(admin.StackedInline):
+    model = AiAssistant
+    extra = 0
+
+
 class AvitoAccountAdmin(admin.ModelAdmin):
     list_display = ('name', 'telegram_id', 'phone')
     readonly_fields = ('id',)
-    inlines = [WorkScheduleInline, ExcludedItemInline]
+    inlines = [WorkScheduleInline, ExcludedItemInline, AiAssistantInline]
     actions = [run_txt_all_test_from_prod_report, run_pdf_all_test_from_prod_report,
                run_txt_report, run_pdf_report,
                run_txt_all_report, run_pdf_all_report]
