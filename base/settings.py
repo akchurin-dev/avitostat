@@ -55,7 +55,8 @@ INSTALLED_APPS = [
     'conversion',
     'messaging',
     'deep_tests',
-    'ai_messaging'
+    'ai_messaging',
+    'payments',
 ]
 
 MIDDLEWARE = [
