@@ -67,6 +67,7 @@ INSTALLED_APPS = [
     'messaging',
     'deep_tests',
     'payments',
+    'chat_bot',
 ]
 
 MIDDLEWARE = [

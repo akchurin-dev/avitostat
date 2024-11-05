@@ -9,6 +9,8 @@ from avito_account.models.excluded_items import ExcludedItem
 from avito_account.models.models import AnalyticSchema, WorkSchedule
 import logging
 
+from chat_bot.models import AiChatBot
+
 logger = logging.getLogger(__name__)
 
 
@@ -29,6 +31,11 @@ class ExcludedItemInline(admin.TabularInline):
     verbose_name_plural = "Объявления исключённые "
 
 
+class AiChatBotInline(admin.StackedInline):
+    model = AiChatBot
+    extra = 0
+
+
 class WorkScheduleInline(admin.StackedInline):
     model = WorkSchedule
     can_delete = False
@@ -38,7 +45,7 @@ class WorkScheduleInline(admin.StackedInline):
 class AvitoAccountAdmin(admin.ModelAdmin):
     list_display = ('name', 'telegram_id', 'phone', 'created_by')
     readonly_fields = ('id',)
-    inlines = [WorkScheduleInline, ExcludedItemInline]
+    inlines = [WorkScheduleInline, ExcludedItemInline, AiChatBotInline]
     actions = [run_txt_all_test_from_prod_report, run_pdf_all_test_from_prod_report,
                run_txt_report, run_pdf_report,
                run_txt_all_report, run_pdf_all_report]
