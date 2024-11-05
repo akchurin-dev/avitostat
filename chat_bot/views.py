@@ -33,7 +33,6 @@ class WebhookInboxView(View):
 class SubscribeView(View):
     async def get(self, request, *args, **kwargs):
         avito_account = await sync_to_async(AvitoAccount.objects.get)(pk=145213826)  #Rauf
-        # avito_account = await sync_to_async(AvitoAccount.objects.get)(pk=184762136)  #Amanatauto
         await subscribe_to_messages(avito_account)
         return JsonResponse({"status": "ok"}, status=200)
 
@@ -42,7 +41,6 @@ class StopSubscribeView(View):
     async def get(self, request, *args, **kwargs):
         avito_account = await sync_to_async(AvitoAccount.objects.get)(pk=145213826)  #Rauf
         await avito_account.update_refresh_token_async()
-        # avito_account = await sync_to_async(AvitoAccount.objects.get)(pk=184762136)  #Amanatauto
         await stop_subscribe_to_messages(avito_account)
         return JsonResponse({"status": "ok"}, status=200)
 
