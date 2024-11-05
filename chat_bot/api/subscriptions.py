@@ -20,6 +20,7 @@ async def subscribe_to_messages(avito_account: AvitoAccount):
         if response.status_code == 200:
             data = response.json()
             print(data)
+            print("subscribe_to_messages called")
         else:
             raise HTTPException(status_code=response.status_code, detail=response.text)
 

@@ -23,14 +23,21 @@ class AiChatBot(models.Model):
         verbose_name_plural = "ИИ чат боты"
 
     def save(self, *args, **kwargs):
-        previous = AiChatBot.objects.get(pk=self.pk)
-        was_active = previous.is_active or None
-
+        previous = AiChatBot.objects.filter(pk=self.pk).last()
         # Сначала сохраняем объект
         super().save(*args, **kwargs)
 
-        if was_active != self.is_active:
+        if previous is None:  # Если изначально вообще небыло инстанса
             if self.is_active:
                 async_to_sync(subscribe_to_messages)(self.avito_account)
-            else:
-                async_to_sync(stop_subscribe_to_messages)(self.avito_account)
+        else:
+            if previous.is_active != self.is_active:
+                if self.is_active:
+                    async_to_sync(subscribe_to_messages)(self.avito_account)
+                else:
+                    async_to_sync(stop_subscribe_to_messages)(self.avito_account)
+
+    def delete(self, using=None, keep_parents=False):
+        if self.is_active:
+            async_to_sync(stop_subscribe_to_messages)(self.avito_account)
+        super().delete()
