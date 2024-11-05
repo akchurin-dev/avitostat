@@ -3,6 +3,7 @@ from django.db import models
 from django.contrib.auth.models import User
 from avito_account.models.models import AvitoAccount
 from chat_bot.api.subscriptions import subscribe_to_messages, stop_subscribe_to_messages
+from django.core.validators import MinValueValidator, MaxValueValidator
 
 
 class AiChatBot(models.Model):
@@ -17,6 +18,11 @@ class AiChatBot(models.Model):
     total_info = models.TextField(verbose_name="Общая информация")
     rules = models.TextField(verbose_name="Правила при общении")
     checkpoints = models.TextField(verbose_name="Шаги при общении")
+    waiting_minutes = models.PositiveSmallIntegerField(
+        validators=[MinValueValidator(1), MaxValueValidator(60)],
+        verbose_name="Ожидание ответа от менеджера(минуты)",
+        help_text="Укажите количество минут от 1 до 120"
+    )
 
     class Meta:
         verbose_name = "ИИ чат бот"
