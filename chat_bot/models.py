@@ -1,6 +1,8 @@
+from asgiref.sync import async_to_sync
 from django.db import models
 from django.contrib.auth.models import User
 from avito_account.models.models import AvitoAccount
+from chat_bot.api.subscriptions import subscribe_to_messages, stop_subscribe_to_messages
 
 
 class AiChatBot(models.Model):
@@ -19,3 +21,16 @@ class AiChatBot(models.Model):
     class Meta:
         verbose_name = "ИИ чат бот"
         verbose_name_plural = "ИИ чат боты"
+
+    def save(self, *args, **kwargs):
+        previous = AiChatBot.objects.get(pk=self.pk)
+        was_active = previous.is_active or None
+
+        # Сначала сохраняем объект
+        super().save(*args, **kwargs)
+
+        if was_active != self.is_active:
+            if self.is_active:
+                async_to_sync(subscribe_to_messages)(self.avito_account)
+            else:
+                async_to_sync(stop_subscribe_to_messages)(self.avito_account)
