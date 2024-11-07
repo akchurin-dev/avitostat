@@ -36,7 +36,6 @@ def create_delayed_task(chat_id, delay=120):
     return task_id
 
 
-
 @celery_app.task(name='ai_messaging.tasks.process_webhook_task')
 def process_webhook_task(user_id, data):
     # Запускаем асинхронный код
@@ -55,18 +54,16 @@ async def process_webhook_async(user_id, data):
 
         if author_id != user_id and chat_bot.is_active:
             task_id = f"task_ai_answer_for_chat_id_{chat_id}"
-
             # Проверяем, существует ли задача с таким task_id и активна ли она
             existing_task = AsyncResult(task_id)
-            if existing_task.status in ['PENDING', 'STARTED']:
+            if existing_task:
                 # Если задача активна или ожидает выполнения, отменяем её
                 existing_task.revoke(terminate=True)
                 logger.info(f"Task {task_id} revoked before creating the new task.")
             # Создаем новую задачу с тем же task_id
-            delayed_task.apply_async(
+            delayed_task.apply(
                 (avito_account.id, user_id, chat_id, chat_bot.id, content),
                 #  TODO добавить таймер из чат бот инстанса
                 countdown=60,
                 task_id=task_id
             )
-
