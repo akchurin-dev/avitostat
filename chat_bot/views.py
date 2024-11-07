@@ -18,10 +18,8 @@ class WebhookInboxView(View):
         decoded_string = request.body.decode('utf-8')
         data = json.loads(decoded_string)
         pprint(data)
-
         user_id = data.get("payload").get("value").get("user_id")
-
-        # Немедленно отправляем статус 200
+        # Немедленно отправляем статус 200, иначе сервер повторно отправит запрос
         response = JsonResponse({"status": "ok"}, status=200)
 
         # Запускаем задачу Celery
