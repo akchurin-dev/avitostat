@@ -6,6 +6,9 @@ gunicorn -c gunicorn_config.py base.wsgi:application
 
 celery -A base worker -l info --pool=solo
 celery -A base beat -l info
+поверить очереди
+celery -A base inspect active
+
 
 # Почистить старые задачи 
     redis-cli flushall
