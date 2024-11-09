@@ -1,5 +1,3 @@
-import asyncio
-
 from asgiref.sync import async_to_sync, sync_to_async
 
 from avito_account.models.models import AvitoAccount
@@ -9,6 +7,11 @@ from chat_bot.models import AiChatBot
 from messaging.api import get_chats_messages
 
 from celery import shared_task
+
+
+@shared_task
+def delayed_task(avito_account_id, user_id, chat_id, chat_bot_id, content):
+    async_to_sync(delayed_func_async)(avito_account_id, user_id, chat_id, chat_bot_id, content)
 
 
 async def delayed_func_async(avito_account_id, user_id, chat_id, chat_bot_id, content):
@@ -23,25 +26,3 @@ async def delayed_func_async(avito_account_id, user_id, chat_id, chat_bot_id, co
             ai_answer += f" answer for {content}"
             await send_message_to_avito(avito_account, user_id, chat_id, ai_answer)
         print(f"task_ai_answer_for_chat_id executed for chat_id: {chat_id}")
-
-
-# Определяем задачу
-@shared_task
-def delayed_task(avito_account_id, user_id, chat_id, chat_bot_id, content):
-    async_to_sync(delayed_func_async)(avito_account_id, user_id, chat_id, chat_bot_id, content)
-
-# Функция для создания задачи с задержкой
-# def create_delayed_task(chat_id, delay=120):
-#     task_id = f"task_ai_answer_for_chat_id_{chat_id}"  # Уникальный task_id с использованием chat_id
-#     delayed_task.apply_async((chat_id,), countdown=delay, task_id=task_id)
-#     return task_id
-
-
-# @celery_app.task(name='ai_messaging.tasks.process_webhook_task')
-# def process_webhook_task(user_id, data):
-#     # Запускаем асинхронный код
-#     async_to_sync(process_webhook_async)(user_id, data)
-
-
-# async def process_webhook_async(user_id, data):
-#

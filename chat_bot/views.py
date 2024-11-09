@@ -1,3 +1,5 @@
+import asyncio
+
 from asgiref.sync import sync_to_async, async_to_sync
 from celery.result import AsyncResult
 from django.views.decorators.csrf import csrf_exempt
@@ -36,16 +38,21 @@ class WebhookInboxView(View):
                 task_id = f"task_ai_answer_for_chat_id_{chat_id}"
                 # Проверяем, существует ли задача с таким task_id и активна ли она
                 existing_task = AsyncResult(task_id)
-                if existing_task and existing_task.state in ["PENDING", "STARTED"]:
-                    # Если задача активна или ожидает выполнения, отменяем её
+                # print(existing_task.status)
+                # print(existing_task.state)
+                if existing_task and existing_task.status in ["PENDING", "STARTED", "RECEIVED", "SUCCESS"]:
                     existing_task.revoke(terminate=True)
                     logger.info(f"Task {task_id} revoked before creating the new task.")
-                # Создаем новую задачу с тем же task_id
+                    await asyncio.sleep(0.1)
                 delayed_task.apply_async(
                     (avito_account.id, user_id, chat_id, chat_bot.id, content),
                     countdown=240,
                     task_id=task_id
                 )
+                await asyncio.sleep(2)
+                existing_task = AsyncResult(task_id)
+                print(existing_task.status)
+                print(existing_task.state)
 
         return response
 
