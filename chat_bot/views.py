@@ -1,19 +1,17 @@
-import asyncio
-
 from asgiref.sync import sync_to_async, async_to_sync
 from celery.result import AsyncResult
 from django.views.decorators.csrf import csrf_exempt
 from avito_account.models.models import AvitoAccount
-from chat_bot.models import AiChatBot
+from chat_bot.models import AiChatBot, ChatBotTask
 from chat_bot.tasks import delayed_task
 from django.http import JsonResponse
 from django.utils.decorators import method_decorator
 from django.views import View
 import json
-from pprint import pprint
-from base.celery import celery_app, logger
-
+from base.celery import logger
 from chat_bot.api.subscriptions import subscribe_to_messages, stop_subscribe_to_messages, check_subscriptions
+from django.utils import timezone
+import datetime
 
 
 @method_decorator(csrf_exempt, name='dispatch')
@@ -30,30 +28,39 @@ class WebhookInboxView(View):
         await avito_account.update_refresh_token_async()
 
         if data.get("payload").get("type") == "message":
+            message_id = data.get('payload').get('value').get('id')
             chat_id = data.get("payload").get("value").get("chat_id")
             author_id = data.get("payload").get("value").get("author_id")
-            content = data.get("payload").get("value").get("content")
+            message_text = data.get("payload").get("value").get("content")
 
             if author_id != user_id and chat_bot.is_active:
-                task_id = f"task_ai_answer_for_chat_id_{chat_id}"
-                # Проверяем, существует ли задача с таким task_id и активна ли она
-                existing_task = AsyncResult(task_id)
-                # print(existing_task.status)
-                # print(existing_task.state)
-                if existing_task and existing_task.status in ["PENDING", "STARTED", "RECEIVED", "SUCCESS"]:
-                    existing_task.revoke(terminate=True)
-                    logger.info(f"Task {task_id} revoked before creating the new task.")
-                    await asyncio.sleep(0.1)
-                delayed_task.apply_async(
-                    (avito_account.id, user_id, chat_id, chat_bot.id, content),
-                    countdown=240,
-                    task_id=task_id
-                )
-                await asyncio.sleep(2)
-                existing_task = AsyncResult(task_id)
-                print(existing_task.status)
-                print(existing_task.state)
+                last_two_hours = timezone.now() - datetime.timedelta(minutes=10)
+                try:
+                    old_tasks = await sync_to_async(list)(ChatBotTask.objects.filter(
+                        chat_id=chat_id,
+                        # created_at__lte=last_two_hours,
+                    ))
+                except:
+                    old_tasks = None
 
+                if old_tasks:
+                    for old_task in old_tasks:
+                        old_task_id = f"ai_answer_{old_task.message_id}"
+                        existing_task = AsyncResult(old_task_id)
+                        if existing_task and existing_task.status == "PENDING":
+                            print(existing_task.status)
+                            existing_task.revoke(terminate=True)
+                            logger.info(f"Task {old_task_id} revoked before launching")
+
+                await ChatBotTask.objects.aget_or_create(
+                    chat_id=chat_id, message_id=message_id, avito_account=avito_account, text=message_text,
+                )
+                delayed_task.apply_async(
+                    (avito_account.id, user_id, chat_id, chat_bot.id, message_text),
+                    countdown=30,
+                    task_id=f"ai_answer_{message_id}"
+                )
+                #  TODO сделать чтобы таска возвращала количество токенов, сохраняла ответ от ИИ
         return response
 
 

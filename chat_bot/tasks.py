@@ -10,11 +10,11 @@ from celery import shared_task
 
 
 @shared_task
-def delayed_task(avito_account_id, user_id, chat_id, chat_bot_id, content):
-    async_to_sync(delayed_func_async)(avito_account_id, user_id, chat_id, chat_bot_id, content)
+def delayed_task(avito_account_id, user_id, chat_id, chat_bot_id, message_text):
+    async_to_sync(delayed_func_async)(avito_account_id, user_id, chat_id, chat_bot_id, message_text)
 
 
-async def delayed_func_async(avito_account_id, user_id, chat_id, chat_bot_id, content):
+async def delayed_func_async(avito_account_id, user_id, chat_id, chat_bot_id, message_text):
     avito_account = await AvitoAccount.objects.aget(pk=avito_account_id)
     chat_bot = await AiChatBot.objects.aget(pk=chat_bot_id)
     chat_with_messages = await get_chats_messages(avito_account, chats=[{"id": chat_id}])
@@ -23,6 +23,6 @@ async def delayed_func_async(avito_account_id, user_id, chat_id, chat_bot_id, co
         await read_chat(avito_account, user_id, chat_id)
         ai_answer = await ai_answer_assist(chat_bot, chat_with_messages)
         if ai_answer:
-            ai_answer += f" answer for {content}"
+            ai_answer += f" answer for {message_text}"
             await send_message_to_avito(avito_account, user_id, chat_id, ai_answer)
         print(f"task_ai_answer_for_chat_id executed for chat_id: {chat_id}")

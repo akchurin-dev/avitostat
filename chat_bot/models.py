@@ -47,3 +47,22 @@ class AiChatBot(models.Model):
         if self.is_active:
             async_to_sync(stop_subscribe_to_messages)(self.avito_account)
         super().delete()
+
+
+class ChatBotTask(models.Model):
+    chat_id = models.CharField()
+    message_id = models.CharField(primary_key=True, unique=True)
+    avito_account = models.ForeignKey(AvitoAccount, on_delete=models.CASCADE)
+    text = models.TextField(verbose_name="Текст сообщения")
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    answer_text = models.TextField(verbose_name="Текст ответа", blank=True, null=True)
+    tokens_completion = models.IntegerField(default=0, verbose_name="Токены на вычисления")
+    tokens_prompt = models.IntegerField(default=0, verbose_name="Токены на контекст")
+
+    class Meta:
+        verbose_name = "Ответ чат бота"
+        verbose_name_plural = "Ответы чат бота"
+
+    def __str__(self):
+        return f"{self.message_id}"
