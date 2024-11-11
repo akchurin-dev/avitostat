@@ -1,3 +1,5 @@
+from pprint import pprint
+
 from openai import AsyncOpenAI
 from base import settings
 from chat_bot.models import AiChatBot
@@ -21,7 +23,8 @@ async def ai_answer_assist(ai_assistant: AiChatBot, chat: list):
         temperature=1,
         max_tokens=300,
     )
-    print(response)
     if response is not None:
         message = response.choices[0].message.content
-        return message
+        tokens_completion = response.usage.completion_tokens
+        tokens_prompt = response.usage.prompt_tokens
+        return message, tokens_completion, tokens_prompt
