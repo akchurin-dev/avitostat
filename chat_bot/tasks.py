@@ -24,7 +24,7 @@ async def delayed_func_async(avito_account_id, user_id, chat_id, chat_bot_id, me
         await read_chat(avito_account, user_id, chat_id)
         ai_answer, tokens_completion, tokens_prompt = await ai_answer_assist(chat_bot, chat_with_messages)
         if ai_answer:
-            ai_answer += f" answer for {message_text}"
+            # ai_answer += f" answer for {message_text}"
             await send_message_to_avito(avito_account, user_id, chat_id, ai_answer)
             new_task[0].answer_text = ai_answer
             new_task[0].tokens_completion = tokens_completion
