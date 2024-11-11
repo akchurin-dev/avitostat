@@ -6,6 +6,7 @@ from base.settings import ENVIRONMENT
 
 
 async def subscribe_to_messages(avito_account: AvitoAccount):
+    await avito_account.update_refresh_token_async()
     url = "https://api.avito.ru/messenger/v3/webhook"
     headers = {'authorization': f"Bearer {avito_account.access_token}"}
 
@@ -20,11 +21,13 @@ async def subscribe_to_messages(avito_account: AvitoAccount):
         if response.status_code == 200:
             data = response.json()
             print(data)
+            print("subscribe_to_messages called")
         else:
             raise HTTPException(status_code=response.status_code, detail=response.text)
 
 
 async def stop_subscribe_to_messages(avito_account: AvitoAccount):
+    await avito_account.update_refresh_token_async()
     url = "https://api.avito.ru/messenger/v1/webhook/unsubscribe"
     headers = {
         'authorization': f"Bearer {avito_account.access_token}"
@@ -48,6 +51,7 @@ async def stop_subscribe_to_messages(avito_account: AvitoAccount):
 
 
 async def check_subscriptions(avito_account: AvitoAccount):
+    await avito_account.update_refresh_token_async()
     url = "https://api.avito.ru/messenger/v1/subscriptions"
     headers = {
         'authorization': f"Bearer {avito_account.access_token}"

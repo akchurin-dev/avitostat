@@ -6,6 +6,9 @@ gunicorn -c gunicorn_config.py base.wsgi:application
 
 celery -A base worker -l info --pool=solo
 celery -A base beat -l info
+поверить очереди
+celery -A base inspect active
+
 
 # Почистить старые задачи 
     redis-cli flushall
@@ -121,9 +124,11 @@ psql -h wokrofanu.beget.app -p 5432 -U cloud_user -d default_db -f local_db_dump
 https://proghunter.ru/articles/django-base-2023-installing-postgresql-in-django
 
 # Дропнуть БД в контейнере
+docker exec -it avitostata_db sh
+psql -U postgres -d template1
+DROP DATABASE postgres;
+CREATE DATABASE postgres;
 
-docker exec -it avitostata_db psql -U postgres -d template1 -c "DROP DATABASE IF EXISTS postgres;"
-docker exec -it avitostata_db psql -U postgres -d template1 -c "CREATE DATABASE postgres;"
 ./manage.py makemigrations
 ./manage.py migrate
 
