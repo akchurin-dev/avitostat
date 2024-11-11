@@ -10,8 +10,6 @@ from django.views import View
 import json
 from base.celery import logger
 from chat_bot.api.subscriptions import subscribe_to_messages, stop_subscribe_to_messages, check_subscriptions
-from django.utils import timezone
-import datetime
 
 
 @method_decorator(csrf_exempt, name='dispatch')
@@ -19,10 +17,8 @@ class WebhookInboxView(View):
     async def post(self, request, *args, **kwargs):
         decoded_string = request.body.decode('utf-8')
         data = json.loads(decoded_string)
-        user_id = data.get("payload").get("value").get("user_id")
-        # Немедленно отправляем статус 200, иначе сервер повторно отправит запрос
-        response = JsonResponse({"status": "ok"}, status=200)
 
+        user_id = data.get("payload").get("value").get("user_id")
         avito_account = await AvitoAccount.objects.aget(id=user_id)
         chat_bot = await AiChatBot.objects.aget(avito_account=avito_account)
         await avito_account.update_refresh_token_async()
@@ -56,7 +52,7 @@ class WebhookInboxView(View):
                     task_id=f"ai_answer_{message_id}"
                 )
 
-        return response
+        return JsonResponse({"status": "ok"}, status=200)
 
 
 class SubscribeView(View):
