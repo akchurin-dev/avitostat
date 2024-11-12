@@ -1,15 +1,27 @@
+import datetime
+
+import pytz
 from asgiref.sync import sync_to_async
 from celery.result import AsyncResult
 from django.views.decorators.csrf import csrf_exempt
-from avito_account.models.models import AvitoAccount
+from avito_account.models.models import AvitoAccount, moscow_time
 from chat_bot.models import AiChatBot, ChatBotTask
-from chat_bot.tasks import delayed_task
+from chat_bot.tasks import ai_answer_sender_task
 from django.http import JsonResponse
 from django.utils.decorators import method_decorator
 from django.views import View
 import json
 from base.celery import logger
 from chat_bot.api.subscriptions import subscribe_to_messages, stop_subscribe_to_messages, check_subscriptions
+
+moscow_tz = pytz.timezone('Europe/Moscow')
+
+
+async def check_chat_bot_scheduler(chat_bot: AiChatBot):
+    now = datetime.datetime.now(tz=moscow_tz)
+    start = moscow_tz.localize(datetime.datetime.combine(now.date(), chat_bot.work_time_from))
+    stop = moscow_tz.localize(datetime.datetime.combine(now.date(), chat_bot.work_time_to))
+    return start <= now <= stop
 
 
 @method_decorator(csrf_exempt, name='dispatch')
@@ -28,8 +40,9 @@ class WebhookInboxView(View):
             chat_id = data.get("payload").get("value").get("chat_id")
             author_id = data.get("payload").get("value").get("author_id")
             message_text = data.get("payload").get("value").get("content").get("text")
+            time_to_work = await check_chat_bot_scheduler(chat_bot)
 
-            if author_id != user_id and chat_bot.is_active:
+            if author_id != user_id and chat_bot.is_active and time_to_work:
                 old_tasks = await sync_to_async(list)(ChatBotTask.objects.filter(chat_id=chat_id))
                 if old_tasks:
                     for old_task in old_tasks:
@@ -46,7 +59,7 @@ class WebhookInboxView(View):
                     text=message_text,
                 )
 
-                delayed_task.apply_async(
+                ai_answer_sender_task.apply_async(
                     (avito_account.id, user_id, chat_id, chat_bot.id, message_text, new_task.message_id),
                     countdown=chat_bot.waiting_minutes * 60,
                     task_id=f"ai_answer_{message_id}"
