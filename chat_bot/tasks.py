@@ -10,7 +10,7 @@ from celery import shared_task
 
 
 @shared_task
-def delayed_task(avito_account_id, user_id, chat_id, chat_bot_id, message_text, new_task_id):
+def ai_answer_sender_task(avito_account_id, user_id, chat_id, chat_bot_id, message_text, new_task_id):
     async_to_sync(delayed_func_async)(avito_account_id, user_id, chat_id, chat_bot_id, message_text, new_task_id)
 
 

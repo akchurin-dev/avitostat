@@ -1,4 +1,3 @@
-from datetime import timedelta
 from asgiref.sync import sync_to_async
 from avito_account.api.api import get_items_list
 from avito_account.models.excluded_items import ExcludedItem
