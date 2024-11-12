@@ -88,7 +88,7 @@ class PaymentCreateView(View):
         payment_response = yookassa.Payment.create(
             {
                 "amount": {
-                    "value": 1,
+                    "value": amount,
                     "currency": "RUB"
                 },
                 "confirmation": {
