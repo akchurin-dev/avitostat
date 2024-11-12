@@ -52,18 +52,20 @@ class PRICE:
 @method_decorator(csrf_exempt, name='dispatch')
 class PaymentCreateView(View):
     def get(request, *args, **kwargs):
-        yookassa.Configuration.account_id = settings.YOOKASSA_TEST_SHOP_ID
-        yookassa.Configuration.secret_key = settings.YOOKASSA_TEST_SECRET_KEY
-
         user = User.objects.filter(id=args[0].user.id).last()
         active_accounts = AvitoAccount.objects.filter(created_by=user).count()
         months_count = int(kwargs.get('months'))
 
-        if settings.ENVIRONMENT == "DEVELOPMENT":  # TODO change script filling test DB and remove this code
+        if settings.ENVIRONMENT == "PRODUCTION":
+            yookassa.Configuration.account_id = settings.YOOKASSA_PROD_SHOP_ID
+            yookassa.Configuration.secret_key = settings.YOOKASSA_PROD_SECRET_KEY
+            redirect_url = "https://avitostata.ru/admin/payments/payment/"
+
+        else:
+            yookassa.Configuration.account_id = settings.YOOKASSA_TEST_SHOP_ID
+            yookassa.Configuration.secret_key = settings.YOOKASSA_TEST_SECRET_KEY
             active_accounts = 31
             redirect_url = "http://127.0.0.1:8000/admin/payments/payment/"
-        else:
-            redirect_url = "https://avitostata.ru/admin/payments/payment/"
 
         rate = PRICE.get_rate(active_accounts=active_accounts)
         price = PRICE.get_price(rate=rate)
