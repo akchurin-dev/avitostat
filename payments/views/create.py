@@ -52,8 +52,12 @@ class PRICE:
 @method_decorator(csrf_exempt, name='dispatch')
 class PaymentCreateView(View):
     def get(request, *args, **kwargs):
-        yookassa.Configuration.account_id = settings.YOOKASSA_TEST_SHOP_ID
-        yookassa.Configuration.secret_key = settings.YOOKASSA_TEST_SECRET_KEY
+        if settings.ENVIRONMENT == "PRODUCTION":
+            yookassa.Configuration.account_id = settings.YOOKASSA_PROD_SHOP_ID
+            yookassa.Configuration.secret_key = settings.YOOKASSA_PROD_SECRET_KEY
+        else:
+            yookassa.Configuration.account_id = settings.YOOKASSA_TEST_SHOP_ID
+            yookassa.Configuration.secret_key = settings.YOOKASSA_TEST_SECRET_KEY
 
         user = User.objects.filter(id=args[0].user.id).last()
         active_accounts = AvitoAccount.objects.filter(created_by=user).count()
