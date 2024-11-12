@@ -1,7 +1,7 @@
 from asgiref.sync import async_to_sync
 from django.db import models
 from django.contrib.auth.models import User
-from avito_account.models.models import AvitoAccount
+from avito_account.models.models import AvitoAccount, moscow_time
 from chat_bot.api.subscriptions import subscribe_to_messages, stop_subscribe_to_messages
 from django.core.validators import MinValueValidator, MaxValueValidator
 
@@ -23,6 +23,9 @@ class AiChatBot(models.Model):
         verbose_name="Ожидание ответа от менеджера(минуты)",
         help_text="Укажите количество минут от 1 до 120"
     )
+
+    work_time_from = models.TimeField("Начало работы МСК (Пн-Вс)")
+    work_time_to = models.TimeField("Окончание работы МСК (Пн-Вс)")
 
     class Meta:
         verbose_name = "ИИ чат бот"
