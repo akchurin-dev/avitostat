@@ -10,7 +10,6 @@ from httpx import HTTPStatusError
 from conversion.utils import dates_for_period_without_extra_reserve
 
 
-# TODO ДОБАВИТЬ ПРОВЕРКУ НА ПРОСРОЧЕННОСТЬ и обновление токена
 # статистика по последним 100 чатам не отличается если даже все чаты вытаскивать имей ввиду, возможно
 # можно убрать цикл уайл и просто один запрос отправлять если будут сложности или будет медленно
 async def get_chats(avito_account: AvitoAccount, max_retries: int = 3) -> dict:
@@ -39,12 +38,9 @@ async def get_chats(avito_account: AvitoAccount, max_retries: int = 3) -> dict:
                 params["offset"] += 100
             elif response.status_code == 403:
                 retries += 1
-                # await avito_account.update_refresh_token_async()
                 if retries > max_retries:
                     raise HTTPStatusError("Превышено максимальное количество попыток обновления токена",
                                           request=response.request, response=response)
-                print(
-                    f"Attempt {retries}: {response.status_code}, {response.text}")  # Удалить если нет необходимости в коде, была нужда когда разбирался в ошибкой 403 бесконечно
             else:
                 raise HTTPException(status_code=response.status_code, detail=response.text)
 
@@ -65,13 +61,11 @@ async def get_chats_messages(avito_account: AvitoAccount, chats: list) -> list:
                     chat["messages"] = response.json().get("messages")[::-1]
                 else:
                     continue
-
     return chats
 
 
-async def get_calls_statistic_last_week(avito_account: AvitoAccount):
-    # await avito_account.update_refresh_token_async()
-    date_from, date_to = await dates_for_period_without_extra_reserve(period="week", date_type="str")
+async def get_calls_statistic_last_period(avito_account: AvitoAccount, period: "week"):
+    date_from, date_to = await dates_for_period_without_extra_reserve(period=period, date_type="str")
 
     async with httpx.AsyncClient() as client:
         url = f"https://api.avito.ru/core/v1/accounts/{avito_account.id}/calls/stats/"

@@ -1,3 +1,4 @@
+import logging
 import shutil
 import sentry_sdk
 from celery import shared_task
@@ -9,12 +10,15 @@ from aiogram import types
 from avito_account.models.sending_report import SendingCampaign, SendingReport
 from base import settings
 from base.celery import celery_app
-from messaging.api import get_calls_statistic_last_week
+from messaging.api import get_calls_statistic_last_period
 from messaging.bad_mes_report.utils_bad_messaging_report import get_messaging_week_report_pdf
 import subprocess
 import os
 from datetime import datetime
 from payments.utils import waste_of_balance, check_balance
+
+# Получаем логгер для текущего модуля или приложения
+logger = logging.getLogger(__name__)
 
 
 @celery_app.task(name='messaging.tasks.bad_messaging_week_report_async_task')
@@ -28,7 +32,7 @@ def bad_messaging_week_report_async_task_auto_generated(only_for_users=None, tes
                                                    auto_generated=auto_generated)
 
 
-async def get_accounts_for_pdf_reports(only_for_users: list, test_from_prod: bool):
+async def get_accounts_for_pdf_reports(only_for_users: list, test_from_prod: bool, period: str):
     if only_for_users is None:
         all_avito_accounts = await sync_to_async(list)(AvitoAccount.objects.filter(
             created_by__is_active=True,
@@ -40,62 +44,62 @@ async def get_accounts_for_pdf_reports(only_for_users: list, test_from_prod: boo
             id__in=only_for_users, ))
 
     campaign = await SendingCampaign.objects.acreate(
-        name="weekly",
+        name=period,
         test_from_prod=test_from_prod,
         sending_type=SendingCampaign.PDF,
         created_at=timezone.now(),
         accounts_presented_count=len(all_avito_accounts),
     )
     await sync_to_async(campaign.accounts_presented.add)(*all_avito_accounts)
+
+    if len(all_avito_accounts) == 0:
+        raise Exception("No accounts presented")
     return all_avito_accounts, campaign
 
 
-# TODO change auto_generated=False by default
 async def bad_messaging_week_report_async(only_for_users=None, test_from_prod: bool = True, auto_generated=True,
-                                          pdf_path=None, balance_decrease=0,):
-    # TODO change test_from_prod=True
+                                          pdf_path=None, balance_decrease=0, period="week"):
     if settings.ENVIRONMENT == 'DEVELOPMENT':
         test_from_prod = True
 
-    all_avito_accounts, campaign = await get_accounts_for_pdf_reports(only_for_users=only_for_users, test_from_prod=test_from_prod, )
-    if len(all_avito_accounts) == 0:  # will TRY to cut in get_account_for_pdf_reports with raise exception
-        return None
-
-    # CORE logic
+    all_avito_accounts, campaign = await get_accounts_for_pdf_reports(only_for_users=only_for_users,
+                                                                      test_from_prod=test_from_prod,
+                                                                      period=period, )
     for avito_account in all_avito_accounts:
         await avito_account.update_refresh_token_async()
         tokens = {"completion": -99, "prompt": -99}
-        print(avito_account.name)
+        logger.info(f"Processing Avito account: {avito_account.name}")
+
         try:
             await check_balance(avito_account)
-            pdf_path, tokens = await get_messaging_week_report_pdf(avito_account.id, test_from_prod)
+            pdf_path, tokens = await get_messaging_week_report_pdf(avito_account.id, test_from_prod, period)
             if pdf_path:
                 chat_id = "-4221870448" if test_from_prod else avito_account.telegram_id
                 try:
-                    await sync_to_async(bot.send_raw, thread_sensitive=False)(
-                        chat_id=chat_id,
-                        function="send_document",
-                        document=types.FSInputFile(pdf_path))
+                    if period == "weekly":
+                        await sync_to_async(bot.send_raw, thread_sensitive=False)(
+                            chat_id=chat_id,
+                            function="send_document",
+                            document=types.FSInputFile(pdf_path))
                     success = True
                     error_message = None
-                    # print(f"auto_generated-{auto_generated}, test_from_prod - {test_from_prod}")
+                    logger.info(f"Report successfully sent to {chat_id}")
                     if auto_generated:
                         campaign.auto_generated = True
                         await campaign.asave()
-                        if not test_from_prod:
+                        if not test_from_prod and period == "weekly":
                             balance_decrease = 500
                             await waste_of_balance(avito_account, balance_decrease)
                 except Exception as send_error:
-                    sentry_sdk.capture_exception(send_error)
-                    print(send_error)
+                    logger.error(f"Error sending report: {send_error}")
                     success = False
                     error_message = str(send_error)[:255]
             else:
                 success = False
                 error_message = "Failed to generate PDF"
+                logger.error(error_message)
         except Exception as e:
-            sentry_sdk.capture_exception(e)
-            print(e)
+            logger.exception(f"Exception checking balance or generating report: {e}")
             success = False
             error_message = str(e)[:255]
 

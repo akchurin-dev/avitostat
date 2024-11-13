@@ -1,5 +1,4 @@
 import pdfkit
-import sentry_sdk
 from avito_account.models.models import AvitoAccount
 from base import settings
 from base.exceptions import HTTPException
@@ -7,7 +6,6 @@ from jinja2 import Template
 from asgiref.sync import sync_to_async
 from pathlib import Path
 from datetime import datetime, timedelta
-
 from conversion.utils_week_report import get_text_statistics_report
 from messaging.bad_mes_report.statistics.statistics_by_criteria_utils import \
     get_stat_by_criteria_splitted_by_managers
@@ -17,20 +15,20 @@ from messaging.bad_mes_report.utils_chats import get_ready_chats
 from messaging.bad_mes_report.utils_open_ai import messaging_total_analyze, analyze_by_criteria
 from messaging.utils_duration import get_calls_count_unique_numbers_last_week
 
+import logging
+import coloredlogs
 
-async def get_messaging_week_report_pdf(avito_account_id, test_from_prod: bool):
+logger = logging.getLogger(__name__)
+
+
+async def get_messaging_week_report_pdf(avito_account_id, test_from_prod: bool, period: str):
     avito_account = await sync_to_async(AvitoAccount.objects.filter(id=avito_account_id).last)()
     if avito_account:
         analyze_all_chats = {"avito_account_name": avito_account.name, "avito_account_id": avito_account.id, }
         try:
-            ready_chats, chats_without_filtering_count = await get_ready_chats(avito_account)
-            # PROCESSING WITH FILTERED CHATS
-            if len(ready_chats) < 2:
-                raise HTTPException(status_code=404, detail="Нет чатов для анализа, или их менее двух")
-                # return False
-            else:
-                analyze_all_chats["chats_for_analyze"] = len(ready_chats)
-                analyze_all_chats["chats_without_filtering_count"] = chats_without_filtering_count
+            ready_chats, chats_without_filtering_count = await get_ready_chats(avito_account, period=period)
+            analyze_all_chats["chats_for_analyze"] = len(ready_chats)
+            analyze_all_chats["chats_without_filtering_count"] = chats_without_filtering_count
 
             # Checking count of messages for analytics
             if settings.ENVIRONMENT == 'DEVELOPMENT' or test_from_prod:
@@ -42,7 +40,7 @@ async def get_messaging_week_report_pdf(avito_account_id, test_from_prod: bool):
                 analyze_all_chats["header_with_statistics"] = statistics_total
 
             statistics_new = await get_text_statistics_report(avito_account=avito_account)
-            calls_unique_users = await get_calls_count_unique_numbers_last_week(avito_account)
+            calls_unique_users = await get_calls_count_unique_numbers_last_week(avito_account, period)
             if statistics_new:
                 analyze_all_chats["contacts"] = {
                     "total": (chats_without_filtering_count + calls_unique_users) or 0,
@@ -66,10 +64,11 @@ async def get_messaging_week_report_pdf(avito_account_id, test_from_prod: bool):
                 analyze_all_chats["analyze_by_criteria"] = analyze_by_crit_split_by_man
 
         except Exception as send_error:
-            sentry_sdk.capture_exception(send_error)
-            print(send_error)
+            logger.info(send_error)
+            logger.debug(send_error)
+            logger.error(send_error)
+            logger.exception(send_error)
             raise send_error
-            # return False
         else:
             analyze_all_chats["compared_messages"] = "Чаты не найдены"
 
@@ -81,8 +80,9 @@ async def get_messaging_week_report_pdf(avito_account_id, test_from_prod: bool):
         if analyze_all_chats:
             analyze_all_chats = await converting_created_timestamp_to_datetime(analyze_all_chats)
 
-        return await get_pdf_report(avito_account_id, analyze_all_chats), tokens
+        return await get_pdf_report(avito_account_id, analyze_all_chats, period), tokens
     else:
+        logger.exception("Аккаунт Avito не найден")
         raise HTTPException(status_code=404, detail="error: Аккаунт Avito не найден")
 
 
@@ -99,13 +99,13 @@ async def converting_created_timestamp_to_datetime(analyze_all_chats):
         raise Exception
 
 
-async def get_pdf_report(avito_account_id, analyze_all_chats):
+async def get_pdf_report(avito_account_id, analyze_all_chats, period: str):
     if settings.ENVIRONMENT == 'DEVELOPMENT':
         wkhtmltopdf_path = "/usr/local/bin/wkhtmltopdf"  # For testing 5 items  for economy
     else:
         wkhtmltopdf_path = "/usr/bin/wkhtmltopdf"
 
-    html_content = await bad_messaging_report_generate_html(analyze_all_chats=analyze_all_chats)
+    html_content = await bad_messaging_report_generate_html(analyze_all_chats=analyze_all_chats, period=period)
     config = pdfkit.configuration(wkhtmltopdf=wkhtmltopdf_path)
     # Define the directory and file path with the date
     reports_dir = Path("messaging/bad_mes_report/PDFs")
@@ -117,7 +117,7 @@ async def get_pdf_report(avito_account_id, analyze_all_chats):
     return pdf_path
 
 
-async def bad_messaging_report_generate_html(analyze_all_chats):
+async def bad_messaging_report_generate_html(analyze_all_chats, period: str):
     # Загрузка шаблона из файла
     with open("messaging/templates/messaging/bad_messaging_report.html", "r", encoding="utf-8") as file:
         template_content = file.read()
@@ -125,10 +125,14 @@ async def bad_messaging_report_generate_html(analyze_all_chats):
     template = Template(template_content)
 
     # Данные для подстановки в шаблон
-    start_date = (datetime.now() - timedelta(days=6)).strftime("%d.%m.%Y")
-    end_date = datetime.now().strftime("%d.%m.%Y")
-    avito_account_name = analyze_all_chats['avito_account_name'] if analyze_all_chats else "Неизвестно"
+    if period == "week":
+        start_date = (datetime.now() - timedelta(days=6)).strftime("%d.%m.%Y")
+        end_date = datetime.now().strftime("%d.%m.%Y")
+    if period == "month":
+        start_date = (datetime.now() - timedelta(days=29)).strftime("%d.%m.%Y")
+        end_date = datetime.now().strftime("%d.%m.%Y")
 
+    avito_account_name = analyze_all_chats['avito_account_name'] if analyze_all_chats else "Неизвестно"
     # Генерация HTML с использованием шаблона и данных
     return template.render(avito_account_name=avito_account_name,
                            start_date=start_date,

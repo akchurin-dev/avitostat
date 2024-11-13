@@ -150,3 +150,5 @@ wrapt==1.16.0
 yarl==1.9.4
 yookassa==3.3.0
 zopfli==0.2.3
+
+coloredlogs~=15.0.1

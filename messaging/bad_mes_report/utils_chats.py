@@ -1,3 +1,4 @@
+import logging
 import time
 
 import pytz
@@ -6,11 +7,14 @@ import re
 
 from avito_account.models.excluded_items import ExcludedItem
 from avito_account.models.models import AvitoAccount, WorkSchedule
+from base.exceptions import HTTPException
 from messaging.api import get_chats, get_chats_messages
 import datetime
 
+logger = logging.getLogger(__name__)
 
-async def get_chats_for_last_week(chats: list) -> list:
+
+async def get_chats_for_last_period(chats: list, period: str) -> list:
     filtered_chats = []
     now = datetime.datetime.now()
 
@@ -18,9 +22,13 @@ async def get_chats_for_last_week(chats: list) -> list:
         for chat in chats:
             created = datetime.datetime.fromtimestamp(chat.get('created'))
             timedelta = now - created
-            if 8 >= timedelta.days > 0:
-                filtered_chats.append(chat)
-        print(f"{len(filtered_chats)} chats loaded")
+            if period == 'week':
+                if 8 >= timedelta.days > 0:
+                    filtered_chats.append(chat)
+            if period == 'month':
+                if 31 >= timedelta.days > 0:  # Возможно тут будет проблема тк количество дней меняется в месяцах
+                    filtered_chats.append(chat)
+        logger.info(f"{len(filtered_chats)} chats loaded")
         return filtered_chats
 
 
@@ -105,20 +113,26 @@ async def schedule_filter_chats(filtered_chats_only_with_text: list, avito_accou
     return filtered_chats
 
 
-async def get_ready_chats(avito_account: AvitoAccount):
+async def get_ready_chats(avito_account: AvitoAccount, period: str):
     chats = await get_chats(avito_account)
     if chats:
         # Chats with messages getting
-        actual_chats = await get_chats_for_last_week(chats)
+        actual_chats = await get_chats_for_last_period(chats, period=period)
         actual_chats_with_mes = await get_chats_messages(avito_account, actual_chats)
 
         #  Filtering and processing before using
         comp_mes_with_man = adding_manager_info_for_chats(actual_chats_with_mes)
         fil_chats_only_with_text = filter_chats_only_with_text(comp_mes_with_man)
         chats_without_filtering_count = len(fil_chats_only_with_text)
+
         fil_chats_by_sched = await schedule_filter_chats(fil_chats_only_with_text, avito_account)
         fil_by_excluded_items = await excluded_items_filter_chats(fil_chats_by_sched, avito_account)
-        print(f"{len(fil_by_excluded_items)} chats after filtering")
+        logger.info(f"{len(fil_by_excluded_items)} chats after filtering")
+
+        if len(fil_by_excluded_items) < 2:
+            logger.exception(f"status_code=404, detail='Нет чатов для анализа, или их менее двух'")
+            raise HTTPException(status_code=404, detail="Нет чатов для анализа, или их менее двух")
+
         return fil_by_excluded_items, chats_without_filtering_count
     else:
         return []

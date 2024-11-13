@@ -1,8 +1,12 @@
+import logging
+
 from asgiref.sync import sync_to_async
 
 from avito_account.models.models import AvitoAccount
 from base.exceptions import HTTPException
 from payments.models import UserProfile
+
+logger = logging.getLogger(__name__)
 
 
 # TODO может стоит перенести в модель профиля?
@@ -17,5 +21,5 @@ async def waste_of_balance(avito_account: AvitoAccount, balance_decrease: int):
 def check_balance(avito_account):
     balance = avito_account.created_by.userprofile.balance
     if balance < 500:
-        print(f"Недостаточно денег - ({balance})")
+        logger.exception(f"Недостаточно денег - ({balance})")
         raise HTTPException(status_code=400, detail=f"Недостаточно денег - ({balance})")
