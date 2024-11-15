@@ -8,6 +8,7 @@ import re
 from avito_account.models.excluded_items import ExcludedItem
 from avito_account.models.models import AvitoAccount, WorkSchedule
 from base.exceptions import HTTPException
+from base.settings import moscow_tz
 from messaging.api import get_chats, get_chats_messages
 import datetime
 
@@ -16,20 +17,20 @@ logger = logging.getLogger(__name__)
 
 async def get_chats_for_last_period(chats: list, period: str) -> list:
     filtered_chats = []
-    now = datetime.datetime.now()
+    now = datetime.datetime.now(tz=moscow_tz)
 
     if len(chats) > 0:
         for chat in chats:
-            created = datetime.datetime.fromtimestamp(chat.get('created'))
+            created = datetime.datetime.fromtimestamp(chat.get('created'), tz=moscow_tz)
             timedelta = now - created
             if period == 'week':
-                if 8 >= timedelta.days > 0:
+                if 8 >= timedelta.days >= 0:
                     filtered_chats.append(chat)
             if period == 'month':
                 if 31 >= timedelta.days > 0:  # Возможно тут будет проблема тк количество дней меняется в месяцах
                     filtered_chats.append(chat)
-        logger.info(f"{len(filtered_chats)} chats loaded")
-        return filtered_chats
+    logger.info(f"{len(filtered_chats)} chats loaded")
+    return filtered_chats
 
 
 def adding_manager_info_for_chats(chats):

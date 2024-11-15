@@ -1,18 +1,19 @@
 import json
 import pprint
-from datetime import timedelta
+from datetime import timedelta, datetime
 
 from avito_account.models.models import AvitoAccount
 from base.exceptions import HTTPException
 import httpx
 from httpx import HTTPStatusError
 
+from base.settings import NOW_IN_MOSCOW, moscow_tz
 from conversion.utils import dates_for_period_without_extra_reserve
 
 
 # статистика по последним 100 чатам не отличается если даже все чаты вытаскивать имей ввиду, возможно
 # можно убрать цикл уайл и просто один запрос отправлять если будут сложности или будет медленно
-async def get_chats(avito_account: AvitoAccount, max_retries: int = 3) -> dict:
+async def get_chats(avito_account: AvitoAccount, max_retries: int = 3) -> list:
     url = f"https://api.avito.ru/messenger/v2/accounts/{avito_account.id}/chats"
     headers = {
         'authorization': f"Bearer {avito_account.access_token}"
@@ -33,7 +34,11 @@ async def get_chats(avito_account: AvitoAccount, max_retries: int = 3) -> dict:
                 data = response.json()
                 chats.extend(data.get("chats", []))
                 has_more = data.get("meta", {}).get("has_more", False)
-                if not has_more:
+
+                dt = datetime.fromtimestamp(data.get("chats")[-1].get("created"), tz=moscow_tz)
+                timedelta = NOW_IN_MOSCOW - dt
+
+                if not has_more or timedelta.days > 35:
                     break
                 params["offset"] += 100
             elif response.status_code == 403:

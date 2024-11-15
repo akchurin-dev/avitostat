@@ -1,5 +1,6 @@
 import logging
 import os
+from datetime import datetime
 from pathlib import Path
 import pytz
 from celery.schedules import crontab
@@ -34,6 +35,10 @@ DB_PORT = os.getenv('DB_PORT')
 DB_USER = os.getenv('DB_USER')
 DB_PASS = os.getenv('DB_PASS')
 DB_NAME = os.getenv('DB_NAME')
+
+
+moscow_tz = pytz.timezone('Europe/Moscow')
+NOW_IN_MOSCOW = datetime.now(moscow_tz)
 
 # SECURITY WARNING: don't run with debug turned on in production!
 ALLOWED_HOSTS = [

@@ -64,9 +64,6 @@ async def get_messaging_week_report_pdf(avito_account_id, test_from_prod: bool, 
                 analyze_all_chats["analyze_by_criteria"] = analyze_by_crit_split_by_man
 
         except Exception as send_error:
-            logger.info(send_error)
-            logger.debug(send_error)
-            logger.error(send_error)
             logger.exception(send_error)
             raise send_error
         else:
@@ -101,7 +98,7 @@ async def converting_created_timestamp_to_datetime(analyze_all_chats):
 
 async def get_pdf_report(avito_account_id, analyze_all_chats, period: str):
     if settings.ENVIRONMENT == 'DEVELOPMENT':
-        wkhtmltopdf_path = "/usr/local/bin/wkhtmltopdf"  # For testing 5 items  for economy
+        wkhtmltopdf_path = "/usr/local/bin/wkhtmltopdf"
     else:
         wkhtmltopdf_path = "/usr/bin/wkhtmltopdf"
 
