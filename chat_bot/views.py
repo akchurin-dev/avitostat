@@ -3,10 +3,11 @@ import datetime
 import pytz
 from asgiref.sync import sync_to_async
 from celery.result import AsyncResult
+from django.utils.timezone import now
 from django.views.decorators.csrf import csrf_exempt
 from avito_account.models.models import AvitoAccount, moscow_time
 from chat_bot.models import AiChatBot, ChatBotTask
-from chat_bot.tasks import ai_answer_sender_task
+from chat_bot.tasks import delayed_func_async
 from django.http import JsonResponse
 from django.utils.decorators import method_decorator
 from django.views import View
@@ -39,11 +40,17 @@ class WebhookInboxView(View):
             message_id = data.get('payload').get('value').get('id')
             chat_id = data.get("payload").get("value").get("chat_id")
             author_id = data.get("payload").get("value").get("author_id")
-            message_text = data.get("payload").get("value").get("content").get("text")
+            incoming_message = data.get("payload").get("value").get("content").get("text")
             time_to_work = await check_chat_bot_scheduler(chat_bot)
 
             if author_id != user_id and chat_bot.is_active and time_to_work:
-                old_tasks = await sync_to_async(list)(ChatBotTask.objects.filter(chat_id=chat_id))
+                current_time = now().astimezone(moscow_tz)
+                last_2_hours = current_time - datetime.timedelta(hours=2)
+
+                old_tasks = await sync_to_async(list)(ChatBotTask.objects.filter(
+                                                        chat_id=chat_id,
+                                                        created_at__gt=last_2_hours, ))
+
                 if old_tasks:
                     for old_task in old_tasks:
                         old_task_id = f"ai_answer_{old_task.message_id}"
@@ -56,14 +63,13 @@ class WebhookInboxView(View):
                     chat_id=chat_id,
                     message_id=message_id,
                     avito_account=avito_account,
-                    text=message_text,
+                    text=incoming_message,
                 )
 
-                ai_answer_sender_task.apply_async(
-                    (avito_account.id, user_id, chat_id, chat_bot.id, message_text, new_task.message_id),
-                    countdown=chat_bot.waiting_minutes * 60,
-                    task_id=f"ai_answer_{message_id}"
-                )
+                if created:
+                    await delayed_func_async(
+                        avito_account.id, user_id, chat_id, chat_bot.id, incoming_message, new_task.message_id,
+                    )
 
         return JsonResponse({"status": "ok"}, status=200)
 

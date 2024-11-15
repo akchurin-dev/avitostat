@@ -18,6 +18,8 @@ class AiChatBot(models.Model):
     total_info = models.TextField(verbose_name="Общая информация")
     rules = models.TextField(verbose_name="Правила при общении")
     checkpoints = models.TextField(verbose_name="Шаги при общении")
+    target_action = models.TextField(verbose_name="Целевое действие",
+                                     default="Взять номер телефона клиента для связи")
     waiting_minutes = models.PositiveSmallIntegerField(
         validators=[MinValueValidator(1), MaxValueValidator(60)],
         verbose_name="Ожидание ответа от менеджера(минуты)",
@@ -62,6 +64,8 @@ class ChatBotTask(models.Model):
     answer_text = models.TextField(verbose_name="Текст ответа", blank=True, null=True)
     tokens_completion = models.IntegerField(default=0, verbose_name="Токены на вычисления")
     tokens_prompt = models.IntegerField(default=0, verbose_name="Токены на контекст")
+
+    target_action_success = models.BooleanField(default=False, verbose_name="Целевое действие достигнуто")
 
     class Meta:
         verbose_name = "Ответ чат бота"
