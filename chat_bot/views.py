@@ -48,16 +48,15 @@ class WebhookInboxView(View):
                 last_2_hours = current_time - datetime.timedelta(hours=2)
 
                 old_tasks = await sync_to_async(list)(ChatBotTask.objects.filter(
-                                                        chat_id=chat_id,
-                                                        created_at__gt=last_2_hours, ))
-
+                                                    chat_id=chat_id,
+                                                    created_at__gt=last_2_hours, ))
                 if old_tasks:
                     for old_task in old_tasks:
                         old_task_id = f"ai_answer_{old_task.message_id}"
                         existing_task = AsyncResult(old_task_id)
                         if existing_task and existing_task.status == "PENDING":
                             existing_task.revoke(terminate=True)
-                            logger.info(f"Task {old_task_id} revoked before launching")
+                            # logger.info(f"Task {old_task_id} revoked before launching")
 
                 new_task, created = await ChatBotTask.objects.aget_or_create(
                     chat_id=chat_id,
