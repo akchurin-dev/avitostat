@@ -11,18 +11,18 @@ client = OpenAI(api_key=settings.OPENAI_SECRET_KEY)
 class ChatBotAnswerSchema(BaseModel):
     answer: str
     address: str | None
-    mobile_number: str | None
-    whatsapp_number: str | None
-    telegram_number: str | None
+    mobile: str | None
+    whatsapp: str | None
+    telegram: str | None
     email: str | None
 
 
 def contacts_data_prepare(data: dict) -> dict | None:
     contacts = {key: value for key, value in {
         "address": data.address,
-        "mobile_number": data.mobile_number,
-        "whatsapp_number": data.whatsapp_number,
-        "telegram_number": data.telegram_number,
+        "mobile": data.mobile,
+        "whatsapp": data.whatsapp,
+        "telegram": data.telegram,
         "email": data.email,
     }.items() if value is not None}
     if not contacts:
@@ -53,4 +53,6 @@ def ai_answer_assist(ai_assistant: AiChatBot, chat: list, ):
     if data is not None:
         result['answer'] = data.answer
         result['contacts'] = contacts_data_prepare(data)
-        return result, response.usage.completion_tokens, response.usage.prompt_tokens
+        result['tokens_completion'] = response.usage.completion_tokens
+        result['tokens_prompt'] = response.usage.prompt_tokens
+        return result
