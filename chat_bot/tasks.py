@@ -1,10 +1,32 @@
 from asgiref.sync import async_to_sync, sync_to_async
+from telegram_bot import bot
+
 from avito_account.models.models import AvitoAccount
-from chat_bot.ai_utils import ai_answer_assist
+from base import settings
+from chat_bot.ai_utils import ai_answer_assist, chat_summary_generator
 from chat_bot.api.core import send_message_to_avito, read_chat
 from chat_bot.models import AiChatBot, ChatBotTask
+from conversion.utils_from_aiogram import get_week_report_text
 from messaging.api import get_chats_messages
 from celery import shared_task
+
+
+async def chat_bot_task_dao_save(new_task_id: str, ai_answer: dict):
+    new_task = await sync_to_async(list)(ChatBotTask.objects.filter(message_id=new_task_id))
+    new_task = new_task[0]
+    new_task.answer_text = ai_answer.get("answer")
+    new_task.tokens_completion = ai_answer.get("tokens_completion")
+    new_task.tokens_prompt = ai_answer.get("tokens_prompt")
+
+    contacts = ai_answer.get("contacts")
+    if contacts is not None:
+        new_task.address = contacts.get("address", None)
+        new_task.mobile = contacts.get("mobile", None)
+        new_task.whatsapp = contacts.get("whatsapp", None)
+        new_task.telegram = contacts.get("telegram", None)
+        new_task.email = contacts.get("email", None)
+
+    await new_task.asave()
 
 
 @shared_task
@@ -28,25 +50,21 @@ async def ai_answer_sender(avito_account_id, user_id, chat_id, chat_bot_id, mess
             await send_message_to_avito(avito_account, user_id, chat_id, message_text)
             await chat_bot_task_dao_save(new_task_id, ai_answer)
             if ai_answer.get("contacts") is not None:
-                pass
-                #TODO добавить уже ИИ генератор сводки + отправка сводки в чат
+                chat_summary = await chat_summary_generator(avito_account, chat_id)
+                text = ""
+                for key, value in chat_summary.get("paragraphs").items():
+                    text += f"\n📢 *Объявление №{value}*\n"
+                if settings.ENVIRONMENT == 'DEVELOPMENT':
+                    chat_id = "-4221870448"
+                else:
+                    chat_id = avito_account.telegram_id
 
-
-async def chat_bot_task_dao_save(new_task_id: str, ai_answer: dict):
-    new_task = await sync_to_async(list)(ChatBotTask.objects.filter(message_id=new_task_id))
-    new_task = new_task[0]
-    new_task.answer_text = ai_answer.get("answer")
-    new_task.tokens_completion = ai_answer.get("tokens_completion")
-    new_task.tokens_prompt = ai_answer.get("tokens_prompt")
-
-    contacts = ai_answer.get("contacts")
-    if contacts is not None:
-        new_task.address = contacts.get("address", None)
-        new_task.mobile = contacts.get("mobile", None)
-        new_task.whatsapp = contacts.get("whatsapp", None)
-        new_task.telegram = contacts.get("telegram", None)
-        new_task.email = contacts.get("email", None)
-
-    await new_task.asave()
-
-# def chat_summary_sender():
+                while text:
+                    await sync_to_async(bot.send_raw, thread_sensitive=False)(
+                        chat_id=chat_id,
+                        function="send_message",
+                        text=text,
+                        parse_mode="Markdown",
+                        disable_web_page_preview=True
+                    )
+                    text = text[4000:]
