@@ -6,7 +6,6 @@ from base import settings
 from chat_bot.ai_utils import ai_answer_assist, chat_summary_generator
 from chat_bot.api.core import send_message_to_avito, read_chat
 from chat_bot.models import AiChatBot, ChatBotTask
-from conversion.utils_from_aiogram import get_week_report_text
 from messaging.api import get_chats_messages
 from celery import shared_task
 
@@ -44,27 +43,45 @@ async def ai_answer_sender(avito_account_id, user_id, chat_id, chat_bot_id, mess
     # ответ генерируем только если менеджер всё ещё не ответил
     if chat_with_messages[0].get("messages")[-1].get("direction") == "in":
         await read_chat(avito_account, user_id, chat_id)
-        ai_answer = ai_answer_assist(chat_bot, chat_with_messages[0].get("messages")[-20:])
+        ai_answer = ai_answer_assist(chat_bot, chat_with_messages[0].get("messages")[:])
         if ai_answer:
             message_text = ai_answer.get("answer")
             await send_message_to_avito(avito_account, user_id, chat_id, message_text)
             await chat_bot_task_dao_save(new_task_id, ai_answer)
             if ai_answer.get("contacts") is not None:
-                chat_summary = await chat_summary_generator(avito_account, chat_id)
-                text = ""
-                for key, value in chat_summary.get("paragraphs").items():
-                    text += f"\n📢 *Объявление №{value}*\n"
-                if settings.ENVIRONMENT == 'DEVELOPMENT':
-                    chat_id = "-4221870448"
-                else:
-                    chat_id = avito_account.telegram_id
+                send_chat_summary_task.delay(avito_account.id, chat_id)
 
-                while text:
-                    await sync_to_async(bot.send_raw, thread_sensitive=False)(
-                        chat_id=chat_id,
-                        function="send_message",
-                        text=text,
-                        parse_mode="Markdown",
-                        disable_web_page_preview=True
-                    )
-                    text = text[4000:]
+
+@shared_task
+def send_chat_summary_task(avito_account_id, chat_id):
+    async_to_sync(send_chat_summary)(avito_account_id, chat_id)
+
+
+async def send_chat_summary(avito_account_id, chat_id):
+    avito_account = await AvitoAccount.objects.aget(pk=avito_account_id)
+    chat_summary = await chat_summary_generator(avito_account, chat_id)
+    counter = 1
+    text = ("🆕 Новый клиент из AVITO\n\n"
+            "📋 Сводка по переписке:\n\n")
+
+    for key, value in chat_summary.get("paragraphs").items():
+        text += f"🔹 {counter}. {value} \n"
+        counter += 1
+
+    url = f"https://www.avito.ru/profile/messenger/channel/{chat_id}"
+    text += f"\n\n🔗 [Перейти к переписке]({url})"
+
+    if settings.ENVIRONMENT == 'DEVELOPMENT':
+        chat_id = "-4221870448"
+    else:
+        chat_id = avito_account.telegram_id
+
+    while text:
+        await sync_to_async(bot.send_raw, thread_sensitive=False)(
+            chat_id=chat_id,
+            function="send_message",
+            text=text,
+            parse_mode="Markdown",
+            disable_web_page_preview=True
+        )
+        text = text[4000:]

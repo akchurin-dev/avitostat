@@ -7,7 +7,7 @@ from django.utils.timezone import now
 from django.views.decorators.csrf import csrf_exempt
 from avito_account.models.models import AvitoAccount, moscow_time
 from chat_bot.models import AiChatBot, ChatBotTask
-from chat_bot.tasks import ai_answer_sender
+from chat_bot.tasks import ai_answer_sender, ai_answer_sender_task
 from django.http import JsonResponse
 from django.utils.decorators import method_decorator
 from django.views import View
@@ -70,7 +70,7 @@ class WebhookInboxView(View):
                 )
 
                 if created:
-                    await ai_answer_sender(
+                    ai_answer_sender_task.delay(
                         avito_account.id, user_id, chat_id, self.chat_bot.id, incoming_message, new_task.message_id,
                     )
         return JsonResponse({"status": "ok"}, status=200)
