@@ -13,7 +13,7 @@ async def subscribe_to_messages(avito_account: AvitoAccount):
     if ENVIRONMENT == "PRODUCTION":
         subscribe_url = "https://avitostata.ru/chat_bot/webhook_inbox"
     else:
-        subscribe_url = "https://dd6e-31-128-32-122.ngrok-free.app/chat_bot/webhook_inbox"
+        subscribe_url = "https://a163-31-128-32-122.ngrok-free.app/chat_bot/webhook_inbox"
 
     async with httpx.AsyncClient() as client:
         params = {"url": subscribe_url}
@@ -36,7 +36,7 @@ async def stop_subscribe_to_messages(avito_account: AvitoAccount):
     if ENVIRONMENT == "PRODUCTION":
         stop_subscribe_url = "https://avitostata.ru/chat_bot/webhook_inbox"
     else:
-        stop_subscribe_url = "https://dd6e-31-128-32-122.ngrok-free.app/chat_bot/webhook_inbox"
+        stop_subscribe_url = "https://a163-31-128-32-122.ngrok-free.app/chat_bot/webhook_inbox"
 
     async with httpx.AsyncClient() as client:
         params = {"url": stop_subscribe_url}
