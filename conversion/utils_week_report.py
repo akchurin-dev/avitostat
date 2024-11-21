@@ -1,5 +1,8 @@
+from asgiref.sync import sync_to_async
+
 from avito_account.api.get_operations import get_active_operations_for_period
 from avito_account.models.models import AvitoAccount
+from chat_bot.models import AiChatBot
 from conversion.api import get_statistics_for_period
 import math
 
@@ -83,7 +86,7 @@ async def get_total_metrics(items_with_metrics, items: list, statistics: dict):
     }
     if items:
         total_metrics["total_items_count"] = {
-            "active":  len(items),
+            "active": len(items),
             "visited": len(statistics)
         }
 
@@ -101,6 +104,12 @@ async def get_total_metrics(items_with_metrics, items: list, statistics: dict):
     return total_metrics
 
 
+# async def get_chat_bot_statistics(avito_account: AvitoAccount):
+#     ai_chat_bot = await sync_to_async(list)(AiChatBot.objects.filter(avito_account=avito_account, is_active=True))
+#     if ai_chat_bot[0] is not None:
+
+
+
 async def get_text_statistics_report(avito_account: AvitoAccount):
     metrics = {}
     statistics, items, date_from, date_to = await get_statistics_for_period(avito_account, period="week")
@@ -113,11 +122,9 @@ async def get_text_statistics_report(avito_account: AvitoAccount):
                                                        items=items,
                                                        statistics=statistics)
     metrics["top"] = await get_top_5_items(items_with_metrics=items_with_metrics)
+    metrics["chat_bot"] = await get_chat_bot_statistics(avito_account)
     metrics["period"] = {
         "date_from": date_from,
         "date_to": date_to
     }
     return metrics
-
-
-
