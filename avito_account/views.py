@@ -1,9 +1,13 @@
 import json
 
+from asgiref.sync import sync_to_async
 from django.http import JsonResponse, HttpResponseRedirect
 from django.utils.decorators import method_decorator
 from django.views import View
 from django.views.decorators.csrf import csrf_exempt
+
+from avito_account.api.get_balance import get_balance
+from avito_account.models.models import AvitoAccount
 from avito_account.oauth_utils import create_or_update_avito_account
 from django.shortcuts import render, redirect
 
@@ -32,3 +36,10 @@ class CallbackView(View):
 
 def terms_of_service(request):
     return render(request, 'terms_of_service.html')
+
+
+@method_decorator(csrf_exempt, name='dispatch')
+class TestBalanceView(View):
+    async def get(self, request, *args, **kwargs):
+        avito_account = await sync_to_async(list)(AvitoAccount.objects.filter(id=145213826))
+        await get_balance(avito_account[0])
