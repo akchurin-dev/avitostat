@@ -41,7 +41,8 @@ async def ai_answer_sender(avito_account_id, user_id, chat_id, chat_bot_id, mess
     chat_bot = await AiChatBot.objects.aget(pk=chat_bot_id)
     chat_with_messages = await get_chats_messages(avito_account, chats=[{"id": chat_id}])
     # ответ генерируем только если менеджер всё ещё не ответил
-    if chat_with_messages[0].get("messages")[-1].get("direction") == "in":
+    actual_message = chat_with_messages[0].get("messages")[-1]
+    if actual_message.get("direction") == "in" and actual_message.get("type") == "text":
         await read_chat(avito_account, user_id, chat_id)
         ai_answer = ai_answer_assist(chat_bot, chat_with_messages[0].get("messages")[:])
         if ai_answer:
