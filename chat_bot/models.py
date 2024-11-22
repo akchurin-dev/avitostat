@@ -66,10 +66,10 @@ class ChatBotTask(models.Model):
     tokens_prompt = models.IntegerField(default=0, verbose_name="Токены на контекст")
 
     address = models.TextField(blank=True, null=True, default=None, verbose_name="Адрес клиента")
-    mobile = models.TextField(blank=True, null=True, verbose_name="Мобильный номер")
-    whatsapp = models.TextField(blank=True, null=True, verbose_name="Вацап")
-    telegram = models.TextField(blank=True, null=True, verbose_name="Телеграм")
-    email = models.TextField(blank=True, null=True, verbose_name="Емайл")
+    mobile = models.TextField(blank=True, null=True, default=None, verbose_name="Мобильный номер")
+    whatsapp = models.TextField(blank=True, null=True, default=None, verbose_name="Вацап")
+    telegram = models.TextField(blank=True, null=True, default=None, verbose_name="Телеграм")
+    email = models.TextField(blank=True, null=True, default=None, verbose_name="Емайл")
 
     class Meta:
         verbose_name = "Ответ чат бота"

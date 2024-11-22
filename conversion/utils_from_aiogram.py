@@ -84,10 +84,18 @@ async def generate_week_report_text(week_report_data):
     total_coast = week_report_data.get("total_metrics").get("total_coast")
     total_coast_per_contact = week_report_data.get("total_metrics").get("total_coast_per_contact")
 
+    if week_report_data.get("chat_bot") is not None:
+        chat_bot_chats_count = week_report_data.get("chat_bot").get("chats_count", 0)
+        chat_bot_messages_count = week_report_data.get("chat_bot").get("messages_count", 0)
+        chat_bot_contacts_count = week_report_data.get("chat_bot").get("contacts_count", 0)
+    # else:
+    #     chat_bot_chats_count, chat_bot_messages_count, chat_bot_contacts_count = ["не подключено 🥺" for i in range(3)]
+
     date_from = datetime.datetime.strptime(date_from, "%Y-%m-%d").strftime("%d-%m-%Y")
     date_to = datetime.datetime.strptime(date_to, "%Y-%m-%d").strftime("%d-%m-%Y")
 
-    text = (f"📊 *Еженедельный отчёт* 📅\n\n"
+    text = (f"\n<><><><><><><><><><><><><><><><><><>\n"
+            f"\n      📊 *Еженедельный отчёт* 📅\n\n"
             f"📅 *Период:* с {date_from} по {date_to}\n"
             f"👤 *Аккаунт:* {avito_account_name}\n"
             f"📋 *Активных объявлений:* {active_items_count}\n"
@@ -97,12 +105,22 @@ async def generate_week_report_text(week_report_data):
             f"💸 *Затраты:* {round(total_coast, 2)} р\n"
             f"💰 *Цена за контакт:* {round(total_coast_per_contact, 2)} р\n\n")
 
+    if chat_bot_chats_count or chat_bot_messages_count or chat_bot_contacts_count:
+        text += (
+            f"\n<><><><><><><><><><><><><><><><><><>\n"
+            f"\n\n    🤖 *Чат-бот* \n\n"
+            f"🔹 Полученных контактов: {chat_bot_contacts_count} \n"
+            f"🔸 Переписок чат-бота: {chat_bot_chats_count} \n"
+            f"🔸 Сообщений от чат-бота: {chat_bot_messages_count} \n"
+        )
+
     text += await generate_top_items_text(week_report_data.get("top"))
     return text
 
 
 async def generate_top_items_text(top_items):
-    statistics_total = "🏆 *Топовые объявления*\n"
+    statistics_total = (f"\n<><><><><><><><><><><><><><><><><><>\n"
+                        "\n\n    🏆 *Топовые объявления*\n")
     if top_items is not None:
         for item, item_data in top_items.items():
             statistics_total += (f"\n📢 *Объявление №{item}*\n"

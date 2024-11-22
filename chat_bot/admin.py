@@ -10,7 +10,7 @@ class ChatBotTaskAdmin(admin.ModelAdmin):
 
     def get_list_display(self, request):
         # Определяем, какие поля отображать в зависимости от прав пользователя
-        base_display = ['avito_account', 'mobile', 'address', 'text', 'answer_text']
+        base_display = ['avito_account', 'mobile', 'address', 'text', 'answer_text', 'created_at']
         if request.user.is_superuser:
             return base_display + ['tokens_completion', 'tokens_prompt']
         return base_display
