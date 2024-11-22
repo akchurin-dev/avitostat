@@ -9,7 +9,6 @@ from aiogram import types
 from avito_account.models.sending_report import SendingCampaign, SendingReport
 from base import settings
 from base.celery import celery_app
-from messaging.api import get_calls_statistic_last_week
 from messaging.bad_mes_report.utils_bad_messaging_report import get_messaging_week_report_pdf
 import subprocess
 import os

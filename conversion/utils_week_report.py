@@ -1,6 +1,4 @@
 from asgiref.sync import sync_to_async
-from django.db.models import Q
-
 from avito_account.api.get_operations import get_active_operations_for_period
 from avito_account.models.models import AvitoAccount
 from base.settings import MOSCOW_TZ
@@ -108,36 +106,33 @@ async def get_total_metrics(items_with_metrics, items: list, statistics: dict):
 
 
 async def get_chat_bot_statistics(avito_account: AvitoAccount, date_from, date_to) -> dict | None:
-    # Локализуем даты
-    date_from = MOSCOW_TZ.localize(datetime.strptime(date_from, '%Y-%m-%d'))
-    date_to = MOSCOW_TZ.localize(datetime.strptime(date_to, '%Y-%m-%d')).replace(hour=23, minute=59, second=59,
-                                                                                 microsecond=999999)
+    ai_chat_bot = await sync_to_async(AiChatBot.objects.filter(avito_account=avito_account, is_active=True).last)()
 
-    # Выполняем фильтрацию в QuerySet (синхронный запрос, но без использования list())
-    actual_chat_bot_tasks = await sync_to_async(
-        lambda: list(ChatBotTask.objects.filter(
-            avito_account=avito_account,
-            created_at__gt=date_from,
-            created_at__lt=date_to,
-            tokens_prompt__gt=0
-        ))
-    )()
+    if ai_chat_bot is not None:
+        # Локализуем даты
+        date_from = MOSCOW_TZ.localize(datetime.strptime(date_from, '%Y-%m-%d'))
+        date_to = MOSCOW_TZ.localize(datetime.strptime(date_to, '%Y-%m-%d')).replace(hour=23, minute=59,
+                                                                                             second=59, microsecond=999999)
 
-    # Если есть записи, собираем статистику
-    if actual_chat_bot_tasks:
-        # Количество уникальных чатов
-        chats_count = await sync_to_async(lambda: len(set(task.chat_id for task in actual_chat_bot_tasks)))()
+        # Выполняем фильтрацию в QuerySet (синхронный запрос, но без использования list())
+        actual_chat_bot_tasks = await sync_to_async(
+            lambda: list(ChatBotTask.objects.filter(
+                avito_account=avito_account,
+                created_at__gt=date_from,
+                created_at__lt=date_to,
+                tokens_prompt__gt=0
+            )))()
 
+            # Количество уникальных чатов
+        chats_count = await sync_to_async(lambda: len(set(task.chat_id for task in actual_chat_bot_tasks)))() or 0
         # Общее количество сообщений
-        messages_count = await sync_to_async(lambda: len(actual_chat_bot_tasks))()
-
+        messages_count = await sync_to_async(lambda: len(actual_chat_bot_tasks))() or 0
         # Количество записей с контактами
         contacts_count = await sync_to_async(
             lambda: len([
                 task for task in actual_chat_bot_tasks if
                 task.address or task.mobile or task.whatsapp or task.telegram or task.email
-            ])
-        )()
+            ]))() or 0
 
         return {
             "chats_count": chats_count,
@@ -159,8 +154,6 @@ async def get_text_statistics_report(avito_account: AvitoAccount):
                                                        statistics=statistics)
     metrics["top"] = await get_top_5_items(items_with_metrics=items_with_metrics)
     metrics["chat_bot"] = await get_chat_bot_statistics(avito_account, date_from, date_to)
-    metrics["period"] = {
-        "date_from": date_from,
-        "date_to": date_to
-    }
+    metrics["period"] = {"date_from": date_from,
+                         "date_to": date_to}
     return metrics

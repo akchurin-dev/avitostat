@@ -88,8 +88,8 @@ async def generate_week_report_text(week_report_data):
         chat_bot_chats_count = week_report_data.get("chat_bot").get("chats_count", 0)
         chat_bot_messages_count = week_report_data.get("chat_bot").get("messages_count", 0)
         chat_bot_contacts_count = week_report_data.get("chat_bot").get("contacts_count", 0)
-    # else:
-    #     chat_bot_chats_count, chat_bot_messages_count, chat_bot_contacts_count = ["не подключено 🥺" for i in range(3)]
+    else:
+        chat_bot_chats_count, chat_bot_messages_count, chat_bot_contacts_count = ["не подключено 🥺" for i in range(3)]
 
     date_from = datetime.datetime.strptime(date_from, "%Y-%m-%d").strftime("%d-%m-%Y")
     date_to = datetime.datetime.strptime(date_to, "%Y-%m-%d").strftime("%d-%m-%Y")
@@ -105,14 +105,13 @@ async def generate_week_report_text(week_report_data):
             f"💸 *Затраты:* {round(total_coast, 2)} р\n"
             f"💰 *Цена за контакт:* {round(total_coast_per_contact, 2)} р\n\n")
 
-    if chat_bot_chats_count or chat_bot_messages_count or chat_bot_contacts_count:
-        text += (
-            f"\n<><><><><><><><><><><><><><><><><><>\n"
-            f"\n\n    🤖 *Чат-бот* \n\n"
-            f"🔹 Полученных контактов: {chat_bot_contacts_count} \n"
-            f"🔸 Переписок чат-бота: {chat_bot_chats_count} \n"
-            f"🔸 Сообщений от чат-бота: {chat_bot_messages_count} \n"
-        )
+    text += (
+        f"\n<><><><><><><><><><><><><><><><><><>\n"
+        f"\n\n    🤖 *Чат-бот* \n\n"
+        f"🔹 Полученных контактов: {chat_bot_contacts_count} \n"
+        f"🔸 Переписок чат-бота: {chat_bot_chats_count} \n"
+        f"🔸 Сообщений от чат-бота: {chat_bot_messages_count} \n"
+    )
 
     text += await generate_top_items_text(week_report_data.get("top"))
     return text
