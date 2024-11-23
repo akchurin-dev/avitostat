@@ -73,6 +73,29 @@ async def handle_avito_account_have_not_active_items_for_period(telegram_chat_id
     raise HTTPException(status_code=404, detail="Avito account does not have active items in period")
 
 
+async def get_chat_bot_text(week_report_data: dict) -> str:
+    if week_report_data.get("chat_bot") is not None:
+        chat_bot_chats_count = week_report_data.get("chat_bot").get("chats_count", 0)
+        chat_bot_messages_count = week_report_data.get("chat_bot").get("messages_count", 0)
+        chat_bot_contacts_count = week_report_data.get("chat_bot").get("contacts_count", 0)
+
+        chat_bot_text = (
+            f"\n<><><><><><><><><><><><><><><><><><>\n"
+            f"\n\n    🤖 *Чат-бот* \n\n"
+            f"🔹 Полученных контактов: {chat_bot_contacts_count} \n"
+            f"🔸 Переписок чат-бота: {chat_bot_chats_count} \n"
+            f"🔸 Сообщений от чат-бота: {chat_bot_messages_count} \n"
+        )
+    else:
+        chat_bot_text = (
+            f"\n<><><><><><><><><><><><><><><><><><>\n"
+            f"\n\n    🤖 *Чат-бот* \n\n"
+            f"🚀 [Запрос на подключение](https://t.me/rishatd) 🚀 \n"
+        )
+
+    return chat_bot_text
+
+
 async def generate_week_report_text(week_report_data):
     date_from = week_report_data.get("period").get("date_from")
     date_to = week_report_data.get("period").get("date_to")
@@ -83,13 +106,6 @@ async def generate_week_report_text(week_report_data):
     total_views_count = week_report_data.get("total_metrics").get("total_views_count")
     total_coast = week_report_data.get("total_metrics").get("total_coast")
     total_coast_per_contact = week_report_data.get("total_metrics").get("total_coast_per_contact")
-
-    if week_report_data.get("chat_bot") is not None:
-        chat_bot_chats_count = week_report_data.get("chat_bot").get("chats_count", 0)
-        chat_bot_messages_count = week_report_data.get("chat_bot").get("messages_count", 0)
-        chat_bot_contacts_count = week_report_data.get("chat_bot").get("contacts_count", 0)
-    else:
-        chat_bot_chats_count, chat_bot_messages_count, chat_bot_contacts_count = ["не подключено 🥺" for i in range(3)]
 
     date_from = datetime.datetime.strptime(date_from, "%Y-%m-%d").strftime("%d-%m-%Y")
     date_to = datetime.datetime.strptime(date_to, "%Y-%m-%d").strftime("%d-%m-%Y")
@@ -105,13 +121,7 @@ async def generate_week_report_text(week_report_data):
             f"💸 *Затраты:* {round(total_coast, 2)} р\n"
             f"💰 *Цена за контакт:* {round(total_coast_per_contact, 2)} р\n\n")
 
-    text += (
-        f"\n<><><><><><><><><><><><><><><><><><>\n"
-        f"\n\n    🤖 *Чат-бот* \n\n"
-        f"🔹 Полученных контактов: {chat_bot_contacts_count} \n"
-        f"🔸 Переписок чат-бота: {chat_bot_chats_count} \n"
-        f"🔸 Сообщений от чат-бота: {chat_bot_messages_count} \n"
-    )
+    text += await get_chat_bot_text(week_report_data)
 
     text += await generate_top_items_text(week_report_data.get("top"))
     return text
