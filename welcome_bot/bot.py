@@ -125,7 +125,7 @@ load_dotenv()
 WELCOME_BOT_TOKEN = os.getenv('WELCOME_BOT_TOKEN')
 
 bot = Bot(token=WELCOME_BOT_TOKEN)
-dp = Dispatcher()
+dp = Dispatcher(drop_pending_updates=True)
 dp.message.register(client_type, WelcomeState.clientType)
 
 dp.message.register(company, WelcomeState.company)
