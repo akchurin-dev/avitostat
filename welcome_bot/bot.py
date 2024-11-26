@@ -1,10 +1,18 @@
 import asyncio
+import os
+
 from aiogram import Bot, Dispatcher, types
 from aiogram.filters.command import Command
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
+from dotenv import load_dotenv
 
 from keyboards import yes_or_no_kb, company_or_avitolog
+
+import logging
+
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 
 class WelcomeState(StatesGroup):
@@ -81,31 +89,42 @@ async def testing(message: types.Message, state: FSMContext):
     elif message.text == 'нет':
         await state.set_state(WelcomeState.finish)
         await message.answer('🎉 Большое спасибо что уделили время, хороших продаж! 🎉')
-        data = await state.get_data()
-        await message.answer(f"Ваши данные: {data}", )
+        await send_lead_info_to_chat(message, state)
 
 
 async def phone(message: types.Message, state: FSMContext):
     await state.update_data(phone=message.text)
     await state.set_state(WelcomeState.finish)
     await message.answer('🎉 Большое спасибо что уделили время, мы с вами скоро свяжемся. 📞')
-
-    data = await state.get_data()
-    await bot.send_message(chat_id=-4521744776, text=f"""
-🧑‍💼/👨‍💼 Тип клиента: {data.get("clientType")} 
-Ссылки на аккаунты: {data.get("company")}
-🏢 Количество компаний: {data.get("avitolog_companies_count")}
-⚠️ Есть проблемы с менеджером: {data.get("avitolog_problems")}
-📈 Ведете ли вы статистику: {data.get("statistics")}
-🤖 Подключен ли у вас ИИ-продавец: {data.get("avitolog_ai")}
-🔍 Анализируете ли вы звонки: {data.get("analyze")}
-🧪 Хотели бы вы протестировать: {data.get("testing")}
-📱 Номер телефона: {data.get("phone")}
-👤 Ссылка на телеграм  : @{message.from_user.username}
-""")
+    await send_lead_info_to_chat(message, state)
 
 
-bot = Bot(token="8170279154:AAHbZ7yy_bkX-5T8xodyCCiuxLO3vUsmQbA")
+async def send_lead_info_to_chat(message: types.Message, state: FSMContext):
+    try:
+        data = await state.get_data()
+        lead_info = f"""
+    -------------------------------------------------------
+    🏢/👨‍💼 Тип клиента: {data.get("clientType")} \n
+    📎 Ссылки на аккаунты: {data.get("company") or "пусто"} \n
+    🔢 Количество компаний: {data.get("avitolog_companies_count") or "пусто"} \n
+    ⚠️ Проблемы с менеджером: {data.get("avitolog_problems") or "пусто"} \n
+    📈 Ведете ли вы статистику: {data.get("statistics")} \n
+    🤖 Подключен ИИ-продавец: {data.get("avitolog_ai")} \n
+    🔍 Анализируете звонки: {data.get("analyze")} \n
+    🧪 Хотели протестировать: {data.get("testing")} \n
+    📱 Номер телефона: {data.get("phone")} \n
+    👤 Ссылка на телеграм : @{message.from_user.username}
+        """
+        await bot.send_message(chat_id=-4521744776, text=lead_info)
+        logger.info("Lead info sent successfully.")
+    except Exception as e:
+        logger.error(f"Error sending lead info: {e}")
+        await message.answer("Произошла ошибка при отправке данных. Попробуйте снова.")
+
+load_dotenv()
+WELCOME_BOT_TOKEN = os.getenv('WELCOME_BOT_TOKEN')
+
+bot = Bot(token=WELCOME_BOT_TOKEN)
 dp = Dispatcher()
 dp.message.register(client_type, WelcomeState.clientType)
 
