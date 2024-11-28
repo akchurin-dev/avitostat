@@ -49,7 +49,7 @@ def format_chat_history(messages):
 
 def ai_answer_assist(ai_assistant: AiChatBot, chat: list, ):
     result = {}
-    chat_history_fimatted = format_chat_history(chat)
+    chat_history_formatted = format_chat_history(chat)
     prompt = (
         f"Общая информация:{ai_assistant.total_info}"
         f"Правила при общении:{ai_assistant.rules}"
@@ -57,7 +57,7 @@ def ai_answer_assist(ai_assistant: AiChatBot, chat: list, ):
         "Ответы давать только на русском языке"
     )
     messages = [{"role": "system", "content": prompt}, ]
-    messages.extend(chat_history_fimatted)
+    messages.extend(chat_history_formatted)
     response = client.beta.chat.completions.parse(
         model="gpt-4o-2024-08-06",
         messages=messages,
