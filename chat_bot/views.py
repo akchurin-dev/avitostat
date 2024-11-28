@@ -1,4 +1,5 @@
 import datetime
+import time
 
 import pytz
 from asgiref.sync import sync_to_async
@@ -7,7 +8,7 @@ from django.utils.timezone import now
 from django.views.decorators.csrf import csrf_exempt
 from avito_account.models.models import AvitoAccount, moscow_time
 from chat_bot.models import AiChatBot, ChatBotTask
-from chat_bot.tasks import ai_answer_sender, ai_answer_sender_task
+from chat_bot.tasks import ai_answer_sender_task, ai_answer_sender
 from django.http import JsonResponse
 from django.utils.decorators import method_decorator
 from django.views import View
@@ -39,7 +40,6 @@ class WebhookInboxView(View):
                 existing_task = AsyncResult(old_task_id)
                 if existing_task and existing_task.status == "PENDING":
                     existing_task.revoke(terminate=True)
-                    # logger.info(f"Task {old_task_id} revoked before launching")
 
     async def prepare_data(self):
         message_id = self.data.get('payload').get('value').get('id')
@@ -68,9 +68,8 @@ class WebhookInboxView(View):
                     avito_account=avito_account,
                     text=incoming_message,
                 )
-
                 if created:
-                    ai_answer_sender_task.delay(
+                    await ai_answer_sender(
                         avito_account.id, user_id, chat_id, self.chat_bot.id, incoming_message, new_task.message_id,
                     )
         return JsonResponse({"status": "ok"}, status=200)

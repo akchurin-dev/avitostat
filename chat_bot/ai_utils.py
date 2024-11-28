@@ -34,21 +34,33 @@ def contacts_data_prepare(data: dict) -> dict | None:
     return result
 
 
+def format_chat_history(messages):
+    formatted_messages = []
+    for msg in messages:
+        if msg['type'] == 'system':
+            continue
+        message_text = msg['content']['text']
+        if msg['direction'] == 'in':
+            formatted_messages.append({"role": "user", "content": message_text})
+        elif msg['direction'] == 'out':
+            formatted_messages.append({"role": "assistant", "content": message_text})
+    return formatted_messages
+
+
 def ai_answer_assist(ai_assistant: AiChatBot, chat: list, ):
     result = {}
+    chat_history_fimatted = format_chat_history(chat)
     prompt = (
         f"Общая информация:{ai_assistant.total_info}"
         f"Правила при общении:{ai_assistant.rules}"
         f"Необходимо в ходе разговора наличие шагов:{ai_assistant.checkpoints}"
-        f"История переписки:{chat}"
-        "Внимательно отслеживай контекст и ненадо в каждом ответе здороваться!"
         "Ответы давать только на русском языке"
     )
+    messages = [{"role": "system", "content": prompt}, ]
+    messages.extend(chat_history_fimatted)
     response = client.beta.chat.completions.parse(
         model="gpt-4o-2024-08-06",
-        messages=[
-            {"role": "assistant", "content": prompt},
-        ],
+        messages=messages,
         response_format=ChatBotAnswerSchema,
         max_tokens=300,
     )
