@@ -29,19 +29,21 @@ async def chat_bot_task_dao_save(new_task_id: str, ai_answer: dict):
 
 
 @shared_task
-def ai_answer_sender_task(avito_account_id, user_id, chat_id, chat_bot_id, message_text, new_task_id):
-    async_to_sync(ai_answer_sender)(avito_account_id, user_id, chat_id, chat_bot_id, message_text, new_task_id)
+def ai_answer_sender_task(avito_account_id, user_id, chat_id, chat_bot_id, new_task_id):
+    async_to_sync(ai_answer_sender)(avito_account_id, user_id, chat_id, chat_bot_id, new_task_id)
 
 
 # TODO  Можно контроль наличия тасок сделать через РЕДИС попробовать чтобы меньше обращений к БД было
 # TODO  хранить chat_id:message_id1, message_id2...
 
-async def ai_answer_sender(avito_account_id, user_id, chat_id, chat_bot_id, message_text, new_task_id):
+async def ai_answer_sender(avito_account_id, user_id, chat_id, chat_bot_id, new_task_id):
     avito_account = await AvitoAccount.objects.aget(pk=avito_account_id)
     chat_bot = await AiChatBot.objects.aget(pk=chat_bot_id)
     chat_with_messages = await get_chats_messages(avito_account, chats=[{"id": chat_id}])
     # ответ генерируем только если менеджер всё ещё не ответил
     actual_message = chat_with_messages[0].get("messages")[-1]
+    if actual_message.get("type") == "system":  # тк при номере последним становится уже сообщение с предупреждением
+        actual_message = chat_with_messages[0].get("messages")[-2]
     if actual_message.get("direction") == "in" and actual_message.get("type") == "text":
         await read_chat(avito_account, user_id, chat_id)
         ai_answer = ai_answer_assist(chat_bot, chat_with_messages[0].get("messages")[:])

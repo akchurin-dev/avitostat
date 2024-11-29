@@ -71,7 +71,7 @@ class WebhookInboxView(View):
 
                 if created:
                     ai_answer_sender_task.delay(
-                        avito_account.id, user_id, chat_id, self.chat_bot.id, incoming_message, new_task.message_id,
+                        avito_account.id, user_id, chat_id, self.chat_bot.id, new_task.message_id,
                     )
         return JsonResponse({"status": "ok"}, status=200)
 
