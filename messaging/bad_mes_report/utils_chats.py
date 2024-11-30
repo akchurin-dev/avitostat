@@ -16,9 +16,9 @@ async def get_chats_for_last_week(chats: list) -> list:
 
     if len(chats) > 0:
         for chat in chats:
-            created = datetime.datetime.fromtimestamp(chat.get('created'))
-            timedelta = now - created
-            if 8 >= timedelta.days > 0:
+            updated = datetime.datetime.fromtimestamp(chat.get('updated'))
+            timedelta = now - updated
+            if 7 >= timedelta.days >= 0:
                 filtered_chats.append(chat)
         print(f"{len(filtered_chats)} chats loaded")
         return filtered_chats
