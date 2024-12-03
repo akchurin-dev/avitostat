@@ -65,11 +65,9 @@ async def get_chats_messages(avito_account: AvitoAccount, chats: list) -> list:
                 while True:
                     response = await client.get(url, headers=headers, params=params)
                     if response.status_code == 200:
-                        data = response.json()
                         params["offset"] += 100
                         messages.extend(response.json().get("messages")[::-1])
-                        has_more = data.get("meta", {}).get("has_more", False)
-                        if not has_more:
+                        if len(response.json().get("messages")) == 0:
                             chat["messages"] = messages
                             break
                     else:
