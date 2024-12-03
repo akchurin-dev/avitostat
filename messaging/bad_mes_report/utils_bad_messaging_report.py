@@ -1,5 +1,7 @@
 import pdfkit
 import sentry_sdk
+
+from avito_account.api.get_operations import get_active_operations_for_period
 from avito_account.models.models import AvitoAccount
 from base import settings
 from base.exceptions import HTTPException
@@ -8,7 +10,8 @@ from asgiref.sync import sync_to_async
 from pathlib import Path
 from datetime import datetime, timedelta
 
-from conversion.utils_week_report import get_text_statistics_report
+from conversion.api import get_statistics_for_period
+from conversion.utils_week_report import get_text_statistics_report, get_items_with_metrics
 from messaging.bad_mes_report.statistics.statistics_by_criteria_utils import \
     get_stat_by_criteria_splitted_by_managers
 from messaging.bad_mes_report.statistics.total_statistics_utils import get_statistics_total, \

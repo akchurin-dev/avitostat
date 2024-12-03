@@ -83,6 +83,7 @@ async def get_total_metrics(items_with_metrics, items: list, statistics: dict):
         "total_favorites_count": 0,
         "total_coast": 0,
         "total_coast_per_contact": 0,
+        "total_conversion_count": 0,
 
     }
     if items:
@@ -98,10 +99,12 @@ async def get_total_metrics(items_with_metrics, items: list, statistics: dict):
         total_metrics["total_coast"] += round(item[1].get("coast", 0), 2)
 
     total_contacts = total_metrics.get("total_contacts_count", 0)
+    total_views = total_metrics.get("total_views_count", 0)
     total_coast = total_metrics.get("total_coast", 0)
     if total_contacts > 0 and total_coast > 0:
         total_metrics["total_coast_per_contact"] = round((total_coast / total_contacts), 2)
-
+    if total_contacts > 0 and total_views > 0:
+        total_metrics["total_conversion_count"] = round((total_contacts / total_views), 2) * 100
     return total_metrics
 
 
