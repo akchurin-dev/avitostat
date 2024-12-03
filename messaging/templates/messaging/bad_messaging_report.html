@@ -468,7 +468,7 @@
                     <path d="M22.5133 28.4266C22.2383 28.5183 21.78 28.5183 21.4867 28.4266C19.1033 27.6016 13.75 24.2099 13.75 18.4349C13.75 15.8866 15.8033 13.8333 18.3333 13.8333C19.8367 13.8333 21.1567 14.5483 22 15.6666C22.8433 14.5483 24.1633 13.8333 25.6667 13.8333C28.1967 13.8333 30.25 15.8866 30.25 18.4349C30.2317 24.2099 24.8967 27.6016 22.5133 28.4266Z" stroke="black" stroke-linecap="round" stroke-linejoin="round"/>
                 </svg>
                 <span>Добавления<br>в избранное</span>
-                <div>56</div>
+                <div>{{ contacts.total_favorites_count }}</div>
             </div>
             <div class="page__info-item d-flex flex-column items-center">
                 <svg xmlns="http://www.w3.org/2000/svg" width="44" height="44" viewBox="0 0 44 44" fill="none">
@@ -476,7 +476,7 @@
                     <path d="M16.5 40.3334H27.5C36.6667 40.3334 40.3333 36.6667 40.3333 27.5001V16.5001C40.3333 7.33341 36.6667 3.66675 27.5 3.66675H16.5C7.33332 3.66675 3.66666 7.33341 3.66666 16.5001V27.5001C3.66666 36.6667 7.33332 40.3334 16.5 40.3334Z" stroke="black" stroke-linecap="round" stroke-linejoin="round"/>
                 </svg>
                 <span>Конверсия<br>в контакт</span>
-                <div>4,06%</div>
+                <div>{{ contacts.total_conversion_count }}%</div>
             </div>
         </div>
     </div>
