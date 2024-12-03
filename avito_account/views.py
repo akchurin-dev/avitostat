@@ -11,6 +11,7 @@ from avito_account.models.models import AvitoAccount
 from avito_account.oauth_utils import create_or_update_avito_account
 from django.shortcuts import render, redirect
 
+from avito_account.tasks import send_balance_alert_task
 from base import settings
 
 
@@ -41,5 +42,5 @@ def terms_of_service(request):
 @method_decorator(csrf_exempt, name='dispatch')
 class TestBalanceView(View):
     async def get(self, request, *args, **kwargs):
-        avito_account = await sync_to_async(list)(AvitoAccount.objects.filter(id=145213826))
-        await get_balance(avito_account[0])
+        send_balance_alert_task.delay(145213826)
+        return JsonResponse({"message": "Баланс запрошен"}, status=200)

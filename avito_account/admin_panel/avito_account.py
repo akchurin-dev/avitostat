@@ -107,7 +107,7 @@ class AvitoAccountAdmin(admin.ModelAdmin):
             (None, {
                 'fields': (
                     'name', 'telegram_id', 'phone',
-                    'profile_url', 'analytic_schema', 'id', 'created_by',
+                    'profile_url', 'analytic_schema', 'id', 'balance_alerting', 'created_by',
                 ),
             }),
         ]
