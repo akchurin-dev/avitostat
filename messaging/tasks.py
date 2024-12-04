@@ -9,7 +9,7 @@ from aiogram import types
 from avito_account.models.sending_report import SendingCampaign, SendingReport
 from base import settings
 from base.celery import celery_app
-from messaging.bad_mes_report.utils_bad_messaging_report import get_messaging_week_report_pdf
+from messaging.bad_mes_report.utils_bad_messaging_report import get_messaging_report_data
 import subprocess
 import os
 from datetime import datetime
@@ -51,7 +51,7 @@ async def get_accounts_for_pdf_reports(only_for_users: list, test_from_prod: boo
 
 # TODO change auto_generated=False by default
 async def bad_messaging_week_report_async(only_for_users=None, test_from_prod: bool = True, auto_generated=True,
-                                          pdf_path=None, balance_decrease=0,):
+                                          pdf_path=None, balance_decrease=0, period: str = "week"):
     # TODO change test_from_prod=True
     if settings.ENVIRONMENT == 'DEVELOPMENT':
         test_from_prod = True
@@ -67,7 +67,7 @@ async def bad_messaging_week_report_async(only_for_users=None, test_from_prod: b
         print(avito_account.name)
         try:
             await check_balance(avito_account)
-            pdf_path, tokens = await get_messaging_week_report_pdf(avito_account.id, test_from_prod)
+            pdf_path, tokens = await get_messaging_report_data(avito_account.id, test_from_prod)
             if pdf_path:
                 chat_id = "-4221870448" if test_from_prod else avito_account.telegram_id
                 try:

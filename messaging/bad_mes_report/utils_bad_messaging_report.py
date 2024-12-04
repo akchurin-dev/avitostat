@@ -17,12 +17,17 @@ from messaging.bad_mes_report.utils_open_ai import messaging_total_analyze, anal
 from messaging.utils_duration import get_calls_count_unique_numbers_last_week
 
 
-async def get_messaging_week_report_pdf(avito_account_id, test_from_prod: bool):
+async def get_messaging_report_data(test_from_prod: bool, avito_account_id, for_api: bool = False, period: str = "week",
+                                    ):
+    if period not in ["week", "month"]:
+        raise ValueError("period must be either 'week' or 'month'")
+
     avito_account = await sync_to_async(AvitoAccount.objects.filter(id=avito_account_id).last)()
     if avito_account:
         analyze_all_chats = {"avito_account_name": avito_account.name, "avito_account_id": avito_account.id, }
         try:
-            ready_chats, chats_without_filtering_count = await get_ready_chats(avito_account)
+            ready_chats, chats_without_filtering_count = await get_ready_chats(avito_account, period=period)
+            ready_chats = ready_chats[-3:]
             # PROCESSING WITH FILTERED CHATS
             if len(ready_chats) < 2:
                 raise HTTPException(status_code=404, detail="Нет чатов для анализа, или их менее двух")
@@ -33,14 +38,14 @@ async def get_messaging_week_report_pdf(avito_account_id, test_from_prod: bool):
 
             # Checking count of messages for analytics
             if settings.ENVIRONMENT == 'DEVELOPMENT' or test_from_prod:
-                ready_chats = ready_chats[:10]  # For testing 5items for economy
+                ready_chats = ready_chats[:10]  # For economy then testing
 
             #  Total statistics
             statistics_total = await get_statistics_total(ready_chats)
             if statistics_total:
                 analyze_all_chats["header_with_statistics"] = statistics_total
 
-            statistics_new = await get_text_statistics_report(avito_account=avito_account)
+            statistics_new = await get_text_statistics_report(avito_account=avito_account, period=period)
             calls_unique_users = await get_calls_count_unique_numbers_last_week(avito_account)
             if statistics_new:
                 analyze_all_chats["contacts"] = {
@@ -82,7 +87,10 @@ async def get_messaging_week_report_pdf(avito_account_id, test_from_prod: bool):
         if analyze_all_chats:
             analyze_all_chats = await converting_created_timestamp_to_datetime(analyze_all_chats)
 
-        return await get_pdf_report(avito_account_id, analyze_all_chats), tokens
+        if for_api:
+            return analyze_all_chats
+        else:
+            return await get_pdf_report(avito_account_id, analyze_all_chats), tokens
     else:
         raise HTTPException(status_code=404, detail="error: Аккаунт Avito не найден")
 
