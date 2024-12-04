@@ -1,6 +1,23 @@
 #тут все конфиги системктл
 cd /etc/systemd/system/ 
 
+# Конфиг для welcome бота
+
+[Unit]
+Description=welcome bot
+
+[Service]
+Type=simple
+WorkingDirectory=/var/www/avitostat/welcome_bot
+ExecStart=/var/www/avitostat/venv/bin/python3 /var/www/avitostat/welcome_bot/bot.py
+KillMode=process
+Restart=always
+RestartSec=10
+EnvironmentFile=/var/www/avitostat/.env
+
+[Install]
+WantedBy=multi-user.target
+
 # Конфиг для бота
 
 [Unit]

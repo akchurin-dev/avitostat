@@ -50,6 +50,8 @@ async def get_chats(avito_account: AvitoAccount, max_retries: int = 3) -> dict:
     return chats
 
 
+#TODO надо добавить параметр с необходимым количеством сообщений, чтобы лишние запросы не улетали
+# А с другой стороны и так много запросов как будто не уходит, даже если забирем лишнее
 async def get_chats_messages(avito_account: AvitoAccount, chats: list) -> list:
     if len(chats) > 0:
         async with httpx.AsyncClient() as client:
@@ -57,14 +59,19 @@ async def get_chats_messages(avito_account: AvitoAccount, chats: list) -> list:
                 chat_id = chat.get("id")
                 url = f"https://api.avito.ru/messenger/v3/accounts/{avito_account.id}/chats/{chat_id}/messages/"
                 headers = {'authorization': f"Bearer {avito_account.access_token}"}
-                params = {"limit": 30}
-
-                response = await client.get(url, headers=headers, params=params)
-                if response.status_code == 200:
-                    chat["messages"] = response.json().get("messages")[::-1]
-                else:
-                    continue
-
+                params = {"limit": 100,
+                          "offset": 0}
+                messages = []
+                while True:
+                    response = await client.get(url, headers=headers, params=params)
+                    if response.status_code == 200:
+                        params["offset"] += 100
+                        messages.extend(response.json().get("messages")[::-1])
+                        if len(response.json().get("messages")) == 0:
+                            chat["messages"] = messages
+                            break
+                    else:
+                        raise HTTPException(status_code=response.status_code, detail=response.text)
     return chats
 
 

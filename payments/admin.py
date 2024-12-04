@@ -69,6 +69,7 @@ class BalanceHistoryInline(admin.TabularInline):
 
 
 class UserProfileAdmin(SuperModelAdmin):
+    list_display = ('user', 'balance')
     inlines = [BalanceHistoryInline]
 
     def get_queryset(self, request):

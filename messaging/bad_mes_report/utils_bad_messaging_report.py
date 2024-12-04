@@ -7,7 +7,6 @@ from jinja2 import Template
 from asgiref.sync import sync_to_async
 from pathlib import Path
 from datetime import datetime, timedelta
-
 from conversion.utils_week_report import get_text_statistics_report
 from messaging.bad_mes_report.statistics.statistics_by_criteria_utils import \
     get_stat_by_criteria_splitted_by_managers
@@ -50,6 +49,8 @@ async def get_messaging_week_report_pdf(avito_account_id, test_from_prod: bool):
                     "chats_at_scheduler_time": len(ready_chats) or 0,
                     "calls_unique_users": calls_unique_users or 0,
                     "contacts_requested": statistics_new.get("total_metrics").get("total_contacts_count"),
+                    "total_favorites_count": statistics_new.get("total_metrics").get("total_favorites_count"),
+                    "total_conversion_count": statistics_new.get("total_metrics").get("total_conversion_count"),
                 }
 
             stat_splitted_by_managers = await get_stat_total_splitted_by_managers(ready_chats)

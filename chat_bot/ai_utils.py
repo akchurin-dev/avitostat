@@ -34,20 +34,33 @@ def contacts_data_prepare(data: dict) -> dict | None:
     return result
 
 
+def format_chat_history(messages):
+    formatted_messages = []
+    for msg in messages:
+        if msg['type'] == 'system':
+            continue
+        message_text = msg['content']['text']
+        if msg['direction'] == 'in':
+            formatted_messages.append({"role": "user", "content": message_text})
+        elif msg['direction'] == 'out':
+            formatted_messages.append({"role": "assistant", "content": message_text})
+    return formatted_messages
+
+
 def ai_answer_assist(ai_assistant: AiChatBot, chat: list, ):
     result = {}
+    chat_history_formatted = format_chat_history(chat)
     prompt = (
         f"Общая информация:{ai_assistant.total_info}"
         f"Правила при общении:{ai_assistant.rules}"
         f"Необходимо в ходе разговора наличие шагов:{ai_assistant.checkpoints}"
-        f"История переписки:{chat}"
         "Ответы давать только на русском языке"
     )
+    messages = [{"role": "system", "content": prompt}, ]
+    messages.extend(chat_history_formatted)
     response = client.beta.chat.completions.parse(
         model="gpt-4o-2024-08-06",
-        messages=[
-            {"role": "assistant", "content": prompt},
-        ],
+        messages=messages,
         response_format=ChatBotAnswerSchema,
         max_tokens=300,
     )
@@ -87,11 +100,11 @@ async def chat_summary_generator(avito_account: AvitoAccount, chat_id: str):
     prompt = (f"""Твоя задача - проанализировать переписку чата
         И сгенерировать сводку по чату которая должна содержать пункты:
             1) Суть обращения.
-            2) Адрес для выезда при наличии.
+            2) Адрес для выезда при наличии(указывать ПОСЛЕДНИЙ УПОМЯНУТЫЙ В ПЕРЕПИСКЕ).
             3) Контакты клиента и назначенное время при наличии.
          - какждый пункт расписать кратко, не более 200 символов каждый.
          Ответ выдавай НА РУССКОМ ЯЗЫКЕ, проверяй правильность построения предложений на русском при переводе!
-        Чат с сообщениями - {chat_with_messages}
+        Чат с сообщениями - {chat_with_messages[-20:]}
         """)
 
     response = client.beta.chat.completions.parse(
