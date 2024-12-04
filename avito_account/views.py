@@ -1,12 +1,17 @@
 import json
 
+from asgiref.sync import sync_to_async
 from django.http import JsonResponse, HttpResponseRedirect
 from django.utils.decorators import method_decorator
 from django.views import View
 from django.views.decorators.csrf import csrf_exempt
+
+from avito_account.api.get_balance import get_balance
+from avito_account.models.models import AvitoAccount
 from avito_account.oauth_utils import create_or_update_avito_account
 from django.shortcuts import render, redirect
 
+from avito_account.tasks import balance_alert_send_task, balance_alert_send
 from base import settings
 
 
