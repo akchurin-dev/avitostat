@@ -2,7 +2,7 @@ import logging
 import os
 from pathlib import Path
 import pytz
-from celery.schedules import crontab
+from celery.schedules import crontab, schedule
 from dotenv import load_dotenv
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
@@ -196,6 +196,11 @@ if ENVIRONMENT == 'PRODUCTION':
         'send_text_report_all_async_task': {
             'task': 'conversion.tasks.send_text_report_all_async_task_auto_generated',
             'schedule': crontab(day_of_week='mon', hour=10, minute=0),
+        },
+
+        'balance_alert_send_task': {
+            'task': 'avito_account.tasks.balance_alert_send_task',
+            'schedule': schedule(run_every=259200),  # every 3 days
         },
 
         'bad_messaging_week_report_folder_cleaner_task': {

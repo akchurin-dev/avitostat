@@ -11,7 +11,7 @@ from avito_account.models.models import AvitoAccount
 from avito_account.oauth_utils import create_or_update_avito_account
 from django.shortcuts import render, redirect
 
-from avito_account.tasks import send_balance_alert_task
+from avito_account.tasks import balance_alert_send_task, balance_alert_send
 from base import settings
 
 
@@ -37,10 +37,3 @@ class CallbackView(View):
 
 def terms_of_service(request):
     return render(request, 'terms_of_service.html')
-
-
-@method_decorator(csrf_exempt, name='dispatch')
-class TestBalanceView(View):
-    async def get(self, request, *args, **kwargs):
-        send_balance_alert_task.delay(145213826)
-        return JsonResponse({"message": "Баланс запрошен"}, status=200)
