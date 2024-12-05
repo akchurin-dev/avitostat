@@ -68,7 +68,7 @@ async def get_chats_messages(avito_account: AvitoAccount, chats: list) -> list:
                         params["offset"] += 100
                         messages.extend(response.json().get("messages")[::-1])
                         if len(response.json().get("messages")) == 0:
-                            chat["messages"] = messages[-2:]
+                            chat["messages"] = messages
                             break
                     else:
                         raise HTTPException(status_code=response.status_code, detail=response.text)
