@@ -70,6 +70,7 @@ async def get_messaging_report_data(test_from_prod: bool, avito_account_id, for_
             if analyze_by_criteria_raw_res:
                 analyze_by_crit_split_by_man = await get_stat_by_criteria_splitted_by_managers(ready_chats)
                 analyze_all_chats["analyze_by_criteria"] = analyze_by_crit_split_by_man
+                print(123)
 
         except Exception as send_error:
             sentry_sdk.capture_exception(send_error)

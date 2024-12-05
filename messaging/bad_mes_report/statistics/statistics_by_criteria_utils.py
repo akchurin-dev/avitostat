@@ -11,6 +11,7 @@ async def get_stat_by_criteria_splitted_by_managers(filtered_chats_only_with_tex
             if statistics_for_manager:
                 for result in statistics_for_manager:
                     manager_chats.get("statistics_by_criteria").append(result)
+            manager_chats.pop("chats")
 
     return grouped_chats
 

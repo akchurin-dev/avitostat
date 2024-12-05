@@ -56,7 +56,8 @@ async def bad_messaging_week_report_async(only_for_users=None, test_from_prod: b
     if settings.ENVIRONMENT == 'DEVELOPMENT':
         test_from_prod = True
 
-    all_avito_accounts, campaign = await get_accounts_for_pdf_reports(only_for_users=only_for_users, test_from_prod=test_from_prod, )
+    all_avito_accounts, campaign = await get_accounts_for_pdf_reports(only_for_users=only_for_users,
+                                                                      test_from_prod=test_from_prod, )
     if len(all_avito_accounts) == 0:  # will TRY to cut in get_account_for_pdf_reports with raise exception
         return None
 
@@ -67,7 +68,8 @@ async def bad_messaging_week_report_async(only_for_users=None, test_from_prod: b
         print(avito_account.name)
         try:
             await check_balance(avito_account)
-            pdf_path, tokens = await get_messaging_report_data(avito_account.id, test_from_prod)
+            pdf_path, tokens = await get_messaging_report_data(avito_account_id=avito_account.id,
+                                                               test_from_prod=test_from_prod)
             if pdf_path:
                 chat_id = "-4221870448" if test_from_prod else avito_account.telegram_id
                 try:

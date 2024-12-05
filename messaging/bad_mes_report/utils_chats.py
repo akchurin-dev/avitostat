@@ -125,7 +125,7 @@ async def get_ready_chats(avito_account: AvitoAccount, period: str = "week") -> 
         fil_chats_by_sched = await schedule_filter_chats(fil_chats_only_with_text, avito_account)
         fil_by_excluded_items = await excluded_items_filter_chats(fil_chats_by_sched, avito_account)
         print(f"{len(fil_by_excluded_items)} chats after filtering")
-        return fil_by_excluded_items[-3:], chats_without_filtering_count
+        return fil_by_excluded_items, chats_without_filtering_count
     else:
         return []
 
