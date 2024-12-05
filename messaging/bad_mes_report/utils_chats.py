@@ -116,7 +116,7 @@ async def get_ready_chats(avito_account: AvitoAccount, period: str = "week") -> 
     if chats:
         # Chats with messages getting
         actual_chats = await filter_chats_for_last_period(chats)
-        actual_chats_with_mes = await get_chats_messages(avito_account, actual_chats)
+        actual_chats_with_mes = await get_chats_messages(avito_account, actual_chats, period=period)
 
         #  Filtering and processing before using
         comp_mes_with_man = adding_manager_info_for_chats(actual_chats_with_mes)

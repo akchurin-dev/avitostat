@@ -1,3 +1,4 @@
+import datetime
 import json
 import pprint
 from datetime import timedelta
@@ -50,26 +51,45 @@ async def get_chats(avito_account: AvitoAccount, max_retries: int = 3) -> dict:
     return chats
 
 
-#TODO надо добавить параметр с необходимым количеством сообщений, чтобы лишние запросы не улетали
-# А с другой стороны и так много запросов как будто не уходит, даже если забирем лишнее
-async def get_chats_messages(avito_account: AvitoAccount, chats: list) -> list:
+async def check_timestamp_in_period(timestamp: int, period: str = "week") -> bool:
+    timestamp_in_period = False
+    now = datetime.datetime.now()
+
+    created_or_updated = datetime.datetime.fromtimestamp(timestamp)
+    timedelta = now - created_or_updated
+
+    if period == "week":
+        if 7 >= timedelta.days >= 0:
+            timestamp_in_period = True
+    if period == "month":
+        if 30 >= timedelta.days >= 0:
+            timestamp_in_period = True
+    return timestamp_in_period
+
+
+async def get_chats_messages(avito_account: AvitoAccount, chats: list, period: str = "week") -> list:
     if len(chats) > 0:
         async with httpx.AsyncClient() as client:
             for chat in chats:
                 chat_id = chat.get("id")
                 url = f"https://api.avito.ru/messenger/v3/accounts/{avito_account.id}/chats/{chat_id}/messages/"
                 headers = {'authorization': f"Bearer {avito_account.access_token}"}
-                params = {"limit": 100,
+                params = {"limit": 50,
                           "offset": 0}
                 messages = []
                 while True:
                     response = await client.get(url, headers=headers, params=params)
                     if response.status_code == 200:
-                        params["offset"] += 100
-                        messages.extend(response.json().get("messages")[::-1])
-                        if len(response.json().get("messages")) == 0:
+                        params["offset"] += 50
+                        new_messages = response.json().get("messages")
+                        messages.extend(new_messages[::-1])
+                        if len(new_messages) == 0:
                             chat["messages"] = messages
                             break
+                        else:
+                            if not await check_timestamp_in_period(new_messages[0].get("created"), period=period):
+                                chat["messages"] = messages
+                                break
                     else:
                         raise HTTPException(status_code=response.status_code, detail=response.text)
     return chats
