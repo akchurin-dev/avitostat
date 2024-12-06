@@ -35,6 +35,7 @@ async def get_messaging_report_data(test_from_prod: bool, avito_account_id, for_
             else:
                 analyze_all_chats["chats_for_analyze"] = len(ready_chats)
                 analyze_all_chats["chats_without_filtering_count"] = chats_without_filtering_count
+                await add_start_end_dates(analyze_all_chats=analyze_all_chats, period=period, )
 
             # Checking count of messages for analytics
             if settings.ENVIRONMENT == 'DEVELOPMENT' or test_from_prod:
@@ -43,7 +44,7 @@ async def get_messaging_report_data(test_from_prod: bool, avito_account_id, for_
             #  Total statistics
             statistics_total = await get_statistics_total(ready_chats)
             if statistics_total:
-                analyze_all_chats["header_with_statistics"] = statistics_total
+                analyze_all_chats["statistics_total"] = statistics_total
 
             statistics_new = await get_text_statistics_report(avito_account=avito_account, period=period)
             calls_unique_users = await get_calls_count_unique_numbers_last_week(avito_account)
@@ -60,7 +61,7 @@ async def get_messaging_report_data(test_from_prod: bool, avito_account_id, for_
 
             stat_splitted_by_managers = await get_stat_total_splitted_by_managers(ready_chats)
             if stat_splitted_by_managers:
-                analyze_all_chats["statistics_splitted_by_managers"] = stat_splitted_by_managers
+                analyze_all_chats["statistics_by_managers"] = stat_splitted_by_managers
 
             analyze_messaging = await messaging_total_analyze(ready_chats, test_from_prod, avito_account)
             if analyze_messaging:
@@ -93,6 +94,18 @@ async def get_messaging_report_data(test_from_prod: bool, avito_account_id, for_
             return await get_pdf_report(avito_account_id, analyze_all_chats), tokens
     else:
         raise HTTPException(status_code=404, detail="error: Аккаунт Avito не найден")
+
+
+async def add_start_end_dates(analyze_all_chats, period: str) -> dict:
+    if period == "week":
+        start_date = (datetime.now() - timedelta(days=7)).strftime("%d.%m.%Y")
+    if period == "month":
+        start_date = (datetime.now() - timedelta(days=30)).strftime("%d.%m.%Y")
+
+    end_date = datetime.now().strftime("%d.%m.%Y")
+    analyze_all_chats["start_date"] = start_date
+    analyze_all_chats["end_date"] = end_date
+    return analyze_all_chats
 
 
 async def converting_created_timestamp_to_datetime(analyze_all_chats):
@@ -134,18 +147,17 @@ async def bad_messaging_report_generate_html(analyze_all_chats):
     template = Template(template_content)
 
     # Данные для подстановки в шаблон
-    start_date = (datetime.now() - timedelta(days=6)).strftime("%d.%m.%Y")
-    end_date = datetime.now().strftime("%d.%m.%Y")
+
     avito_account_name = analyze_all_chats['avito_account_name'] if analyze_all_chats else "Неизвестно"
 
     # Генерация HTML с использованием шаблона и данных
     return template.render(avito_account_name=avito_account_name,
-                           start_date=start_date,
-                           end_date=end_date,
+                           start_date=analyze_all_chats.get('start_date'),
+                           end_date=analyze_all_chats.get('end_date'),
                            contacts=analyze_all_chats.get('contacts'),
                            chats=analyze_all_chats.get('chats', []),
-                           statistics_total=analyze_all_chats.get("header_with_statistics"),
-                           statistics_by_managers=analyze_all_chats.get("statistics_splitted_by_managers"),
+                           statistics_total=analyze_all_chats.get("statistics_total"),
+                           statistics_by_managers=analyze_all_chats.get("statistics_by_managers"),
                            analyze_by_criteria=analyze_all_chats.get("analyze_by_criteria"), )
 
 
