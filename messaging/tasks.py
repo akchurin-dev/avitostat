@@ -16,9 +16,18 @@ from datetime import datetime
 from payments.utils import waste_of_balance, check_balance
 
 
+@celery_app.task(name='messaging.tasks.get_messaging_report_data')
+def get_messaging_report_data_async_task(test_from_prod: bool, avito_account_id,
+                                         for_api: bool = False, period: str = "week"):
+    async_to_sync(get_messaging_report_data)(test_from_prod=test_from_prod,
+                                             avito_account_id=avito_account_id,
+                                             for_api=for_api, period=period)
+
+
 @celery_app.task(name='messaging.tasks.bad_messaging_week_report_async_task')
 def bad_messaging_week_report_async_task(only_for_users=None, test_from_prod=False, period: str = "week"):
-    async_to_sync(bad_messaging_week_report_async)(only_for_users=only_for_users, test_from_prod=test_from_prod, period=period)
+    async_to_sync(bad_messaging_week_report_async)(only_for_users=only_for_users, test_from_prod=test_from_prod,
+                                                   period=period)
 
 
 @celery_app.task(name='messaging.tasks.bad_messaging_week_report_async_task_auto_generated')

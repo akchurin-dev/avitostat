@@ -1,5 +1,6 @@
 from messaging.bad_mes_report.utils_bad_messaging_report import get_messaging_report_data
-from messaging.tasks import bad_messaging_week_report_async, bad_messaging_week_report_async_task
+from messaging.tasks import bad_messaging_week_report_async, bad_messaging_week_report_async_task, \
+    get_messaging_report_data_async_task
 import json
 from datetime import datetime, time
 from django.http import JsonResponse
@@ -32,11 +33,18 @@ class CustomJSONEncoder(json.JSONEncoder):
 class MonthReportIndividualView(View):
     async def get(self, request, *args, **kwargs):
         avito_account_id = kwargs.get('avito_account_id')
-        report_data = await get_messaging_report_data(
+        report_data = get_messaging_report_data_async_task.delay(
             test_from_prod=False,
             avito_account_id=avito_account_id,
             for_api=True,
         )
+
+        chats = report_data.get("chats", None)
+        if chats is not None:
+            for chat in chats:
+                messages = chat.get("messages", None)
+                if len(messages) > 15:
+                    chat["messages"] = messages[:15]
 
         if report_data is not None:
             # Используем кастомный JSON-энкодер для сериализации

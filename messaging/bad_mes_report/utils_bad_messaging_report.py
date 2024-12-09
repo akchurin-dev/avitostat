@@ -17,7 +17,8 @@ from messaging.bad_mes_report.utils_open_ai import messaging_total_analyze, anal
 from messaging.utils_duration import get_calls_count_unique_numbers_last_week
 
 
-async def get_messaging_report_data(test_from_prod: bool, avito_account_id, for_api: bool = False, period: str = "week",
+async def get_messaging_report_data(test_from_prod: bool, avito_account_id,
+                                    for_api: bool = False, period: str = "week",
                                     ):
     if period not in ["week", "month"]:
         raise ValueError("period must be either 'week' or 'month'")

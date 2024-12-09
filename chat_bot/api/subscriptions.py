@@ -13,7 +13,7 @@ async def subscribe_to_messages(avito_account: AvitoAccount):
     if ENVIRONMENT == "PRODUCTION":
         subscribe_url = "https://avitostata.ru/chat_bot/webhook_inbox"
     else:
-        subscribe_url = "https://e79a-2a00-1fa1-8675-8703-fdc9-89c0-2a87-6ab1.ngrok-free.app/chat_bot/webhook_inbox"
+        subscribe_url = "https://6f32-2a00-1fa1-c000-e922-6009-ecf1-a1b5-ec0a.ngrok-free.app/chat_bot/webhook_inbox"
 
     async with httpx.AsyncClient() as client:
         params = {"url": subscribe_url}
