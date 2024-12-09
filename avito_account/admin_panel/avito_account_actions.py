@@ -1,8 +1,23 @@
 import logging
 from conversion.tasks import send_text_report_all_async_task
-from messaging.tasks import bad_messaging_week_report_async_task
+from messaging.tasks import bad_messaging_week_report_async_task, \
+    month_report_json_getting_async_task
 
 logger = logging.getLogger(__name__)
+
+
+def celery_pdf_month_report(self, request, queryset):
+    object_ids = list(queryset.values_list('id', flat=True))
+
+    try:
+        month_report_json_getting_async_task.delay()
+        self.message_user(request, "СЕЛЕРИ месяц", level='success')
+    except Exception as e:
+        logger.error(f"Ошибка при отправке отчета: {e}", exc_info=True)
+        self.message_user(request, f"СЕЛЕРИ месяц" f" Ошибка сервера - {e}", level='error')
+
+
+celery_pdf_month_report.short_description = "СЕЛЕРИ месяц"
 
 
 def run_pdf_week_report(self, request, queryset):

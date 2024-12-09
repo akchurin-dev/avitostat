@@ -24,6 +24,18 @@ def get_messaging_report_data_async_task(test_from_prod: bool, avito_account_id,
                                              for_api=for_api, period=period)
 
 
+@celery_app.task(name='messaging.tasks.month_report_json_getting')
+def month_report_json_getting_async_task():
+    all_avito_accounts = AvitoAccount.objects.filter(created_by__is_active=True)
+    for avito_account in all_avito_accounts:
+        get_messaging_report_data_async_task.delay(
+            test_from_prod=False,
+            avito_account_id=avito_account.id,
+            for_api=True,
+            period="month"
+        )
+
+
 @celery_app.task(name='messaging.tasks.bad_messaging_week_report_async_task')
 def bad_messaging_week_report_async_task(only_for_users=None, test_from_prod=False, period: str = "week"):
     async_to_sync(bad_messaging_week_report_async)(only_for_users=only_for_users, test_from_prod=test_from_prod,

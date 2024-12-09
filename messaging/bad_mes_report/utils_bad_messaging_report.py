@@ -1,3 +1,4 @@
+import json
 import pdfkit
 import sentry_sdk
 from avito_account.models.models import AvitoAccount
@@ -6,7 +7,7 @@ from base.exceptions import HTTPException
 from jinja2 import Template
 from asgiref.sync import sync_to_async
 from pathlib import Path
-from datetime import datetime, timedelta
+from datetime import timedelta
 from conversion.utils_week_report import get_text_statistics_report
 from messaging.bad_mes_report.statistics.statistics_by_criteria_utils import \
     get_stat_by_criteria_splitted_by_managers
@@ -14,12 +15,13 @@ from messaging.bad_mes_report.statistics.total_statistics_utils import get_stati
     get_stat_total_splitted_by_managers
 from messaging.bad_mes_report.utils_chats import get_ready_chats
 from messaging.bad_mes_report.utils_open_ai import messaging_total_analyze, analyze_by_criteria
+from messaging.models import ReportMonth
 from messaging.utils_duration import get_calls_count_unique_numbers_last_week
+from datetime import datetime, time
 
 
 async def get_messaging_report_data(test_from_prod: bool, avito_account_id,
-                                    for_api: bool = False, period: str = "week",
-                                    ):
+                                    for_api: bool = False, period: str = "week",):
     if period not in ["week", "month"]:
         raise ValueError("period must be either 'week' or 'month'")
 
@@ -89,12 +91,25 @@ async def get_messaging_report_data(test_from_prod: bool, avito_account_id,
         if analyze_all_chats:
             analyze_all_chats = await converting_created_timestamp_to_datetime(analyze_all_chats)
 
-        if for_api:
-            return analyze_all_chats
+        if for_api and analyze_all_chats:
+            current_month = datetime.now().month
+            serialized_report_data = json.dumps(analyze_all_chats, ensure_ascii=False, indent=4, cls=CustomJSONEncoder)
+            await ReportMonth.objects.acreate(
+                month=current_month,
+                account=avito_account,
+                data=serialized_report_data,
+            )
         else:
             return await get_pdf_report(avito_account_id, analyze_all_chats), tokens
     else:
         raise HTTPException(status_code=404, detail="error: Аккаунт Avito не найден")
+
+
+class CustomJSONEncoder(json.JSONEncoder):
+    def default(self, obj):
+        if isinstance(obj, (datetime, time)):
+            return obj.isoformat()  # Преобразование в строку формата ISO 8601
+        return super().default(obj)
 
 
 async def add_start_end_dates(analyze_all_chats, period: str) -> dict:

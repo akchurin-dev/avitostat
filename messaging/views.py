@@ -1,4 +1,3 @@
-from messaging.bad_mes_report.utils_bad_messaging_report import get_messaging_report_data
 from messaging.tasks import bad_messaging_week_report_async, bad_messaging_week_report_async_task, \
     get_messaging_report_data_async_task
 import json
