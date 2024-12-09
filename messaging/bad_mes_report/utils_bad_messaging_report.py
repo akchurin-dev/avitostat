@@ -91,8 +91,16 @@ async def get_messaging_report_data(test_from_prod: bool, avito_account_id,
         if analyze_all_chats:
             analyze_all_chats = await converting_created_timestamp_to_datetime(analyze_all_chats)
 
-        if for_api and analyze_all_chats:
+        if for_api and analyze_all_chats:  # Этот блок кода чтобы облегчить жэсонины
+            chats = analyze_all_chats.get("chats", None)
+            if chats is not None:
+                for chat in chats:
+                    messages = chat.get("messages", None)
+                    if len(messages) > 15:
+                        chat["messages"] = messages[:15]
+
             current_month = datetime.now().month
+            # данная сериализация для того чтобы даты в текст менять
             serialized_report_data = json.dumps(analyze_all_chats, ensure_ascii=False, indent=4, cls=CustomJSONEncoder)
             await ReportMonth.objects.acreate(
                 month=current_month,

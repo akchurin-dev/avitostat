@@ -1,3 +1,4 @@
+from messaging.models import ReportMonth
 from messaging.tasks import bad_messaging_week_report_async, bad_messaging_week_report_async_task, \
     get_messaging_report_data_async_task
 import json
@@ -30,25 +31,14 @@ class CustomJSONEncoder(json.JSONEncoder):
 
 
 class MonthReportIndividualView(View):
-    async def get(self, request, *args, **kwargs):
+    def get(self, request, *args, **kwargs):
         avito_account_id = kwargs.get('avito_account_id')
-        report_data = get_messaging_report_data_async_task.delay(
-            test_from_prod=False,
-            avito_account_id=avito_account_id,
-            for_api=True,
-        )
-
-        chats = report_data.get("chats", None)
-        if chats is not None:
-            for chat in chats:
-                messages = chat.get("messages", None)
-                if len(messages) > 15:
-                    chat["messages"] = messages[:15]
-
-        if report_data is not None:
-            # Используем кастомный JSON-энкодер для сериализации
-            serialized_report_data = json.dumps(report_data, ensure_ascii=False, indent=4, cls=CustomJSONEncoder)
-            return JsonResponse(status=200, data=json.loads(serialized_report_data))  # Преобразуем обратно в Python-объект
+        current_month = datetime.now().month
+        report = ReportMonth.objects.filter(account_id=avito_account_id,
+                                            month=current_month,
+                                            ).last()
+        if report is not None:
+            return JsonResponse(status=200, data=report.data, safe=False)
         else:
             return JsonResponse(status=404, data={"error": "Данные не найдены"})
 
