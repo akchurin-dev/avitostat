@@ -47,7 +47,6 @@ async def get_chats(avito_account: AvitoAccount, max_retries: int = 3) -> dict:
                     f"Attempt {retries}: {response.status_code}, {response.text}")  # Удалить если нет необходимости в коде, была нужда когда разбирался в ошибкой 403 бесконечно
             else:
                 raise HTTPException(status_code=response.status_code, detail=response.text)
-
     return chats
 
 

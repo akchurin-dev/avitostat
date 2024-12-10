@@ -10,7 +10,7 @@ def celery_pdf_month_report(self, request, queryset):
     object_ids = list(queryset.values_list('id', flat=True))
 
     try:
-        month_report_json_getting_async_task.delay()
+        month_report_json_getting_async_task()
         self.message_user(request, "СЕЛЕРИ месяц", level='success')
     except Exception as e:
         logger.error(f"Ошибка при отправке отчета: {e}", exc_info=True)

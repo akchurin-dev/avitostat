@@ -3,7 +3,7 @@ from messaging.tasks import bad_messaging_week_report_async, bad_messaging_week_
     get_messaging_report_data_async_task
 import json
 from datetime import datetime, time
-from django.http import JsonResponse
+from django.http import JsonResponse, HttpResponse
 from django.views import View
 
 
@@ -38,7 +38,7 @@ class MonthReportIndividualView(View):
                                             month=current_month,
                                             ).last()
         if report is not None:
-            return JsonResponse(status=200, data=report.data, safe=False)
+            return HttpResponse(report.data, content_type='application/json')
         else:
             return JsonResponse(status=404, data={"error": "Данные не найдены"})
 

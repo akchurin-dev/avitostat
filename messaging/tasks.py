@@ -28,7 +28,7 @@ def get_messaging_report_data_async_task(test_from_prod: bool, avito_account_id,
 def month_report_json_getting_async_task():
     all_avito_accounts = AvitoAccount.objects.filter(created_by__is_active=True)
     for avito_account in all_avito_accounts:
-        get_messaging_report_data_async_task.delay(
+        get_messaging_report_data_async_task(
             test_from_prod=False,
             avito_account_id=avito_account.id,
             for_api=True,

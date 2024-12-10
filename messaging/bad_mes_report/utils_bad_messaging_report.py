@@ -21,7 +21,7 @@ from datetime import datetime, time
 
 
 async def get_messaging_report_data(test_from_prod: bool, avito_account_id,
-                                    for_api: bool = False, period: str = "week",):
+                                    for_api: bool = False, period: str = "week", ):
     if period not in ["week", "month"]:
         raise ValueError("period must be either 'week' or 'month'")
 
@@ -80,8 +80,6 @@ async def get_messaging_report_data(test_from_prod: bool, avito_account_id,
             print(send_error)
             raise send_error
             # return False
-        else:
-            analyze_all_chats["compared_messages"] = "Чаты не найдены"
 
         # tokens counting
         tokens = None
@@ -92,25 +90,29 @@ async def get_messaging_report_data(test_from_prod: bool, avito_account_id,
             analyze_all_chats = await converting_created_timestamp_to_datetime(analyze_all_chats)
 
         if for_api and analyze_all_chats:  # Этот блок кода чтобы облегчить жэсонины
-            chats = analyze_all_chats.get("chats", None)
-            if chats is not None:
-                for chat in chats:
-                    messages = chat.get("messages", None)
-                    if len(messages) > 15:
-                        chat["messages"] = messages[:15]
-
-            current_month = datetime.now().month
-            # данная сериализация для того чтобы даты в текст менять
-            serialized_report_data = json.dumps(analyze_all_chats, ensure_ascii=False, indent=4, cls=CustomJSONEncoder)
-            await ReportMonth.objects.acreate(
-                month=current_month,
-                account=avito_account,
-                data=serialized_report_data,
-            )
+            await api_report_data_generation(analyze_all_chats, avito_account)
         else:
             return await get_pdf_report(avito_account_id, analyze_all_chats), tokens
     else:
         raise HTTPException(status_code=404, detail="error: Аккаунт Avito не найден")
+
+
+async def api_report_data_generation(analyze_all_chats: dict, avito_account: AvitoAccount) -> None:
+    chats = analyze_all_chats.get("chats", None)
+    if chats is not None:
+        for chat in chats:
+            messages = chat.get("messages", None)
+            if len(messages) > 15:
+                chat["messages"] = messages[:15]
+
+    current_month = datetime.now().month
+    # данная сериализация для того чтобы даты в текст менять
+    serialized_report_data = json.dumps(analyze_all_chats, ensure_ascii=False, cls=CustomJSONEncoder)
+    await ReportMonth.objects.acreate(
+        month=current_month,
+        account=avito_account,
+        data=serialized_report_data,
+    )
 
 
 class CustomJSONEncoder(json.JSONEncoder):
