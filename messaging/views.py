@@ -34,9 +34,12 @@ class MonthReportIndividualView(View):
     def get(self, request, *args, **kwargs):
         avito_account_id = kwargs.get('avito_account_id')
         current_month = datetime.now().month
-        report = ReportMonth.objects.filter(account_id=avito_account_id,
-                                            month=current_month,
-                                            ).last()
+        if current_month == 1:
+            previous_month = 12
+        else:
+            previous_month = current_month - 1
+
+        report = ReportMonth.objects.filter(account_id=avito_account_id, month=previous_month).last()
         if report is not None:
             return HttpResponse(report.data, content_type='application/json')
         else:
