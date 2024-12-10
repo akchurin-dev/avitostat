@@ -30,7 +30,7 @@ async def get_messaging_report_data(test_from_prod: bool, avito_account_id,
         analyze_all_chats = {"avito_account_name": avito_account.name, "avito_account_id": avito_account.id, }
         try:
             ready_chats, chats_without_filtering_count = await get_ready_chats(avito_account, period=period)
-            ready_chats = ready_chats[-3:]
+            # ready_chats = ready_chats[-3:] # TODO IF not have problems on PROD delete this line
             # PROCESSING WITH FILTERED CHATS
             if len(ready_chats) < 2:
                 raise HTTPException(status_code=404, detail="Нет чатов для анализа, или их менее двух")
@@ -80,6 +80,8 @@ async def get_messaging_report_data(test_from_prod: bool, avito_account_id,
             print(send_error)
             raise send_error
             # return False
+        # else:
+        #     analyze_all_chats["compared_messages"] = "Чаты не найдены" #TODO if not problem on PROD delete this lines
 
         # tokens counting
         tokens = None
@@ -107,7 +109,7 @@ async def api_report_data_generation(analyze_all_chats: dict, avito_account: Avi
 
     current_month = datetime.now().month
     # данная сериализация для того чтобы даты в текст менять
-    serialized_report_data = json.dumps(analyze_all_chats, ensure_ascii=False, cls=CustomJSONEncoder)
+    serialized_report_data = json.dumps(analyze_all_chats, ensure_ascii=False, cls=date_objects_to_json_encoder)
     await ReportMonth.objects.acreate(
         month=current_month,
         account=avito_account,
@@ -115,7 +117,7 @@ async def api_report_data_generation(analyze_all_chats: dict, avito_account: Avi
     )
 
 
-class CustomJSONEncoder(json.JSONEncoder):
+class date_objects_to_json_encoder(json.JSONEncoder):
     def default(self, obj):
         if isinstance(obj, (datetime, time)):
             return obj.isoformat()  # Преобразование в строку формата ISO 8601

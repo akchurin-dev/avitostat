@@ -23,13 +23,6 @@ class BadMessagingWeekReportIndividualView(View):
             return JsonResponse(status=200, data={"success": "Всё прошло успешно"})
 
 
-class CustomJSONEncoder(json.JSONEncoder):
-    def default(self, obj):
-        if isinstance(obj, (datetime, time)):
-            return obj.isoformat()  # Преобразование в строку формата ISO 8601
-        return super().default(obj)
-
-
 class MonthReportIndividualView(View):
     def get(self, request, *args, **kwargs):
         avito_account_id = kwargs.get('avito_account_id')
