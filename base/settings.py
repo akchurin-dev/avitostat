@@ -200,7 +200,7 @@ if ENVIRONMENT == 'PRODUCTION':
 
         'month_report_for_api_generation_task': {
             'task': 'messaging.tasks.month_report_json_getting',
-            "schedule": crontab(0, 0, day_of_month=0),
+            "schedule": crontab(0, 0, day_of_month=1),
         },
 
         'balance_alert_send_task': {
