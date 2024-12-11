@@ -22,7 +22,8 @@ async def get_durations_seconds(chats: List[Dict[str, Any]]):
 
                 chat_id = chat.get('id')
                 manager_name = chat.get("manager_name")
-                duration_times.append([duration, chat_id, manager_name])
+                if duration > 0:
+                    duration_times.append([duration, chat_id, manager_name])
 
                 last_in_message = None
 

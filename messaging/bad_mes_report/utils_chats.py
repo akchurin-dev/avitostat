@@ -1,4 +1,5 @@
 import time
+from typing import Tuple, List, Any
 
 import pytz
 from asgiref.sync import sync_to_async
@@ -10,7 +11,7 @@ from messaging.api import get_chats, get_chats_messages
 import datetime
 
 
-async def get_chats_for_last_week(chats: list) -> list:
+async def filter_chats_for_last_period(chats: list, period: str = "week") -> list:
     filtered_chats = []
     now = datetime.datetime.now()
 
@@ -18,8 +19,13 @@ async def get_chats_for_last_week(chats: list) -> list:
         for chat in chats:
             updated = datetime.datetime.fromtimestamp(chat.get('updated'))
             timedelta = now - updated
-            if 7 >= timedelta.days >= 0:
-                filtered_chats.append(chat)
+
+            if period == "week":
+                if 7 >= timedelta.days >= 0:
+                    filtered_chats.append(chat)
+            if period == "month":
+                if 30 >= timedelta.days >= 0:
+                    filtered_chats.append(chat)
         print(f"{len(filtered_chats)} chats loaded")
         return filtered_chats
 
@@ -105,12 +111,12 @@ async def schedule_filter_chats(filtered_chats_only_with_text: list, avito_accou
     return filtered_chats
 
 
-async def get_ready_chats(avito_account: AvitoAccount):
+async def get_ready_chats(avito_account: AvitoAccount, period: str = "week") -> tuple[list[Any], int] | list[Any]:
     chats = await get_chats(avito_account)
     if chats:
         # Chats with messages getting
-        actual_chats = await get_chats_for_last_week(chats)
-        actual_chats_with_mes = await get_chats_messages(avito_account, actual_chats)
+        actual_chats = await filter_chats_for_last_period(chats)
+        actual_chats_with_mes = await get_chats_messages(avito_account, actual_chats, period=period)
 
         #  Filtering and processing before using
         comp_mes_with_man = adding_manager_info_for_chats(actual_chats_with_mes)

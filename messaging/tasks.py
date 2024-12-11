@@ -9,16 +9,37 @@ from aiogram import types
 from avito_account.models.sending_report import SendingCampaign, SendingReport
 from base import settings
 from base.celery import celery_app
-from messaging.bad_mes_report.utils_bad_messaging_report import get_messaging_week_report_pdf
+from messaging.bad_mes_report.utils_bad_messaging_report import get_messaging_report_data
 import subprocess
 import os
 from datetime import datetime
 from payments.utils import waste_of_balance, check_balance
 
 
+@celery_app.task(name='messaging.tasks.get_messaging_report_data')
+def get_messaging_report_data_async_task(test_from_prod: bool, avito_account_id,
+                                         for_api: bool = False, period: str = "week"):
+    async_to_sync(get_messaging_report_data)(test_from_prod=test_from_prod,
+                                             avito_account_id=avito_account_id,
+                                             for_api=for_api, period=period)
+
+
+@celery_app.task(name='messaging.tasks.month_report_json_getting')
+def month_report_json_getting_async_task():
+    all_avito_accounts = AvitoAccount.objects.filter(created_by__is_active=True)
+    for avito_account in all_avito_accounts:
+        get_messaging_report_data_async_task.delay(
+            test_from_prod=False,
+            avito_account_id=avito_account.id,
+            for_api=True,
+            period="month"
+        )
+
+
 @celery_app.task(name='messaging.tasks.bad_messaging_week_report_async_task')
-def bad_messaging_week_report_async_task(only_for_users=None, test_from_prod=False):
-    async_to_sync(bad_messaging_week_report_async)(only_for_users=only_for_users, test_from_prod=test_from_prod)
+def bad_messaging_week_report_async_task(only_for_users=None, test_from_prod=False, period: str = "week"):
+    async_to_sync(bad_messaging_week_report_async)(only_for_users=only_for_users, test_from_prod=test_from_prod,
+                                                   period=period)
 
 
 @celery_app.task(name='messaging.tasks.bad_messaging_week_report_async_task_auto_generated')
@@ -51,12 +72,13 @@ async def get_accounts_for_pdf_reports(only_for_users: list, test_from_prod: boo
 
 # TODO change auto_generated=False by default
 async def bad_messaging_week_report_async(only_for_users=None, test_from_prod: bool = True, auto_generated=True,
-                                          pdf_path=None, balance_decrease=0,):
+                                          pdf_path=None, balance_decrease=0, period: str = "week"):
     # TODO change test_from_prod=True
     if settings.ENVIRONMENT == 'DEVELOPMENT':
         test_from_prod = True
 
-    all_avito_accounts, campaign = await get_accounts_for_pdf_reports(only_for_users=only_for_users, test_from_prod=test_from_prod, )
+    all_avito_accounts, campaign = await get_accounts_for_pdf_reports(only_for_users=only_for_users,
+                                                                      test_from_prod=test_from_prod, )
     if len(all_avito_accounts) == 0:  # will TRY to cut in get_account_for_pdf_reports with raise exception
         return None
 
@@ -67,7 +89,9 @@ async def bad_messaging_week_report_async(only_for_users=None, test_from_prod: b
         print(avito_account.name)
         try:
             await check_balance(avito_account)
-            pdf_path, tokens = await get_messaging_week_report_pdf(avito_account.id, test_from_prod)
+            pdf_path, tokens = await get_messaging_report_data(avito_account_id=avito_account.id,
+                                                               test_from_prod=test_from_prod,
+                                                               period=period)
             if pdf_path:
                 chat_id = "-4221870448" if test_from_prod else avito_account.telegram_id
                 try:
