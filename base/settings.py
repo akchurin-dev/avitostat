@@ -198,11 +198,6 @@ if ENVIRONMENT == 'PRODUCTION':
             'schedule': crontab(day_of_week='mon', hour=10, minute=0),
         },
 
-        'month_report_for_api_generation_task': {
-            'task': 'messaging.tasks.month_report_json_getting',
-            'schedule': crontab(minute=55, hour=23, day_of_month='L'),
-        },
-
         'balance_alert_send_task': {
             'task': 'avito_account.tasks.balance_alert_send_task',
             'schedule': schedule(run_every=259200),  # every 3 days

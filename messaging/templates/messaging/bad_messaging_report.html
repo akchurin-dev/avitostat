@@ -614,7 +614,7 @@
                     {% endif %}
                 </span>
                 <div class="chat__info">
-                    Чат целиком (неоходима авторизация на Авито): <a href="https://www.avito.ru/profile/messenger/channel/{{ chat.chat_id }}" class="chat__info-link" target="_blank">Перейти в чат</a>
+                    Ссылка на чат (неоходима авторизация на Авито): <a href="https://www.avito.ru/profile/messenger/channel/{{ chat.chat_id }}" class="chat__info-link" target="_blank">Перейти в чат</a>
                     <span class="chat__info-date">{{ chat.created_date }}</span>
                 </div>
                 {% for message in chat.messages %}

@@ -144,9 +144,9 @@ async def get_chat_bot_statistics(avito_account: AvitoAccount, date_from, date_t
         }
 
 
-async def get_text_statistics_report(avito_account: AvitoAccount, period: str = "week"):
+async def get_text_statistics_report(avito_account: AvitoAccount):
     metrics = {}
-    statistics, items, date_from, date_to = await get_statistics_for_period(avito_account, period=period)
+    statistics, items, date_from, date_to = await get_statistics_for_period(avito_account, period="week")
     operations = await get_active_operations_for_period(avito_account, period="week")
     items_with_metrics = await get_items_with_metrics(statistics=statistics, operations=operations, items=items)
 

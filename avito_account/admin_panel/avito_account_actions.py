@@ -1,51 +1,21 @@
 import logging
 from conversion.tasks import send_text_report_all_async_task
-from messaging.tasks import bad_messaging_week_report_async_task, \
-    month_report_json_getting_async_task
-
+from messaging.tasks import bad_messaging_week_report_async_task
 logger = logging.getLogger(__name__)
 
 
-def celery_pdf_month_for_api_report(self, request, queryset):
-    try:
-        # TODO id you wont to debug it without celery don't forget
-        #  month_report_json_getting_async_task changing
-        month_report_json_getting_async_task.delay()
-        self.message_user(request, "СЕЛЕРИ для АПИ месяц", level='success')
-    except Exception as e:
-        logger.error(f"Ошибка при отправке отчета: {e}", exc_info=True)
-        self.message_user(request, f"СЕЛЕРИ для АПИ месяц" f" Ошибка сервера - {e}", level='error')
-
-
-celery_pdf_month_for_api_report.short_description = "СЕЛЕРИ для АПИ месяц"
-
-
-def run_pdf_week_report(self, request, queryset):
+def run_pdf_report(self, request, queryset):
     object_ids = list(queryset.values_list('id', flat=True))
 
     try:
         bad_messaging_week_report_async_task(only_for_users=object_ids)
-        self.message_user(request, "ПДФ неделя отчет успешно сгенерирован и отправлен.", level='success')
+        self.message_user(request, "ПДФ отчет успешно сгенерирован и отправлен.", level='success')
     except Exception as e:
         logger.error(f"Ошибка при отправке отчета: {e}", exc_info=True)
-        self.message_user(request, f"ПДФ неделя отчет не удалось отправить" f" Ошибка сервера - {e}", level='error')
+        self.message_user(request, f"ПДФ отчет не удалось отправить" f" Ошибка сервера - {e}", level='error')
 
 
-run_pdf_week_report.short_description = "ПДФ неделя отчет отправить"
-
-
-def run_pdf_month_report(self, request, queryset):
-    object_ids = list(queryset.values_list('id', flat=True))
-
-    try:
-        bad_messaging_week_report_async_task(only_for_users=object_ids, period='month')
-        self.message_user(request, "ПДФ месяц отчет успешно сгенерирован и отправлен.", level='success')
-    except Exception as e:
-        logger.error(f"Ошибка при отправке отчета: {e}", exc_info=True)
-        self.message_user(request, f"ПДФ месяц отчет не удалось отправить" f" Ошибка сервера - {e}", level='error')
-
-
-run_pdf_month_report.short_description = "ПДФ месяц отчет отправить"
+run_pdf_report.short_description = "ПДФ отчет отправить"
 
 
 def run_pdf_all_report(self, request, queryset):
