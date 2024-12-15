@@ -69,6 +69,7 @@ INSTALLED_APPS = [
     'deep_tests',
     'payments',
     'chat_bot',
+    'amo',
 ]
 
 MIDDLEWARE = [
@@ -142,8 +143,8 @@ USE_I18N = True
 USE_TZ = True
 
 # URL для доступа к статическим файлам
-STATIC_URL = '/static/'
-STATIC_ROOT = os.path.join(BASE_DIR, 'static')
+STATIC_URL = '/staticfiles/'
+STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/5.0/ref/settings/#default-auto-field
@@ -275,20 +276,6 @@ JET_THEMES = [
     }
 ]
 
-# TODO SENTRY SETTINGS
-
-# if ENVIRONMENT == 'PRODUCTION':
-#     import sentry_sdk
-#
-#     sentry_sdk.init(
-#         dsn="https://26cd6adb31a7d912277757045055f118@o4506274465972224.ingest.us.sentry.io/4507378908004352",
-#         integrations=[
-#             DjangoIntegration(),
-#             CeleryIntegration(),
-#         ],
-#         traces_sample_rate=1.0,
-#         profiles_sample_rate=1.0,
-#     )
 #
 LOGGING = {
     'version': 1,

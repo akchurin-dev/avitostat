@@ -2,7 +2,10 @@ import json
 from django import forms
 from django.contrib import admin
 from django.db.models import Q
+from django.http import HttpResponseRedirect
 from django.shortcuts import redirect
+
+from amo.models import AmocrmAccount
 from avito_account.admin_panel.avito_account_actions import run_txt_all_test_from_prod_report, run_txt_report, \
     run_pdf_week_report, run_txt_all_report, run_pdf_all_report, run_pdf_all_test_from_prod_report, \
     run_pdf_month_report, celery_pdf_month_for_api_report
@@ -37,6 +40,15 @@ class AiChatBotInline(admin.StackedInline):
     extra = 0
 
 
+class AmocrmInline(admin.StackedInline):
+    model = AmocrmAccount
+    extra = 0
+    exclude = ['access_token', 'refresh_token']
+
+    class Media:
+        js = ('avito_account/amocrm_inline.js',)
+
+
 class WorkScheduleInline(admin.StackedInline):
     model = WorkSchedule
     can_delete = False
@@ -46,7 +58,7 @@ class WorkScheduleInline(admin.StackedInline):
 class AvitoAccountAdmin(admin.ModelAdmin):
     list_display = ('name', 'telegram_id', 'phone', 'created_by')
     readonly_fields = ('id',)
-    inlines = [WorkScheduleInline, ExcludedItemInline, AiChatBotInline]
+    inlines = [WorkScheduleInline, ExcludedItemInline, AiChatBotInline, AmocrmInline]
     actions = [celery_pdf_month_for_api_report,
                run_txt_all_test_from_prod_report,
                run_pdf_all_test_from_prod_report,
@@ -95,9 +107,7 @@ class AvitoAccountAdmin(admin.ModelAdmin):
         state = {
             "created_by_id": request.user.id,
         }
-        return redirect("https://www.avito.ru/oauth?response_type=code&client_id=_pBlAY6LnBWr_sKlgHfX&scope=messenger"
-                        ":read,messenger:write,user_balance:read,user_operations:read,user:read,autoload:reports,"
-                        f"items:info,items:apply_vas,stats:read&state={json.dumps(state)}")
+        return redirect(f"https://www.amocrm.ru/oauth?client_id=5cc2f970-fe3d-47a0-9b38-86d531fa92ff&state={state}")
 
     def get_fields(self, request, obj=None):  # Only for view id in details and hide in list
         fields = super().get_fields(request, obj)
