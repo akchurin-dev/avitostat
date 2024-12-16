@@ -16,4 +16,5 @@ urlpatterns = [
     path('sentry-debug/', trigger_error),
     path('payments/', include('payments.urls')),
     path('chat_bot/', include('chat_bot.urls')),
+    path('amo/', include('amo.urls')),
 ]
