@@ -1,0 +1,22 @@
+{% extends "admin/change_form.html" %}
+
+{% block content %}
+    {{ block.super }}
+    <h3>Подключить интеграцию амосрм</h3>
+    <label for="apiInputField">Введите id интеграции:</label>
+    <input type="text" id="apiInputField" placeholder="Введите текст">
+    <button onclick="redirectToApi()">подключить</button>
+
+    <script>
+        function redirectToApi() {
+            const inputValue = document.getElementById('apiInputField').value;
+            if (!inputValue) {
+                alert('Введите id интеграции');
+                return;
+            }
+
+            const apiUrl = `https://www.amocrm.ru/oauth?client_id=${encodeURIComponent(inputValue)}`;
+            window.location.href = apiUrl; // Редирект на указанный URL
+        }
+    </script>
+{% endblock %}

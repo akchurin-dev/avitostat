@@ -2,8 +2,8 @@ import json
 from django import forms
 from django.contrib import admin
 from django.db.models import Q
-from django.http import HttpResponseRedirect
 from django.shortcuts import redirect
+from django.utils.html import format_html
 
 from amo.models import AmocrmAccount
 from avito_account.admin_panel.avito_account_actions import run_txt_all_test_from_prod_report, run_txt_report, \
@@ -40,13 +40,59 @@ class AiChatBotInline(admin.StackedInline):
     extra = 0
 
 
+from django import forms
+
+
+class AmocrmInlineForm(forms.ModelForm):
+    input_field = forms.CharField(
+        max_length=255,
+        required=False,
+        label="Данные для отправки",
+        help_text="Введите данные для отправки на API",
+    )
+
+    class Meta:
+        model = AmocrmAccount
+        fields = []  # Оставляем пустым, чтобы исключить все поля модели
+
+
 class AmocrmInline(admin.StackedInline):
     model = AmocrmAccount
+    form = AmocrmInlineForm
     extra = 0
-    exclude = ['access_token', 'refresh_token']
+    exclude = ['access_token', 'refresh_token']  # Убираем сохраненные поля
 
-    class Media:
-        js = ('avito_account/amocrm_inline.js',)
+    def get_formset(self, request, obj=None, **kwargs):
+        """
+        Перегружаем формсет для обработки кнопки.
+        """
+        formset = super().get_formset(request, obj, **kwargs)
+
+        # Проверяем, была ли отправка
+        if request.method == "POST" and "send_to_api" in request.POST:
+            # Данные из POST
+            input_data = request.POST.get("input_field")
+            if input_data:
+                # Реализуйте здесь отправку данных на сторонний API
+                # Например, запрос через requests
+                self.send_to_api(input_data)
+
+        return formset
+
+    def send_to_api(self, data):
+        """
+        Метод для отправки данных на API.
+        """
+        import requests
+        response = requests.post(
+            'https://example.com/api/endpoint',
+            data={'input_field': data}
+        )
+        if response.status_code == 200:
+            print("Данные успешно отправлены.")
+        else:
+            print("Ошибка при отправке данных:", response.status_code)
+
 
 
 class WorkScheduleInline(admin.StackedInline):
@@ -68,6 +114,16 @@ class AvitoAccountAdmin(admin.ModelAdmin):
                run_txt_all_report,
                run_pdf_all_report]
     exclude = ('access_token', 'refresh_token')
+
+    def render_change_form(self, request, context, *args, **kwargs):
+        """
+        Кастомизация страницы редактирования.
+        """
+        # Добавляем HTML для кнопки отправки
+        context['custom_button'] = format_html(
+            '<button type="submit" name="send_to_api" class="button">Отправить на API</button>'
+        )
+        return super().render_change_form(request, context, *args, **kwargs)
 
     def get_actions(self, request):
         actions = super().get_actions(request)
