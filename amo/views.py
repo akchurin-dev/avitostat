@@ -20,17 +20,24 @@ class AmocrmOauthCallbackView(View):
         client_id = request.GET.get("client_id", None)
         referer = request.GET.get("referer", None)
         subdomain = referer.split(".")[0]
-        # state = request.GET.get("state", None)
 
-        tokens.default_token_manager(
+        tokensz = tokens.default_token_manager(
             client_id=client_id,
             client_secret="9V2b5wCkiZshqqnW0x7pmwVmlaS9YkPigtQw82MgDAYDFuse9YrMaaNlAKowgxHM",
             subdomain=subdomain,
             redirect_url="https://7662-2a0c-16c1-1-1500-225-c0ff-fe00-ef.ngrok-free.app/amo/oauth_callback",
-            storage=tokens.FileTokensStorage(),  # by default FileTokensStorage
+            storage=tokens.MemoryTokensStorage(),  # by default FileTokensStorage
         )
         tokens.default_token_manager.init(code=code, skip_error=False)
-        print(123)
+
+        access_token = tokens.default_token_manager.get_access_token()
+
+
+
+
+
+
+
 
         # if state is not None:
         #     state_dict = json.loads(state)
