@@ -1,4 +1,6 @@
+import asyncio
 import datetime
+import time
 
 import pytz
 from asgiref.sync import sync_to_async
@@ -21,7 +23,13 @@ moscow_tz = pytz.timezone('Europe/Moscow')
 async def check_chat_bot_scheduler(chat_bot: AiChatBot):
     now = datetime.datetime.now(tz=moscow_tz)
     start = moscow_tz.localize(datetime.datetime.combine(now.date(), chat_bot.work_time_from))
-    stop = moscow_tz.localize(datetime.datetime.combine(now.date(), chat_bot.work_time_to))
+
+    # Если рабочее время заканчивается на следующий день
+    if chat_bot.work_time_to < chat_bot.work_time_from:
+        stop = moscow_tz.localize(
+            datetime.datetime.combine(now.date() + datetime.timedelta(days=1), chat_bot.work_time_to))
+    else:
+        stop = moscow_tz.localize(datetime.datetime.combine(now.date(), chat_bot.work_time_to))
     return start <= now <= stop
 
 
@@ -70,6 +78,7 @@ class WebhookInboxView(View):
                 )
 
                 if created:
+                    await asyncio.sleep(self.chat_bot.waiting_minutes * 60)  # WAIT TIME BEFORE ANY ACTIONS
                     ai_answer_sender_task.delay(
                         avito_account.id, user_id, chat_id, self.chat_bot.id, new_task.message_id,
                     )
