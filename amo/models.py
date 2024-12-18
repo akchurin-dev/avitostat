@@ -7,7 +7,14 @@ from avito_account.models.models import AvitoAccount, BaseModel
 
 class AmocrmAccount(models.Model):
     avito_account = models.ForeignKey(AvitoAccount, on_delete=models.CASCADE)
-    integration_id = models.IntegerField(primary_key=True, unique=True)
+
+    integration_id = models.IntegerField(primary_key=True, unique=True, verbose_name="ID интеграции")
+    secret_key = models.CharField(max_length=255, verbose_name="Секретный ключ")
+    authorization_key = models.CharField(max_length=255, verbose_name="Код авторизации")
+    redirect_url = models.CharField(max_length=255, verbose_name="Ссылка для перенаправления")
+    subdomain = models.CharField(max_length=255, verbose_name="Субдомен",
+    help_text="первое слово в ссылке на ваш кабинет те abduraufdev для abduraufdev.amocrm.ru")
+
     access_token = models.TextField(blank=True, null=True)
     refresh_token = models.TextField(blank=True, null=True)
 

@@ -1,11 +1,8 @@
 import json
-
-from amocrm.v2 import tokens
-from django.http import HttpResponseRedirect, JsonResponse
+from amocrm.v2 import tokens, Lead
 from django.utils.decorators import method_decorator
 from django.views import View
 from django.views.decorators.csrf import csrf_exempt
-
 from avito_account.oauth_utils import create_or_update_avito_account
 from base import settings
 
@@ -16,21 +13,23 @@ from base import settings
 @method_decorator(csrf_exempt, name='dispatch')
 class AmocrmOauthCallbackView(View):
     def get(self, request, *args, **kwargs):
-        code = request.GET.get("code", None)
-        client_id = request.GET.get("client_id", None)
-        referer = request.GET.get("referer", None)
-        subdomain = referer.split(".")[0]
 
-        tokensz = tokens.default_token_manager(
-            client_id=client_id,
-            client_secret="9V2b5wCkiZshqqnW0x7pmwVmlaS9YkPigtQw82MgDAYDFuse9YrMaaNlAKowgxHM",
-            subdomain=subdomain,
-            redirect_url="https://7662-2a0c-16c1-1-1500-225-c0ff-fe00-ef.ngrok-free.app/amo/oauth_callback",
-            storage=tokens.MemoryTokensStorage(),  # by default FileTokensStorage
-        )
-        tokens.default_token_manager.init(code=code, skip_error=False)
+        # tokens.default_token_manager(
+        #     client_id=client_id,
+        #     client_secret="xQTCjwLSWs7z7DmYy9V8J3j9S24zd2mco6yGZg3PTZFuXbhD3ztMuYTHRT987UJD",
+        #     subdomain=subdomain,
+        #     redirect_url="https://7662-2a0c-16c1-1-1500-225-c0ff-fe00-ef.ngrok-free.app/amo/oauth_callback",
+        #     storage=tokens.FileTokensStorage(),  # by default FileTokensStorage
+        # )
+        # tokens.default_token_manager.init(code=code, skip_error=False)
 
-        access_token = tokens.default_token_manager.get_access_token()
+        # get_access_token(request)
+
+
+        leads = Lead.objects.all()
+
+        for _ in leads:
+            print(_.name)
 
 
 
