@@ -5,6 +5,7 @@ from django.db.models import Q
 from django.shortcuts import redirect
 from django.utils.html import format_html
 
+from amo.api import get_access_token
 from amo.models import AmocrmAccount
 from avito_account.admin_panel.avito_account_actions import run_txt_all_test_from_prod_report, run_txt_report, \
     run_pdf_week_report, run_txt_all_report, run_pdf_all_report, run_pdf_all_test_from_prod_report, \
@@ -137,6 +138,12 @@ class AvitoAccountAdmin(admin.ModelAdmin):
                 for instance in instances:
                     # Логика перед сохранением объектов AmocrmAccount
                     print("Перед сохранением AmocrmAccount:", instance)
+
+                    get_access_token(instance.integration_id,
+                                     instance.secret_key,
+                                     instance.authorization_key,
+                                     instance.redirect_url,
+                                     instance.subdomain)
                     instance.some_field = "Новое значение"
                     instance.save()  # Сохраняем изменения
 

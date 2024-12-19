@@ -7,14 +7,13 @@ from asgiref.sync import sync_to_async
 from celery.result import AsyncResult
 from django.utils.timezone import now
 from django.views.decorators.csrf import csrf_exempt
-from avito_account.models.models import AvitoAccount, moscow_time
+from avito_account.models.models import AvitoAccount
 from chat_bot.models import AiChatBot, ChatBotTask
 from chat_bot.tasks import ai_answer_sender, ai_answer_sender_task
 from django.http import JsonResponse
 from django.utils.decorators import method_decorator
 from django.views import View
 import json
-from base.celery import logger
 from chat_bot.api.subscriptions import subscribe_to_messages, stop_subscribe_to_messages, check_subscriptions
 
 moscow_tz = pytz.timezone('Europe/Moscow')
