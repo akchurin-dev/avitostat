@@ -11,8 +11,17 @@ from avito_account.models.models import AvitoAccount
 from avito_account.oauth_utils import create_or_update_avito_account
 from django.shortcuts import render, redirect
 
-from avito_account.tasks import balance_alert_send_task, balance_alert_send
+from avito_account.tasks import balance_alert_send_task, balance_alert_send, sentry_test
 from base import settings
+
+
+def trigger_error(request):
+    division_by_zero = 1 / 0
+
+
+class CeleryTaskSentryTestView(View):
+    def get(self, request):
+        sentry_test.delay()
 
 
 @method_decorator(csrf_exempt, name='dispatch')
