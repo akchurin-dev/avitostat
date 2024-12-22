@@ -6,6 +6,11 @@ from avito_account.models.models import AvitoAccount
 from base import settings
 
 
+@celery_app.task(name='avito_account.tasks.sentry_test')
+def sentry_test():
+    division_by_zero = 1 / 0
+
+
 @celery_app.task(name='avito_account.tasks.balance_alert_send_task')
 def balance_alert_send_task():
     async_to_sync(balance_alert_send)()

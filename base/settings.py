@@ -4,6 +4,8 @@ from pathlib import Path
 import pytz
 from celery.schedules import crontab, schedule
 from dotenv import load_dotenv
+from sentry_sdk.integrations.celery import CeleryIntegration
+from sentry_sdk.integrations.django import DjangoIntegration
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -329,3 +331,18 @@ LOGGING = {
         },
     },
 }
+
+
+# if ENVIRONMENT == "PRODUCTION":
+import sentry_sdk
+sentry_sdk.init(
+    dsn="https://e82610d2546a1670c12a3558684eaf5d@o4508510440521728.ingest.us.sentry.io/4508510443995136",
+    integrations=[
+        DjangoIntegration(),
+        CeleryIntegration(),
+    ],
+    traces_sample_rate=1.0,
+    _experiments={
+        "continuous_profiling_auto_start": True,
+    },
+)
