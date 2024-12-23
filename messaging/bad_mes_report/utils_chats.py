@@ -112,7 +112,7 @@ async def schedule_filter_chats(filtered_chats_only_with_text: list, avito_accou
 
 
 async def get_ready_chats(avito_account: AvitoAccount, period: str = "week") -> tuple[list[Any], int] | list[Any]:
-    chats = await get_chats(avito_account)
+    chats = await get_chats(avito_account, period=period)
     if chats:
         # Chats with messages getting
         actual_chats = await filter_chats_for_last_period(chats)

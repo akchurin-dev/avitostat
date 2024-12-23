@@ -1,8 +1,5 @@
 import datetime
 import json
-import pprint
-from datetime import timedelta
-
 from avito_account.models.models import AvitoAccount
 from base.exceptions import HTTPException
 import httpx
@@ -14,7 +11,21 @@ from conversion.utils import dates_for_period_without_extra_reserve
 # TODO ДОБАВИТЬ ПРОВЕРКУ НА ПРОСРОЧЕННОСТЬ и обновление токена
 # статистика по последним 100 чатам не отличается если даже все чаты вытаскивать имей ввиду, возможно
 # можно убрать цикл уайл и просто один запрос отправлять если будут сложности или будет медленно
-async def get_chats(avito_account: AvitoAccount, max_retries: int = 3) -> dict:
+
+async def timestamp_in_period(timestamp: int, period: str = "week") -> bool:
+    start = datetime.datetime.fromtimestamp(timestamp)
+    end = datetime.datetime.now()
+    delta = end - start
+    if period == "week":
+        if delta.days <= 7:
+            return True
+    if period == "month":
+        if delta.days <= 31:
+            return True
+    return False
+
+
+async def get_chats(avito_account: AvitoAccount, period: str = "week", max_retries: int = 3) -> dict:
     url = f"https://api.avito.ru/messenger/v2/accounts/{avito_account.id}/chats"
     headers = {
         'authorization': f"Bearer {avito_account.access_token}"
@@ -22,22 +33,23 @@ async def get_chats(avito_account: AvitoAccount, max_retries: int = 3) -> dict:
 
     params = {
         "unread_only": False,
-        "limit": 100,
+        "limit": 50,
         "offset": 0,
     }
     chats = []
     retries = 0
 
     async with httpx.AsyncClient() as client:
-        while True:
+        while params.get("offset") < 1000:
             response = await client.get(url, headers=headers, params=params, timeout=180)
             if response.status_code == 200:
                 data = response.json()
                 chats.extend(data.get("chats", []))
                 has_more = data.get("meta", {}).get("has_more", False)
-                if not has_more:
+                last_chat_in_period = await timestamp_in_period(timestamp=chats[-1].get("updated"), period=period)
+                if not has_more or not last_chat_in_period:
                     break
-                params["offset"] += 100
+                params["offset"] += 50
             elif response.status_code == 403:
                 retries += 1
                 if retries > max_retries:
