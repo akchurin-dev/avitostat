@@ -42,7 +42,7 @@ async def get_messaging_report_data(test_from_prod: bool, avito_account_id,
 
             # Checking count of messages for analytics
             if settings.ENVIRONMENT == 'DEVELOPMENT' or test_from_prod:
-                ready_chats = ready_chats[:10]  # For economy then testing
+                ready_chats = ready_chats  # For economy then testing
 
             #  Total statistics
             statistics_total = await get_statistics_total(ready_chats)
@@ -139,8 +139,8 @@ async def add_start_end_dates(analyze_all_chats, period: str) -> dict:
 async def converting_created_timestamp_to_datetime(analyze_all_chats):
     try:
         for chat in analyze_all_chats.get("chats"):
-            timestamp = chat.get("created")
-            chat["created_date"] = datetime.fromtimestamp(timestamp).strftime('%d.%m.%Y')
+            timestamp = chat.get("updated")
+            chat["updated_date"] = datetime.fromtimestamp(timestamp).strftime('%d.%m.%Y')
             for message in chat.get("messages"):
                 timestamp = message.get("created")
                 message["created_time"] = datetime.fromtimestamp(timestamp).time()
