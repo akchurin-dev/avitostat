@@ -115,7 +115,7 @@ async def get_ready_chats(avito_account: AvitoAccount, period: str = "week") -> 
     chats = await get_chats(avito_account, period=period)
     if chats:
         # Chats with messages getting
-        actual_chats = await filter_chats_for_last_period(chats)
+        actual_chats = await filter_chats_for_last_period(chats, period)
         actual_chats_with_mes = await get_chats_messages(avito_account, actual_chats, period=period)
 
         #  Filtering and processing before using

@@ -25,7 +25,7 @@ async def timestamp_in_period(timestamp: int, period: str = "week") -> bool:
     return False
 
 
-async def get_chats(avito_account: AvitoAccount, period: str = "week", max_retries: int = 3) -> dict:
+async def get_chats(avito_account: AvitoAccount, period: str = "week", max_retries: int = 3) -> list:
     url = f"https://api.avito.ru/messenger/v2/accounts/{avito_account.id}/chats"
     headers = {
         'authorization': f"Bearer {avito_account.access_token}"

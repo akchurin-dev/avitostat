@@ -11,8 +11,7 @@ MODEL = "gpt-4o-2024-08-06"
 client = AsyncOpenAI(api_key=settings.OPENAI_SECRET_KEY)
 
 
-# TODO I tried change to ASYNC methods for analyze , but not see different in speed
-async def analyze_chat(chat, test_from_prod: bool, avito_account: AvitoAccount):
+async def analyze_chat(chat):
     chat_text = "\n".join(
         [message.get('direction') + ": " + message.get('content').get("text") for message in chat.get('messages') if
          message.get('type', None) == 'text'])
@@ -98,12 +97,16 @@ async def analyze_chat(chat, test_from_prod: bool, avito_account: AvitoAccount):
     return chat
 
 
-async def messaging_total_analyze(chats_with_compared_messages: list, test_from_prod: bool,
-                                  avito_account: AvitoAccount):
+async def messaging_total_analyze(ready_chats: list, period: str = "week"):
+    if period == "week":
+        ready_chats = ready_chats[:3]
+    elif period == "month":
+        ready_chats = ready_chats[:4]
+
     tasks = []
 
-    for chat in chats_with_compared_messages:
-        tasks.append(analyze_chat(chat, test_from_prod, avito_account))
+    for chat in ready_chats:
+        tasks.append(analyze_chat(chat))
 
     # Выполняем все задачи параллельно
     analyzed_chats = await asyncio.gather(*tasks)
