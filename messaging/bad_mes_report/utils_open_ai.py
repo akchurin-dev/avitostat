@@ -99,9 +99,9 @@ async def analyze_chat(chat):
 
 async def messaging_total_analyze(ready_chats: list, period: str = "week"):
     if period == "week":
-        ready_chats = ready_chats[:3]
+        ready_chats = ready_chats[:15]
     elif period == "month":
-        ready_chats = ready_chats[:4]
+        ready_chats = ready_chats[:30]
 
     tasks = []
 
