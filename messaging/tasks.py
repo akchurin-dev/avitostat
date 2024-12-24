@@ -38,14 +38,14 @@ def month_report_json_getting_async_task():
 
 @celery_app.task(name='messaging.tasks.bad_messaging_week_report_async_task')
 def bad_messaging_week_report_async_task(only_for_users=None, test_from_prod=False, period: str = "week"):
-    async_to_sync(bad_messaging_week_report_async)(only_for_users=only_for_users, test_from_prod=test_from_prod,
-                                                   period=period)
+    async_to_sync(bad_messaging_report_by_period)(only_for_users=only_for_users, test_from_prod=test_from_prod,
+                                                  period=period)
 
 
 @celery_app.task(name='messaging.tasks.bad_messaging_week_report_async_task_auto_generated')
 def bad_messaging_week_report_async_task_auto_generated(only_for_users=None, test_from_prod=False, auto_generated=True):
-    async_to_sync(bad_messaging_week_report_async)(only_for_users=only_for_users, test_from_prod=test_from_prod,
-                                                   auto_generated=auto_generated)
+    async_to_sync(bad_messaging_report_by_period)(only_for_users=only_for_users, test_from_prod=test_from_prod,
+                                                  auto_generated=auto_generated)
 
 
 async def get_accounts_for_pdf_reports(only_for_users: list, test_from_prod: bool):
@@ -71,8 +71,8 @@ async def get_accounts_for_pdf_reports(only_for_users: list, test_from_prod: boo
 
 
 # TODO change auto_generated=False by default
-async def bad_messaging_week_report_async(only_for_users=None, test_from_prod: bool = True, auto_generated=True,
-                                          pdf_path=None, balance_decrease=0, period: str = "week"):
+async def bad_messaging_report_by_period(only_for_users=None, test_from_prod: bool = True, auto_generated=True,
+                                         pdf_path=None, balance_decrease=0, period: str = "week"):
     # TODO change test_from_prod=True
     if settings.ENVIRONMENT == 'DEVELOPMENT':
         test_from_prod = True
@@ -101,7 +101,6 @@ async def bad_messaging_week_report_async(only_for_users=None, test_from_prod: b
                         document=types.FSInputFile(pdf_path))
                     success = True
                     error_message = None
-                    # print(f"auto_generated-{auto_generated}, test_from_prod - {test_from_prod}")
                     if auto_generated:
                         campaign.auto_generated = True
                         await campaign.asave()

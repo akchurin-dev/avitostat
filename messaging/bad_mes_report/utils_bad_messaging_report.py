@@ -66,7 +66,7 @@ async def get_messaging_report_data(test_from_prod: bool, avito_account_id,
             if stat_splitted_by_managers:
                 analyze_all_chats["statistics_by_managers"] = stat_splitted_by_managers
 
-            analyze_messaging = await messaging_total_analyze(ready_chats, test_from_prod, avito_account)
+            analyze_messaging = await messaging_total_analyze(ready_chats, period)
             if analyze_messaging:
                 analyze_all_chats["chats"] = analyze_messaging
 
@@ -79,9 +79,8 @@ async def get_messaging_report_data(test_from_prod: bool, avito_account_id,
             sentry_sdk.capture_exception(send_error)
             print(send_error)
             raise send_error
-            # return False
-        # else:
-        #     analyze_all_chats["compared_messages"] = "Чаты не найдены" #TODO if not problem on PROD delete this lines
+
+
 
         # tokens counting
         tokens = None
@@ -108,7 +107,7 @@ async def api_report_data_generation(analyze_all_chats: dict, avito_account: Avi
                 chat["messages"] = messages[:15]
 
     current_month = datetime.now().month
-    # данная сериализация для того чтобы даты в текст менять
+    # данная сериализация для того чтобы datetime в текст менять
     serialized_report_data = json.dumps(analyze_all_chats, ensure_ascii=False, cls=date_objects_to_json_encoder)
     await ReportMonth.objects.acreate(
         month=current_month,
@@ -191,14 +190,16 @@ async def bad_messaging_report_generate_html(analyze_all_chats):
 
 async def get_tokens_information(analyze_by_criteria_raw_result: list):
     # BY CRITERIA
-    by_criteria_completion = [x["tokens_by_criteria_analyze"].get("completion_tokens") for x in
-                              analyze_by_criteria_raw_result]
-    by_criteria_prompt = [x["tokens_by_criteria_analyze"].get("prompt_tokens") for x in analyze_by_criteria_raw_result]
+    by_criteria_completion = [x["tokens_by_criteria_analyze"].get("completion_tokens")
+                              for x in analyze_by_criteria_raw_result]
+    by_criteria_prompt = [x["tokens_by_criteria_analyze"].get("prompt_tokens")
+                          for x in analyze_by_criteria_raw_result]
 
     # TOTAL ANALYZE
-    total_analyze_completion = [x["tokens_total_analyze"].get("completion_tokens") for x in
-                                analyze_by_criteria_raw_result]
-    total_analyze_prompt = [x["tokens_total_analyze"].get("prompt_tokens") for x in analyze_by_criteria_raw_result]
+    total_analyze_completion = [x.get("tokens_total_analyze", None).get("completion_tokens")
+                                for x in analyze_by_criteria_raw_result if x.get("tokens_total_analyze", None) is not None]
+    total_analyze_prompt = [x.get("tokens_total_analyze", None).get("prompt_tokens")
+                            for x in analyze_by_criteria_raw_result if x.get("tokens_total_analyze", None) is not None]
 
     total_completion = sum(total_analyze_completion) + sum(by_criteria_completion)
     total_prompt = sum(by_criteria_prompt) + sum(total_analyze_prompt)
