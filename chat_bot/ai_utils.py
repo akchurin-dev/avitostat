@@ -37,7 +37,7 @@ def contacts_data_prepare(data: dict) -> dict | None:
 def format_chat_history(messages):
     formatted_messages = []
     for msg in messages:
-        if msg['type'] == 'system':
+        if msg.get('type') != 'text':
             continue
         message_text = msg['content']['text']
         if msg['direction'] == 'in':
