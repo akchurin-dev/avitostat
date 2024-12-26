@@ -67,7 +67,7 @@ class WebhookInboxView(View):
         await avito_account.update_refresh_token_async()
 
         if (self.data.get("payload").get("type") == "message"
-                and self.data.get("payload").get("value").get("content").get("type") == "text"):
+                and self.data.get("payload").get("value").get("type") == "text"):
             message_id, chat_id, author_id, incoming_message, time_to_work = await self.prepare_data()
             if author_id != user_id and self.chat_bot.is_active and time_to_work:
                 await self.revoke_old_tasks(chat_id)
