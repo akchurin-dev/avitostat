@@ -25,6 +25,7 @@ class AiChatBot(models.Model):
         verbose_name="Ожидание ответа от менеджера(минуты)",
         help_text="Укажите количество минут от 1 до 120"
     )
+    shutdown_after_manager = models.BooleanField(default=False, verbose_name="Выключаться после менеджера")
 
     work_time_from = models.TimeField("Начало работы МСК (Пн-Вс)")
     work_time_to = models.TimeField("Окончание работы МСК (Пн-Вс)")
