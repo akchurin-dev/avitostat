@@ -93,14 +93,14 @@ async def get_chats_messages(avito_account: AvitoAccount, chats: list, period: s
                     if response.status_code == 200:
                         params["offset"] += 50
                         new_messages = response.json().get("messages")
-                        messages.extend(new_messages[::-1])
+                        messages.extend(new_messages)
                         if len(new_messages) == 0:
-                            chat["messages"] = messages
                             break
                         else:
                             if not await check_timestamp_in_period(new_messages[0].get("created"), period=period):
-                                chat["messages"] = messages
                                 break
+
+                        chat["messages"] = messages[::-1]
                     else:
                         raise HTTPException(status_code=response.status_code, detail=response.text)
     return chats

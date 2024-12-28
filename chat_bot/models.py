@@ -57,6 +57,7 @@ class AiChatBot(models.Model):
 
 class ChatBotTask(models.Model):
     chat_id = models.CharField()
+    chat_shutdown_by_user = models.BooleanField(default=False)
     message_id = models.CharField(primary_key=True, unique=True)
     avito_account = models.ForeignKey(AvitoAccount, on_delete=models.CASCADE)
     text = models.TextField(verbose_name="Текст сообщения")
