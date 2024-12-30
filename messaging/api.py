@@ -78,32 +78,51 @@ async def check_timestamp_in_period(timestamp: int, period: str = "week") -> boo
     return timestamp_in_period
 
 
-async def get_chats_messages(avito_account: AvitoAccount, chats: list, period: str = "week") -> list:
+async def get_chats_last_50_messages(avito_account: AvitoAccount, chats: list, period: str = "week") -> list:
     if len(chats) > 0:
         async with httpx.AsyncClient() as client:
             for chat in chats:
                 chat_id = chat.get("id")
                 url = f"https://api.avito.ru/messenger/v3/accounts/{avito_account.id}/chats/{chat_id}/messages/"
                 headers = {'authorization': f"Bearer {avito_account.access_token}"}
-                params = {"limit": 50,
-                          "offset": 0}
-                messages = []
-                while True:
-                    response = await client.get(url, headers=headers, params=params)
-                    if response.status_code == 200:
-                        params["offset"] += 50
-                        new_messages = response.json().get("messages")
-                        messages.extend(new_messages)
-                        if len(new_messages) == 0:
-                            break
-                        else:
-                            if not await check_timestamp_in_period(new_messages[0].get("created"), period=period):
-                                break
-
-                        chat["messages"] = messages[::-1]
-                    else:
-                        raise HTTPException(status_code=response.status_code, detail=response.text)
+                params = {"limit": 50, "offset": 0}
+                response = await client.get(url, headers=headers, params=params)
+                if response.status_code == 200:
+                    new_messages = response.json().get("messages")
+                    if len(new_messages) == 0:
+                        break
+                    chat["messages"] = new_messages[::-1]
+                else:
+                    raise HTTPException(status_code=response.status_code, detail=response.text)
     return chats
+
+
+# async def get_chats_messages(avito_account: AvitoAccount, chats: list, period: str = "week") -> list:
+#     if len(chats) > 0:
+#         async with httpx.AsyncClient() as client:
+#             for chat in chats:
+#                 chat_id = chat.get("id")
+#                 url = f"https://api.avito.ru/messenger/v3/accounts/{avito_account.id}/chats/{chat_id}/messages/"
+#                 headers = {'authorization': f"Bearer {avito_account.access_token}"}
+#                 params = {"limit": 50,
+#                           "offset": 0}
+#                 messages = []
+#                 while params.get("offset") <= 50:
+#                     response = await client.get(url, headers=headers, params=params)
+#                     if response.status_code == 200:
+#                         params["offset"] += 50
+#                         new_messages = response.json().get("messages")
+#                         messages.extend(new_messages)
+#                         if len(new_messages) == 0:
+#                             break
+#                         else:
+#                             if not await check_timestamp_in_period(new_messages[0].get("created"), period=period):
+#                                 break
+#
+#                         chat["messages"] = messages[::-1]
+#                     else:
+#                         raise HTTPException(status_code=response.status_code, detail=response.text)
+#     return chats
 
 
 async def get_calls_statistic_last_week(avito_account: AvitoAccount):

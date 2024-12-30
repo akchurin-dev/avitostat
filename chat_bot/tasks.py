@@ -8,7 +8,7 @@ from base import settings
 from chat_bot.ai_utils import ai_answer_assist, chat_summary_generator
 from chat_bot.api.core import send_message_to_avito, read_chat
 from chat_bot.models import AiChatBot, ChatBotTask
-from messaging.api import get_chats_messages
+from messaging.api import get_chats_last_50_messages
 from celery import shared_task
 
 
@@ -41,20 +41,14 @@ def ai_answer_sender_task(avito_account_id, user_id, chat_id, chat_bot_id, new_t
 async def ai_answer_sender(avito_account_id, user_id, chat_id, chat_bot_id, new_task_id):
     avito_account = await AvitoAccount.objects.aget(pk=avito_account_id)
     chat_bot = await AiChatBot.objects.aget(pk=chat_bot_id)
-    chat_with_messages = await get_chats_messages(avito_account, chats=[{"id": chat_id}])
-    pprint(
-        chat_with_messages
-    )
+    chat_with_messages = await get_chats_last_50_messages(avito_account, chats=[{"id": chat_id}])
     # ответ генерируем только если менеджер всё ещё не ответил
     actual_message = chat_with_messages[0].get("messages")[-1]
-    print(f"Actual message {actual_message}")
     if actual_message.get("type") == "system":  # тк при номере последним становится уже сообщение с предупреждением
         actual_message = chat_with_messages[0].get("messages")[-2]
     if actual_message.get("direction") == "in" and actual_message.get("type") == "text":
         await read_chat(avito_account, user_id, chat_id)
-        print("BEFORE ANSWER GENERATOR")
         ai_answer = ai_answer_assist(chat_bot, chat_with_messages[0].get("messages")[:])
-        print(f"ANSWER IS {ai_answer}")
         if ai_answer:
             message_text = ai_answer.get("answer")
             await send_message_to_avito(avito_account, user_id, chat_id, message_text)

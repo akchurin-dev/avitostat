@@ -1,3 +1,5 @@
+from pprint import pprint
+
 from openai import OpenAI
 from pydantic import BaseModel, EmailStr
 
@@ -5,7 +7,7 @@ from avito_account.models.models import AvitoAccount
 from base import settings
 from base.settings import ENVIRONMENT
 from chat_bot.models import AiChatBot
-from messaging.api import get_chats_messages
+from messaging.api import get_chats_last_50_messages
 
 MODEL = "gpt-4o-2024-08-06"
 client = OpenAI(api_key=settings.OPENAI_SECRET_KEY)
@@ -36,8 +38,6 @@ def contacts_data_prepare(data: dict) -> dict | None:
 
 
 def format_chat_history(messages):
-    if ENVIRONMENT == "DEVELOPMENT":
-        messages = messages[:20]
     formatted_messages = []
     for msg in messages:
         if msg.get('type') != 'text':
@@ -54,6 +54,7 @@ def ai_answer_assist(ai_assistant: AiChatBot, chat: list, ):
     try:
         result = {}
         chat_history_formatted = format_chat_history(chat)
+        print(f"Последнее сообщение для ИИ ответа-{chat_history_formatted[-1]}")
         prompt = (
             f"Общая информация:{ai_assistant.total_info}"
             f"Правила при общении:{ai_assistant.rules}"
@@ -101,7 +102,7 @@ def chat_summary_data_prepare(data: dict) -> dict | None:
 
 async def chat_summary_generator(avito_account: AvitoAccount, chat_id: str):
     result = {}
-    chat_with_messages = await get_chats_messages(avito_account, chats=[{"id": chat_id}])
+    chat_with_messages = await get_chats_last_50_messages(avito_account, chats=[{"id": chat_id}])
 
     prompt = (f"""Твоя задача - проанализировать переписку чата
         И сгенерировать сводку по чату которая должна содержать пункты:
