@@ -286,21 +286,6 @@ JET_THEMES = [
     }
 ]
 
-# TODO SENTRY SETTINGS
-
-# if ENVIRONMENT == 'PRODUCTION':
-#     import sentry_sdk
-#
-#     sentry_sdk.init(
-#         dsn="https://26cd6adb31a7d912277757045055f118@o4506274465972224.ingest.us.sentry.io/4507378908004352",
-#         integrations=[
-#             DjangoIntegration(),
-#             CeleryIntegration(),
-#         ],
-#         traces_sample_rate=1.0,
-#         profiles_sample_rate=1.0,
-#     )
-#
 LOGGING = {
     'version': 1,
     'disable_existing_loggers': False,
