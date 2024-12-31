@@ -62,7 +62,7 @@ async def send_text_report_all_async(test_from_prod: bool = False,
 
     for avito_account in avito_accounts:
         print(avito_account.name)
-        await avito_account.update_refresh_token_async()
+        # await avito_account.update_refresh_token_async()
         try:
             await check_balance(avito_account)
             await send_txt_week_report_individual_async(avito_account, test_from_prod=test_from_prod)

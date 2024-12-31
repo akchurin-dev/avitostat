@@ -6,14 +6,14 @@ from base.settings import ENVIRONMENT
 
 
 async def subscribe_to_messages(avito_account: AvitoAccount):
-    await avito_account.update_refresh_token_async()
+    # await avito_account.update_refresh_token_async()
     url = "https://api.avito.ru/messenger/v3/webhook"
     headers = {'authorization': f"Bearer {avito_account.access_token}"}
 
     if ENVIRONMENT == "PRODUCTION":
         subscribe_url = "https://avitostata.ru/chat_bot/webhook_inbox"
     else:
-        subscribe_url = "https://deb1-2a0c-16c1-1-1500-225-c0ff-fe00-ef.ngrok-free.app/chat_bot/webhook_inbox"
+        subscribe_url = "https://3fb8-103-231-75-115.ngrok-free.app/chat_bot/webhook_inbox"
 
     async with httpx.AsyncClient() as client:
         params = {"url": subscribe_url}
@@ -27,7 +27,7 @@ async def subscribe_to_messages(avito_account: AvitoAccount):
 
 
 async def stop_subscribe_to_messages(avito_account: AvitoAccount):
-    await avito_account.update_refresh_token_async()
+    # await avito_account.update_refresh_token_async()
     url = "https://api.avito.ru/messenger/v1/webhook/unsubscribe"
     headers = {
         'authorization': f"Bearer {avito_account.access_token}"
@@ -36,7 +36,7 @@ async def stop_subscribe_to_messages(avito_account: AvitoAccount):
     if ENVIRONMENT == "PRODUCTION":
         stop_subscribe_url = "https://avitostata.ru/chat_bot/webhook_inbox"
     else:
-        stop_subscribe_url = "https://a163-31-128-32-122.ngrok-free.app/chat_bot/webhook_inbox"
+        stop_subscribe_url = "https://71cb-103-231-75-115.ngrok-free.app/chat_bot/webhook_inbox"
 
     async with httpx.AsyncClient() as client:
         params = {"url": stop_subscribe_url}
@@ -51,7 +51,7 @@ async def stop_subscribe_to_messages(avito_account: AvitoAccount):
 
 
 async def check_subscriptions(avito_account: AvitoAccount):
-    await avito_account.update_refresh_token_async()
+    # await avito_account.update_refresh_token_async()
     url = "https://api.avito.ru/messenger/v1/subscriptions"
     headers = {
         'authorization': f"Bearer {avito_account.access_token}"

@@ -25,6 +25,7 @@ class AiChatBot(models.Model):
         verbose_name="Ожидание ответа от менеджера(минуты)",
         help_text="Укажите количество минут от 1 до 120"
     )
+    shutdown_after_manager = models.BooleanField(default=False, verbose_name="Выключаться после менеджера")
 
     work_time_from = models.TimeField("Начало работы МСК (Пн-Вс)")
     work_time_to = models.TimeField("Окончание работы МСК (Пн-Вс)")
@@ -56,6 +57,7 @@ class AiChatBot(models.Model):
 
 class ChatBotTask(models.Model):
     chat_id = models.CharField()
+    chat_shutdown_by_user = models.BooleanField(default=False)
     message_id = models.CharField(primary_key=True, unique=True)
     avito_account = models.ForeignKey(AvitoAccount, on_delete=models.CASCADE)
     text = models.TextField(verbose_name="Текст сообщения")

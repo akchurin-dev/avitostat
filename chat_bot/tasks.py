@@ -1,3 +1,5 @@
+from pprint import pprint
+
 from asgiref.sync import async_to_sync, sync_to_async
 from telegram_bot import bot
 
@@ -6,7 +8,7 @@ from base import settings
 from chat_bot.ai_utils import ai_answer_assist, chat_summary_generator
 from chat_bot.api.core import send_message_to_avito, read_chat
 from chat_bot.models import AiChatBot, ChatBotTask
-from messaging.api import get_chats_messages
+from messaging.api import get_chats_last_50_messages
 from celery import shared_task
 
 
@@ -39,7 +41,7 @@ def ai_answer_sender_task(avito_account_id, user_id, chat_id, chat_bot_id, new_t
 async def ai_answer_sender(avito_account_id, user_id, chat_id, chat_bot_id, new_task_id):
     avito_account = await AvitoAccount.objects.aget(pk=avito_account_id)
     chat_bot = await AiChatBot.objects.aget(pk=chat_bot_id)
-    chat_with_messages = await get_chats_messages(avito_account, chats=[{"id": chat_id}])
+    chat_with_messages = await get_chats_last_50_messages(avito_account, chats=[{"id": chat_id}])
     # ответ генерируем только если менеджер всё ещё не ответил
     actual_message = chat_with_messages[0].get("messages")[-1]
     if actual_message.get("type") == "system":  # тк при номере последним становится уже сообщение с предупреждением
@@ -52,7 +54,7 @@ async def ai_answer_sender(avito_account_id, user_id, chat_id, chat_bot_id, new_
             await send_message_to_avito(avito_account, user_id, chat_id, message_text)
             await chat_bot_task_dao_save(new_task_id, ai_answer)
             if ai_answer.get("contacts") is not None:
-                send_chat_summary_task.delay(avito_account.id, chat_id)
+                await send_chat_summary(avito_account.id, chat_id)
 
 
 @shared_task

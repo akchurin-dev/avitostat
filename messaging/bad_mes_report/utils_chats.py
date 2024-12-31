@@ -7,7 +7,7 @@ import re
 
 from avito_account.models.excluded_items import ExcludedItem
 from avito_account.models.models import AvitoAccount, WorkSchedule
-from messaging.api import get_chats, get_chats_messages
+from messaging.api import get_chats, get_chats_last_50_messages
 import datetime
 
 
@@ -116,7 +116,7 @@ async def get_ready_chats(avito_account: AvitoAccount, period: str = "week") -> 
     if chats:
         # Chats with messages getting
         actual_chats = await filter_chats_for_last_period(chats, period)
-        actual_chats_with_mes = await get_chats_messages(avito_account, actual_chats, period=period)
+        actual_chats_with_mes = await get_chats_last_50_messages(avito_account, actual_chats, period=period)
 
         #  Filtering and processing before using
         comp_mes_with_man = adding_manager_info_for_chats(actual_chats_with_mes)

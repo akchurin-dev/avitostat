@@ -3,7 +3,7 @@ from avito_account.models.models import AvitoAccount
 
 
 async def get_balance(avito_account: AvitoAccount):
-    await avito_account.update_refresh_token_async()
+    # await avito_account.update_refresh_token_async()
     url = f"https://api.avito.ru/core/v1/accounts/{avito_account.id}/balance/"
     headers = {
         "Authorization": f"Bearer {avito_account.access_token}",
