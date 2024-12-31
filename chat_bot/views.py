@@ -94,7 +94,7 @@ class WebhookInboxView(View):
 
                 if created:
                     await asyncio.sleep(self.chat_bot.waiting_minutes * 5)  # WAIT TIME BEFORE ANY ACTIONS
-                    await ai_answer_sender(
+                    ai_answer_sender_task.delay(
                         avito_account.id, user_id, chat_id, self.chat_bot.id, new_task.message_id,
                     )
 
@@ -102,12 +102,12 @@ class WebhookInboxView(View):
                 task, created = await ChatBotTask.objects.aget_or_create(
                     avito_account=avito_account,
                     chat_id=chat_id,
+                    message_id=message_id,
                     answer_text=last_message,
                 )
                 await self.revoke_old_tasks(chat_id)
 
                 if created:  # Если создалась таска значит небыло ответа такого от ИИ
-                    task.message_id = "88888"
                     task.chat_shutdown_by_user = True  #  Останавливаем дальнейшие ответы от ИИ если человек вмешался в разговор
                     await task.asave()
 
