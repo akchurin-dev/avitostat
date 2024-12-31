@@ -220,16 +220,26 @@ if ENVIRONMENT == 'PRODUCTION':
             'task': 'messaging.tasks.db_backup_auto_creator_task',
             'schedule': crontab(hour=0, minute=0),
         },
+
+        'avito_account_tokens_update_task': {
+            'task': 'avito_account.tasks.update_tokens',
+            'schedule': crontab(hour=2, minute=0),
+        },
     }
 else:
     CELERY_BEAT_SCHEDULE = {
-        'bad_messaging_week_report_task_auto': {
-            'task': 'messaging.tasks.bad_messaging_week_report_async_task_auto_generated',
-            'schedule': 150.0,
-        },
-        'send_text_report_all_async_task': {
-            'task': 'conversion.tasks.send_text_report_all_async_task_auto_generated',
-            'schedule': 100.0,
+        # 'bad_messaging_week_report_task_auto': {
+        #     'task': 'messaging.tasks.bad_messaging_week_report_async_task_auto_generated',
+        #     'schedule': 150.0,
+        # },
+        # 'send_text_report_all_async_task': {
+        #     'task': 'conversion.tasks.send_text_report_all_async_task_auto_generated',
+        #     'schedule': 100.0,
+        # },
+
+        'avito_account_tokens_update_task': {
+            'task': 'avito_account.tasks.update_tokens',
+            'schedule': crontab(hour=6, minute=19),
         },
         # 'bad_messaging_week_report_task_DEBUG': {
         #     'task': 'messaging.tasks.bad_messaging_week_report_async_task',
@@ -240,7 +250,6 @@ else:
         #     'schedule': crontab(0, 0, day_of_month='1', month_of_year='1,4,7,10'),
         #     # Раз в три месяца (1 января, 1 апреля, 1 июля, 1 октября)
         # },
-
     }
 
 # TODO OTHER THINGS

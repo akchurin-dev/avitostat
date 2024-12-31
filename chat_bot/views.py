@@ -124,7 +124,7 @@ class SubscribeView(View):
 class StopSubscribeView(View):
     async def get(self, request, *args, **kwargs):
         avito_account = await sync_to_async(AvitoAccount.objects.get)(pk=145213826)  #Rauf
-        await avito_account.update_refresh_token_async()
+        # await avito_account.update_refresh_token_async()
         await stop_subscribe_to_messages(avito_account)
         return JsonResponse({"status": "ok"}, status=200)
 

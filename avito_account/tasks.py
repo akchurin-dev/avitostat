@@ -1,6 +1,6 @@
 from asgiref.sync import async_to_sync, sync_to_async
 from telegram_bot import bot
-from base.celery import celery_app
+from base.celery import celery_app, logger
 from avito_account.api.get_balance import get_balance
 from avito_account.models.models import AvitoAccount
 from base import settings
@@ -9,6 +9,16 @@ from base import settings
 @celery_app.task(name='avito_account.tasks.sentry_test')
 def sentry_test():
     division_by_zero = 1 / 0
+
+
+@celery_app.task(name='avito_account.tasks.update_tokens')
+def update_tokens_task():
+    accounts = AvitoAccount.objects.all()
+    for account in accounts:
+        try:
+            async_to_sync(account.update_refresh_token_async)()
+        except Exception:
+            logger.exception(f'Error while updating tokens{Exception}')
 
 
 @celery_app.task(name='avito_account.tasks.balance_alert_send_task')
