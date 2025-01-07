@@ -93,8 +93,8 @@ class WebhookInboxView(View):
                 )
 
                 if created:
-                    await asyncio.sleep(self.chat_bot.waiting_minutes * 60)  # WAIT TIME BEFORE ANY ACTIONS
-                    ai_answer_sender_task.delay(
+                    await asyncio.sleep(self.chat_bot.waiting_minutes * 5)  # WAIT TIME BEFORE ANY ACTIONS
+                    await ai_answer_sender(
                         avito_account.id, user_id, chat_id, self.chat_bot.id, new_task.message_id,
                     )
 

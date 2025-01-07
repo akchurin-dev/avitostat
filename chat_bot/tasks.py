@@ -21,6 +21,7 @@ async def chat_bot_task_dao_save(new_task_id: str, ai_answer: dict):
 
     contacts = ai_answer.get("contacts")
     if contacts is not None:
+        new_task.city = contacts.get("city", None)
         new_task.address = contacts.get("address", None)
         new_task.mobile = contacts.get("mobile", None)
         new_task.whatsapp = contacts.get("whatsapp", None)
