@@ -135,3 +135,15 @@ class CheckSubscribtionsView(View):
         avito_account = await sync_to_async(AvitoAccount.objects.get)(pk=145213826)  # Rauf
         await check_subscriptions(avito_account)
         return JsonResponse({"status": "ok"}, status=200)
+
+def get_daily_chats_report_data():
+    avito_accounts = AvitoAccount.objects.all()
+    for account in avito_accounts:
+        # всего переписок
+        # чат бот переписок
+        # извлечено контактов переписок
+
+@method_decorator(csrf_exempt, name='dispatch')
+class DailyChatsReportView(View):
+    def get(self, request, *args, **kwargs):
+        return JsonResponse({"status": "ok"}, status=200)
