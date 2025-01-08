@@ -2,6 +2,7 @@ import asyncio
 import datetime
 import time
 from pprint import pprint
+from jinja2 import Template
 
 from django.db.models import Q
 from django.utils import timezone
@@ -11,6 +12,7 @@ from celery.result import AsyncResult
 from django.utils.timezone import now
 from django.views.decorators.csrf import csrf_exempt
 from avito_account.models.models import AvitoAccount, moscow_time
+from base.settings import ENVIRONMENT
 from chat_bot.models import AiChatBot, ChatBotTask
 from chat_bot.tasks import ai_answer_sender_task, ai_answer_sender
 from django.http import JsonResponse
@@ -20,6 +22,7 @@ import json
 from base.celery import logger
 from chat_bot.api.subscriptions import subscribe_to_messages, stop_subscribe_to_messages, check_subscriptions
 from messaging.api import get_chats, get_chats_last_50_messages
+from messaging.bad_mes_report.utils_bad_messaging_report import bad_messaging_report_generate_html, add_start_end_dates
 from messaging.bad_mes_report.utils_chats import get_ready_chats, filter_chats_for_last_period, \
     filter_chats_only_with_text
 
@@ -147,7 +150,7 @@ class DailyChatsReportView(View):
     def get(self, request, *args, **kwargs):
         statistics, chats_total = self.get_daily_chats_report_data()
         if statistics is not None:
-
+            pass
         return JsonResponse({"status": "ok"}, status=200)
 
     def get_daily_chats_report_data(self):
@@ -176,10 +179,45 @@ class DailyChatsReportView(View):
                 ).values("chat_id").distinct().count()
 
                 statistics = {
+                    "avito_account_name": account.name,
                     "total_chats_count": len(chats_total),
                     "bot_chats_count": bot_chats_count,
                     "contacts_count": contacts,
                 }
 
                 return statistics, chats_total
-    def
+
+    def daily_report_generate_html(self, statistics, chats_total):
+        # Загрузка шаблона из файла
+        with open("chat_bot/templates/chat_bot/daily_chats_report.html", "r", encoding="utf-8") as file:
+            template_content = file.read()
+
+        template = Template(template_content)
+        # Данные для подстановки в шаблон
+        avito_account_name = statistics.get('avito_account_name') if statistics else "Неизвестно"
+        date = (datetime.now() - datetime.timedelta(days=1)).strftime("%d.%m.%Y")
+        # Генерация HTML с использованием шаблона и данных
+        return template.render(avito_account_name=avito_account_name,
+                               start_date=date,
+                               end_date="delete_this_data",
+                               # contacts=analyze_all_chats.get('contacts'),
+                               chats=chats_total or [],)
+
+    def daily_chats_report_pdf_generator(self, statistics, chats_total):
+        if ENVIRONMENT == 'DEVELOPMENT':
+            wkhtmltopdf_path = "/usr/local/bin/wkhtmltopdf"  # For testing 5 items  for economy
+        else:
+            wkhtmltopdf_path = "/usr/bin/wkhtmltopdf"
+
+        html_content = self.daily_report_generate_html(statistics, chats_total)
+        config = pdfkit.configuration(wkhtmltopdf=wkhtmltopdf_path)
+        # Define the directory and file path with the date
+        reports_dir = Path("messaging/bad_mes_report/PDFs")
+        reports_dir.mkdir(parents=True, exist_ok=True)
+        # Get the current date in dd.mm.yyyy format
+        current_date = datetime.now().strftime("%d.%m.%Y")
+        pdf_path = reports_dir / f"bad_mes_report_{current_date}_{avito_account_id}.pdf"
+        pdfkit.from_string(html_content, pdf_path, configuration=config)
+        return pdf_path
+
+

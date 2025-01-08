@@ -481,127 +481,7 @@
         </div>
     </div>
 
-    <div class="parameters">
-        <div class="parameters__item d-flex items-center justify-between">
-            <span class="parameters__item-title">Среднее время ответа 1-ого контакта:</span>
-            <div class="parameters__item-info d-flex items-center">
-                <div class="parameters__item-color" style="background-color: {{ statistics_total.first_touches_average.color }}"></div>
-                {{ statistics_total.first_touches_average.value }}
-            </div>
-        </div>
-
-        <div class="parameters__item d-flex items-center justify-between">
-            <span class="parameters__item-title">Среднее время ответа 2-ого обращения:</span>
-            <div class="parameters__item-info d-flex items-center">
-                <div class="parameters__item-color" style="background-color: {{ statistics_total.second_touches_duration_average.color }}"></div>
-                {{ statistics_total.second_touches_duration_average.value }}
-            </div>
-        </div>
-
-        <div class="parameters__item d-flex items-center justify-between">
-            <span class="parameters__item-title">Среднее количество касаний с клиентом:</span>
-            <div class="parameters__item-info d-flex items-center">
-                <div class="parameters__item-color" style="background-color: {{ statistics_total.touches_in_chat_average.color }}"></div>
-                {{ statistics_total.touches_in_chat_average.value }}
-            </div>
-        </div>
-    </div>
-
-    <div class="tips">
-        <div class="tips__item d-flex items-center">
-            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none">
-                <path d="M12 2C6.49 2 2 6.49 2 12C2 17.51 6.49 22 12 22C17.51 22 22 17.51 22 12C22 6.49 17.51 2 12 2ZM16.35 15.57C16.21 15.81 15.96 15.94 15.7 15.94C15.57 15.94 15.44 15.91 15.32 15.83L12.22 13.98C11.45 13.52 10.88 12.51 10.88 11.62V7.52C10.88 7.11 11.22 6.77 11.63 6.77C12.04 6.77 12.38 7.11 12.38 7.52V11.62C12.38 11.98 12.68 12.51 12.99 12.69L16.09 14.54C16.45 14.75 16.57 15.21 16.35 15.57Z" fill="#402495"/>
-            </svg>
-            <span class="tips__item-title">Статистика за рабочее время менеджера с 08:00 до 22:00. Хорошее время обработки не более 2 минут</span>
-        </div>
-        <div class="tips__item d-flex items-center">
-            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none">
-                <path d="M11.97 2C6.45 2 1.97 6.48 1.97 12C1.97 17.52 6.45 22 11.97 22C17.49 22 21.97 17.52 21.97 12C21.97 6.48 17.5 2 11.97 2ZM15.72 12.35L12 16.58L11.56 17.08C10.95 17.77 10.45 17.59 10.45 16.66V12.7H8.75C7.98 12.7 7.77 12.23 8.28 11.65L12 7.42L12.44 6.92C13.05 6.23 13.55 6.41 13.55 7.34V11.3H15.25C16.02 11.3 16.23 11.77 15.72 12.35Z" fill="#FC5A45"/>
-            </svg>
-            <span class="tips__item-title">Подсчет по всем перепискам за период. Рекомендуемое количество касаний для продажи в переписке - от 5 касаний</span>
-        </div>
-    </div>
-
-    {% if statistics_by_managers | length > 1 %}
-        <div class="page__title">Аналитика по менеджерам</div>
-
-        {% for chat in statistics_by_managers %}
-            <div class="manager">
-                <div class="manager__title">{{ chat.manager_name  }}</div>
-
-                <div class="parameters">
-                    <div class="parameters__item d-flex items-center justify-between">
-                        <span class="parameters__item-title">Среднее время ответа 1-ого контакта:</span>
-                        <div class="parameters__item-info d-flex items-center">
-                            <div class="parameters__item-color" style="background-color: {{ chat.statistics[0].first_touches_average.color }}"></div>
-                            {{ chat.statistics[0].first_touches_average.value }}
-                        </div>
-                    </div>
-
-                    <div class="parameters__item d-flex items-center justify-between">
-                        <span class="parameters__item-title">Среднее время ответа 2-ого обращения:</span>
-                        <div class="parameters__item-info d-flex items-center">
-                            <div class="parameters__item-color" style="background-color: {{ chat.statistics[0].second_touches_duration_average.color }}"></div>
-                            {{ chat.statistics[0].second_touches_duration_average.value }}
-                        </div>
-                    </div>
-
-                    <div class="parameters__item d-flex items-center justify-between">
-                        <span class="parameters__item-title">Среднее количество касаний с клиентом:</span>
-                        <div class="parameters__item-info d-flex items-center">
-                            <div class="parameters__item-color" style="background-color: {{ chat.statistics[0].touches_in_chat_average.color }}"></div>
-                            {{ chat.statistics[0].touches_in_chat_average.value }}
-                        </div>
-                    </div>
-                </div>
-            </div>
-        {% endfor %}
-
-        <div class="tips">
-            <div class="tips__item d-flex items-center">
-                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none">
-                    <path d="M12 2C6.49 2 2 6.49 2 12C2 17.51 6.49 22 12 22C17.51 22 22 17.51 22 12C22 6.49 17.51 2 12 2ZM16.35 15.57C16.21 15.81 15.96 15.94 15.7 15.94C15.57 15.94 15.44 15.91 15.32 15.83L12.22 13.98C11.45 13.52 10.88 12.51 10.88 11.62V7.52C10.88 7.11 11.22 6.77 11.63 6.77C12.04 6.77 12.38 7.11 12.38 7.52V11.62C12.38 11.98 12.68 12.51 12.99 12.69L16.09 14.54C16.45 14.75 16.57 15.21 16.35 15.57Z" fill="#402495"/>
-                </svg>
-                <span class="tips__item-title">Статистика за рабочее время менеджера с 08:00 до 22:00</span>
-            </div>
-            <div class="tips__item d-flex items-center">
-                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none">
-                    <path d="M11.97 2C6.45 2 1.97 6.48 1.97 12C1.97 17.52 6.45 22 11.97 22C17.49 22 21.97 17.52 21.97 12C21.97 6.48 17.5 2 11.97 2ZM15.72 12.35L12 16.58L11.56 17.08C10.95 17.77 10.45 17.59 10.45 16.66V12.7H8.75C7.98 12.7 7.77 12.23 8.28 11.65L12 7.42L12.44 6.92C13.05 6.23 13.55 6.41 13.55 7.34V11.3H15.25C16.02 11.3 16.23 11.77 15.72 12.35Z" fill="#FC5A45"/>
-                </svg>
-                <span class="tips__item-title">Подсчет по всем перепискам за выбранный период</span>
-            </div>
-        </div>
-    {% endif %}
-
-    <div class="page__title">Аналитика по менеджерам</div>
-
-    {% for manager in analyze_by_criteria %}
-        <div class="reports">
-            <div class="reports__top d-flex items-center justify-between">
-                <div class="reports__top-info d-flex items-center">
-                    {% if manager.manager_name %}
-                        <span class="reports__top-manager">Менеджер {{ manager.manager_name }}</span>
-                    {% else %}
-                        <span class="reports__top-manager">Менеджер не закреплён</span>
-                    {% endif %}
-                </div>
-            </div>
-
-            {% for criterion in manager.statistics_by_criteria %}
-                <div class="report">
-                    <div class="report__inner d-flex items-center">
-                        <span class="report__title">{{ criterion.criterion_name }}</span>
-                        <div class="report__info" style="background-color: {{ criterion.description.color }}">
-                            <div class="report__info-value"><b>{{ criterion.positive_chats }}</b>/ {{ criterion.total_chats }}</div>
-                            <div class="report__info-status d-flex items-center">{{ criterion.description.text }}</div>
-                        </div>
-                    </div>
-                </div>
-            {% endfor %}
-        </div>
-    {% endfor %}
-
-    <div class="page__title">Анализ переписок</div>
+    <div class="page__title">История переписок</div>
 
     <div class="chats">
         {% for chat in chats %}
@@ -634,11 +514,6 @@
                 </div>
                 {% endif %}
                 {% endfor %}
-
-                <div class="chat__analysis">
-                    <b>Анализ переписки:</b>
-                    {{ chat.analyze }}
-                </div>
             </div>
         {% endfor %}
     </div>
