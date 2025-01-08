@@ -2,6 +2,10 @@ import asyncio
 import datetime
 import time
 from pprint import pprint
+from pathlib import Path
+
+
+import pdfkit
 from jinja2 import Template
 
 from django.db.models import Q
@@ -212,7 +216,7 @@ class DailyChatsReportView(View):
         html_content = self.daily_report_generate_html(statistics, chats_total)
         config = pdfkit.configuration(wkhtmltopdf=wkhtmltopdf_path)
         # Define the directory and file path with the date
-        reports_dir = Path("messaging/bad_mes_report/PDFs")
+        reports_dir = Path("chat_bot/daily_report_pdfs")
         reports_dir.mkdir(parents=True, exist_ok=True)
         # Get the current date in dd.mm.yyyy format
         current_date = datetime.now().strftime("%d.%m.%Y")
