@@ -16,6 +16,9 @@ async def timestamp_in_period(timestamp: int, period: str = "week") -> bool:
     start = datetime.datetime.fromtimestamp(timestamp)
     end = datetime.datetime.now()
     delta = end - start
+    if period == "day":
+        if delta.days <= 1:
+            return True
     if period == "week":
         if delta.days <= 7:
             return True
@@ -78,7 +81,7 @@ async def check_timestamp_in_period(timestamp: int, period: str = "week") -> boo
     return timestamp_in_period
 
 
-async def get_chats_last_50_messages(avito_account: AvitoAccount, chats: list, period: str = "week") -> list:
+async def get_chats_last_50_messages(avito_account: AvitoAccount, chats: list) -> list:
     if len(chats) > 0:
         async with httpx.AsyncClient() as client:
             for chat in chats:

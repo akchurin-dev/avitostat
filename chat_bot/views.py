@@ -3,8 +3,10 @@ import datetime
 import time
 from pprint import pprint
 
+from django.db.models import Q
+from django.utils import timezone
 import pytz
-from asgiref.sync import sync_to_async
+from asgiref.sync import sync_to_async, async_to_sync
 from celery.result import AsyncResult
 from django.utils.timezone import now
 from django.views.decorators.csrf import csrf_exempt
@@ -17,6 +19,9 @@ from django.views import View
 import json
 from base.celery import logger
 from chat_bot.api.subscriptions import subscribe_to_messages, stop_subscribe_to_messages, check_subscriptions
+from messaging.api import get_chats, get_chats_last_50_messages
+from messaging.bad_mes_report.utils_chats import get_ready_chats, filter_chats_for_last_period, \
+    filter_chats_only_with_text
 
 moscow_tz = pytz.timezone('Europe/Moscow')
 
@@ -136,14 +141,45 @@ class CheckSubscribtionsView(View):
         await check_subscriptions(avito_account)
         return JsonResponse({"status": "ok"}, status=200)
 
-def get_daily_chats_report_data():
-    avito_accounts = AvitoAccount.objects.all()
-    for account in avito_accounts:
-        # всего переписок
-        # чат бот переписок
-        # извлечено контактов переписок
 
 @method_decorator(csrf_exempt, name='dispatch')
 class DailyChatsReportView(View):
     def get(self, request, *args, **kwargs):
+        statistics, chats_total = self.get_daily_chats_report_data()
+        if statistics is not None:
+
         return JsonResponse({"status": "ok"}, status=200)
+
+    def get_daily_chats_report_data(self):
+        avito_accounts = AvitoAccount.objects.filter(id=145213826)
+        for account in avito_accounts:
+            async_to_sync(account.update_refresh_token_async)()
+            chats = async_to_sync(get_chats)(account, period="day")
+            if chats:
+                # Chats with messages getting
+                actual_chats = async_to_sync(filter_chats_for_last_period)(chats, "day")
+                actual_chats_with_mes = async_to_sync(get_chats_last_50_messages)(account, actual_chats)
+                chats_total = filter_chats_only_with_text(actual_chats_with_mes)
+
+                last_24_hours = timezone.now() - datetime.timedelta(days=30)
+                bot_chats = ChatBotTask.objects.filter(
+                    avito_account=account,
+                    created_at__gte=last_24_hours, )
+
+                bot_chats_count = bot_chats.values("chat_id").distinct().count()
+                contacts = bot_chats.filter(
+                    Q(address__isnull=False) & ~Q(address="") |
+                    Q(mobile__isnull=False) & ~Q(mobile="") |
+                    Q(whatsapp__isnull=False) & ~Q(whatsapp="") |
+                    Q(telegram__isnull=False) & ~Q(telegram="") |
+                    Q(email__isnull=False) & ~Q(email="")
+                ).values("chat_id").distinct().count()
+
+                statistics = {
+                    "total_chats_count": len(chats_total),
+                    "bot_chats_count": bot_chats_count,
+                    "contacts_count": contacts,
+                }
+
+                return statistics, chats_total
+    def

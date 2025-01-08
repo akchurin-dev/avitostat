@@ -57,6 +57,7 @@ else:
 INSTALLED_APPS = [
     'jet',
     'django_extensions',  # shell_plus
+    'rangefilter',  # filter by date in admin panel
     'telegram_bot',
     'django.contrib.admin',
     'django.contrib.auth',
@@ -326,9 +327,9 @@ LOGGING = {
     },
 }
 
-
 if ENVIRONMENT == "PRODUCTION":
     import sentry_sdk
+
     sentry_sdk.init(
         dsn="https://e82610d2546a1670c12a3558684eaf5d@o4508510440521728.ingest.us.sentry.io/4508510443995136",
         integrations=[

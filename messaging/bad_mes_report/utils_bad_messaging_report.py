@@ -29,7 +29,7 @@ async def get_messaging_report_data(test_from_prod: bool, avito_account_id,
     if avito_account:
         analyze_all_chats = {"avito_account_name": avito_account.name, "avito_account_id": avito_account.id, }
         try:
-            ready_chats, chats_without_filtering_count = await get_ready_chats(avito_account, period=period)
+            ready_chats, chats_without_filtering = await get_ready_chats(avito_account, period=period)
             # ready_chats = ready_chats[-3:] # TODO IF not have problems on PROD delete this line
             # PROCESSING WITH FILTERED CHATS
             if len(ready_chats) < 2:
@@ -37,7 +37,7 @@ async def get_messaging_report_data(test_from_prod: bool, avito_account_id,
                 # return False
             else:
                 analyze_all_chats["chats_for_analyze"] = len(ready_chats)
-                analyze_all_chats["chats_without_filtering_count"] = chats_without_filtering_count
+                analyze_all_chats["chats_without_filtering_count"] = len(chats_without_filtering)
                 await add_start_end_dates(analyze_all_chats=analyze_all_chats, period=period, )
 
             # Checking count of messages for analytics
@@ -53,8 +53,8 @@ async def get_messaging_report_data(test_from_prod: bool, avito_account_id,
             calls_unique_users = await get_calls_count_unique_numbers_last_week(avito_account)
             if statistics_new:
                 analyze_all_chats["contacts"] = {
-                    "total": (chats_without_filtering_count + calls_unique_users) or 0,
-                    "chats_without_filtering_count": chats_without_filtering_count or 0,
+                    "total": (len(chats_without_filtering) + calls_unique_users) or 0,
+                    "chats_without_filtering_count": len(chats_without_filtering) or 0,
                     "chats_at_scheduler_time": len(ready_chats) or 0,
                     "calls_unique_users": calls_unique_users or 0,
                     "contacts_requested": statistics_new.get("total_metrics").get("total_contacts_count"),

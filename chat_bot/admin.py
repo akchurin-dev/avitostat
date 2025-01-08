@@ -1,3 +1,6 @@
+from rangefilter.filters import DateRangeFilterBuilder
+
+from chat_bot.filters import ChatIDFilter, ContactFilter
 from chat_bot.models import ChatBotTask
 from django.db.models import Sum, F, ExpressionWrapper, FloatField
 from django.contrib import admin
@@ -6,7 +9,8 @@ from avito_account.admin_panel.filters import ContragentFilter
 
 
 class ChatBotTaskAdmin(admin.ModelAdmin):
-    list_filter = (ContragentFilter, 'avito_account', 'created_at')
+    list_filter = (ContragentFilter, 'avito_account', ChatIDFilter, ("created_at", DateRangeFilterBuilder()), ContactFilter)
+    search_fields = ("chat_id", "message_id", "answer_text", "text")
 
     def get_list_display(self, request):
         # Определяем, какие поля отображать в зависимости от прав пользователя
