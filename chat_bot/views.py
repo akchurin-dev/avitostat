@@ -152,12 +152,13 @@ class CheckSubscribtionsView(View):
 @method_decorator(csrf_exempt, name='dispatch')
 class DailyChatsReportView(View):
     def get(self, request, *args, **kwargs):
-        statistics, chats_total = self.get_daily_chats_report_data()
+        statistics, chats_total = self.get_report_data()
         if statistics is not None:
-            pass
+            html = self.daily_report_generate_html(statistics, chats_total)
+            print(123)
         return JsonResponse({"status": "ok"}, status=200)
 
-    def get_daily_chats_report_data(self):
+    def get_report_data(self):
         avito_accounts = AvitoAccount.objects.filter(id=145213826)
         for account in avito_accounts:
             async_to_sync(account.update_refresh_token_async)()
@@ -199,12 +200,12 @@ class DailyChatsReportView(View):
         template = Template(template_content)
         # Данные для подстановки в шаблон
         avito_account_name = statistics.get('avito_account_name') if statistics else "Неизвестно"
-        date = (datetime.now() - datetime.timedelta(days=1)).strftime("%d.%m.%Y")
+        date = (datetime.datetime.now() - datetime.timedelta(days=1)).strftime("%d.%m.%Y")
         # Генерация HTML с использованием шаблона и данных
         return template.render(avito_account_name=avito_account_name,
                                start_date=date,
                                end_date="delete_this_data",
-                               # contacts=analyze_all_chats.get('contacts'),
+                               statistics=statistics,
                                chats=chats_total or [],)
 
     def daily_chats_report_pdf_generator(self, statistics, chats_total):
