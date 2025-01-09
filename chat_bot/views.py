@@ -28,7 +28,7 @@ from chat_bot.api.subscriptions import subscribe_to_messages, stop_subscribe_to_
 from messaging.api import get_chats, get_chats_last_50_messages
 from messaging.bad_mes_report.utils_bad_messaging_report import bad_messaging_report_generate_html, add_start_end_dates
 from messaging.bad_mes_report.utils_chats import get_ready_chats, filter_chats_for_last_period, \
-    filter_chats_only_with_text
+    filter_chats_only_with_text, filter_by_bot_answered_chat_ids
 
 moscow_tz = pytz.timezone('Europe/Moscow')
 
@@ -154,7 +154,7 @@ class DailyChatsReportView(View):
     def get(self, request, *args, **kwargs):
         statistics, chats_total = self.get_report_data()
         if statistics is not None:
-            html = self.daily_report_generate_html(statistics, chats_total)
+            html = self.generate_html(statistics, chats_total)
             print(123)
         return JsonResponse({"status": "ok"}, status=200)
 
@@ -164,17 +164,9 @@ class DailyChatsReportView(View):
             async_to_sync(account.update_refresh_token_async)()
             chats = async_to_sync(get_chats)(account, period="day")
             if chats:
-                # Chats with messages getting
-                actual_chats = async_to_sync(filter_chats_for_last_period)(chats, "day")
-                actual_chats_with_mes = async_to_sync(get_chats_last_50_messages)(account, actual_chats)
-                chats_total = filter_chats_only_with_text(actual_chats_with_mes)
-
-                last_24_hours = timezone.now() - datetime.timedelta(days=30)
-                bot_chats = ChatBotTask.objects.filter(
-                    avito_account=account,
-                    created_at__gte=last_24_hours, )
-
-                bot_chats_count = bot_chats.values("chat_id").distinct().count()
+                last_24_hours = timezone.now() - datetime.timedelta(days=2)
+                bot_chats = ChatBotTask.objects.filter(avito_account=account, created_at__gte=last_24_hours,)
+                unique_bot_chat_ids = [chat.get("chat_id", None) for chat in bot_chats.values("chat_id").distinct() if len(bot_chats) > 0]
                 contacts = bot_chats.filter(
                     Q(address__isnull=False) & ~Q(address="") |
                     Q(mobile__isnull=False) & ~Q(mobile="") |
@@ -183,16 +175,23 @@ class DailyChatsReportView(View):
                     Q(email__isnull=False) & ~Q(email="")
                 ).values("chat_id").distinct().count()
 
+                # Chats with messages getting
+                actual_chats = async_to_sync(filter_chats_for_last_period)(chats, "day")
+                actual_chats_with_mes = async_to_sync(get_chats_last_50_messages)(account, actual_chats)
+                only_with_text = filter_chats_only_with_text(actual_chats_with_mes)
+                only_bot_answered = filter_by_bot_answered_chat_ids(only_with_text, unique_bot_chat_ids)
+
+
                 statistics = {
                     "avito_account_name": account.name,
-                    "total_chats_count": len(chats_total),
-                    "bot_chats_count": bot_chats_count,
+                    "total_chats_count": len(only_with_text),
+                    "bot_chats_count": len(unique_bot_chat_ids),
                     "contacts_count": contacts,
                 }
 
-                return statistics, chats_total
+                return statistics, only_bot_answered
 
-    def daily_report_generate_html(self, statistics, chats_total):
+    def generate_html(self, statistics, chats_total):
         # Загрузка шаблона из файла
         with open("chat_bot/templates/chat_bot/daily_chats_report.html", "r", encoding="utf-8") as file:
             template_content = file.read()
@@ -214,7 +213,7 @@ class DailyChatsReportView(View):
         else:
             wkhtmltopdf_path = "/usr/bin/wkhtmltopdf"
 
-        html_content = self.daily_report_generate_html(statistics, chats_total)
+        html_content = self.generate_html(statistics, chats_total)
         config = pdfkit.configuration(wkhtmltopdf=wkhtmltopdf_path)
         # Define the directory and file path with the date
         reports_dir = Path("chat_bot/daily_report_pdfs")

@@ -62,6 +62,14 @@ def filter_chats_only_with_text(chats):
     return filtered_chats
 
 
+def filter_by_bot_answered_chat_ids(chats, current_ids):
+    filtered_chats = []
+    for chat in chats:
+        if chat.get("id") in current_ids:
+            filtered_chats.append(chat)
+    return filtered_chats
+
+
 async def schedule_filter_chats(filtered_chats_only_with_text: list, avito_account: AvitoAccount):
     filtered_chats = []
     schedule = await sync_to_async(WorkSchedule.objects.filter(avito_account_id=avito_account.id).last)()
