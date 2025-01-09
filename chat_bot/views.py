@@ -152,11 +152,13 @@ class CheckSubscribtionsView(View):
 @method_decorator(csrf_exempt, name='dispatch')
 class DailyChatsReportView(View):
     def get(self, request, *args, **kwargs):
+        return JsonResponse({"status": "ok"}, status=200)
+
+    def report_sender_via_celery(self, chat_id):
         statistics, chats_total = self.get_report_data()
         if statistics is not None:
             html = self.generate_html(statistics, chats_total)
-            print(123)
-        return JsonResponse({"status": "ok"}, status=200)
+            pdf_path = self.pdf_generator
 
     def get_report_data(self):
         avito_accounts = AvitoAccount.objects.filter(id=145213826)
@@ -164,7 +166,11 @@ class DailyChatsReportView(View):
             async_to_sync(account.update_refresh_token_async)()
             chats = async_to_sync(get_chats)(account, period="day")
             if chats:
-                last_24_hours = timezone.now() - datetime.timedelta(days=2)
+                if ENVIRONMENT == "PRODUCTION":
+                    last_24_hours = timezone.now() - datetime.timedelta(days=1)
+                else:
+                    last_24_hours = timezone.now() - datetime.timedelta(days=2)
+
                 bot_chats = ChatBotTask.objects.filter(avito_account=account, created_at__gte=last_24_hours,)
                 unique_bot_chat_ids = [chat.get("chat_id", None) for chat in bot_chats.values("chat_id").distinct() if len(bot_chats) > 0]
                 contacts = bot_chats.filter(
@@ -179,17 +185,35 @@ class DailyChatsReportView(View):
                 actual_chats = async_to_sync(filter_chats_for_last_period)(chats, "day")
                 actual_chats_with_mes = async_to_sync(get_chats_last_50_messages)(account, actual_chats)
                 only_with_text = filter_chats_only_with_text(actual_chats_with_mes)
-                only_bot_answered = filter_by_bot_answered_chat_ids(only_with_text, unique_bot_chat_ids)
+                chats_only_bot_answered = filter_by_bot_answered_chat_ids(only_with_text, unique_bot_chat_ids)
 
 
                 statistics = {
+                    "avito_account_id": account.id,  # for pdf file naming
                     "avito_account_name": account.name,
                     "total_chats_count": len(only_with_text),
                     "bot_chats_count": len(unique_bot_chat_ids),
                     "contacts_count": contacts,
                 }
 
-                return statistics, only_bot_answered
+                return statistics, chats_only_bot_answered
+
+    def pdf_generator(self, statistics, chats_total):
+        if ENVIRONMENT == 'DEVELOPMENT':
+            wkhtmltopdf_path = "/usr/local/bin/wkhtmltopdf"  # For testing 5 items  for economy
+        else:
+            wkhtmltopdf_path = "/usr/bin/wkhtmltopdf"
+
+        html_content = self.generate_html(statistics, chats_total)
+        config = pdfkit.configuration(wkhtmltopdf=wkhtmltopdf_path)
+        # Define the directory and file path with the date
+        reports_dir = Path("chat_bot/daily_report_pdfs")
+        reports_dir.mkdir(parents=True, exist_ok=True)
+        # Get the current date in dd.mm.yyyy format
+        current_date = datetime.datetime.now().strftime("%d.%m.%Y")
+        pdf_path = reports_dir / f"daily_bot_report_{current_date}_{statistics.get("avito_account_id", "неизвестен id")}.pdf"
+        pdfkit.from_string(html_content, pdf_path, configuration=config)
+        return pdf_path
 
     def generate_html(self, statistics, chats_total):
         # Загрузка шаблона из файла
@@ -207,21 +231,13 @@ class DailyChatsReportView(View):
                                statistics=statistics,
                                chats=chats_total or [],)
 
-    def daily_chats_report_pdf_generator(self, statistics, chats_total):
-        if ENVIRONMENT == 'DEVELOPMENT':
-            wkhtmltopdf_path = "/usr/local/bin/wkhtmltopdf"  # For testing 5 items  for economy
-        else:
-            wkhtmltopdf_path = "/usr/bin/wkhtmltopdf"
-
-        html_content = self.generate_html(statistics, chats_total)
-        config = pdfkit.configuration(wkhtmltopdf=wkhtmltopdf_path)
-        # Define the directory and file path with the date
-        reports_dir = Path("chat_bot/daily_report_pdfs")
-        reports_dir.mkdir(parents=True, exist_ok=True)
-        # Get the current date in dd.mm.yyyy format
-        current_date = datetime.now().strftime("%d.%m.%Y")
-        pdf_path = reports_dir / f"bad_mes_report_{current_date}_{avito_account_id}.pdf"
-        pdfkit.from_string(html_content, pdf_path, configuration=config)
-        return pdf_path
+    def send_report(self, pdf_path):
+        if pdf_path:
+            chat_id = "-4221870448" if ENVIRONMENT=="DEVELOPMENT" else avito_account.telegram_id
+            try:
+                await sync_to_async(bot.send_raw, thread_sensitive=False)(
+                    chat_id=chat_id,
+                    function="send_document",
+                    document=types.FSInputFile(pdf_path))
 
 
