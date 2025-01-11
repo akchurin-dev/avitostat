@@ -226,6 +226,11 @@ if ENVIRONMENT == 'PRODUCTION':
             'task': 'avito_account.tasks.update_tokens',
             'schedule': crontab(hour=2, minute=0),
         },
+
+        # 'chat_bot_daily_report_task': {
+        #     'task': 'chat_bot.ChatBotDailyReport.report_sender_main_task',
+        #     'schedule': crontab(hour=6, minute=0),  # Ежедневно в 11:00 утра
+        # },
     }
 else:
     CELERY_BEAT_SCHEDULE = {
@@ -238,13 +243,18 @@ else:
         #     'schedule': 100.0,
         # },
 
-        'avito_account_tokens_update_task': {
-            'task': 'avito_account.tasks.update_tokens',
-            'schedule': crontab(hour=6, minute=19),
+        # 'avito_account_tokens_update_task': {
+        #     'task': 'avito_account.tasks.update_tokens',
+        #     'schedule': crontab(hour=6, minute=19),
+        # },
+
+        'chat_bot_daily_report_task_DEBUG': {
+            'task': 'chat_bot.tasks.report_sender_main_task',
+            'schedule': 30.0,  #  каждые 100 секунд
         },
-        # 'bad_messaging_week_report_task_DEBUG': {
-        #     'task': 'messaging.tasks.bad_messaging_week_report_async_task',
-        #     'schedule': 150.0,  #  каждые 100 секунд
+        # 'chat_bot_daily_report_task': {
+        #     'task': 'chat_bot.ChatBotDailyReport.report_sender_via_celery',
+        #     'schedule': crontab(hour=6, minute=0),  # Ежедневно в 11:00 утра
         # },
         # 'bad_messaging_week_report_folder_cleaner_task': {
         #     'task': 'messaging.tasks.bad_mes_report_pdfs_folder_cleaner_task',
