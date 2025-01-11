@@ -103,24 +103,27 @@ class ChatBotDailyReport:
 
     @staticmethod
     @shared_task
-    def report_sender_main_task():
+    def statistics_sender_main_task():
         avito_accounts = AvitoAccount.objects.all()
 
         for avito_account in avito_accounts:
             chat_bot_is_active = hasattr(avito_account, "ai_chat_bots") and avito_account.ai_chat_bots.is_active
             if chat_bot_is_active is not None and chat_bot_is_active:
                 if ENVIRONMENT == "DEVELOPMENT":
-                    async_to_sync(avito_account.update_refresh_token_async)()
+                    # async_to_sync(avito_account.update_refresh_token_async)()
 
-                    ChatBotDailyReport.celery_sender_small_task.delay(avito_account.id)
+                    ChatBotDailyReport.statistics_sender_small_task.delay(avito_account.id)
 
     @staticmethod
     @shared_task
-    def celery_sender_small_task(avito_account_id):
+    def statistics_sender_small_task(avito_account_id):
         avito_account = AvitoAccount.objects.get(id=avito_account_id)
         statistics, chats_total = ChatBotDailyReport.get_raw_data(avito_account)
         if statistics is not None and statistics.get("bot_chats_count") > 0: #skip who can't have bot chats
-            pdf_path = ChatBotDailyReport.get_pdf(statistics, chats_total)
+            html_content = ChatBotDailyReport.get_daily_statistics_html(statistics, chats_total)
+            reports_dir = Path("chat_bot/daily_report_pdfs")
+            report_name_prefix = "daily_bot_report"
+            pdf_path = ChatBotDailyReport.get_pdf(statistics, html_content, reports_dir, report_name_prefix)
             if pdf_path is not None:
                 ChatBotDailyReport.file_sender_to_tg(pdf_path, avito_account.telegram_id)
 
@@ -161,29 +164,33 @@ class ChatBotDailyReport:
             return statistics, chats_only_bot_answered
 
     @staticmethod
-    def get_pdf(statistics, chats_total):
+    def get_pdf(statistics, html_content, reports_dir, report_name_prefix):
         if ENVIRONMENT == 'DEVELOPMENT':
             wkhtmltopdf_path = "/usr/local/bin/wkhtmltopdf"  # For testing 5 items  for economy
         else:
             wkhtmltopdf_path = "/usr/bin/wkhtmltopdf"
 
-        html_content = ChatBotDailyReport.get_html(statistics, chats_total)
         config = pdfkit.configuration(wkhtmltopdf=wkhtmltopdf_path)
         # Define the directory and file path with the date
-        reports_dir = Path("chat_bot/daily_report_pdfs")
         reports_dir.mkdir(parents=True, exist_ok=True)
         # Get the current date in dd.mm.yyyy format
         current_date = datetime.datetime.now().strftime("%d.%m.%Y")
-        pdf_path = reports_dir / f"daily_bot_report_{current_date}_{statistics.get("avito_account_id", "неизвестен id")}.pdf"
+        pdf_path = reports_dir / f"{report_name_prefix}_{current_date}_{statistics.get("avito_account_id", "неизвестен id")}.pdf"
         pdfkit.from_string(html_content, pdf_path, configuration=config)
         return pdf_path
 
     @staticmethod
-    def get_html(statistics, chats_total):
+    def get_daily_statistics_html(statistics, chats_total):
         # Загрузка шаблона из файла
-        with open("chat_bot/templates/chat_bot/daily_chats_report.html", "r", encoding="utf-8") as file:
-            template_content = file.read()
-        template = Template(template_content)
+        with open("chat_bot/templates/chat_bot/daily_statistics.html", "r", encoding="utf-8") as file:
+            clear_template = file.read()
+        return ChatBotDailyReport.get_html(statistics=statistics,
+                                           chats_total=chats_total,
+                                           clear_template=clear_template)
+
+    @staticmethod
+    def get_html(statistics, chats_total, clear_template):
+        template = Template(clear_template)
         # Данные для подстановки в шаблон
         avito_account_name = statistics.get('avito_account_name') if statistics else "Неизвестно"
         date = (datetime.datetime.now() - datetime.timedelta(days=1)).strftime("%d.%m.%Y")
@@ -193,6 +200,7 @@ class ChatBotDailyReport:
                                end_date="delete_this_data",
                                statistics=statistics,
                                chats=chats_total or [], )
+
 
     @staticmethod
     def file_sender_to_tg(pdf_path, telegram_id):
