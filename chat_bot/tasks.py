@@ -99,20 +99,80 @@ async def send_chat_summary(avito_account_id, chat_id):
         text = text[4000:]
 
 
-class ChatBotDailyReport:
+
+class PdfReportBaseClass:
+    @staticmethod
+    def get_pdf(statistics, html_content, reports_dir, report_name_prefix):
+        if ENVIRONMENT == 'DEVELOPMENT':
+            wkhtmltopdf_path = "/usr/local/bin/wkhtmltopdf"  # For testing 5 items  for economy
+        else:
+            wkhtmltopdf_path = "/usr/bin/wkhtmltopdf"
+
+        config = pdfkit.configuration(wkhtmltopdf=wkhtmltopdf_path)
+        # Define the directory and file path with the date
+        reports_dir.mkdir(parents=True, exist_ok=True)
+        # Get the current date in dd.mm.yyyy format
+        current_date = datetime.datetime.now().strftime("%d.%m.%Y")
+        pdf_path = reports_dir / f"{report_name_prefix}_{current_date}_{statistics.get("avito_account_id", "неизвестен id")}.pdf"
+        pdfkit.from_string(html_content, pdf_path, configuration=config)
+        return pdf_path
+
+    @staticmethod
+    def get_html(statistics, chats_total, template_name):
+        with open(f"chat_bot/templates/chat_bot/{template_name}", "r", encoding="utf-8") as file:
+            clear_template = file.read()
+
+        template = Template(clear_template)
+        # Данные для подстановки в шаблон
+        avito_account_name = statistics.get('avito_account_name') if statistics else "Неизвестно"
+        date = (datetime.datetime.now() - datetime.timedelta(days=1)).strftime("%d.%m.%Y")
+        # Генерация HTML с использованием шаблона и данных
+        return template.render(avito_account_name=avito_account_name,
+                               start_date=date,
+                               end_date="delete_this_data",
+                               statistics=statistics,
+                               chats=chats_total or [], )
+
+    @staticmethod
+    def file_sender_to_tg(pdf_path, telegram_id):
+        if pdf_path:
+            chat_id = "-4221870448" if ENVIRONMENT == "DEVELOPMENT" else telegram_id
+            try:
+                bot.send_raw(
+                    chat_id=chat_id,
+                    function="send_document",
+                    document=types.FSInputFile(pdf_path))
+            except Exception as e:
+                pass
+
+
+class ChatBotDailyReport(PdfReportBaseClass):
 
     @staticmethod
     @shared_task
     def statistics_sender_main_task():
         avito_accounts = AvitoAccount.objects.all()
-
         for avito_account in avito_accounts:
             chat_bot_is_active = hasattr(avito_account, "ai_chat_bots") and avito_account.ai_chat_bots.is_active
             if chat_bot_is_active is not None and chat_bot_is_active:
                 if ENVIRONMENT == "DEVELOPMENT":
-                    # async_to_sync(avito_account.update_refresh_token_async)()
+                    async_to_sync(avito_account.update_refresh_token_async)()
+                ChatBotDailyReport.statistics_sender_small_task.delay(avito_account.id)
 
-                    ChatBotDailyReport.statistics_sender_small_task.delay(avito_account.id)
+    @staticmethod
+    @shared_task
+    def history_sender_main_task(avito_account_id):
+        avito_account = AvitoAccount.objects.filter(id=avito_account_id)
+        statistics, chats_total = ChatBotDailyReport.get_raw_data(avito_account)
+        if statistics is not None and statistics.get("bot_chats_count") > 0:  # skip who can't have bot chats
+            html_content = ChatBotDailyReport.get_html(statistics, chats_total,
+                                                       template_name="ai_chatting_history.html")
+            reports_dir = Path("chat_bot/pdfs")
+            report_name_prefix = "ai_chatting_history"
+            pdf_path = ChatBotDailyReport.get_pdf(statistics, html_content, reports_dir, report_name_prefix)
+            if pdf_path is not None:
+                ChatBotDailyReport.file_sender_to_tg(pdf_path, avito_account.telegram_id)
+
 
     @staticmethod
     @shared_task
@@ -120,21 +180,22 @@ class ChatBotDailyReport:
         avito_account = AvitoAccount.objects.get(id=avito_account_id)
         statistics, chats_total = ChatBotDailyReport.get_raw_data(avito_account)
         if statistics is not None and statistics.get("bot_chats_count") > 0: #skip who can't have bot chats
-            html_content = ChatBotDailyReport.get_daily_statistics_html(statistics, chats_total)
-            reports_dir = Path("chat_bot/daily_report_pdfs")
+            html_content = ChatBotDailyReport.get_html(statistics, chats_total,
+                                                        template_name="daily_statistics.html")
+            reports_dir = Path("chat_bot/pdfs")
             report_name_prefix = "daily_bot_report"
             pdf_path = ChatBotDailyReport.get_pdf(statistics, html_content, reports_dir, report_name_prefix)
             if pdf_path is not None:
                 ChatBotDailyReport.file_sender_to_tg(pdf_path, avito_account.telegram_id)
 
     @staticmethod
-    def get_raw_data(avito_account, period="week"):
+    def get_raw_data(avito_account, period="day"):
         chats = async_to_sync(get_chats)(avito_account, period=period)
         if chats:
             if ENVIRONMENT == "PRODUCTION":
                 last_24_hours = timezone.now() - datetime.timedelta(days=1)
             else:
-                last_24_hours = timezone.now() - datetime.timedelta(days=7)
+                last_24_hours = timezone.now() - datetime.timedelta(days=1)
 
             bot_chats = ChatBotTask.objects.filter(avito_account=avito_account, created_at__gte=last_24_hours, )
             unique_bot_chat_ids = [chat.get("chat_id", None) for chat in bot_chats.values("chat_id").distinct() if
@@ -163,53 +224,3 @@ class ChatBotDailyReport:
 
             return statistics, chats_only_bot_answered
 
-    @staticmethod
-    def get_pdf(statistics, html_content, reports_dir, report_name_prefix):
-        if ENVIRONMENT == 'DEVELOPMENT':
-            wkhtmltopdf_path = "/usr/local/bin/wkhtmltopdf"  # For testing 5 items  for economy
-        else:
-            wkhtmltopdf_path = "/usr/bin/wkhtmltopdf"
-
-        config = pdfkit.configuration(wkhtmltopdf=wkhtmltopdf_path)
-        # Define the directory and file path with the date
-        reports_dir.mkdir(parents=True, exist_ok=True)
-        # Get the current date in dd.mm.yyyy format
-        current_date = datetime.datetime.now().strftime("%d.%m.%Y")
-        pdf_path = reports_dir / f"{report_name_prefix}_{current_date}_{statistics.get("avito_account_id", "неизвестен id")}.pdf"
-        pdfkit.from_string(html_content, pdf_path, configuration=config)
-        return pdf_path
-
-    @staticmethod
-    def get_daily_statistics_html(statistics, chats_total):
-        # Загрузка шаблона из файла
-        with open("chat_bot/templates/chat_bot/daily_statistics.html", "r", encoding="utf-8") as file:
-            clear_template = file.read()
-        return ChatBotDailyReport.get_html(statistics=statistics,
-                                           chats_total=chats_total,
-                                           clear_template=clear_template)
-
-    @staticmethod
-    def get_html(statistics, chats_total, clear_template):
-        template = Template(clear_template)
-        # Данные для подстановки в шаблон
-        avito_account_name = statistics.get('avito_account_name') if statistics else "Неизвестно"
-        date = (datetime.datetime.now() - datetime.timedelta(days=1)).strftime("%d.%m.%Y")
-        # Генерация HTML с использованием шаблона и данных
-        return template.render(avito_account_name=avito_account_name,
-                               start_date=date,
-                               end_date="delete_this_data",
-                               statistics=statistics,
-                               chats=chats_total or [], )
-
-
-    @staticmethod
-    def file_sender_to_tg(pdf_path, telegram_id):
-        if pdf_path:
-            chat_id = "-4221870448" if ENVIRONMENT == "DEVELOPMENT" else telegram_id
-            try:
-                bot.send_raw(
-                    chat_id=chat_id,
-                    function="send_document",
-                    document=types.FSInputFile(pdf_path))
-            except Exception as e:
-                pass
