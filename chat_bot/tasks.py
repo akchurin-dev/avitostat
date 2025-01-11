@@ -1,25 +1,15 @@
-from pprint import pprint
-import asyncio
 import datetime
-import time
-from pprint import pprint
 from pathlib import Path
 from aiogram import types
-
 import pdfkit
 from jinja2 import Template
-
 from django.db.models import Q
 from django.utils import timezone
-
-from messaging.api import get_chats, get_chats_last_50_messages
-from messaging.bad_mes_report.utils_bad_messaging_report import bad_messaging_report_generate_html, add_start_end_dates
-from messaging.bad_mes_report.utils_chats import get_ready_chats, filter_chats_for_last_period, \
+from messaging.api import get_chats
+from messaging.bad_mes_report.utils_chats import filter_chats_for_last_period, \
     filter_chats_only_with_text, filter_by_bot_answered_chat_ids
-
 from asgiref.sync import async_to_sync, sync_to_async
 from telegram_bot import bot
-
 from avito_account.models.models import AvitoAccount
 from base.settings import ENVIRONMENT
 from chat_bot.ai_utils import ai_answer_assist, chat_summary_generator
@@ -114,35 +104,34 @@ class ChatBotDailyReport:
     @staticmethod
     @shared_task
     def report_sender_main_task():
-        if ENVIRONMENT == "DEVELOPMENT":
-            avito_accounts = AvitoAccount.objects.filter(id=145213826)
-        else:
-            avito_accounts = AvitoAccount.objects.all()
+        avito_accounts = AvitoAccount.objects.all()
 
         for avito_account in avito_accounts:
-            if ENVIRONMENT == "DEVELOPMENT":
-                async_to_sync(avito_account.update_refresh_token_async)()
+            chat_bot_is_active = hasattr(avito_account, "ai_chat_bots") and avito_account.ai_chat_bots.is_active
+            if chat_bot_is_active is not None and chat_bot_is_active:
+                if ENVIRONMENT == "DEVELOPMENT":
+                    async_to_sync(avito_account.update_refresh_token_async)()
 
-                ChatBotDailyReport.celery_sender_small_task(avito_account.id)
+                    ChatBotDailyReport.celery_sender_small_task.delay(avito_account.id)
 
     @staticmethod
     @shared_task
     def celery_sender_small_task(avito_account_id):
         avito_account = AvitoAccount.objects.get(id=avito_account_id)
         statistics, chats_total = ChatBotDailyReport.get_raw_data(avito_account)
-        if statistics is not None:
+        if statistics is not None and statistics.get("bot_chats_count") > 0: #skip who can't have bot chats
             pdf_path = ChatBotDailyReport.get_pdf(statistics, chats_total)
             if pdf_path is not None:
                 ChatBotDailyReport.file_sender_to_tg(pdf_path, avito_account.telegram_id)
 
     @staticmethod
-    def get_raw_data(avito_account):
-        chats = async_to_sync(get_chats)(avito_account, period="day")
+    def get_raw_data(avito_account, period="week"):
+        chats = async_to_sync(get_chats)(avito_account, period=period)
         if chats:
             if ENVIRONMENT == "PRODUCTION":
                 last_24_hours = timezone.now() - datetime.timedelta(days=1)
             else:
-                last_24_hours = timezone.now() - datetime.timedelta(days=4)
+                last_24_hours = timezone.now() - datetime.timedelta(days=7)
 
             bot_chats = ChatBotTask.objects.filter(avito_account=avito_account, created_at__gte=last_24_hours, )
             unique_bot_chat_ids = [chat.get("chat_id", None) for chat in bot_chats.values("chat_id").distinct() if
@@ -156,7 +145,7 @@ class ChatBotDailyReport:
             ).values("chat_id").distinct().count()
 
             # Chats with messages getting
-            actual_chats = async_to_sync(filter_chats_for_last_period)(chats, "day")
+            actual_chats = async_to_sync(filter_chats_for_last_period)(chats, period=period)
             actual_chats_with_mes = async_to_sync(get_chats_last_50_messages)(avito_account, actual_chats)
             only_with_text = filter_chats_only_with_text(actual_chats_with_mes)
             chats_only_bot_answered = filter_by_bot_answered_chat_ids(only_with_text, unique_bot_chat_ids)

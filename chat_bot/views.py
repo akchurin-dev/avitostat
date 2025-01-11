@@ -1,37 +1,19 @@
 import asyncio
 import datetime
-import time
-from pprint import pprint
-from pathlib import Path
 from chat_bot.tasks import ChatBotDailyReport
-from celery import shared_task
-from telegram_bot import bot
-from aiogram import types
-
-import pdfkit
-from jinja2 import Template
-
-from django.db.models import Q
-from django.utils import timezone
 import pytz
-from asgiref.sync import sync_to_async, async_to_sync
+from asgiref.sync import sync_to_async
 from celery.result import AsyncResult
 from django.utils.timezone import now
 from django.views.decorators.csrf import csrf_exempt
-from avito_account.models.models import AvitoAccount, moscow_time
-from base.settings import ENVIRONMENT
+from avito_account.models.models import AvitoAccount
 from chat_bot.models import AiChatBot, ChatBotTask
-from chat_bot.tasks import ai_answer_sender_task, ai_answer_sender
+from chat_bot.tasks import ai_answer_sender_task
 from django.http import JsonResponse
 from django.utils.decorators import method_decorator
 from django.views import View
 import json
-from base.celery import logger
 from chat_bot.api.subscriptions import subscribe_to_messages, stop_subscribe_to_messages, check_subscriptions
-from messaging.api import get_chats, get_chats_last_50_messages
-from messaging.bad_mes_report.utils_bad_messaging_report import bad_messaging_report_generate_html, add_start_end_dates
-from messaging.bad_mes_report.utils_chats import get_ready_chats, filter_chats_for_last_period, \
-    filter_chats_only_with_text, filter_by_bot_answered_chat_ids
 
 moscow_tz = pytz.timezone('Europe/Moscow')
 
@@ -155,7 +137,7 @@ class CheckSubscribtionsView(View):
 @method_decorator(csrf_exempt, name='dispatch')
 class DailyChatsReportView(View):
     def get(self, request, *args, **kwargs):
-        ChatBotDailyReport.report_sender_main_task()
+        ChatBotDailyReport.report_sender_main_task.delay()
         return JsonResponse({"status": "ok"}, status=200)
 
 
