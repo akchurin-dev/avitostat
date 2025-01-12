@@ -368,8 +368,8 @@
     <div class="page__top d-flex items-center justify-between">
         <div class="page__top-info">
             <span class="page__top-site">{{ avito_account_name }}</span>
-            <span class="page__top-title">Отчет по сервису Avito Stata</span>
-            <span class="page__top-period">Переписки с ботом за {{ start_date }} </span>
+            <span class="page__top-title">История переписки ИИ бота</span>
+            <span class="page__top-period">с клиентом <<{{ client_name }}>> за {{ start_date }} </span>
         </div>
 
         <div class="page__top-logo">
@@ -415,43 +415,9 @@
         </div>
     </div>
 
-    <div class="page__info d-flex items-end">
-        <div class="page__info-items d-flex justify-between">
-            <div class="page__info-item d-flex flex-column items-center">
-                <svg xmlns="http://www.w3.org/2000/svg" width="44" height="44" viewBox="0 0 44 44" fill="none">
-                    <path d="M16.7933 19.9284C16.61 19.9101 16.39 19.9101 16.1883 19.9284C11.825 19.7817 8.35999 16.2067 8.35999 11.8067C8.35999 7.31508 11.99 3.66675 16.5 3.66675C20.9917 3.66675 24.64 7.31508 24.64 11.8067C24.6217 16.2067 21.1567 19.7817 16.7933 19.9284Z" stroke="black" stroke-linecap="round" stroke-linejoin="round"/>
-                    <path d="M30.085 7.33325C33.6417 7.33325 36.5017 10.2116 36.5017 13.7499C36.5017 17.2149 33.7517 20.0383 30.3233 20.1666C30.1767 20.1483 30.0117 20.1483 29.8467 20.1666" stroke="black" stroke-linecap="round" stroke-linejoin="round"/>
-                    <path d="M7.62666 26.6933C3.19 29.6633 3.19 34.5033 7.62666 37.4549C12.6683 40.8283 20.9367 40.8283 25.9783 37.4549C30.415 34.4849 30.415 29.6449 25.9783 26.6933C20.955 23.3383 12.6867 23.3383 7.62666 26.6933Z" stroke="black" stroke-linecap="round" stroke-linejoin="round"/>
-                    <path d="M33.6233 36.6667C34.9433 36.3917 36.19 35.8601 37.2167 35.0717C40.0767 32.9267 40.0767 29.3884 37.2167 27.2434C36.2083 26.4734 34.98 25.9601 33.6783 25.6667" stroke="black" stroke-linecap="round" stroke-linejoin="round"/>
-                </svg>
-                <span>Всего<br>чатов</span>
-                <div>{{ statistics.total_chats_count }}</div>
-            </div>
-            <div class="page__info-item d-flex flex-column items-center">
-                <svg xmlns="http://www.w3.org/2000/svg" width="44" height="44" viewBox="0 0 44 44" fill="none">
-                    <path d="M15.5833 35.8334H14.6667C7.33333 35.8334 3.66666 34.0001 3.66666 24.8334V15.6667C3.66666 8.33341 7.33333 4.66675 14.6667 4.66675H29.3333C36.6667 4.66675 40.3333 8.33341 40.3333 15.6667V24.8334C40.3333 32.1667 36.6667 35.8334 29.3333 35.8334H28.4167C27.8483 35.8334 27.2983 36.1084 26.95 36.5667L24.2 40.2334C22.99 41.8467 21.01 41.8467 19.8 40.2334L17.05 36.5667C16.7567 36.1634 16.0783 35.8334 15.5833 35.8334Z" stroke="black" stroke-miterlimit="10" stroke-linecap="round" stroke-linejoin="round"/>
-                    <path d="M12.8333 15.6667H31.1667" stroke="black" stroke-linecap="round" stroke-linejoin="round"/>
-                    <path d="M12.8333 24.8333H23.8333" stroke="black" stroke-linecap="round" stroke-linejoin="round"/>
-                </svg>
-                <span>Чатов<br>с ботом</span>
-                <div>{{ statistics.bot_chats_count }}</div>
-            </div>
 
-            <div class="page__info-item d-flex flex-column items-center">
-                <svg xmlns="http://www.w3.org/2000/svg" width="44" height="44" viewBox="0 0 44 44" fill="none">
-                    <path d="M14.96 12.1917H29.0217C30.195 12.1917 31.1483 13.145 31.1483 14.3183V16.665C31.1483 17.5267 30.6167 18.59 30.085 19.1217L25.5017 23.1733C24.86 23.705 24.4383 24.7683 24.4383 25.63V30.2133C24.4383 30.855 24.0167 31.6983 23.485 32.0283L22 32.9633C20.6067 33.825 18.7 32.8533 18.7 31.1483V25.5017C18.7 24.75 18.2783 23.7966 17.8383 23.265L13.7867 18.9933C13.255 18.48 12.8333 17.5083 12.8333 16.8666V14.4283C12.8333 13.145 13.7867 12.1917 14.96 12.1917Z" stroke="black" stroke-miterlimit="10" stroke-linecap="round" stroke-linejoin="round"/>
-                    <path d="M16.5 40.3334H27.5C36.6667 40.3334 40.3333 36.6667 40.3333 27.5001V16.5001C40.3333 7.33341 36.6667 3.66675 27.5 3.66675H16.5C7.33332 3.66675 3.66666 7.33341 3.66666 16.5001V27.5001C3.66666 36.6667 7.33332 40.3334 16.5 40.3334Z" stroke="black" stroke-linecap="round" stroke-linejoin="round"/>
-                </svg>
-                <span>Получено<br>контактов</span>
-                <div>{{ statistics.contacts_count }}</div>
-            </div>
-        </div>
-    </div>
-
-    <div class="page__title">Переписки с ботом ({{ statistics.bot_chats_count }} шт.) </div>
 
     <div class="chats">
-        {% for chat in chats %}
             <div class="chat">
                 <span class="chat__manager">
                     {% if chat.manager_name %}
@@ -482,7 +448,6 @@
                 {% endif %}
                 {% endfor %}
             </div>
-        {% endfor %}
     </div>
 </div>
 

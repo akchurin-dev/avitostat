@@ -101,7 +101,7 @@ async def send_chat_summary(avito_account_id, chat_id):
         )
         text = text[4000:]
 
-    sync_to_async(ChatBotDailyReport.history_sender_main_task)(avito_account_id, chat_id)
+    sync_to_async(BotStatisticsDailyReportClass.history_sender_main_task)(avito_account_id, chat_id)
 
 
 
@@ -119,7 +119,7 @@ class PdfReportBaseClass:
         reports_dir.mkdir(parents=True, exist_ok=True)
         # Get the current date in dd.mm.yyyy format
         current_date = datetime.datetime.now().strftime("%d.%m.%Y")
-        pdf_path = reports_dir / f"{report_name_prefix}_{current_date}_{statistics.get("avito_account_id", "неизвестен id")}.pdf"
+        pdf_path = reports_dir / f"{report_name_prefix}_{current_date}.pdf"
         pdfkit.from_string(html_content, pdf_path, configuration=config)
         return pdf_path
 
@@ -136,7 +136,7 @@ class PdfReportBaseClass:
                 pass
 
 
-class ChatBotDailyReport(PdfReportBaseClass):
+class BotStatisticsDailyReportClass(PdfReportBaseClass):
 
     @staticmethod
     @shared_task
@@ -147,22 +147,22 @@ class ChatBotDailyReport(PdfReportBaseClass):
             if chat_bot_is_active is not None and chat_bot_is_active:
                 if ENVIRONMENT == "DEVELOPMENT":
                     async_to_sync(avito_account.update_refresh_token_async)()
-                ChatBotDailyReport.statistics_sender_small_task.delay(avito_account.id)
+                BotStatisticsDailyReportClass.statistics_sender_small_task.delay(avito_account.id)
 
     @staticmethod
     @shared_task
     def statistics_sender_small_task(avito_account_id):
         avito_account = AvitoAccount.objects.get(id=avito_account_id)
-        statistics = ChatBotDailyReport.get_statistics_raw_data(avito_account)
+        statistics = BotStatisticsDailyReportClass.get_raw_data(avito_account)
         if statistics is not None and statistics.get("bot_chats_count") > 0: #skip who can't have bot chats
-            html_content = ChatBotDailyReport.get_statistics_html(statistics)
+            html_content = BotStatisticsDailyReportClass.get_html(statistics)
             report_name_prefix = "daily_bot_report"
-            pdf_path = ChatBotDailyReport.get_pdf(statistics, html_content, report_name_prefix)
+            pdf_path = BotStatisticsDailyReportClass.get_pdf(statistics, html_content, report_name_prefix)
             if pdf_path is not None:
-                ChatBotDailyReport.file_sender_to_tg(pdf_path, avito_account.telegram_id)
+                BotStatisticsDailyReportClass.file_sender_to_tg(pdf_path, avito_account.telegram_id)
 
     @staticmethod
-    def get_statistics_html(statistics):
+    def get_html(statistics):
         with open(f"chat_bot/templates/chat_bot/daily_statistics.html", "r", encoding="utf-8") as file:
             clear_template = file.read()
         template = Template(clear_template)
@@ -171,24 +171,7 @@ class ChatBotDailyReport(PdfReportBaseClass):
         return template.render(avito_account_name=avito_account_name,start_date=date, statistics=statistics)
 
     @staticmethod
-    @shared_task
-    def history_sender_main_task(avito_account_id, chat_id):
-        # avito_account = AvitoAccount.objects.filter(id=avito_account_id).last()
-        avito_account = AvitoAccount.objects.filter(id=145213826).last()
-        messages = MessagingAPISync.get_chat_last_50_messages_by_chat_id(avito_account,
-                                                                         chat_id="u2i-9ChDB7rCnofDRqLOlNa9cQ")
-        statistics = {"avito_account_name": avito_account.name,}
-
-        if messages is not None and len(messages) > 0:  # skip who can't have bot chats
-            html_content = ChatBotDailyReport.get_statistics_html(statistics=statistics)
-
-            report_name_prefix = "ai_chatting_history"
-            pdf_path = ChatBotDailyReport.get_pdf(statistics, html_content, report_name_prefix)
-            if pdf_path is not None:
-                ChatBotDailyReport.file_sender_to_tg(pdf_path, avito_account.telegram_id)
-
-    @staticmethod
-    def get_statistics_raw_data(avito_account, period="day"):
+    def get_raw_data(avito_account, period="day"):
         chats = async_to_sync(get_chats)(avito_account, period=period)
         if chats:
             if ENVIRONMENT == "PRODUCTION":
@@ -223,4 +206,32 @@ class ChatBotDailyReport(PdfReportBaseClass):
 
             return statistics
 
+
+class BotHistoryReportClass(PdfReportBaseClass):
+    @staticmethod
+    @shared_task
+    def history_sender_main_task(avito_account_id, chat_id):
+        avito_account = AvitoAccount.objects.filter(id=avito_account_id).last()
+        chat = MessagingAPISync.get_chat_by_id(avito_account, chat_id)
+        messages = MessagingAPISync.get_chat_last_50_messages_by_chat_id(avito_account, chat_id)
+        chat["messages"] = messages
+        statistics = {"avito_account_name": avito_account.name, "avito_account_id": avito_account.id,}
+        if messages is not None and len(messages) > 0:  # skip who can't have bot chats
+            html_content = BotHistoryReportClass.get_html(chat=chat, statistics=statistics)
+            report_name_prefix = "история переписки"
+            pdf_path = BotHistoryReportClass.get_pdf(statistics, html_content, report_name_prefix)
+            if pdf_path is not None:
+                BotHistoryReportClass.file_sender_to_tg(pdf_path, avito_account.telegram_id)
+
+    @staticmethod
+    def get_html(chat, statistics):
+        with open(f"chat_bot/templates/chat_bot/ai_chatting_history.html", "r", encoding="utf-8") as file:
+            clear_template = file.read()
+        template = Template(clear_template)
+        avito_account_name = statistics.get('avito_account_name') if statistics else "Неизвестно"
+        date = (datetime.datetime.now() - datetime.timedelta(days=1)).strftime("%d.%m.%Y")
+        client_name = chat.get("users")[0].get("name")
+        return template.render(avito_account_name=avito_account_name,
+                               client_name=client_name,
+                               start_date=date, chat=chat)
 

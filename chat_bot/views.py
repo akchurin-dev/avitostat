@@ -1,6 +1,6 @@
 import asyncio
 import datetime
-from chat_bot.tasks import ChatBotDailyReport
+from chat_bot.tasks import BotStatisticsDailyReportClass, BotHistoryReportClass
 import pytz
 from asgiref.sync import sync_to_async
 from celery.result import AsyncResult
@@ -138,13 +138,13 @@ class CheckSubscribtionsView(View):
 @method_decorator(csrf_exempt, name='dispatch')
 class StatisticsDailyReportView(View):
     def get(self, request, *args, **kwargs):
-        ChatBotDailyReport.statistics_sender_main_task.delay()
+        BotStatisticsDailyReportClass.statistics_sender_main_task.delay()
         return JsonResponse({"status": "ok"}, status=200)
 
 @method_decorator(csrf_exempt, name='dispatch')
 class HistoryReportView(View):
     def get(self, request, *args, **kwargs):
-        ChatBotDailyReport.history_sender_main_task.delay(145213826)
+        BotHistoryReportClass.history_sender_main_task(145213826, "u2i-9ChDB7rCnofDRqLOlNa9cQ" )
         return (JsonResponse({"status": "ok"}, status=200))
 
 
