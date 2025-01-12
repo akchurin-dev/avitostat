@@ -161,21 +161,6 @@ class ChatBotDailyReport(PdfReportBaseClass):
 
     @staticmethod
     @shared_task
-    def history_sender_main_task(avito_account_id):
-        avito_account = AvitoAccount.objects.filter(id=avito_account_id)
-        statistics, chats_total = ChatBotDailyReport.get_raw_data(avito_account)
-        if statistics is not None and statistics.get("bot_chats_count") > 0:  # skip who can't have bot chats
-            html_content = ChatBotDailyReport.get_html(statistics, chats_total,
-                                                       template_name="ai_chatting_history.html")
-            reports_dir = Path("chat_bot/pdfs")
-            report_name_prefix = "ai_chatting_history"
-            pdf_path = ChatBotDailyReport.get_pdf(statistics, html_content, reports_dir, report_name_prefix)
-            if pdf_path is not None:
-                ChatBotDailyReport.file_sender_to_tg(pdf_path, avito_account.telegram_id)
-
-
-    @staticmethod
-    @shared_task
     def statistics_sender_small_task(avito_account_id):
         avito_account = AvitoAccount.objects.get(id=avito_account_id)
         statistics, chats_total = ChatBotDailyReport.get_raw_data(avito_account)
@@ -184,6 +169,20 @@ class ChatBotDailyReport(PdfReportBaseClass):
                                                         template_name="daily_statistics.html")
             reports_dir = Path("chat_bot/pdfs")
             report_name_prefix = "daily_bot_report"
+            pdf_path = ChatBotDailyReport.get_pdf(statistics, html_content, reports_dir, report_name_prefix)
+            if pdf_path is not None:
+                ChatBotDailyReport.file_sender_to_tg(pdf_path, avito_account.telegram_id)
+
+    @staticmethod
+    @shared_task
+    def history_sender_main_task(avito_account_id, chat_id):
+        avito_account = AvitoAccount.objects.filter(id=avito_account_id)
+        statistics, chats_total = ChatBotDailyReport.get_raw_data(avito_account)
+        if statistics is not None and statistics.get("bot_chats_count") > 0:  # skip who can't have bot chats
+            html_content = ChatBotDailyReport.get_html(statistics, chats_total,
+                                                       template_name="ai_chatting_history.html")
+            reports_dir = Path("chat_bot/pdfs")
+            report_name_prefix = "ai_chatting_history"
             pdf_path = ChatBotDailyReport.get_pdf(statistics, html_content, reports_dir, report_name_prefix)
             if pdf_path is not None:
                 ChatBotDailyReport.file_sender_to_tg(pdf_path, avito_account.telegram_id)
