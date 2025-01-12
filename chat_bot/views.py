@@ -14,6 +14,7 @@ from django.utils.decorators import method_decorator
 from django.views import View
 import json
 from chat_bot.api.subscriptions import subscribe_to_messages, stop_subscribe_to_messages, check_subscriptions
+from messaging.api import MessagingAPISync
 
 moscow_tz = pytz.timezone('Europe/Moscow')
 
@@ -144,6 +145,14 @@ class StatisticsDailyReportView(View):
 class HistoryReportView(View):
     def get(self, request, *args, **kwargs):
         ChatBotDailyReport.history_sender_main_task.delay(145213826)
+        return (JsonResponse({"status": "ok"}, status=200))
+
+
+@method_decorator(csrf_exempt, name='dispatch')
+class TESTView(View):
+    def get(self, request, *args, **kwargs):
+        avito_account = AvitoAccount.objects.filter(id=145213826).last()
+        messages = MessagingAPISync.get_chat_last_50_messages_by_chat_id(avito_account, chat_id="u2i-9ChDB7rCnofDRqLOlNa9cQ")
         return JsonResponse({"status": "ok"}, status=200)
 
 
