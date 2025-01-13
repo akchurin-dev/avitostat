@@ -1,6 +1,8 @@
 import asyncio
 import datetime
-from chat_bot.tasks import BotStatisticsDailyReportClass, BotHistoryReportClass
+
+from base.settings import ENVIRONMENT
+from chat_bot.tasks import BotStatisticsDailyReportClass, ChatBotSummaryReportClass
 import pytz
 from asgiref.sync import sync_to_async
 from celery.result import AsyncResult
@@ -91,7 +93,8 @@ class WebhookInboxView(View):
                 )
 
                 if created:
-                    await asyncio.sleep(self.chat_bot.waiting_minutes * 60)  # WAIT TIME BEFORE ANY ACTIONS
+                    if ENVIRONMENT == "PRODUCTION":
+                        await asyncio.sleep(self.chat_bot.waiting_minutes * 60)  # WAIT TIME BEFORE ANY ACTIONS
                     ai_answer_sender_task.delay(
                         avito_account.id, user_id, chat_id, self.chat_bot.id, new_task.message_id,
                     )
@@ -144,7 +147,7 @@ class StatisticsDailyReportView(View):
 @method_decorator(csrf_exempt, name='dispatch')
 class HistoryReportView(View):
     def get(self, request, *args, **kwargs):
-        BotHistoryReportClass.history_sender_main_task(145213826, "u2i-9ChDB7rCnofDRqLOlNa9cQ" )
+        ChatBotSummaryReportClass.history_sender_main_task(145213826, "u2i-9ChDB7rCnofDRqLOlNa9cQ")
         return (JsonResponse({"status": "ok"}, status=200))
 
 

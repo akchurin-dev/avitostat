@@ -62,46 +62,9 @@ async def ai_answer_sender(avito_account_id, user_id, chat_id, chat_bot_id, new_
             await send_message_to_avito(avito_account, user_id, chat_id, message_text)
             await chat_bot_task_dao_save(new_task_id, ai_answer)
             if ai_answer.get("contacts") is not None:
-                await send_chat_summary(avito_account.id, chat_id)
-
-
-@shared_task
-def send_chat_summary_task(avito_account_id, chat_id):
-    async_to_sync(send_chat_summary)(avito_account_id, chat_id)
-
-
-async def send_chat_summary(avito_account_id, chat_id):
-    #TODO придумать чтобы отправка происходила только один раз
-    await asyncio.sleep(300)
-    avito_account = await AvitoAccount.objects.aget(pk=avito_account_id)
-    chat_summary = await chat_summary_generator(avito_account, chat_id)
-    counter = 1
-    text = ("🆕 Новый клиент из AVITO\n\n"
-            "📋 Сводка по переписке:\n\n")
-
-    for key, value in chat_summary.get("paragraphs").items():
-        text += f"🔹 {counter}. {value} \n"
-        counter += 1
-
-    url = f"https://www.avito.ru/profile/messenger/channel/{chat_id}"
-    text += f"\n\n🔗 [Перейти к переписке]({url})"
-
-    if ENVIRONMENT == 'DEVELOPMENT':
-        chat_id = "-4221870448"
-    else:
-        chat_id = avito_account.telegram_id
-
-    while text:
-        await sync_to_async(bot.send_raw, thread_sensitive=False)(
-            chat_id=chat_id,
-            function="send_message",
-            text=text,
-            parse_mode="Markdown",
-            disable_web_page_preview=True
-        )
-        text = text[4000:]
-
-    sync_to_async(BotStatisticsDailyReportClass.history_sender_main_task)(avito_account_id, chat_id)
+                if ENVIRONMENT == "PRODUCTION":
+                    await asyncio.sleep(300)
+                await sync_to_async(ChatBotSummaryReportClass.history_sender_main_task.delay)(avito_account_id, chat_id)
 
 
 
@@ -134,6 +97,23 @@ class PdfReportBaseClass:
                     document=types.FSInputFile(pdf_path))
             except Exception as e:
                 pass
+
+    @staticmethod
+    def text_sender_to_tg(text, telegram_id):
+        if text:
+            chat_id = "-4221870448" if ENVIRONMENT == "DEVELOPMENT" else telegram_id
+            while text:
+                try:
+                    bot.send_raw(
+                    chat_id=chat_id,
+                    function="send_message",
+                    text=text,
+                    parse_mode="Markdown",
+                    disable_web_page_preview=True
+                )
+                    text = text[4000:]
+                except Exception as e:
+                    pass
 
 
 class BotStatisticsDailyReportClass(PdfReportBaseClass):
@@ -207,7 +187,7 @@ class BotStatisticsDailyReportClass(PdfReportBaseClass):
             return statistics
 
 
-class BotHistoryReportClass(PdfReportBaseClass):
+class ChatBotSummaryReportClass(PdfReportBaseClass):
     @staticmethod
     @shared_task
     def history_sender_main_task(avito_account_id, chat_id):
@@ -217,14 +197,21 @@ class BotHistoryReportClass(PdfReportBaseClass):
         chat["messages"] = messages
         statistics = {"avito_account_name": avito_account.name, "avito_account_id": avito_account.id,}
         if messages is not None and len(messages) > 0:  # skip who can't have bot chats
-            html_content = BotHistoryReportClass.get_html(chat=chat, statistics=statistics)
+            # TEXT MESSAGE
+            summary_text = ChatBotSummaryReportClass.get_chat_summary_text(avito_account_id, chat_id)
+            if summary_text and len(summary_text) > 20:
+                ChatBotSummaryReportClass.text_sender_to_tg(text=summary_text, telegram_id=avito_account.telegram_id)
+
+            # PDF FILE
+            summary_html = ChatBotSummaryReportClass.get_chat_summary_html(avito_account_id, chat_id)
+            html_content = ChatBotSummaryReportClass.get_html(summary_html=summary_html, chat=chat, statistics=statistics, )
             report_name_prefix = "история переписки"
-            pdf_path = BotHistoryReportClass.get_pdf(statistics, html_content, report_name_prefix)
+            pdf_path = ChatBotSummaryReportClass.get_pdf(statistics, html_content, report_name_prefix)
             if pdf_path is not None:
-                BotHistoryReportClass.file_sender_to_tg(pdf_path, avito_account.telegram_id)
+                ChatBotSummaryReportClass.file_sender_to_tg(pdf_path, avito_account.telegram_id)
 
     @staticmethod
-    def get_html(chat, statistics):
+    def get_html(summary_html, chat, statistics):
         with open(f"chat_bot/templates/chat_bot/ai_chatting_history.html", "r", encoding="utf-8") as file:
             clear_template = file.read()
         template = Template(clear_template)
@@ -233,5 +220,41 @@ class BotHistoryReportClass(PdfReportBaseClass):
         client_name = chat.get("users")[0].get("name")
         return template.render(avito_account_name=avito_account_name,
                                client_name=client_name,
-                               start_date=date, chat=chat)
+                               start_date=date,
+                               chat=chat,
+                               summary_html=summary_html)
+
+    @staticmethod
+    def get_chat_summary_html(avito_account_id, chat_id):
+        # TODO придумать чтобы отправка происходила только один раз
+        avito_account = AvitoAccount.objects.filter(pk=avito_account_id).last()
+        chat_summary = chat_summary_generator(avito_account, chat_id)
+        counter = 1
+        text = "<div style='font-family: Arial, sans-serif;'>📋 <b>Сводка по переписке:</b><br><br>"
+
+        for key, value in chat_summary.get("paragraphs").items():
+            text += f"<p style='margin-left: 20px;'>🔹 {counter}. {value}</p>"
+            counter += 1
+
+        text += "</div>"
+
+        return text
+
+    @staticmethod
+    def get_chat_summary_text(avito_account_id, chat_id):
+        avito_account = AvitoAccount.objects.filter(pk=avito_account_id).last()
+        chat_summary = chat_summary_generator(avito_account, chat_id)
+        counter = 1
+        text = ("🆕 Новый клиент из AVITO\n\n"
+                "📋 Сводка по переписке:\n\n")
+
+        for key, value in chat_summary.get("paragraphs").items():
+            text += f"🔹 {counter}. {value} \n"
+            counter += 1
+
+        url = f"https://www.avito.ru/profile/messenger/channel/{chat_id}"
+        text += f"\n\n🔗 [Перейти к переписке]({url})"
+        return text
+
+
 

@@ -1,5 +1,6 @@
 from pprint import pprint
 
+from asgiref.sync import sync_to_async, async_to_sync
 from openai import OpenAI
 from pydantic import BaseModel, EmailStr
 
@@ -100,9 +101,9 @@ def chat_summary_data_prepare(data: dict) -> dict | None:
     return result
 
 
-async def chat_summary_generator(avito_account: AvitoAccount, chat_id: str):
+def chat_summary_generator(avito_account: AvitoAccount, chat_id: str):
     result = {}
-    chat_with_messages = await get_chats_last_50_messages(avito_account, chats=[{"id": chat_id}])
+    chat_with_messages = async_to_sync(get_chats_last_50_messages)(avito_account, chats=[{"id": chat_id}])
 
     prompt = (f"""Твоя задача - проанализировать переписку чата
         И сгенерировать сводку по чату которая должна содержать пункты:
