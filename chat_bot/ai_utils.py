@@ -56,7 +56,7 @@ def format_chat_history(messages):
 def ai_answer_assist(ai_assistant: AiChatBot, chat: list, ):
     try:
         result = {}
-        chat_history_formatted = format_chat_history(chat[:10])
+        chat_history_formatted = format_chat_history(chat)
         print(f"Последнее сообщение для ИИ ответа-{chat_history_formatted[-1]}")
         prompt = (
             f"Общая информация:{ai_assistant.total_info}"
