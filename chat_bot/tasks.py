@@ -7,6 +7,7 @@ from jinja2 import Template
 from django.db.models import Q
 from django.utils import timezone
 from messaging.api import get_chats, MessagingAPISync
+from messaging.bad_mes_report.utils_bad_messaging_report import converting_created_timestamp_to_datetime
 from messaging.bad_mes_report.utils_chats import filter_chats_for_last_period, \
     filter_chats_only_with_text
 from asgiref.sync import async_to_sync, sync_to_async
@@ -65,7 +66,7 @@ async def ai_answer_sender(avito_account_id, user_id, chat_id, chat_bot_id, new_
             if ai_answer.get("contacts") is not None:
                 if ENVIRONMENT == "PRODUCTION":
                     await asyncio.sleep(300)
-                await sync_to_async(ChatBotSummaryReportClass.summary_sender_main_task.delay)(avito_account_id, chat_id)
+                await sync_to_async(ChatBotSummaryReportClass.summary_sender_main_task)(avito_account_id, chat_id)
 
 
 
@@ -196,22 +197,26 @@ class ChatBotSummaryReportClass(PdfReportBaseClass):
         chat = MessagingAPISync.get_chat_by_id(avito_account, chat_id)
         messages = MessagingAPISync.get_chat_last_50_messages_by_chat_id(avito_account, chat_id)
         chat["messages"] = messages
+        messages = async_to_sync(converting_created_timestamp_to_datetime)({"chats": [chat]})
         statistics = {"avito_account_name": avito_account.name, "avito_account_id": avito_account.id,}
         if messages is not None and len(messages) > 0:  # skip who can't have bot chats
+            chat_summary = chat_summary_generator(avito_account, chat_id)
+            if chat_summary is not None:
+                # TEXT MESSAGE
+                summary_text = ChatBotSummaryReportClass.get_chat_summary_text(chat_summary)
+                if summary_text and len(summary_text) > 20: # 20 is random value)
+                    ChatBotSummaryReportClass.text_sender_to_tg(text=summary_text, telegram_id=avito_account.telegram_id)
 
-            #TODO OPENAI REQUEST for PDF and TEXT only ONE
-            # TEXT MESSAGE
-            summary_text = ChatBotSummaryReportClass.get_chat_summary_text(avito_account_id, chat_id)
-            if summary_text and len(summary_text) > 20:
-                ChatBotSummaryReportClass.text_sender_to_tg(text=summary_text, telegram_id=avito_account.telegram_id)
+                # PDF FILE
+                summary_html = ChatBotSummaryReportClass.get_chat_summary_html(chat_summary)
+                html_content = ChatBotSummaryReportClass.get_html(summary_html=summary_html, chat=chat, statistics=statistics, )
+                report_name_prefix = "история переписки"
+                pdf_path = ChatBotSummaryReportClass.get_pdf(statistics, html_content, report_name_prefix)
+                if pdf_path is not None:
+                    ChatBotSummaryReportClass.file_sender_to_tg(pdf_path, avito_account.telegram_id)
 
-            # PDF FILE
-            summary_html = ChatBotSummaryReportClass.get_chat_summary_html(avito_account_id, chat_id)
-            html_content = ChatBotSummaryReportClass.get_html(summary_html=summary_html, chat=chat, statistics=statistics, )
-            report_name_prefix = "история переписки"
-            pdf_path = ChatBotSummaryReportClass.get_pdf(statistics, html_content, report_name_prefix)
-            if pdf_path is not None:
-                ChatBotSummaryReportClass.file_sender_to_tg(pdf_path, avito_account.telegram_id)
+        # TODO придумать чтобы отправка происходила только один раз
+
 
     @staticmethod
     def get_html(summary_html, chat, statistics):
@@ -228,25 +233,18 @@ class ChatBotSummaryReportClass(PdfReportBaseClass):
                                summary_html=summary_html)
 
     @staticmethod
-    def get_chat_summary_html(avito_account_id, chat_id):
-        # TODO придумать чтобы отправка происходила только один раз
-        avito_account = AvitoAccount.objects.filter(pk=avito_account_id).last()
-        chat_summary = chat_summary_generator(avito_account, chat_id)
+    def get_chat_summary_html(chat_summary):
         counter = 1
-        text = "<div style='font-family: Arial, sans-serif;'>📋 <b>Сводка по переписке:</b><br><br>"
+        text = "<div style='font-family: Arial, sans-serif;'><b>Сводка по переписке:</b><br><br>"
 
         for key, value in chat_summary.get("paragraphs").items():
-            text += f"<p style='margin-left: 20px;'>🔹 {counter}. {value}</p>"
+            text += f"<p style='margin-left: 20px;'>{counter}. {value}</p>"
             counter += 1
-
         text += "</div>"
-
         return text
 
     @staticmethod
-    def get_chat_summary_text(avito_account_id, chat_id):
-        avito_account = AvitoAccount.objects.filter(pk=avito_account_id).last()
-        chat_summary = chat_summary_generator(avito_account, chat_id)
+    def get_chat_summary_text(chat_summary):
         counter = 1
         text = ("🎉 <b>Новый клиент из AVITO 🎉 \n\n</b> "
                 "   📋 Сводка по переписке:\n\n")
@@ -257,10 +255,6 @@ class ChatBotSummaryReportClass(PdfReportBaseClass):
             else:
                 text += f"🔹 {counter}. {value} \n"
             counter += 1
-            print(f"key: {key}, value: {value}")
-
-        # url = f"https://www.avito.ru/profile/messenger/channel/{chat_id}"
-        # text += f"\n\n🔗 [Перейти к переписке]({url})"
         return text
 
 

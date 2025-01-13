@@ -80,8 +80,6 @@ async def get_messaging_report_data(test_from_prod: bool, avito_account_id,
             print(send_error)
             raise send_error
 
-
-
         # tokens counting
         tokens = None
         if analyze_by_criteria_raw_res:
