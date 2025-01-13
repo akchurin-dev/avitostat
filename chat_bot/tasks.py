@@ -8,7 +8,7 @@ from django.db.models import Q
 from django.utils import timezone
 from messaging.api import get_chats, MessagingAPISync
 from messaging.bad_mes_report.utils_chats import filter_chats_for_last_period, \
-    filter_chats_only_with_text, filter_by_bot_answered_chat_ids
+    filter_chats_only_with_text
 from asgiref.sync import async_to_sync, sync_to_async
 from telegram_bot import bot
 from avito_account.models.models import AvitoAccount
@@ -29,6 +29,7 @@ async def chat_bot_task_dao_save(new_task_id: str, ai_answer: dict):
 
     contacts = ai_answer.get("contacts")
     if contacts is not None:
+        new_task.city = contacts.get("city", None)
         new_task.address = contacts.get("address", None)
         new_task.mobile = contacts.get("mobile", None)
         new_task.whatsapp = contacts.get("whatsapp", None)
@@ -64,7 +65,7 @@ async def ai_answer_sender(avito_account_id, user_id, chat_id, chat_bot_id, new_
             if ai_answer.get("contacts") is not None:
                 if ENVIRONMENT == "PRODUCTION":
                     await asyncio.sleep(300)
-                await sync_to_async(ChatBotSummaryReportClass.history_sender_main_task.delay)(avito_account_id, chat_id)
+                await sync_to_async(ChatBotSummaryReportClass.summary_sender_main_task.delay)(avito_account_id, chat_id)
 
 
 
@@ -108,7 +109,7 @@ class PdfReportBaseClass:
                     chat_id=chat_id,
                     function="send_message",
                     text=text,
-                    parse_mode="Markdown",
+                    parse_mode="HTML",
                     disable_web_page_preview=True
                 )
                     text = text[4000:]
@@ -190,13 +191,15 @@ class BotStatisticsDailyReportClass(PdfReportBaseClass):
 class ChatBotSummaryReportClass(PdfReportBaseClass):
     @staticmethod
     @shared_task
-    def history_sender_main_task(avito_account_id, chat_id):
+    def summary_sender_main_task(avito_account_id, chat_id):
         avito_account = AvitoAccount.objects.filter(id=avito_account_id).last()
         chat = MessagingAPISync.get_chat_by_id(avito_account, chat_id)
         messages = MessagingAPISync.get_chat_last_50_messages_by_chat_id(avito_account, chat_id)
         chat["messages"] = messages
         statistics = {"avito_account_name": avito_account.name, "avito_account_id": avito_account.id,}
         if messages is not None and len(messages) > 0:  # skip who can't have bot chats
+
+            #TODO OPENAI REQUEST for PDF and TEXT only ONE
             # TEXT MESSAGE
             summary_text = ChatBotSummaryReportClass.get_chat_summary_text(avito_account_id, chat_id)
             if summary_text and len(summary_text) > 20:
@@ -245,15 +248,19 @@ class ChatBotSummaryReportClass(PdfReportBaseClass):
         avito_account = AvitoAccount.objects.filter(pk=avito_account_id).last()
         chat_summary = chat_summary_generator(avito_account, chat_id)
         counter = 1
-        text = ("🆕 Новый клиент из AVITO\n\n"
-                "📋 Сводка по переписке:\n\n")
+        text = ("🎉 <b>Новый клиент из AVITO 🎉 \n\n</b> "
+                "   📋 Сводка по переписке:\n\n")
 
         for key, value in chat_summary.get("paragraphs").items():
-            text += f"🔹 {counter}. {value} \n"
+            if "город" in value.lower():
+                text += f"🔸 {counter}. <u><b>{value}</b></u> \n"
+            else:
+                text += f"🔹 {counter}. {value} \n"
             counter += 1
+            print(f"key: {key}, value: {value}")
 
-        url = f"https://www.avito.ru/profile/messenger/channel/{chat_id}"
-        text += f"\n\n🔗 [Перейти к переписке]({url})"
+        # url = f"https://www.avito.ru/profile/messenger/channel/{chat_id}"
+        # text += f"\n\n🔗 [Перейти к переписке]({url})"
         return text
 
 

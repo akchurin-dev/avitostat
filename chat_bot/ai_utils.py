@@ -16,6 +16,7 @@ client = OpenAI(api_key=settings.OPENAI_SECRET_KEY)
 
 class ChatBotAnswerSchema(BaseModel):
     answer: str
+    city: str | None
     address: str | None
     mobile: str | None
     whatsapp: str | None
@@ -25,6 +26,7 @@ class ChatBotAnswerSchema(BaseModel):
 
 def contacts_data_prepare(data: dict) -> dict | None:
     contacts = {key: value for key, value in {
+        "city": data.city,
         "address": data.address,
         "mobile": data.mobile,
         "whatsapp": data.whatsapp,
@@ -54,7 +56,7 @@ def format_chat_history(messages):
 def ai_answer_assist(ai_assistant: AiChatBot, chat: list, ):
     try:
         result = {}
-        chat_history_formatted = format_chat_history(chat)
+        chat_history_formatted = format_chat_history(chat[:10])
         print(f"Последнее сообщение для ИИ ответа-{chat_history_formatted[-1]}")
         prompt = (
             f"Общая информация:{ai_assistant.total_info}"
@@ -85,6 +87,7 @@ class ChatSummarySchema(BaseModel):
     paragraph1: str | None
     paragraph2: str | None
     paragraph3: str | None
+    paragraph4: str | None
 
 
 def chat_summary_data_prepare(data: dict) -> dict | None:
@@ -92,6 +95,7 @@ def chat_summary_data_prepare(data: dict) -> dict | None:
         "paragraph1": data.paragraph1,
         "paragraph2": data.paragraph2,
         "paragraph3": data.paragraph3,
+        "paragraph4": data.paragraph4,
 
     }.items() if value is not None}
     if not parahraphs:
@@ -107,9 +111,10 @@ def chat_summary_generator(avito_account: AvitoAccount, chat_id: str):
 
     prompt = (f"""Твоя задача - проанализировать переписку чата
         И сгенерировать сводку по чату которая должна содержать пункты:
-            1) Суть обращения.
-            2) Адрес для выезда при наличии(указывать ПОСЛЕДНИЙ УПОМЯНУТЫЙ В ПЕРЕПИСКЕ).
-            3) Контакты клиента и назначенное время при наличии.
+            1) Город обращения.
+            2) Суть обращения.
+            3) Полный адрес для выезда при наличии(указывать ПОСЛЕДНИЙ УПОМЯНУТЫЙ В ПЕРЕПИСКЕ).
+            4) Контакты клиента и назначенное время при наличии.
          - какждый пункт расписать кратко, не более 200 символов каждый.
          Ответ выдавай НА РУССКОМ ЯЗЫКЕ, проверяй правильность построения предложений на русском при переводе!
         Чат с сообщениями - {chat_with_messages[-20:]}
