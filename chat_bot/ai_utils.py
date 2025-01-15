@@ -1,12 +1,9 @@
-from pprint import pprint
-
-from asgiref.sync import sync_to_async, async_to_sync
+from asgiref.sync import  async_to_sync
 from openai import OpenAI
-from pydantic import BaseModel, EmailStr
+from pydantic import BaseModel
 
 from avito_account.models.models import AvitoAccount
 from base import settings
-from base.settings import ENVIRONMENT
 from chat_bot.models import AiChatBot
 from messaging.api import get_chats_last_50_messages
 

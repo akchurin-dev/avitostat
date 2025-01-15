@@ -92,6 +92,13 @@
             font-size: 14px;
             font-weight: 500;
             line-height: 100%;}
+        .client-name {
+            font-weight: bold;
+            font-size: 1.2em;
+            {#background-color: #f0f8ff; /* Светлый фон */#}
+            padding: 2px 4px; /* Отступы вокруг текста */
+            border-radius: 4px; /* Скругленные углы */
+        }
         .page__top-logo {
             width: 182px;
         }
@@ -369,7 +376,7 @@
         <div class="page__top-info">
             <span class="page__top-site">{{ avito_account_name }}</span>
             <span class="page__top-title">Новый клиент из AVITO</span>
-            <span class="page__top-period">переписка с клиентом <<{{ client_name }}>> за {{ start_date }} </span>
+            <span class="page__top-period"> переписка с клиентом <span class="client-name">{{ client_name }}</span> за {{ start_date }}</span>
         </div>
 
         <div class="page__top-logo">

@@ -147,7 +147,7 @@ class StatisticsDailyReportView(View):
 @method_decorator(csrf_exempt, name='dispatch')
 class HistoryReportView(View):
     def get(self, request, *args, **kwargs):
-        ChatBotSummaryReportClass.summary_sender_main_task(145213826, "u2i-9ChDB7rCnofDRqLOlNa9cQ")
+        ChatBotSummaryReportClass.summary_sender_main_task(145213826, "u2i-XxU7yyfwKh4N1hXsbv6wDA")
         return (JsonResponse({"status": "ok"}, status=200))
 
 
