@@ -73,6 +73,8 @@ class ChatBotTask(models.Model):
     telegram = models.TextField(blank=True, null=True, default=None, verbose_name="Телеграм")
     email = models.TextField(blank=True, null=True, default=None, verbose_name="Емайл")
 
+    summary_sanded = models.BooleanField(default=False, verbose_name="Сводка была отправлена")
+
     class Meta:
         verbose_name = "Ответ чат бота"
         verbose_name_plural = "Ответы чат бота"

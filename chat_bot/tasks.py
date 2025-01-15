@@ -1,5 +1,6 @@
 import asyncio
 import datetime
+import logging
 from pathlib import Path
 from aiogram import types
 import pdfkit
@@ -19,6 +20,7 @@ from chat_bot.api.core import send_message_to_avito, read_chat
 from chat_bot.models import AiChatBot, ChatBotTask
 from messaging.api import get_chats_last_50_messages
 from celery import shared_task
+logger = logging.getLogger(__name__)
 
 
 async def chat_bot_task_dao_save(new_task_id: str, ai_answer: dict):
@@ -193,27 +195,40 @@ class ChatBotSummaryReportClass(PdfReportBaseClass):
     @staticmethod
     @shared_task
     def summary_sender_main_task(avito_account_id, chat_id):
-        avito_account = AvitoAccount.objects.filter(id=avito_account_id).last()
-        chat = MessagingAPISync.get_chat_by_id(avito_account, chat_id)
-        messages = MessagingAPISync.get_chat_last_50_messages_by_chat_id(avito_account, chat_id)
-        chat["messages"] = messages
-        messages = async_to_sync(converting_created_timestamp_to_datetime)({"chats": [chat]})
-        statistics = {"avito_account_name": avito_account.name, "avito_account_id": avito_account.id,}
-        if messages is not None and len(messages) > 0:  # skip who can't have bot chats
-            chat_summary = chat_summary_generator(avito_account, chat_id)
-            if chat_summary is not None:
-                # TEXT MESSAGE
-                summary_text = ChatBotSummaryReportClass.get_chat_summary_text(chat_summary)
-                if summary_text and len(summary_text) > 20: # 20 is random value)
-                    ChatBotSummaryReportClass.text_sender_to_tg(text=summary_text, telegram_id=avito_account.telegram_id)
+        all_chat_bot_tasks = ChatBotTask.objects.filter(chat_id=chat_id)
+        summary_is_sanded = all_chat_bot_tasks.filter(summary_sanded=True).exists()
+        if summary_is_sanded:
+            logger.info(f"Summary report has already been sent for chat_id {chat_id}. Skipping task.")
 
-                # PDF FILE
-                summary_html = ChatBotSummaryReportClass.get_chat_summary_html(chat_summary)
-                html_content = ChatBotSummaryReportClass.get_html(summary_html=summary_html, chat=chat, statistics=statistics, )
-                report_name_prefix = "история переписки"
-                pdf_path = ChatBotSummaryReportClass.get_pdf(statistics, html_content, report_name_prefix)
-                if pdf_path is not None:
-                    ChatBotSummaryReportClass.file_sender_to_tg(pdf_path, avito_account.telegram_id)
+        else:
+            avito_account = AvitoAccount.objects.filter(id=avito_account_id).last()
+            chat = MessagingAPISync.get_chat_by_id(avito_account, chat_id)
+            messages = MessagingAPISync.get_chat_last_50_messages_by_chat_id(avito_account, chat_id)
+            chat["messages"] = messages
+            messages = async_to_sync(converting_created_timestamp_to_datetime)({"chats": [chat]})
+            statistics = {"avito_account_name": avito_account.name, "avito_account_id": avito_account.id,}
+            if messages is not None and len(messages) > 0:  # skip who can't have bot chats
+                chat_summary = chat_summary_generator(avito_account, chat_id)
+                if chat_summary is not None:
+                    # TEXT MESSAGE
+                    summary_text = ChatBotSummaryReportClass.get_chat_summary_text(chat_summary)
+                    if summary_text and len(summary_text) > 20: # 20 is random value)
+                        ChatBotSummaryReportClass.text_sender_to_tg(text=summary_text, telegram_id=avito_account.telegram_id)
+
+                    # PDF FILE
+                    summary_html = ChatBotSummaryReportClass.get_chat_summary_html(chat_summary)
+                    html_content = ChatBotSummaryReportClass.get_html(summary_html=summary_html, chat=chat, statistics=statistics, )
+                    report_name_prefix = "история переписки"
+                    pdf_path = ChatBotSummaryReportClass.get_pdf(statistics, html_content, report_name_prefix)
+                    if pdf_path is not None:
+                        ChatBotSummaryReportClass.file_sender_to_tg(pdf_path, avito_account.telegram_id)
+
+                    # здесь неважно в какой именно инстанс для данного чата добавить флаг, главное чтобы он появился
+                    last_chat_bot_task = all_chat_bot_tasks.last()
+                    if last_chat_bot_task is not None:
+                        # Flag adding for in future we can't be sanding summary_report twice
+                        last_chat_bot_task.summary_sanded = True
+                        last_chat_bot_task.save()
 
         # TODO придумать чтобы отправка происходила только один раз
 
