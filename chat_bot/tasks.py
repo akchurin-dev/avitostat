@@ -195,10 +195,10 @@ class ChatBotSummaryReportClass(PdfReportBaseClass):
     @staticmethod
     @shared_task
     def summary_sender_main_task(avito_account_id, chat_id):
-        all_chat_bot_tasks = ChatBotTask.objects.filter(chat_id=chat_id)
-        summary_is_sanded = all_chat_bot_tasks.filter(summary_sanded=True).exists()
-        if summary_is_sanded:
-            logger.info(f"Summary report has already been sent for chat_id {chat_id}. Skipping task.")
+        all_tasks = ChatBotTask.objects.filter(chat_id=chat_id)
+        if all_tasks.filter(summary_sanded=True).exists():
+            logger.info(f"Summary report already sent for chat_id {chat_id}.")
+            return
 
         else:
             avito_account = AvitoAccount.objects.filter(id=avito_account_id).last()
@@ -224,13 +224,11 @@ class ChatBotSummaryReportClass(PdfReportBaseClass):
                         ChatBotSummaryReportClass.file_sender_to_tg(pdf_path, avito_account.telegram_id)
 
                     # здесь неважно в какой именно инстанс для данного чата добавить флаг, главное чтобы он появился
-                    last_chat_bot_task = all_chat_bot_tasks.last()
+                    last_chat_bot_task = all_tasks.last()
                     if last_chat_bot_task is not None:
                         # Flag adding for in future we can't be sanding summary_report twice
                         last_chat_bot_task.summary_sanded = True
                         last_chat_bot_task.save()
-
-        # TODO придумать чтобы отправка происходила только один раз
 
 
     @staticmethod

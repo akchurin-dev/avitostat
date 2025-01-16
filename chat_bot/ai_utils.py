@@ -23,7 +23,6 @@ class ChatBotAnswerSchema(BaseModel):
 
 def contacts_data_prepare(data: dict) -> dict | None:
     contacts = {key: value for key, value in {
-        "city": data.city,
         "address": data.address,
         "mobile": data.mobile,
         "whatsapp": data.whatsapp,
@@ -113,6 +112,8 @@ def chat_summary_generator(avito_account: AvitoAccount, chat_id: str):
             3) Полный адрес для выезда при наличии(указывать ПОСЛЕДНИЙ УПОМЯНУТЫЙ В ПЕРЕПИСКЕ).
             4) Контакты клиента и назначенное время при наличии.
          - какждый пункт расписать кратко, не более 200 символов каждый.
+         
+         ВАЖНО - нумеровать пункты пожалуйста ненадо.
          Ответ выдавай НА РУССКОМ ЯЗЫКЕ, проверяй правильность построения предложений на русском при переводе!
         Чат с сообщениями - {chat_with_messages[-20:]}
         """)
