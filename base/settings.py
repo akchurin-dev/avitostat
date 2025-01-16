@@ -227,10 +227,10 @@ if ENVIRONMENT == 'PRODUCTION':
             'schedule': crontab(hour=2, minute=0),
         },
 
-        # 'chat_bot_daily_report_task': {
-        #     'task': 'chat_bot.ChatBotDailyReport.report_sender_main_task',
-        #     'schedule': crontab(hour=6, minute=0),  # Ежедневно в 11:00 утра
-        # },
+        'chat_bot_daily_report_task': {
+            'task': 'chat_bot.tasks.statistics_sender_main_task',
+            'schedule': crontab(hour=6, minute=0),  # Ежедневно в 11:00 утра
+        },
     }
 else:
     CELERY_BEAT_SCHEDULE = {

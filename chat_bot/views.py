@@ -2,7 +2,7 @@ import asyncio
 import datetime
 
 from base.settings import ENVIRONMENT
-from chat_bot.tasks import BotStatisticsDailyReportClass, ChatBotSummaryReportClass, ai_answer_sender
+from chat_bot.tasks import BotStatisticsDailyReportClass, ChatBotSummaryReportClass
 import pytz
 from asgiref.sync import sync_to_async
 from celery.result import AsyncResult

@@ -140,7 +140,7 @@ class BotStatisticsDailyReportClass(PdfReportBaseClass):
         statistics = BotStatisticsDailyReportClass.get_raw_data(avito_account)
         if statistics is not None and statistics.get("bot_chats_count") > 0: #skip who can't have bot chats
             html_content = BotStatisticsDailyReportClass.get_html(statistics)
-            report_name_prefix = "daily_bot_report"
+            report_name_prefix = "statistics"
             pdf_path = BotStatisticsDailyReportClass.get_pdf(statistics, html_content, report_name_prefix)
             if pdf_path is not None:
                 BotStatisticsDailyReportClass.file_sender_to_tg(pdf_path, avito_account.telegram_id)
@@ -218,7 +218,7 @@ class ChatBotSummaryReportClass(PdfReportBaseClass):
                     # PDF FILE
                     summary_html = ChatBotSummaryReportClass.get_chat_summary_html(chat_summary)
                     html_content = ChatBotSummaryReportClass.get_html(summary_html=summary_html, chat=chat, statistics=statistics, )
-                    report_name_prefix = "история переписки"
+                    report_name_prefix = "history"
                     pdf_path = ChatBotSummaryReportClass.get_pdf(statistics, html_content, report_name_prefix)
                     if pdf_path is not None:
                         ChatBotSummaryReportClass.file_sender_to_tg(pdf_path, avito_account.telegram_id)
