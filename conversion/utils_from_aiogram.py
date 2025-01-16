@@ -40,7 +40,7 @@ async def get_duration_report_by_avito_id(avito_id):
     avito_account = await sync_to_async(AvitoAccount.objects.filter(id=avito_id).last)()
 
     if avito_account:
-        ready_chats, chats_without_filtering_count = await get_ready_chats(avito_account)
+        ready_chats, chats_without_filtering = await get_ready_chats(avito_account)
         if len(ready_chats) > 1:
             #PROCESSING WITH FILTERED CHATS
             durations = await get_durations_seconds(ready_chats)

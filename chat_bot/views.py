@@ -1,22 +1,22 @@
 import asyncio
 import datetime
-import time
-from pprint import pprint
 
+from base.settings import ENVIRONMENT
+from chat_bot.tasks import BotStatisticsDailyReportClass, ChatBotSummaryReportClass
 import pytz
 from asgiref.sync import sync_to_async
 from celery.result import AsyncResult
 from django.utils.timezone import now
 from django.views.decorators.csrf import csrf_exempt
-from avito_account.models.models import AvitoAccount, moscow_time
+from avito_account.models.models import AvitoAccount
 from chat_bot.models import AiChatBot, ChatBotTask
-from chat_bot.tasks import ai_answer_sender_task, ai_answer_sender
+from chat_bot.tasks import ai_answer_sender_task
 from django.http import JsonResponse
 from django.utils.decorators import method_decorator
 from django.views import View
 import json
-from base.celery import logger
 from chat_bot.api.subscriptions import subscribe_to_messages, stop_subscribe_to_messages, check_subscriptions
+from messaging.api import MessagingAPISync
 
 moscow_tz = pytz.timezone('Europe/Moscow')
 
@@ -93,8 +93,9 @@ class WebhookInboxView(View):
                 )
 
                 if created:
-                    await asyncio.sleep(self.chat_bot.waiting_minutes * 60)  # WAIT TIME BEFORE ANY ACTIONS
-                    ai_answer_sender_task.delay(
+                    if ENVIRONMENT == "PRODUCTION":
+                        await asyncio.sleep(self.chat_bot.waiting_minutes * 60)  # WAIT TIME BEFORE ANY ACTIONS
+                    await ai_answer_sender_task.delay(
                         avito_account.id, user_id, chat_id, self.chat_bot.id, new_task.message_id,
                     )
 
@@ -135,3 +136,27 @@ class CheckSubscribtionsView(View):
         avito_account = await sync_to_async(AvitoAccount.objects.get)(pk=145213826)  # Rauf
         await check_subscriptions(avito_account)
         return JsonResponse({"status": "ok"}, status=200)
+
+
+@method_decorator(csrf_exempt, name='dispatch')
+class StatisticsDailyReportView(View):
+    def get(self, request, *args, **kwargs):
+        BotStatisticsDailyReportClass.statistics_sender_main_task.delay()
+        return JsonResponse({"status": "ok"}, status=200)
+
+@method_decorator(csrf_exempt, name='dispatch')
+class HistoryReportView(View):
+    def get(self, request, *args, **kwargs):
+        ChatBotSummaryReportClass.summary_sender_main_task(145213826, "u2i-gxfxKMQzD5QVE6IN1yMSWw")
+        return (JsonResponse({"status": "ok"}, status=200))
+
+
+@method_decorator(csrf_exempt, name='dispatch')
+class TESTView(View):
+    def get(self, request, *args, **kwargs):
+        avito_account = AvitoAccount.objects.filter(id=145213826).last()
+        messages = MessagingAPISync.get_chat_last_50_messages_by_chat_id(avito_account, chat_id="u2i-9ChDB7rCnofDRqLOlNa9cQ")
+        return JsonResponse({"status": "ok"}, status=200)
+
+
+

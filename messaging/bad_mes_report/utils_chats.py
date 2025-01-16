@@ -20,9 +20,14 @@ async def filter_chats_for_last_period(chats: list, period: str = "week") -> lis
             updated = datetime.datetime.fromtimestamp(chat.get('updated'))
             timedelta = now - updated
 
+            if period == "day":
+                if timedelta.days <= 1:
+                    filtered_chats.append(chat)
+
             if period == "week":
                 if 7 >= timedelta.days >= 0:
                     filtered_chats.append(chat)
+
             if period == "month":
                 if 30 >= timedelta.days >= 0:
                     filtered_chats.append(chat)
@@ -53,6 +58,14 @@ def filter_chats_only_with_text(chats):
         if chat.get("messages")[0].get("direction") == 'out':  # Skip all chats initialized from Manager
             continue
         if any(message.get("type") == "text" for message in chat.get("messages", [])):
+            filtered_chats.append(chat)
+    return filtered_chats
+
+
+def filter_by_bot_answered_chat_ids(chats, current_ids):
+    filtered_chats = []
+    for chat in chats:
+        if chat.get("id") in current_ids:
             filtered_chats.append(chat)
     return filtered_chats
 
@@ -111,21 +124,19 @@ async def schedule_filter_chats(filtered_chats_only_with_text: list, avito_accou
     return filtered_chats
 
 
-async def get_ready_chats(avito_account: AvitoAccount, period: str = "week") -> tuple[list[Any], int] | list[Any]:
+async def get_ready_chats(avito_account: AvitoAccount, period: str = "week") -> tuple[list[Any], list] | list[Any]:
     chats = await get_chats(avito_account, period=period)
     if chats:
         # Chats with messages getting
         actual_chats = await filter_chats_for_last_period(chats, period)
-        actual_chats_with_mes = await get_chats_last_50_messages(avito_account, actual_chats, period=period)
-
+        actual_chats_with_mes = await get_chats_last_50_messages(avito_account, actual_chats)
         #  Filtering and processing before using
         comp_mes_with_man = adding_manager_info_for_chats(actual_chats_with_mes)
         fil_chats_only_with_text = filter_chats_only_with_text(comp_mes_with_man)
-        chats_without_filtering_count = len(fil_chats_only_with_text)
         fil_chats_by_sched = await schedule_filter_chats(fil_chats_only_with_text, avito_account)
         fil_by_excluded_items = await excluded_items_filter_chats(fil_chats_by_sched, avito_account)
         print(f"{len(fil_by_excluded_items)} chats after filtering")
-        return fil_by_excluded_items, chats_without_filtering_count
+        return fil_by_excluded_items, fil_chats_only_with_text
     else:
         return []
 

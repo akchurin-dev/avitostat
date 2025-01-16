@@ -1,15 +1,26 @@
-from pprint import pprint
-
+import asyncio
+import datetime
+import logging
+from pathlib import Path
+from aiogram import types
+import pdfkit
+from jinja2 import Template
+from django.db.models import Q
+from django.utils import timezone
+from messaging.api import get_chats, MessagingAPISync
+from messaging.bad_mes_report.utils_bad_messaging_report import converting_created_timestamp_to_datetime
+from messaging.bad_mes_report.utils_chats import filter_chats_for_last_period, \
+    filter_chats_only_with_text
 from asgiref.sync import async_to_sync, sync_to_async
 from telegram_bot import bot
-
 from avito_account.models.models import AvitoAccount
-from base import settings
+from base.settings import ENVIRONMENT
 from chat_bot.ai_utils import ai_answer_assist, chat_summary_generator
 from chat_bot.api.core import send_message_to_avito, read_chat
 from chat_bot.models import AiChatBot, ChatBotTask
 from messaging.api import get_chats_last_50_messages
 from celery import shared_task
+logger = logging.getLogger(__name__)
 
 
 async def chat_bot_task_dao_save(new_task_id: str, ai_answer: dict):
@@ -21,6 +32,7 @@ async def chat_bot_task_dao_save(new_task_id: str, ai_answer: dict):
 
     contacts = ai_answer.get("contacts")
     if contacts is not None:
+        new_task.city = contacts.get("city", None)
         new_task.address = contacts.get("address", None)
         new_task.mobile = contacts.get("mobile", None)
         new_task.whatsapp = contacts.get("whatsapp", None)
@@ -54,39 +66,209 @@ async def ai_answer_sender(avito_account_id, user_id, chat_id, chat_bot_id, new_
             await send_message_to_avito(avito_account, user_id, chat_id, message_text)
             await chat_bot_task_dao_save(new_task_id, ai_answer)
             if ai_answer.get("contacts") is not None:
-                await send_chat_summary(avito_account.id, chat_id)
+                if ENVIRONMENT == "PRODUCTION":
+                    await asyncio.sleep(300)
+                await sync_to_async(ChatBotSummaryReportClass.summary_sender_main_task.delay)(avito_account_id, chat_id)
 
 
-@shared_task
-def send_chat_summary_task(avito_account_id, chat_id):
-    async_to_sync(send_chat_summary)(avito_account_id, chat_id)
+
+class PdfReportBaseClass:
+    @staticmethod
+    def get_pdf(statistics, html_content, report_name_prefix):
+        if ENVIRONMENT == 'DEVELOPMENT':
+            wkhtmltopdf_path = "/usr/local/bin/wkhtmltopdf"  # For testing 5 items  for economy
+        else:
+            wkhtmltopdf_path = "/usr/bin/wkhtmltopdf"
+
+        config = pdfkit.configuration(wkhtmltopdf=wkhtmltopdf_path)
+        # Define the directory and file path with the date
+        reports_dir = Path("chat_bot/pdfs")
+        reports_dir.mkdir(parents=True, exist_ok=True)
+        # Get the current date in dd.mm.yyyy format
+        current_date = datetime.datetime.now().strftime("%d.%m.%Y")
+        pdf_path = reports_dir / f"{report_name_prefix}_{current_date}.pdf"
+        pdfkit.from_string(html_content, pdf_path, configuration=config)
+        return pdf_path
+
+    @staticmethod
+    def file_sender_to_tg(pdf_path, telegram_id):
+        if pdf_path:
+            chat_id = "-4221870448" if ENVIRONMENT == "DEVELOPMENT" else telegram_id
+            try:
+                bot.send_raw(
+                    chat_id=chat_id,
+                    function="send_document",
+                    document=types.FSInputFile(pdf_path))
+            except Exception as e:
+                pass
+
+    @staticmethod
+    def text_sender_to_tg(text, telegram_id):
+        if text:
+            chat_id = "-4221870448" if ENVIRONMENT == "DEVELOPMENT" else telegram_id
+            while text:
+                try:
+                    bot.send_raw(
+                    chat_id=chat_id,
+                    function="send_message",
+                    text=text,
+                    parse_mode="HTML",
+                    disable_web_page_preview=True
+                )
+                    text = text[4000:]
+                except Exception as e:
+                    pass
 
 
-async def send_chat_summary(avito_account_id, chat_id):
-    avito_account = await AvitoAccount.objects.aget(pk=avito_account_id)
-    chat_summary = await chat_summary_generator(avito_account, chat_id)
-    counter = 1
-    text = ("🆕 Новый клиент из AVITO\n\n"
-            "📋 Сводка по переписке:\n\n")
+class BotStatisticsDailyReportClass(PdfReportBaseClass):
 
-    for key, value in chat_summary.get("paragraphs").items():
-        text += f"🔹 {counter}. {value} \n"
-        counter += 1
+    @staticmethod
+    @shared_task
+    def statistics_sender_main_task():
+        avito_accounts = AvitoAccount.objects.all()
+        for avito_account in avito_accounts:
+            chat_bot_is_active = hasattr(avito_account, "ai_chat_bots") and avito_account.ai_chat_bots.is_active
+            if chat_bot_is_active is not None and chat_bot_is_active:
+                if ENVIRONMENT == "DEVELOPMENT":
+                    async_to_sync(avito_account.update_refresh_token_async)()
+                BotStatisticsDailyReportClass.statistics_sender_small_task.delay(avito_account.id)
 
-    url = f"https://www.avito.ru/profile/messenger/channel/{chat_id}"
-    text += f"\n\n🔗 [Перейти к переписке]({url})"
+    @staticmethod
+    @shared_task
+    def statistics_sender_small_task(avito_account_id):
+        avito_account = AvitoAccount.objects.get(id=avito_account_id)
+        statistics = BotStatisticsDailyReportClass.get_raw_data(avito_account)
+        if statistics is not None and statistics.get("bot_chats_count") > 0: #skip who can't have bot chats
+            html_content = BotStatisticsDailyReportClass.get_html(statistics)
+            report_name_prefix = "statistics"
+            pdf_path = BotStatisticsDailyReportClass.get_pdf(statistics, html_content, report_name_prefix)
+            if pdf_path is not None:
+                BotStatisticsDailyReportClass.file_sender_to_tg(pdf_path, avito_account.telegram_id)
 
-    if settings.ENVIRONMENT == 'DEVELOPMENT':
-        chat_id = "-4221870448"
-    else:
-        chat_id = avito_account.telegram_id
+    @staticmethod
+    def get_html(statistics):
+        with open(f"chat_bot/templates/chat_bot/daily_statistics.html", "r", encoding="utf-8") as file:
+            clear_template = file.read()
+        template = Template(clear_template)
+        avito_account_name = statistics.get('avito_account_name') if statistics else "Неизвестно"
+        date = (datetime.datetime.now() - datetime.timedelta(days=1)).strftime("%d.%m.%Y")
+        return template.render(avito_account_name=avito_account_name,start_date=date, statistics=statistics)
 
-    while text:
-        await sync_to_async(bot.send_raw, thread_sensitive=False)(
-            chat_id=chat_id,
-            function="send_message",
-            text=text,
-            parse_mode="Markdown",
-            disable_web_page_preview=True
-        )
-        text = text[4000:]
+    @staticmethod
+    def get_raw_data(avito_account, period="day"):
+        chats = async_to_sync(get_chats)(avito_account, period=period)
+        if chats:
+            if ENVIRONMENT == "PRODUCTION":
+                last_24_hours = timezone.now() - datetime.timedelta(days=1)
+            else:
+                last_24_hours = timezone.now() - datetime.timedelta(days=1)
+
+            bot_chats = ChatBotTask.objects.filter(avito_account=avito_account, created_at__gte=last_24_hours, )
+            unique_bot_chat_ids = [chat.get("chat_id", None) for chat in bot_chats.values("chat_id").distinct() if
+                                   len(bot_chats) > 0]
+            contacts = bot_chats.filter(
+                Q(address__isnull=False) & ~Q(address="") |
+                Q(mobile__isnull=False) & ~Q(mobile="") |
+                Q(whatsapp__isnull=False) & ~Q(whatsapp="") |
+                Q(telegram__isnull=False) & ~Q(telegram="") |
+                Q(email__isnull=False) & ~Q(email="")
+            ).values("chat_id").distinct().count()
+
+            # Chats with messages getting
+            actual_chats = async_to_sync(filter_chats_for_last_period)(chats, period=period)
+            actual_chats_with_mes = async_to_sync(get_chats_last_50_messages)(avito_account, actual_chats)
+            only_with_text = filter_chats_only_with_text(actual_chats_with_mes)
+            # chats_only_bot_answered = filter_by_bot_answered_chat_ids(only_with_text, unique_bot_chat_ids)
+
+            statistics = {
+                "avito_account_id": avito_account.id,  # for pdf file naming
+                "avito_account_name": avito_account.name,
+                "total_chats_count": len(only_with_text),
+                "bot_chats_count": len(unique_bot_chat_ids),
+                "contacts_count": contacts,
+            }
+
+            return statistics
+
+
+class ChatBotSummaryReportClass(PdfReportBaseClass):
+    @staticmethod
+    @shared_task
+    def summary_sender_main_task(avito_account_id, chat_id):
+        all_tasks = ChatBotTask.objects.filter(chat_id=chat_id)
+        if all_tasks.filter(summary_sanded=True).exists():
+            logger.info(f"Summary report already sent for chat_id {chat_id}.")
+            return
+
+        else:
+            avito_account = AvitoAccount.objects.filter(id=avito_account_id).last()
+            chat = MessagingAPISync.get_chat_by_id(avito_account, chat_id)
+            messages = MessagingAPISync.get_chat_last_50_messages_by_chat_id(avito_account, chat_id)
+            chat["messages"] = messages
+            messages = async_to_sync(converting_created_timestamp_to_datetime)({"chats": [chat]})
+            statistics = {"avito_account_name": avito_account.name, "avito_account_id": avito_account.id,}
+            if messages is not None and len(messages) > 0:  # skip who can't have bot chats
+                chat_summary = chat_summary_generator(avito_account, chat_id)
+                if chat_summary is not None:
+                    # TEXT MESSAGE
+                    summary_text = ChatBotSummaryReportClass.get_chat_summary_text(chat_summary)
+                    if summary_text and len(summary_text) > 20: # 20 is random value)
+                        ChatBotSummaryReportClass.text_sender_to_tg(text=summary_text, telegram_id=avito_account.telegram_id)
+
+                    # PDF FILE
+                    summary_html = ChatBotSummaryReportClass.get_chat_summary_html(chat_summary)
+                    html_content = ChatBotSummaryReportClass.get_html(summary_html=summary_html, chat=chat, statistics=statistics, )
+                    report_name_prefix = "history"
+                    pdf_path = ChatBotSummaryReportClass.get_pdf(statistics, html_content, report_name_prefix)
+                    if pdf_path is not None:
+                        ChatBotSummaryReportClass.file_sender_to_tg(pdf_path, avito_account.telegram_id)
+
+                    # здесь неважно в какой именно инстанс для данного чата добавить флаг, главное чтобы он появился
+                    last_chat_bot_task = all_tasks.last()
+                    if last_chat_bot_task is not None:
+                        # Flag adding for in future we can't be sanding summary_report twice
+                        last_chat_bot_task.summary_sanded = True
+                        last_chat_bot_task.save()
+
+
+    @staticmethod
+    def get_html(summary_html, chat, statistics):
+        with open(f"chat_bot/templates/chat_bot/ai_chatting_history.html", "r", encoding="utf-8") as file:
+            clear_template = file.read()
+        template = Template(clear_template)
+        avito_account_name = statistics.get('avito_account_name') if statistics else "Неизвестно"
+        date = (datetime.datetime.now() - datetime.timedelta(days=1)).strftime("%d.%m.%Y")
+        client_name = chat.get("users")[0].get("name")
+        return template.render(avito_account_name=avito_account_name,
+                               client_name=client_name,
+                               start_date=date,
+                               chat=chat,
+                               summary_html=summary_html)
+
+    @staticmethod
+    def get_chat_summary_html(chat_summary):
+        counter = 1
+        text = "<div style='font-family: Arial, sans-serif;'><b>Сводка по переписке:</b><br><br>"
+
+        for key, value in chat_summary.get("paragraphs").items():
+            text += f"<p style='margin-left: 20px;'>{counter}. {value}</p>"
+            counter += 1
+        text += "</div>"
+        return text
+
+    @staticmethod
+    def get_chat_summary_text(chat_summary):
+        counter = 1
+        text = ("🎉 <b>Новый клиент из AVITO 🎉 \n\n</b> "
+                "   📋 Сводка по переписке:\n\n")
+
+        for key, value in chat_summary.get("paragraphs").items():
+            if "город" in value.lower():
+                text += f"🔸 {counter}. <u><b>{value}</b></u> \n"
+            else:
+                text += f"🔹 {counter}. {value} \n"
+            counter += 1
+        return text
+
+
+
