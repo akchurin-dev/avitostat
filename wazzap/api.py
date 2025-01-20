@@ -1,2 +1,0 @@
-class WazzapAPI:
-    pass
