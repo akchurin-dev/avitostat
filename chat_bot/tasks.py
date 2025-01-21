@@ -14,7 +14,7 @@ from messaging.bad_mes_report.utils_chats import filter_chats_for_last_period, \
 from asgiref.sync import async_to_sync, sync_to_async
 from telegram_bot import bot
 from avito_account.models.models import AvitoAccount
-from base.settings import ENVIRONMENT
+from base.settings import ENVIRONMENT, AVITOSTATA_TG_ID
 from chat_bot.ai_utils import ai_answer_assist, chat_summary_generator
 from chat_bot.api.core import send_message_to_avito, read_chat
 from chat_bot.models import AiChatBot, ChatBotTask
@@ -133,19 +133,34 @@ class BotStatisticsDailyReportClass(PdfReportBaseClass):
             if chat_bot_is_active is not None and chat_bot_is_active:
                 if ENVIRONMENT == "DEVELOPMENT":
                     async_to_sync(avito_account.update_refresh_token_async)()
-                BotStatisticsDailyReportClass.statistics_sender_small_task.delay(avito_account.id)
+                BotStatisticsDailyReportClass.statistics_sender_small_task(avito_account.id)
 
     @staticmethod
     @shared_task
     def statistics_sender_small_task(avito_account_id):
         avito_account = AvitoAccount.objects.get(id=avito_account_id)
         statistics = BotStatisticsDailyReportClass.get_raw_data(avito_account)
-        if statistics is not None and statistics.get("bot_chats_count") > 0: #skip who can't have bot chats
-            html_content = BotStatisticsDailyReportClass.get_html(statistics)
-            report_name_prefix = "statistics"
-            pdf_path = BotStatisticsDailyReportClass.get_pdf(statistics, html_content, report_name_prefix)
-            if pdf_path is not None:
-                BotStatisticsDailyReportClass.file_sender_to_tg(pdf_path, avito_account.telegram_id)
+        if statistics is not None and statistics.get("bot_chats_count") > 0 and statistics.get("contacts_count") > 0: # have bot_chats and contacts
+            BotStatisticsDailyReportClass.statistics_with_contacts_pdf_sender(avito_account, statistics)
+        if statistics is not None and statistics.get("bot_chats_count") > 0 and statistics.get("contacts_count") == 0: # have bot_chats without contacts
+            pass
+
+    @staticmethod
+    def statistics_with_contacts_pdf_sender(avito_account: AvitoAccount, statistics: dict):
+        good_statistics_html_content = BotStatisticsDailyReportClass.get_html(statistics)
+        report_name_prefix = "good_statistics"
+        pdf_path = BotStatisticsDailyReportClass.get_pdf(statistics, good_statistics_html_content, report_name_prefix)
+        if pdf_path is not None:
+            BotStatisticsDailyReportClass.file_sender_to_tg(pdf_path, avito_account.telegram_id)
+
+    @staticmethod
+    def statistics_without_contacts_pdf_sender(avito_account: AvitoAccount, statistics: dict):
+        html = BotStatisticsDailyReportClass.get_html(statistics)
+        report_name_prefix = f"{avito_account.name}_bad_stat"
+        pdf_path = BotStatisticsDailyReportClass.get_pdf(statistics, html, report_name_prefix)
+        if pdf_path is not None:
+            BotStatisticsDailyReportClass.file_sender_to_tg(pdf_path, AVITOSTATA_TG_ID) # Avitostata.ru - Devmark
+
 
     @staticmethod
     def get_html(statistics):
@@ -221,7 +236,7 @@ class ChatBotSummaryReportClass(PdfReportBaseClass):
 
                     # PDF FILE
                     summary_html = ChatBotSummaryReportClass.get_chat_summary_html(chat_summary)
-                    html_content = ChatBotSummaryReportClass.get_html(summary_html=summary_html, chat=chat, statistics=statistics, )
+                    html_content = ChatBotSummaryReportClass.get_history_html(summary_html=summary_html, chat=chat, statistics=statistics, )
                     report_name_prefix = "history"
                     pdf_path = ChatBotSummaryReportClass.get_pdf(statistics, html_content, report_name_prefix)
                     if pdf_path is not None:
@@ -236,7 +251,7 @@ class ChatBotSummaryReportClass(PdfReportBaseClass):
 
 
     @staticmethod
-    def get_html(summary_html, chat, statistics):
+    def get_history_html(summary_html, chat, statistics):
         with open(f"chat_bot/templates/chat_bot/ai_chatting_history.html", "r", encoding="utf-8") as file:
             clear_template = file.read()
         template = Template(clear_template)
