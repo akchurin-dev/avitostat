@@ -4,8 +4,9 @@ import logging
 from pathlib import Path
 from aiogram import types
 import pdfkit
+from django.db.models.sql import Query
 from jinja2 import Template
-from django.db.models import Q
+from django.db.models import Q, QuerySet
 from django.utils import timezone
 from messaging.api import get_chats, MessagingAPISync
 from messaging.bad_mes_report.utils_bad_messaging_report import converting_created_timestamp_to_datetime
@@ -139,27 +140,32 @@ class BotStatisticsDailyReportClass(PdfReportBaseClass):
     @shared_task
     def statistics_sender_small_task(avito_account_id):
         avito_account = AvitoAccount.objects.get(id=avito_account_id)
-        statistics = BotStatisticsDailyReportClass.get_raw_data(avito_account)
+        statistics, bot_chats = BotStatisticsDailyReportClass.get_raw_data(avito_account)
         if statistics is not None and statistics.get("bot_chats_count") > 0 and statistics.get("contacts_count") > 0: # have bot_chats and contacts
             BotStatisticsDailyReportClass.statistics_with_contacts_pdf_sender(avito_account, statistics)
         if statistics is not None and statistics.get("bot_chats_count") > 0 and statistics.get("contacts_count") == 0: # have bot_chats without contacts
-            pass
+            BotStatisticsDailyReportClass.statistics_without_contacts_pdf_sender(avito_account, statistics, bot_chats)
 
     @staticmethod
     def statistics_with_contacts_pdf_sender(avito_account: AvitoAccount, statistics: dict):
         good_statistics_html_content = BotStatisticsDailyReportClass.get_html(statistics)
-        report_name_prefix = "good_statistics"
+        report_name_prefix = "good_stat"
         pdf_path = BotStatisticsDailyReportClass.get_pdf(statistics, good_statistics_html_content, report_name_prefix)
         if pdf_path is not None:
             BotStatisticsDailyReportClass.file_sender_to_tg(pdf_path, avito_account.telegram_id)
 
     @staticmethod
-    def statistics_without_contacts_pdf_sender(avito_account: AvitoAccount, statistics: dict):
+    def statistics_without_contacts_pdf_sender(avito_account: AvitoAccount, statistics: dict, bot_chats: QuerySet[ChatBotTask]):
+        #STATISTICS
         html = BotStatisticsDailyReportClass.get_html(statistics)
         report_name_prefix = f"{avito_account.name}_bad_stat"
         pdf_path = BotStatisticsDailyReportClass.get_pdf(statistics, html, report_name_prefix)
         if pdf_path is not None:
             BotStatisticsDailyReportClass.file_sender_to_tg(pdf_path, AVITOSTATA_TG_ID) # Avitostata.ru - Devmark
+
+        #HISTORY
+        for chat in bot_chats if bot_chats is not None and len(chats) > 0:
+            html = ChatBotSummaryReportClass.get_history_html(summary_html, chat, statistics)
 
 
     @staticmethod
@@ -197,7 +203,6 @@ class BotStatisticsDailyReportClass(PdfReportBaseClass):
             actual_chats = async_to_sync(filter_chats_for_last_period)(chats, period=period)
             actual_chats_with_mes = async_to_sync(get_chats_last_50_messages)(avito_account, actual_chats)
             only_with_text = filter_chats_only_with_text(actual_chats_with_mes)
-            # chats_only_bot_answered = filter_by_bot_answered_chat_ids(only_with_text, unique_bot_chat_ids)
 
             statistics = {
                 "avito_account_id": avito_account.id,  # for pdf file naming
@@ -207,7 +212,7 @@ class BotStatisticsDailyReportClass(PdfReportBaseClass):
                 "contacts_count": contacts,
             }
 
-            return statistics
+            return statistics, bot_chats
 
 
 class ChatBotSummaryReportClass(PdfReportBaseClass):
