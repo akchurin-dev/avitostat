@@ -127,7 +127,7 @@ class BotStatisticsDailyReportClass(PdfReportBaseClass):
     def statistics_sender_main_task():
         avito_accounts = AvitoAccount.objects.all()
         if ENVIRONMENT == "DEVELOPMENT":
-            avito_accounts = AvitoAccount.objects.filter(id=163634833)
+            avito_accounts = AvitoAccount.objects.filter(id=145213826)
         for avito_account in avito_accounts:
             chat_bot_is_active = hasattr(avito_account, "ai_chat_bots") and avito_account.ai_chat_bots.is_active
             if chat_bot_is_active is not None and chat_bot_is_active:
@@ -163,7 +163,7 @@ class BotStatisticsDailyReportClass(PdfReportBaseClass):
             if ENVIRONMENT == "PRODUCTION":
                 last_24_hours = timezone.now() - datetime.timedelta(days=1)
             else:
-                last_24_hours = timezone.now() - datetime.timedelta(days=1)
+                last_24_hours = timezone.now() - datetime.timedelta(days=90)
 
             bot_chats = ChatBotTask.objects.filter(avito_account=avito_account,
                                                    created_at__gte=last_24_hours,
