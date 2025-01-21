@@ -168,7 +168,6 @@ class BotStatisticsDailyReportClass(PdfReportBaseClass):
             bot_chats = ChatBotTask.objects.filter(avito_account=avito_account,
                                                    created_at__gte=last_24_hours,
                                                    tokens_completion__gt=0)
-            stopped_chats = bot_chats.filter(chat_shutdown_by_user=True)
             unique_bot_chat_ids = [chat.get("chat_id", None) for chat in bot_chats.values("chat_id").distinct() if
                                    len(bot_chats) > 0]
             contacts = bot_chats.filter(
