@@ -337,17 +337,17 @@ LOGGING = {
     },
 }
 
-if ENVIRONMENT == "PRODUCTION":
-    import sentry_sdk
-
-    sentry_sdk.init(
-        dsn="https://e82610d2546a1670c12a3558684eaf5d@o4508510440521728.ingest.us.sentry.io/4508510443995136",
-        integrations=[
-            DjangoIntegration(),
-            CeleryIntegration(),
-        ],
-        traces_sample_rate=1.0,
-        _experiments={
-            "continuous_profiling_auto_start": True,
-        },
-    )
+# if ENVIRONMENT == "PRODUCTION":
+#     import sentry_sdk
+#
+#     sentry_sdk.init(
+#         dsn="https://e82610d2546a1670c12a3558684eaf5d@o4508510440521728.ingest.us.sentry.io/4508510443995136",
+#         integrations=[
+#             DjangoIntegration(),
+#             CeleryIntegration(),
+#         ],
+#         traces_sample_rate=1.0,
+#         _experiments={
+#             "continuous_profiling_auto_start": True,
+#         },
+#     )
