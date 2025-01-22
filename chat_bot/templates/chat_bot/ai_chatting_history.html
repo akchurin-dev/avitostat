@@ -422,7 +422,9 @@
         </div>
     </div>
 
-    {{ summary_html }}
+    {% if summary_html %}
+        {{ summary_html }}
+    {% endif %}
 
     <div class="chats">
             <div class="chat">

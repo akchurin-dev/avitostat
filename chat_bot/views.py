@@ -152,11 +152,11 @@ class HistoryReportView(View):
 
 
 @method_decorator(csrf_exempt, name='dispatch')
-class TESTView(View):
+class HistoryReportView(View):
     def get(self, request, *args, **kwargs):
-        avito_account = AvitoAccount.objects.filter(id=145213826).last()
-        messages = MessagingAPISync.get_chat_last_50_messages_by_chat_id(avito_account, chat_id="u2i-9ChDB7rCnofDRqLOlNa9cQ")
-        return JsonResponse({"status": "ok"}, status=200)
+        ChatBotSummaryReportClass.summary_sender_main_task(145213826, "u2i-gxfxKMQzD5QVE6IN1yMSWw")
+        return (JsonResponse({"status": "ok"}, status=200))
+
 
 
 
