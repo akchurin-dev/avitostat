@@ -4,7 +4,7 @@ import datetime
 from base.settings import ENVIRONMENT
 from chat_bot.tasks import BotStatisticsDailyReportClass, ChatBotSummaryReportClass
 import pytz
-from asgiref.sync import sync_to_async
+from asgiref.sync import sync_to_async, async_to_sync
 from celery.result import AsyncResult
 from django.utils.timezone import now
 from django.views.decorators.csrf import csrf_exempt
@@ -95,9 +95,9 @@ class WebhookInboxView(View):
                 if created:
                     if ENVIRONMENT == "PRODUCTION":
                         await asyncio.sleep(self.chat_bot.waiting_minutes * 60)  # WAIT TIME BEFORE ANY ACTIONS
-                    await ai_answer_sender_task.delay(
-                        avito_account.id, user_id, chat_id, self.chat_bot.id, new_task.message_id,
-                    )
+                        ai_answer_sender_task.delay(
+                            avito_account.id, user_id, chat_id, self.chat_bot.id, new_task.message_id,
+                        )
 
             if author_id == user_id and self.chat_bot.is_active and self.chat_bot.shutdown_after_manager:  # Если исходящих
                 task, created = await ChatBotTask.objects.aget_or_create(
