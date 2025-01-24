@@ -14,7 +14,7 @@ class ChatBotTaskAdmin(admin.ModelAdmin):
 
     def get_list_display(self, request):
         # Определяем, какие поля отображать в зависимости от прав пользователя
-        base_display = ['chat_id', 'message_id', 'created_at', 'text', 'answer_text', 'mobile', 'address', 'summary_sanded']
+        base_display = ['chat_shutdown_by_user', 'chat_id', 'message_id', 'created_at', 'text', 'answer_text', 'mobile', 'address', 'summary_sanded']
         if request.user.is_superuser:
             base_display += ['tokens_completion', 'tokens_prompt']
         base_display += ['avito_account', ]
@@ -29,7 +29,7 @@ class ChatBotTaskAdmin(admin.ModelAdmin):
                 output_field=FloatField()
             )
         )
-        return queryset.filter(tokens_completion__gt=0).order_by('-created_at__date','created_at__time', 'chat_id')
+        return queryset.order_by('-created_at__date','created_at__time', 'chat_id')
 
     def tokens_price(self, obj):
         tokens_price = round(obj.tokens_prompt * 0.000125 + obj.tokens_completion * 0.0005, 1)
