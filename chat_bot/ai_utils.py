@@ -13,21 +13,21 @@ client = OpenAI(api_key=settings.OPENAI_SECRET_KEY)
 
 class ChatBotAnswerSchema(BaseModel):
     answer: str
-    city: str | None
-    address: str | None
-    mobile: str | None
-    whatsapp: str | None
-    telegram: str | None
-    email: str | None
+    client_city: str | None
+    client_address: str | None
+    client_mobile: str | None
+    client_whatsapp: str | None
+    client_telegram: str | None
+    client_email: str | None
 
 
 def contacts_data_prepare(data: dict) -> dict | None:
     contacts = {key: value for key, value in {
-        "address": data.address,
-        "mobile": data.mobile,
-        "whatsapp": data.whatsapp,
-        "telegram": data.telegram,
-        "email": data.email,
+        "address": data.client_address,
+        "mobile": data.client_mobile,
+        "whatsapp": data.client_whatsapp,
+        "telegram": data.client_telegram,
+        "email": data.client_email,
     }.items() if value is not None}
     if not contacts:
         result = None
