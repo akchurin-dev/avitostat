@@ -4,9 +4,8 @@ import logging
 from pathlib import Path
 from aiogram import types
 import pdfkit
-from django.db.models.sql import Query
 from jinja2 import Template
-from django.db.models import Q, QuerySet
+from django.db.models import Q
 from django.utils import timezone
 from messaging.api import get_chats, MessagingAPISync
 from messaging.bad_mes_report.utils_bad_messaging_report import chats_timestamp_to_datetime
@@ -120,7 +119,6 @@ class PdfReportBaseClass:
                 except Exception as e:
                     pass
 
-
 class BotStatisticsDailyReportClass(PdfReportBaseClass):
 
     @staticmethod
@@ -162,10 +160,9 @@ class BotStatisticsDailyReportClass(PdfReportBaseClass):
         chats = statistics.get("chats") or None
         if chats:
             for chat in chats:
-                ChatBotSummaryReportClass.history_pdf_sender_task.delay(avito_account_id=avito_account.id,
+                ChatBotSummaryReportClass.history_pdf_sender_task(avito_account_id=avito_account.id,
                                                                           chat=chat,
                                                                           telegram_id=AVITOSTATA_TG_ID)
-
 
 
     @staticmethod
@@ -192,7 +189,7 @@ class BotStatisticsDailyReportClass(PdfReportBaseClass):
                                                        tokens_completion__gt=0)
 
             if chat_bot_tasks.exists():
-                chat_bot_answered_message_ids = list(chat_bot_tasks.values_list("message_id", flat=True).distinct())
+                bot_answered_mes_ids = list(chat_bot_tasks.values_list("message_id", flat=True).distinct())
                 unique_bot_chat_ids = chat_bot_tasks.values_list("chat_id", flat=True).distinct()
 
                 contacts = chat_bot_tasks.filter(
@@ -208,6 +205,7 @@ class BotStatisticsDailyReportClass(PdfReportBaseClass):
                 actual_chats_with_mes = async_to_sync(get_chats_last_50_messages)(avito_account, actual_chats)
                 only_with_text = filter_chats_only_with_text(actual_chats_with_mes)
                 bot_chats_with_messages = filter_by_bot_answered_chat_ids(only_with_text, unique_bot_chat_ids)
+                BotStatisticsDailyReportClass.add_from_bot_flag(bot_chats_with_messages, bot_answered_mes_ids)
 
                 statistics = {
                     "avito_account_id": avito_account.id,  # for pdf file naming
@@ -216,22 +214,25 @@ class BotStatisticsDailyReportClass(PdfReportBaseClass):
                     "bot_chats_count": len(unique_bot_chat_ids),
                     "contacts_count": contacts,
                     "chats": bot_chats_with_messages,
-                    "chat_bot_answered_message_ids": chat_bot_answered_message_ids
+                    "bot_answered_mes_ids": bot_answered_mes_ids
                 }
 
                 return statistics
 
-    #TODO IF NOT USED - YOU CAN DELETE IT !!!
     @staticmethod
-    def statistics_with_contacts_pdf_sender(avito_account: AvitoAccount, statistics: dict):
-        """
-         IF NOT USED - YOU CAN DELETE IT !!!
-        """
-        html = BotStatisticsDailyReportClass.get_html(statistics)
-        report_name_prefix = "good_stat"
-        pdf_path = BotStatisticsDailyReportClass.get_pdf(statistics, html, report_name_prefix)
-        if pdf_path is not None:
-            BotStatisticsDailyReportClass.file_sender_to_tg(pdf_path, avito_account.telegram_id)
+    def add_from_bot_flag(bot_chats_with_messages, bot_answered_mes_ids):
+        for chat in bot_chats_with_messages:
+            set_from_bot_next = False  # Флаг для следующей итерации
+            for message in chat.get("messages", []):
+                if set_from_bot_next:
+                    message["from_bot"] = True
+                    set_from_bot_next = False  # Сбрасываем флаг
+                else:
+                    message["from_bot"] = False
+
+                if message.get("id") in bot_answered_mes_ids:
+                    set_from_bot_next = True  # Активируем флаг для следующей итерации
+        return bot_chats_with_messages
 
 
 class ChatBotSummaryReportClass(PdfReportBaseClass):
@@ -304,7 +305,7 @@ class ChatBotSummaryReportClass(PdfReportBaseClass):
                                client_name=client_name,
                                start_date=date,
                                chat=chat,
-                               summary_html=summary_html)
+                               summary_html=summary_html,)
 
     @staticmethod
     def get_chat_summary_html(chat_summary):
