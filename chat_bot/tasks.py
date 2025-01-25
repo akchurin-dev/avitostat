@@ -141,28 +141,19 @@ class BotStatisticsDailyReportClass(PdfReportBaseClass):
     def statistics_sender_small_task(avito_account_id):
         avito_account = AvitoAccount.objects.get(id=avito_account_id)
         statistics = BotStatisticsDailyReportClass.get_raw_data(avito_account)
-        if statistics is not None and statistics.get("bot_chats_count") > 0 and statistics.get("contacts_count") > 0: # have bot_chats and contacts
-            BotStatisticsDailyReportClass.statistics_with_contacts_pdf_sender(avito_account, statistics)
-        if statistics is not None and statistics.get("bot_chats_count") > 0 and statistics.get("contacts_count") == 0: # have bot_chats without contacts
-            BotStatisticsDailyReportClass.statistics_without_contacts_pdf_sender_task.delay(avito_account.id, statistics)
+        if statistics is not None and statistics.get("bot_chats_count") > 0: #
+            BotStatisticsDailyReportClass.statistics_pdf_sender_task(str(avito_account.id), statistics)
         else:
-            logger.info(f"BotStatisticsDailyReport not have Bot_chats for {avito_account.name}, skipped")
+            logger.info(f"BotStatisticsDailyReportClass not have Bot_chats for {avito_account.name}, skipped")
 
-    @staticmethod
-    def statistics_with_contacts_pdf_sender(avito_account: AvitoAccount, statistics: dict):
-        html = BotStatisticsDailyReportClass.get_html(statistics)
-        report_name_prefix = "good_stat"
-        pdf_path = BotStatisticsDailyReportClass.get_pdf(statistics, html, report_name_prefix)
-        if pdf_path is not None:
-            BotStatisticsDailyReportClass.file_sender_to_tg(pdf_path, avito_account.telegram_id)
 
     @staticmethod
     @shared_task
-    def statistics_without_contacts_pdf_sender_task(avito_account_id: str, statistics: dict):
+    def statistics_pdf_sender_task(avito_account_id: str, statistics: dict):
         #STATISTICS
         avito_account = AvitoAccount.objects.filter(id=avito_account_id).last()
         html = BotStatisticsDailyReportClass.get_html(statistics)
-        report_name_prefix = f"{avito_account.name}_bad_stat"
+        report_name_prefix = f"stat_{avito_account.name}"
         pdf_path = BotStatisticsDailyReportClass.get_pdf(statistics, html, report_name_prefix)
         if pdf_path is not None:
             BotStatisticsDailyReportClass.file_sender_to_tg(pdf_path, AVITOSTATA_TG_ID)
@@ -172,8 +163,8 @@ class BotStatisticsDailyReportClass(PdfReportBaseClass):
         if chats:
             for chat in chats:
                 ChatBotSummaryReportClass.history_pdf_sender_task.delay(avito_account_id=avito_account.id,
-                                                                  chat=chat,
-                                                                  telegram_id=AVITOSTATA_TG_ID)
+                                                                          chat=chat,
+                                                                          telegram_id=AVITOSTATA_TG_ID)
 
 
 
@@ -201,7 +192,7 @@ class BotStatisticsDailyReportClass(PdfReportBaseClass):
                                                        tokens_completion__gt=0)
 
             if chat_bot_tasks.exists():
-                chat_bot_answered_message_ids = chat_bot_tasks.values_list("message_id", flat=True).distinct()
+                chat_bot_answered_message_ids = list(chat_bot_tasks.values_list("message_id", flat=True).distinct())
                 unique_bot_chat_ids = chat_bot_tasks.values_list("chat_id", flat=True).distinct()
 
                 contacts = chat_bot_tasks.filter(
@@ -225,9 +216,22 @@ class BotStatisticsDailyReportClass(PdfReportBaseClass):
                     "bot_chats_count": len(unique_bot_chat_ids),
                     "contacts_count": contacts,
                     "chats": bot_chats_with_messages,
+                    "chat_bot_answered_message_ids": chat_bot_answered_message_ids
                 }
 
                 return statistics
+
+    #TODO IF NOT USED - YOU CAN DELETE IT !!!
+    @staticmethod
+    def statistics_with_contacts_pdf_sender(avito_account: AvitoAccount, statistics: dict):
+        """
+         IF NOT USED - YOU CAN DELETE IT !!!
+        """
+        html = BotStatisticsDailyReportClass.get_html(statistics)
+        report_name_prefix = "good_stat"
+        pdf_path = BotStatisticsDailyReportClass.get_pdf(statistics, html, report_name_prefix)
+        if pdf_path is not None:
+            BotStatisticsDailyReportClass.file_sender_to_tg(pdf_path, avito_account.telegram_id)
 
 
 class ChatBotSummaryReportClass(PdfReportBaseClass):
