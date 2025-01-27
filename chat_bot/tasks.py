@@ -219,20 +219,6 @@ class BotStatisticsDailyReportClass(PdfReportBaseClass):
 
                 return statistics
 
-    @staticmethod
-    def add_from_bot_flag(bot_chats_with_messages, bot_answered_mes_ids):
-        for chat in bot_chats_with_messages:
-            set_from_bot_next = False  # Флаг для следующей итерации
-            for message in chat.get("messages", []):
-                if set_from_bot_next:
-                    message["from_bot"] = True
-                    set_from_bot_next = False  # Сбрасываем флаг
-                else:
-                    message["from_bot"] = False
-
-                if message.get("id") in bot_answered_mes_ids:
-                    set_from_bot_next = True  # Активируем флаг для следующей итерации
-        return bot_chats_with_messages
 
 
 class ChatBotSummaryReportClass(PdfReportBaseClass):
@@ -331,6 +317,22 @@ class ChatBotSummaryReportClass(PdfReportBaseClass):
                 text += f"🔹 {counter}. {value} \n"
             counter += 1
         return text
+
+
+    @staticmethod
+    def add_from_bot_flag(bot_chats_with_messages, bot_answered_mes_ids):
+        for chat in bot_chats_with_messages:
+            set_from_bot_next = False  # Флаг для следующей итерации
+            for message in chat.get("messages", []):
+                if set_from_bot_next:
+                    message["from_bot"] = True
+                    set_from_bot_next = False  # Сбрасываем флаг
+                else:
+                    message["from_bot"] = False
+
+                if message.get("id") in bot_answered_mes_ids:
+                    set_from_bot_next = True  # Активируем флаг для следующей итерации
+        return bot_chats_with_messages
 
 
 
