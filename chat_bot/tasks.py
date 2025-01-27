@@ -160,9 +160,7 @@ class BotStatisticsDailyReportClass(PdfReportBaseClass):
         chats = statistics.get("chats") or None
         if chats:
             for chat in chats:
-                ChatHistoryReportClass.history_pdf_sender_main_task.delay(avito_account_id=avito_account.id,
-                                                                          chat=chat,
-                                                                          telegram_id=avito_account.telegram_id)
+                ChatHistoryReportClass.history_pdf_sender_main_task.delay(avito_account_id=avito_account.id, chat=chat)
 
     @staticmethod
     def get_html(statistics):
