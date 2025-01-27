@@ -229,7 +229,7 @@ if ENVIRONMENT == 'PRODUCTION':
 
         'chat_bot_daily_report_task': {
             'task': 'chat_bot.tasks.statistics_sender_main_task',
-            'schedule': crontab(hour=7, minute=50),  # Ежедневно в 11:00 утра
+            'schedule': crontab(hour=22, minute=20),  # Ежедневно в 11:00 утра
         },
     }
 else:
