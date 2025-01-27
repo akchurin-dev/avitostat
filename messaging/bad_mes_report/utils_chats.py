@@ -9,7 +9,8 @@ from avito_account.models.excluded_items import ExcludedItem
 from avito_account.models.models import AvitoAccount, WorkSchedule
 from messaging.api import get_chats, get_chats_last_50_messages
 import datetime
-
+import logging
+logger = logging.getLogger(__name__)
 
 async def filter_chats_for_last_period(chats: list, period: str = "week") -> list:
     filtered_chats = []
@@ -31,7 +32,8 @@ async def filter_chats_for_last_period(chats: list, period: str = "week") -> lis
             if period == "month":
                 if 30 >= timedelta.days >= 0:
                     filtered_chats.append(chat)
-        print(f"{len(filtered_chats)} chats loaded")
+
+        logger.warning(f"{len(filtered_chats)} chats loaded")
         return filtered_chats
 
 

@@ -147,16 +147,10 @@ class StatisticsDailyReportView(View):
 @method_decorator(csrf_exempt, name='dispatch')
 class HistoryReportView(View):
     def get(self, request, *args, **kwargs):
-        ChatBotSummaryReportClass.summary_sender_main_task(145213826, "u2i-gxfxKMQzD5QVE6IN1yMSWw")
+        ChatBotSummaryReportClass.summary_sender_main_task.delay(163634833, "u2i-jl7kFERA8KE843KWuc4SyQ")
         return (JsonResponse({"status": "ok"}, status=200))
 
 
-@method_decorator(csrf_exempt, name='dispatch')
-class TESTView(View):
-    def get(self, request, *args, **kwargs):
-        avito_account = AvitoAccount.objects.filter(id=145213826).last()
-        messages = MessagingAPISync.get_chat_last_50_messages_by_chat_id(avito_account, chat_id="u2i-9ChDB7rCnofDRqLOlNa9cQ")
-        return JsonResponse({"status": "ok"}, status=200)
 
 
 

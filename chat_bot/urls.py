@@ -1,6 +1,6 @@
 from django.urls import path
 from chat_bot.views import WebhookInboxView, SubscribeView, StopSubscribeView, CheckSubscribtionsView, \
-    HistoryReportView, StatisticsDailyReportView, TESTView
+    HistoryReportView, StatisticsDailyReportView
 
 urlpatterns = [
     path('webhook_inbox', WebhookInboxView.as_view(), name='webhook_inbox'), # непосредственно в кор логике задествовано
@@ -12,6 +12,4 @@ urlpatterns = [
 
 
 
-    #TESTING ONLY YOU CAN DELETE ALL
-    path('get_single_chat/', TESTView.as_view(), name=''), # применяется для ручного тестирования
 ]

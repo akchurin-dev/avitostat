@@ -16,7 +16,7 @@ class BadMessagingWeekReportAllView(View):
 class BadMessagingWeekReportIndividualView(View):
     async def get(self, request, *args, **kwargs):
         object_id = kwargs.get('object_id')
-        send_report = await bad_messaging_report_by_period(only_for_users=[object_id])
+        send_report = bad_messaging_week_report_async_task.delay(only_for_users=[object_id])
         if send_report is None:
             return JsonResponse(status=404, data={"error": "Ниодного аккаунта по заданным параметрам небыло найдено"})
         else:

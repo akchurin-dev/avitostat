@@ -356,6 +356,12 @@
             font-weight: 700;
             letter-spacing: -.4px;
         }
+        .chat__item-bot {
+            color: mediumspringgreen;
+            font-size: 14px;
+            font-weight: 700;
+            letter-spacing: -.4px;
+        }
         .chat__item-message {
             color: #20232B;
             font-size: 14px;
@@ -422,7 +428,9 @@
         </div>
     </div>
 
-    {{ summary_html }}
+    {% if summary_html %}
+        {{ summary_html }}
+    {% endif %}
 
     <div class="chats">
             <div class="chat">
@@ -449,7 +457,11 @@
                 {% if message.direction == 'out' and message.type == "text" %}
                 <div class="chat__item">
                     <span class="chat__item-time">{{ message.created_time }}</span>
-                    <span class="chat__item-author">Менеджер:</span>
+                    {% if message.from_bot %}
+                        <span class="chat__item-bot">БОТ:</span>
+                    {% else %}
+                        <span class="chat__item-author">Менеджер:</span>
+                    {% endif %}
                     <span class="chat__item-message"> {{ message.content.text }}</span>
                 </div>
                 {% endif %}
