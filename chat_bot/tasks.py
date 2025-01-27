@@ -62,7 +62,7 @@ async def ai_answer_sender(avito_account_id, user_id, chat_id, chat_bot_id, new_
         await read_chat(avito_account, user_id, chat_id)
         ai_answer = ai_answer_assist(chat_bot, chat_with_messages[0].get("messages")[:])
         if ai_answer:
-            message_text = ai_answer.get("answer")
+            message_text = ai_answer.get("answer") + "…"
             await send_message_to_avito(avito_account, user_id, chat_id, message_text)
             await chat_bot_task_dao_save(new_task_id, ai_answer)
             if ai_answer.get("contacts") is not None:
@@ -160,10 +160,9 @@ class BotStatisticsDailyReportClass(PdfReportBaseClass):
         chats = statistics.get("chats") or None
         if chats:
             for chat in chats:
-                ChatBotSummaryReportClass.history_pdf_sender_task(avito_account_id=avito_account.id,
+                ChatHistoryReportClass.history_pdf_sender_main_task.delay(avito_account_id=avito_account.id,
                                                                           chat=chat,
                                                                           telegram_id=AVITOSTATA_TG_ID)
-
 
     @staticmethod
     def get_html(statistics):
@@ -205,7 +204,6 @@ class BotStatisticsDailyReportClass(PdfReportBaseClass):
                 actual_chats_with_mes = async_to_sync(get_chats_last_50_messages)(avito_account, actual_chats)
                 only_with_text = filter_chats_only_with_text(actual_chats_with_mes)
                 bot_chats_with_messages = filter_by_bot_answered_chat_ids(only_with_text, unique_bot_chat_ids)
-                BotStatisticsDailyReportClass.add_from_bot_flag(bot_chats_with_messages, bot_answered_mes_ids)
 
                 statistics = {
                     "avito_account_id": avito_account.id,  # for pdf file naming
@@ -219,6 +217,61 @@ class BotStatisticsDailyReportClass(PdfReportBaseClass):
 
                 return statistics
 
+class ChatHistoryReportClass(PdfReportBaseClass):
+
+    @staticmethod
+    @shared_task
+    def history_pdf_sender_main_task(avito_account_id, chat, summary_html = None, telegram_id = None):
+        """
+            1) sometimes we don't have summary_html
+            2) telegram_id is in avito account | it is AVITOSTATA_TG_ID
+        """
+        # Prepare data
+        ChatHistoryReportClass.add_from_bot_flag(chat)
+        async_to_sync(chats_timestamp_to_datetime)({"chats": [chat]})
+
+        avito_account = AvitoAccount.objects.filter(id=avito_account_id).last()
+        statistics = {"avito_account_name": avito_account.name, "avito_account_id": avito_account.id, }
+        html_content = ChatHistoryReportClass.get_history_html(chat=chat,statistics=statistics,
+                                                               summary_html=summary_html)
+        report_name_prefix = f"history_{avito_account.name}"
+        pdf_path = ChatBotSummaryReportClass.get_pdf(statistics, html_content, report_name_prefix)
+        if pdf_path is not None:
+            telegram_id = telegram_id or avito_account.telegram_id
+            ChatBotSummaryReportClass.file_sender_to_tg(pdf_path, telegram_id)
+
+    @staticmethod
+    def get_history_html(chat, statistics, summary_html = None):
+        """
+         -in summary report we add summary_html and in other reports without it
+        """
+        with open(f"chat_bot/templates/chat_bot/ai_chatting_history.html", "r", encoding="utf-8") as file:
+            clear_template = file.read()
+        template = Template(clear_template)
+        avito_account_name = statistics.get('avito_account_name') if statistics else "Неизвестно"
+        date = (datetime.datetime.now() - datetime.timedelta(days=1)).strftime("%d.%m.%Y")
+        client_name = chat.get("users")[0].get("name")
+        return template.render(avito_account_name=avito_account_name,
+                               client_name=client_name,
+                               start_date=date,
+                               chat=chat,
+                               summary_html=summary_html,)
+
+    @staticmethod
+    def add_from_bot_flag(chat):
+        chat_bot_tasks = ChatBotTask.objects.filter(chat_id=chat.get("id"), tokens_completion__gt=0)
+        bot_answered_mes_ids = list(chat_bot_tasks.values_list("message_id", flat=True).distinct())
+
+        set_from_bot_next = False  # Флаг для следующей итерации
+        for message in chat.get("messages", []):
+            if set_from_bot_next:
+                message["from_bot"] = True
+                set_from_bot_next = False  # Сбрасываем флаг
+            else:
+                message["from_bot"] = False
+            if message.get("id") in bot_answered_mes_ids:
+                set_from_bot_next = True  # Активируем флаг для следующей итерации
+        return chat
 
 
 class ChatBotSummaryReportClass(PdfReportBaseClass):
@@ -243,13 +296,7 @@ class ChatBotSummaryReportClass(PdfReportBaseClass):
             if messages is not None and len(messages) > 0:  # skip who can't have bot chats
                 chat_summary = chat_summary_generator(avito_account, chat_id)
                 if chat_summary is not None:
-                    # TEXT MESSAGE
-                    summary_text = ChatBotSummaryReportClass.get_chat_summary_text(chat_summary)
-                    if summary_text and len(summary_text) > 20: # 20 is random value)
-                        ChatBotSummaryReportClass.text_sender_to_tg(text=summary_text, telegram_id=avito_account.telegram_id)
-                    # PDF FILE
-                    summary_html = ChatBotSummaryReportClass.get_chat_summary_html(chat_summary)
-                    ChatBotSummaryReportClass.history_pdf_sender_task(avito_account.id, chat, summary_html)
+                    ChatBotSummaryReportClass.summary_sender(avito_account, chat_summary, chat)
                     # здесь неважно в какой именно инстанс для данного чата добавить флаг, главное чтобы он появился
                     last_chat_bot_task = all_tasks.last()
                     if last_chat_bot_task is not None:
@@ -257,41 +304,17 @@ class ChatBotSummaryReportClass(PdfReportBaseClass):
                         last_chat_bot_task.summary_sanded = True
                         last_chat_bot_task.save()
 
-    @staticmethod
-    @shared_task
-    def history_pdf_sender_task(avito_account_id, chat, summary_html = None, telegram_id = None ):
-        """
-            1) sometimes we don't have summary_html
-            2) telegram_id is in avito account | it is AVITOSTATA_TG_ID
-        """
-        async_to_sync(chats_timestamp_to_datetime)({"chats": [chat]})
-        avito_account = AvitoAccount.objects.filter(id=avito_account_id).last()
-        statistics = {"avito_account_name": avito_account.name, "avito_account_id": avito_account.id, }
-        html_content = ChatBotSummaryReportClass.get_history_html(chat=chat,
-                                                                  statistics=statistics,
-                                                                  summary_html=summary_html)
-        report_name_prefix = f"history_{avito_account.name}"
-        pdf_path = ChatBotSummaryReportClass.get_pdf(statistics, html_content, report_name_prefix)
-        if pdf_path is not None:
-            telegram_id = telegram_id or avito_account.telegram_id
-            ChatBotSummaryReportClass.file_sender_to_tg(pdf_path, telegram_id)
 
     @staticmethod
-    def get_history_html(chat, statistics, summary_html = None):
-        """
-         -in summary report we add summary_html and in other reports without it
-        """
-        with open(f"chat_bot/templates/chat_bot/ai_chatting_history.html", "r", encoding="utf-8") as file:
-            clear_template = file.read()
-        template = Template(clear_template)
-        avito_account_name = statistics.get('avito_account_name') if statistics else "Неизвестно"
-        date = (datetime.datetime.now() - datetime.timedelta(days=1)).strftime("%d.%m.%Y")
-        client_name = chat.get("users")[0].get("name")
-        return template.render(avito_account_name=avito_account_name,
-                               client_name=client_name,
-                               start_date=date,
-                               chat=chat,
-                               summary_html=summary_html,)
+    def summary_sender(avito_account, chat_summary, chat):
+        # TEXT MESSAGE
+        summary_text = ChatBotSummaryReportClass.get_chat_summary_text(chat_summary)
+        if summary_text and len(summary_text) > 20:  # 20 is random value)
+            ChatBotSummaryReportClass.text_sender_to_tg(text=summary_text, telegram_id=avito_account.telegram_id)
+        # PDF FILE
+        summary_html = ChatBotSummaryReportClass.get_chat_summary_html(chat_summary)
+        ChatHistoryReportClass.history_pdf_sender_main_task.delay(avito_account.id, chat, summary_html)
+
 
     @staticmethod
     def get_chat_summary_html(chat_summary):
@@ -318,21 +341,6 @@ class ChatBotSummaryReportClass(PdfReportBaseClass):
             counter += 1
         return text
 
-
-    @staticmethod
-    def add_from_bot_flag(bot_chats_with_messages, bot_answered_mes_ids):
-        for chat in bot_chats_with_messages:
-            set_from_bot_next = False  # Флаг для следующей итерации
-            for message in chat.get("messages", []):
-                if set_from_bot_next:
-                    message["from_bot"] = True
-                    set_from_bot_next = False  # Сбрасываем флаг
-                else:
-                    message["from_bot"] = False
-
-                if message.get("id") in bot_answered_mes_ids:
-                    set_from_bot_next = True  # Активируем флаг для следующей итерации
-        return bot_chats_with_messages
 
 
 
