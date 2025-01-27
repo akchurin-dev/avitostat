@@ -141,13 +141,13 @@ class CheckSubscribtionsView(View):
 @method_decorator(csrf_exempt, name='dispatch')
 class StatisticsDailyReportView(View):
     def get(self, request, *args, **kwargs):
-        BotStatisticsDailyReportClass.statistics_sender_main_task()
+        BotStatisticsDailyReportClass.statistics_sender_main_task.delay()
         return JsonResponse({"status": "ok"}, status=200)
 
 @method_decorator(csrf_exempt, name='dispatch')
 class HistoryReportView(View):
     def get(self, request, *args, **kwargs):
-        ChatBotSummaryReportClass.summary_sender_main_task(163634833, "u2i-jl7kFERA8KE843KWuc4SyQ")
+        ChatBotSummaryReportClass.summary_sender_main_task.delay(163634833, "u2i-jl7kFERA8KE843KWuc4SyQ")
         return (JsonResponse({"status": "ok"}, status=200))
 
 

@@ -132,7 +132,7 @@ class BotStatisticsDailyReportClass(PdfReportBaseClass):
             if chat_bot_is_active is not None and chat_bot_is_active:
                 if ENVIRONMENT == "DEVELOPMENT":
                     async_to_sync(avito_account.update_refresh_token_async)()
-                BotStatisticsDailyReportClass.statistics_sender_small_task(avito_account.id)
+                BotStatisticsDailyReportClass.statistics_sender_small_task.delay(avito_account.id)
 
     @staticmethod
     @shared_task
@@ -140,7 +140,7 @@ class BotStatisticsDailyReportClass(PdfReportBaseClass):
         avito_account = AvitoAccount.objects.get(id=avito_account_id)
         statistics = BotStatisticsDailyReportClass.get_raw_data(avito_account)
         if statistics is not None and statistics.get("bot_chats_count") > 0: #
-            BotStatisticsDailyReportClass.statistics_pdf_sender_task(str(avito_account.id), statistics)
+            BotStatisticsDailyReportClass.statistics_pdf_sender_task.delay(str(avito_account.id), statistics)
         else:
             logger.info(f"BotStatisticsDailyReportClass not have Bot_chats for {avito_account.name}, skipped")
 
