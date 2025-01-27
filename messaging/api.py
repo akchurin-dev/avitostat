@@ -89,7 +89,7 @@ async def get_chats_last_50_messages(avito_account: AvitoAccount, chats: list) -
                 url = f"https://api.avito.ru/messenger/v3/accounts/{avito_account.id}/chats/{chat_id}/messages/"
                 headers = {'authorization': f"Bearer {avito_account.access_token}"}
                 params = {"limit": 50, "offset": 0}
-                response = await client.get(url, headers=headers, params=params)
+                response = await client.get(url, headers=headers, params=params, timeout=300)
                 if response.status_code == 200:
                     new_messages = response.json().get("messages")
                     if len(new_messages) == 0:
