@@ -31,8 +31,6 @@ LOCALHOST_IP = os.getenv('LOCALHOST_IP')
 TELEGRAM_BOT_TOKEN = os.getenv('TELEGRAM_BOT_TOKEN')
 TELEGRAM_BOT_TOKEN_PROD = os.getenv('TELEGRAM_BOT_TOKEN_PROD')
 
-AVITOSTATA_TG_ID = "-1001956852436"
-
 DB_HOST = os.getenv('DB_HOST')
 DB_PORT = os.getenv('DB_PORT')
 DB_USER = os.getenv('DB_USER')
@@ -231,7 +229,7 @@ if ENVIRONMENT == 'PRODUCTION':
 
         'chat_bot_daily_report_task': {
             'task': 'chat_bot.tasks.statistics_sender_main_task',
-            'schedule': crontab(hour=7, minute=25),  # Ежедневно в 11:00 утра
+            'schedule': crontab(hour=7, minute=35),  # Ежедневно в 11:00 утра
         },
     }
 else:

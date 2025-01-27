@@ -14,7 +14,7 @@ from messaging.bad_mes_report.utils_chats import filter_chats_for_last_period, \
 from asgiref.sync import async_to_sync, sync_to_async
 from telegram_bot import bot
 from avito_account.models.models import AvitoAccount
-from base.settings import ENVIRONMENT, AVITOSTATA_TG_ID
+from base.settings import ENVIRONMENT
 from chat_bot.ai_utils import ai_answer_assist, chat_summary_generator
 from chat_bot.api.core import send_message_to_avito, read_chat
 from chat_bot.models import AiChatBot, ChatBotTask
@@ -154,7 +154,7 @@ class BotStatisticsDailyReportClass(PdfReportBaseClass):
         report_name_prefix = f"stat_{avito_account.name}"
         pdf_path = BotStatisticsDailyReportClass.get_pdf(statistics, html, report_name_prefix)
         if pdf_path is not None:
-            BotStatisticsDailyReportClass.file_sender_to_tg(pdf_path, AVITOSTATA_TG_ID)
+            BotStatisticsDailyReportClass.file_sender_to_tg(pdf_path, avito_account.telegram_id)
 
         #HISTORY
         chats = statistics.get("chats") or None
@@ -162,7 +162,7 @@ class BotStatisticsDailyReportClass(PdfReportBaseClass):
             for chat in chats:
                 ChatHistoryReportClass.history_pdf_sender_main_task.delay(avito_account_id=avito_account.id,
                                                                           chat=chat,
-                                                                          telegram_id=AVITOSTATA_TG_ID)
+                                                                          telegram_id=avito_account.telegram_id)
 
     @staticmethod
     def get_html(statistics):
@@ -221,15 +221,12 @@ class ChatHistoryReportClass(PdfReportBaseClass):
 
     @staticmethod
     @shared_task
-    def history_pdf_sender_main_task(avito_account_id, chat, summary_html = None, telegram_id = None):
+    def history_pdf_sender_main_task(avito_account_id, chat, summary_html = None):
         """
             1) sometimes we don't have summary_html
-            2) telegram_id is in avito account | it is AVITOSTATA_TG_ID
         """
-        # Prepare data
         ChatHistoryReportClass.add_from_bot_flag(chat)
         async_to_sync(chats_timestamp_to_datetime)({"chats": [chat]})
-
         avito_account = AvitoAccount.objects.filter(id=avito_account_id).last()
         statistics = {"avito_account_name": avito_account.name, "avito_account_id": avito_account.id, }
         html_content = ChatHistoryReportClass.get_history_html(chat=chat,statistics=statistics,
@@ -237,8 +234,7 @@ class ChatHistoryReportClass(PdfReportBaseClass):
         report_name_prefix = f"history_{avito_account.name}"
         pdf_path = ChatBotSummaryReportClass.get_pdf(statistics, html_content, report_name_prefix)
         if pdf_path is not None:
-            telegram_id = telegram_id or avito_account.telegram_id
-            ChatBotSummaryReportClass.file_sender_to_tg(pdf_path, telegram_id)
+            ChatBotSummaryReportClass.file_sender_to_tg(pdf_path, avito_account.telegram_id)
 
     @staticmethod
     def get_history_html(chat, statistics, summary_html = None):
