@@ -229,10 +229,10 @@ if ENVIRONMENT == 'PRODUCTION':
             'schedule': crontab(hour=2, minute=0),
         },
 
-        # 'chat_bot_daily_report_task': {
-        #     'task': 'chat_bot.tasks.statistics_sender_main_task',
-        #     'schedule': crontab(hour=6, minute=0),  # Ежедневно в 11:00 утра
-        # },
+        'chat_bot_daily_report_task': {
+            'task': 'chat_bot.tasks.statistics_sender_main_task',
+            'schedule': crontab(hour=6, minute=0),  # Ежедневно в 11:00 утра
+        },
     }
 else:
     CELERY_BEAT_SCHEDULE = {
@@ -339,17 +339,3 @@ LOGGING = {
     },
 }
 
-if ENVIRONMENT == "PRODUCTION":
-    import sentry_sdk
-
-    sentry_sdk.init(
-        dsn="https://e82610d2546a1670c12a3558684eaf5d@o4508510440521728.ingest.us.sentry.io/4508510443995136",
-        integrations=[
-            DjangoIntegration(),
-            CeleryIntegration(),
-        ],
-        traces_sample_rate=1.0,
-        _experiments={
-            "continuous_profiling_auto_start": True,
-        },
-    )
