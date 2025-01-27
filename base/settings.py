@@ -41,7 +41,7 @@ DB_NAME = os.getenv('DB_NAME')
 
 # SECURITY WARNING: don't run with debug turned on in production!
 ALLOWED_HOSTS = [
-    "localhost", "127.0.0.1", "avitostata.ru",
+    "localhost", "127.0.0.1", "www.avitostata.ru", "avitostata.ru", "45.12.238.229",
 
     #Yookassa webhook
     "185.71.76.0/27", "185.71.77.0/27", "77.75.153.0/25", "77.75.156.11",
@@ -299,43 +299,57 @@ JET_THEMES = [
     }
 ]
 
-LOGGING = {
-    'version': 1,
-    'disable_existing_loggers': False,
-    'formatters': {
-        'verbose': {
-            'format': '{levelname} {asctime} {module} {message}',
-            'style': '{',
-        },
-    },
-    'handlers': {
-        'console': {
-            'level': 'DEBUG',
-            'class': 'logging.StreamHandler',
-            'formatter': 'verbose',
-        },
-    },
-    'loggers': {
-        'django': {
-            'handlers': ['console'],
-            'level': 'INFO',
-            'propagate': True,
-        },
-        'django.server': {
-            'handlers': ['console'],
-            'level': 'INFO',
-            'propagate': False,
-        },
-        'django.request': {
-            'handlers': ['console'],
-            'level': 'INFO',
-            'propagate': False,
-        },
-        'django.db.backends': {
-            'handlers': ['console'],
-            'level': 'ERROR',  # Установите INFO или DEBUG для вывода SQL-запросов
-            'propagate': False,
-        },
-    },
-}
+# LOGGING = {
+#     'version': 1,
+#     'disable_existing_loggers': False,
+#     'formatters': {
+#         'verbose': {
+#             'format': '{levelname} {asctime} {module} {message}',
+#             'style': '{',
+#         },
+#     },
+#     'handlers': {
+#         'console': {
+#             'level': 'DEBUG',
+#             'class': 'logging.StreamHandler',
+#             'formatter': 'verbose',
+#         },
+#     },
+#     'loggers': {
+#         'django': {
+#             'handlers': ['console'],
+#             'level': 'INFO',
+#             'propagate': True,
+#         },
+#         'django.server': {
+#             'handlers': ['console'],
+#             'level': 'INFO',
+#             'propagate': False,
+#         },
+#         'django.request': {
+#             'handlers': ['console'],
+#             'level': 'INFO',
+#             'propagate': False,
+#         },
+#         'django.db.backends': {
+#             'handlers': ['console'],
+#             'level': 'ERROR',  # Установите INFO или DEBUG для вывода SQL-запросов
+#             'propagate': False,
+#         },
+#     },
+# }
 
+# if ENVIRONMENT == "PRODUCTION":
+#     import sentry_sdk
+#
+#     sentry_sdk.init(
+#         dsn="https://e82610d2546a1670c12a3558684eaf5d@o4508510440521728.ingest.us.sentry.io/4508510443995136",
+#         integrations=[
+#             DjangoIntegration(),
+#             CeleryIntegration(),
+#         ],
+#         traces_sample_rate=1.0,
+#         _experiments={
+#             "continuous_profiling_auto_start": True,
+#         },
+#     )
