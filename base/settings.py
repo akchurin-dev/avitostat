@@ -40,6 +40,7 @@ DB_NAME = os.getenv('DB_NAME')
 # SECURITY WARNING: don't run with debug turned on in production!
 ALLOWED_HOSTS = [
     "localhost", "127.0.0.1", "www.avitostata.ru", "avitostata.ru", "45.12.238.229",
+    "83.222.22.12",
 
     #Yookassa webhook
     "185.71.76.0/27", "185.71.77.0/27", "77.75.153.0/25", "77.75.156.11",
