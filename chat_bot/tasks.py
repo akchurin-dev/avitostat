@@ -126,7 +126,7 @@ class BotStatisticsDailyReportClass(PdfReportBaseClass):
     def statistics_sender_main_task():
         avito_accounts = AvitoAccount.objects.all()
         if ENVIRONMENT == "DEVELOPMENT":
-            avito_accounts = AvitoAccount.objects.filter(id=163634833)
+            avito_accounts = AvitoAccount.objects.filter(id=365995534)
         for avito_account in avito_accounts:
             chat_bot_is_active = hasattr(avito_account, "ai_chat_bots") and avito_account.ai_chat_bots.is_active
             if chat_bot_is_active is not None and chat_bot_is_active:
