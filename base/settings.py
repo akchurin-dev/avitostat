@@ -339,10 +339,25 @@ JET_THEMES = [
 #     },
 # }
 
+# if ENVIRONMENT == "PRODUCTION":
+#     ROLLBAR = {
+#         'access_token': '06396e526449412989870a8288788895',
+#         'environment': 'development' if DEBUG else 'production',
+#         'code_version': '1.0',
+#         'root': BASE_DIR,
+#     }
+
 if ENVIRONMENT == "PRODUCTION":
-    ROLLBAR = {
-        'access_token': '06396e526449412989870a8288788895',
-        'environment': 'development' if DEBUG else 'production',
-        'code_version': '1.0',
-        'root': BASE_DIR,
-    }
+    import sentry_sdk
+
+    sentry_sdk.init(
+        dsn="https://6fdceed32f06059808466aeb9a7b1e99@o4507288745148416.ingest.us.sentry.io/4508728257871872",
+        integrations=[
+            DjangoIntegration(),
+            CeleryIntegration(),
+        ],
+        traces_sample_rate=1.0,
+        _experiments={
+            "continuous_profiling_auto_start": True,
+        },
+    )
