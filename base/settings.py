@@ -84,6 +84,7 @@ MIDDLEWARE = [
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
     'payments.middleware.UserProfileMiddleware',
+    'rollbar.contrib.django.middleware.RollbarNotifierMiddleware',
 ]
 
 ROOT_URLCONF = 'base.urls'
@@ -339,13 +340,9 @@ JET_THEMES = [
 # }
 
 if ENVIRONMENT == "PRODUCTION":
-    import sentry_sdk
-
-    sentry_sdk.init(
-        dsn="https://79765d0a13b44dd08da4853b700b9949@app.glitchtip.com/10032",
-        integrations=[
-            DjangoIntegration(),
-            CeleryIntegration(),
-        ],
-        traces_sample_rate=1.0,
-    )
+    ROLLBAR = {
+        'access_token': '06396e526449412989870a8288788895',
+        'environment': 'development' if DEBUG else 'production',
+        'code_version': '1.0',
+        'root': BASE_DIR,
+    }
