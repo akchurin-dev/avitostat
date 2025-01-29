@@ -6,7 +6,7 @@ from deep_tests.views import BadMessagingWeekReportTestView, TelegramSenderTestV
     BadMessagingWeekReportAllTestView
 
 @shared_task
-def trigger_error(request):
+def trigger_error():
     division_by_zero = 1 / 0
 
 urlpatterns = [
