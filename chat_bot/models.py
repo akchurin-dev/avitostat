@@ -74,6 +74,9 @@ class ChatBotTask(models.Model):
     email = models.TextField(blank=True, null=True, default=None, verbose_name="Емайл")
 
     summary_sanded = models.BooleanField(default=False, verbose_name="Сводка была отправлена")
+    # REPORTS
+    statistics_daily_report = models.BooleanField(default=False, verbose_name="Ежедневная статистика")
+    history_for_statistics = models.BooleanField(default=False, verbose_name="История для статистики")
 
     class Meta:
         verbose_name = "Ответ чат бота"
