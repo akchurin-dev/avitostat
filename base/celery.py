@@ -1,6 +1,4 @@
 import os
-from celery import Celery
-
 import logging
 from celery import Celery
 from celery.signals import task_failure
@@ -23,7 +21,7 @@ celery_app.autodiscover_tasks()
 
 
 #ROLLBAR SETTINGS
-if bool(os.environ.get('CELERY_WORKER_RUNNING', False)):
+if os.environ.get('CELERY_WORKER_RUNNING') == '1':
     from django.conf import settings
     import rollbar
     rollbar.init(**settings.ROLLBAR)
