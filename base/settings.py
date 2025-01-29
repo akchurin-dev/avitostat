@@ -348,7 +348,4 @@ if ENVIRONMENT == "PRODUCTION":
             CeleryIntegration(),
         ],
         traces_sample_rate=1.0,
-        _experiments={
-            "continuous_profiling_auto_start": True,
-        },
     )
