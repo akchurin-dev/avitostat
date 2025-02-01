@@ -2,6 +2,8 @@ import asyncio
 import datetime
 import logging
 from pathlib import Path
+from pprint import pprint
+
 from aiogram import types
 import pdfkit
 from jinja2 import Template
@@ -142,7 +144,7 @@ class BotStatisticsDailyReportClass(PdfReportBaseClass):
         avito_account = AvitoAccount.objects.get(id=avito_account_id)
         statistics = BotStatisticsDailyReportClass.get_raw_data(avito_account)
         if statistics is not None and statistics.get("bot_chats_count") > 0: #
-            BotStatisticsDailyReportClass.statistics_pdf_sender_task.delay(str(avito_account.id), statistics)
+            BotStatisticsDailyReportClass.statistics_txt_sender_task.delay(str(avito_account.id), statistics)
         else:
             logger.info(f"BotStatisticsDailyReportClass not have Bot_chats for {avito_account.name}, skipped")
 
@@ -172,6 +174,28 @@ class BotStatisticsDailyReportClass(PdfReportBaseClass):
         avito_account_name = statistics.get('avito_account_name') if statistics else "Неизвестно"
         date = (datetime.datetime.now() - datetime.timedelta(days=1)).strftime("%d.%m.%Y")
         return template.render(avito_account_name=avito_account_name,start_date=date, statistics=statistics)
+
+    @staticmethod
+    @shared_task
+    def statistics_txt_sender_task(avito_account_id: str, statistics: dict):
+        #STATISTICS
+        avito_account = AvitoAccount.objects.filter(id=avito_account_id).last()
+        tomorrow = (datetime.datetime.now().date()-datetime.timedelta(days=1)).strftime("%d.%m.%Y")
+
+        text = (
+            f"📈 <b>Статистика переписок бота за {tomorrow}</b> 📅\n\n"
+            f"👤 <b>Ваш Аккаунт:</b> <code> {statistics.get("avito_account_name")}</code>\n"
+            f"💬 <b>Всего чатов:</b> <code> {statistics.get("total_chats_count")}</code>\n"
+            f"🤖 <b>Чатов с ботом:</b> <code> {statistics.get("bot_chats_count")}</code>\n"
+            f"🎉 <b>Получено контактов:</b> <code> {statistics.get("contacts_count")}</code>\n\n"
+        )
+        BotStatisticsDailyReportClass.text_sender_to_tg(text, avito_account.telegram_id)
+
+        #HISTORY
+        chats = statistics.get("chats") or None
+        if chats:
+            for chat in chats:
+                ChatHistoryReportClass.history_pdf_sender_main_task.delay(avito_account_id=avito_account.id, chat=chat)
 
     @staticmethod
     def get_raw_data(avito_account, period="day"):
