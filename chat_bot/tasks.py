@@ -52,7 +52,7 @@ def ai_answer_sender_task(avito_account_id, chat_id, chat_bot_id, new_task_id, i
 # TODO  Можно контроль наличия тасок сделать через РЕДИС попробовать чтобы меньше обращений к БД было
 # TODO  хранить chat_id:message_id1, message_id2...
 
-async def ai_answer_sender(avito_account_id, chat_id, chat_bot_id, new_task_id, item_id):
+async def ai_answer_sender(avito_account_id, chat_id, chat_bot_id, new_task_id):
     avito_account = await AvitoAccount.objects.aget(pk=avito_account_id)
     chat_bot = await AiChatBot.objects.aget(pk=chat_bot_id)
     chat_with_messages = await get_chats_last_50_messages(avito_account, chats=[{"id": chat_id}])
