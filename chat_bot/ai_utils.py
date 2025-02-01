@@ -13,6 +13,7 @@ client = OpenAI(api_key=settings.OPENAI_SECRET_KEY)
 
 class ChatBotAnswerSchema(BaseModel):
     answer: str
+    client_city: str | None
     client_address: str | None
     client_mobile: str | None
     client_whatsapp: str | None
@@ -83,6 +84,7 @@ class ChatSummarySchema(BaseModel):
     paragraph1: str | None
     paragraph2: str | None
     paragraph3: str | None
+    paragraph4: str | None
 
 
 def chat_summary_data_prepare(data: dict) -> dict | None:
@@ -90,6 +92,7 @@ def chat_summary_data_prepare(data: dict) -> dict | None:
         "paragraph1": data.paragraph1,
         "paragraph2": data.paragraph2,
         "paragraph3": data.paragraph3,
+        "paragraph4": data.paragraph4,
 
     }.items() if value is not None}
     if not parahraphs:
@@ -99,15 +102,16 @@ def chat_summary_data_prepare(data: dict) -> dict | None:
     return result
 
 
-def chat_summary_ai_generator(avito_account: AvitoAccount, chat_id: str):
+def chat_summary_generator(avito_account: AvitoAccount, chat_id: str):
     result = {}
     chat_with_messages = async_to_sync(get_chats_last_50_messages)(avito_account, chats=[{"id": chat_id}])
 
     prompt = (f"""Твоя задача - проанализировать переписку чата
         И сгенерировать сводку по чату которая должна содержать пункты:
-            1) Суть обращения.
-            2) Полный адрес для выезда при наличии(указывать ПОСЛЕДНИЙ УПОМЯНУТЫЙ В ПЕРЕПИСКЕ).
-            3) Контакты клиента и назначенное время при наличии.
+            1) Город обращения.
+            2) Суть обращения.
+            3) Полный адрес для выезда при наличии(указывать ПОСЛЕДНИЙ УПОМЯНУТЫЙ В ПЕРЕПИСКЕ).
+            4) Контакты клиента и назначенное время при наличии.
          - какждый пункт расписать кратко, не более 200 символов каждый.
          
          ВАЖНО - нумеровать пункты пожалуйста ненадо.
