@@ -7,6 +7,8 @@ import pdfkit
 from jinja2 import Template
 from django.db.models import Q
 from django.utils import timezone
+
+from avito_account.api.items import ItemsApiSync
 from messaging.api import get_chats, MessagingAPISync
 from messaging.bad_mes_report.utils_bad_messaging_report import chats_timestamp_to_datetime
 from messaging.bad_mes_report.utils_chats import filter_chats_for_last_period, \
@@ -15,7 +17,7 @@ from asgiref.sync import async_to_sync, sync_to_async
 from telegram_bot import bot
 from avito_account.models.models import AvitoAccount
 from base.settings import ENVIRONMENT
-from chat_bot.ai_utils import ai_answer_assist, chat_summary_generator
+from chat_bot.ai_utils import ai_answer_assist, chat_summary_ai_generator
 from chat_bot.api.core import send_message_to_avito, read_chat
 from chat_bot.models import AiChatBot, ChatBotTask
 from messaging.api import get_chats_last_50_messages
@@ -43,14 +45,14 @@ async def chat_bot_task_dao_save(new_task_id: str, ai_answer: dict):
 
 
 @shared_task
-def ai_answer_sender_task(avito_account_id, user_id, chat_id, chat_bot_id, new_task_id):
-    async_to_sync(ai_answer_sender)(avito_account_id, user_id, chat_id, chat_bot_id, new_task_id)
+def ai_answer_sender_task(avito_account_id, chat_id, chat_bot_id, new_task_id, item_id):
+    async_to_sync(ai_answer_sender)(avito_account_id, chat_id, chat_bot_id, new_task_id, item_id)
 
 
 # TODO  Можно контроль наличия тасок сделать через РЕДИС попробовать чтобы меньше обращений к БД было
 # TODO  хранить chat_id:message_id1, message_id2...
 
-async def ai_answer_sender(avito_account_id, user_id, chat_id, chat_bot_id, new_task_id):
+async def ai_answer_sender(avito_account_id, chat_id, chat_bot_id, new_task_id, item_id):
     avito_account = await AvitoAccount.objects.aget(pk=avito_account_id)
     chat_bot = await AiChatBot.objects.aget(pk=chat_bot_id)
     chat_with_messages = await get_chats_last_50_messages(avito_account, chats=[{"id": chat_id}])
@@ -59,16 +61,16 @@ async def ai_answer_sender(avito_account_id, user_id, chat_id, chat_bot_id, new_
     if actual_message.get("type") == "system":  # тк при номере последним становится уже сообщение с предупреждением
         actual_message = chat_with_messages[0].get("messages")[-2]
     if actual_message.get("direction") == "in" and actual_message.get("type") == "text":
-        await read_chat(avito_account, user_id, chat_id)
+        await read_chat(avito_account, avito_account.id, chat_id)
         ai_answer = ai_answer_assist(chat_bot, chat_with_messages[0].get("messages")[:])
         if ai_answer:
             message_text = ai_answer.get("answer") + "…"
-            await send_message_to_avito(avito_account, user_id, chat_id, message_text)
+            await send_message_to_avito(avito_account, avito_account.id, chat_id, message_text)
             await chat_bot_task_dao_save(new_task_id, ai_answer)
             if ai_answer.get("contacts") is not None:
                 if ENVIRONMENT == "PRODUCTION":
                     await asyncio.sleep(300)
-                await sync_to_async(ChatBotSummaryReportClass.summary_sender_main_task.delay)(avito_account_id, chat_id)
+                await sync_to_async(ChatBotSummaryReportClass.summary_sender_main_task)(avito_account_id, chat_id)
 
 
 
@@ -279,16 +281,17 @@ class ChatBotSummaryReportClass(PdfReportBaseClass):
     @shared_task
     def summary_sender_main_task(avito_account_id, chat_id):
         all_tasks = ChatBotTask.objects.filter(chat_id=chat_id)
-        if all_tasks.filter(summary_sanded=True).exists():
-            logger.info(f"Summary report already sent for chat_id {chat_id}.")
-            return
+        if ENVIRONMENT == "PRODUCTION":
+            if all_tasks.filter(summary_sanded=True).exists():
+                logger.info(f"Summary report already sent for chat_id {chat_id}.")
+                return
         else:
             avito_account = AvitoAccount.objects.filter(id=avito_account_id).last()
             chat = MessagingAPISync.get_chat_by_id(avito_account, chat_id)
             messages = MessagingAPISync.get_chat_last_50_messages_by_chat_id(avito_account, chat_id)
             chat["messages"] = messages
             if messages is not None and len(messages) > 0:  # skip who can't have bot chats
-                chat_summary = chat_summary_generator(avito_account, chat_id)
+                chat_summary = chat_summary_ai_generator(avito_account, chat_id)
                 if chat_summary is not None:
                     ChatBotSummaryReportClass.summary_sender(avito_account, chat_summary, chat)
                     # здесь неважно в какой именно инстанс для данного чата добавить флаг, главное чтобы он появился
@@ -302,18 +305,23 @@ class ChatBotSummaryReportClass(PdfReportBaseClass):
     @staticmethod
     def summary_sender(avito_account, chat_summary, chat):
         # TEXT MESSAGE
-        summary_text = ChatBotSummaryReportClass.get_chat_summary_text(chat_summary)
+        summary_text = ChatBotSummaryReportClass.get_chat_summary_text(chat_summary, chat)
         if summary_text and len(summary_text) > 20:  # 20 is random value)
             ChatBotSummaryReportClass.text_sender_to_tg(text=summary_text, telegram_id=avito_account.telegram_id)
         # PDF FILE
-        summary_html = ChatBotSummaryReportClass.get_chat_summary_html(chat_summary)
+        summary_html = ChatBotSummaryReportClass.get_chat_summary_html(chat_summary, chat)
         ChatHistoryReportClass.history_pdf_sender_main_task.delay(avito_account.id, chat, summary_html)
 
 
     @staticmethod
-    def get_chat_summary_html(chat_summary):
+    def get_chat_summary_html(chat_summary, chat):
         counter = 1
         text = "<div style='font-family: Arial, sans-serif;'><b>Сводка по переписке:</b><br><br>"
+
+        city_name_from_item = chat.get("context").get("value").get("location").get("title") or None
+        if city_name_from_item:
+            text += f"<p style='margin-left: 20px;'><b>{counter}. <u>Город {city_name_from_item}</u></b></p>"
+            counter += 1
 
         for key, value in chat_summary.get("paragraphs").items():
             text += f"<p style='margin-left: 20px;'>{counter}. {value}</p>"
@@ -322,16 +330,19 @@ class ChatBotSummaryReportClass(PdfReportBaseClass):
         return text
 
     @staticmethod
-    def get_chat_summary_text(chat_summary):
+    def get_chat_summary_text(chat_summary, chat):
         counter = 1
         text = ("🎉 <b>Новый клиент из AVITO 🎉 \n\n</b> "
                 "   📋 Сводка по переписке:\n\n")
 
+        city_name_from_item = chat.get("context").get("value").get("location").get("title") or None
+
+        if city_name_from_item:
+            text += f"🔸 {counter}. <u><b>Город {city_name_from_item}</b></u> \n"
+            counter += 1
+
         for key, value in chat_summary.get("paragraphs").items():
-            if "город" in value.lower():
-                text += f"🔸 {counter}. <u><b>{value}</b></u> \n"
-            else:
-                text += f"🔹 {counter}. {value} \n"
+            text += f"🔹 {counter}. {value} \n"
             counter += 1
         return text
 
