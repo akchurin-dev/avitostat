@@ -70,7 +70,7 @@ async def ai_answer_sender(avito_account_id, chat_id, chat_bot_id, new_task_id):
             if ai_answer.get("contacts") is not None:
                 if ENVIRONMENT == "PRODUCTION":
                     await asyncio.sleep(300)
-                await sync_to_async(ChatBotSummaryReportClass.summary_sender_main_task)(avito_account_id, chat_id)
+                await sync_to_async(ChatBotSummaryReportClass.summary_sender_main_task.delay)(avito_account_id, chat_id)
 
 
 
