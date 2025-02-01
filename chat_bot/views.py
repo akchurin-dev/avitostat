@@ -95,9 +95,9 @@ class WebhookInboxView(View):
                 if created:
                     if ENVIRONMENT == "PRODUCTION":
                         await asyncio.sleep(self.chat_bot.waiting_minutes * 60)  # WAIT TIME BEFORE ANY ACTIONS
-                        ai_answer_sender_task.delay(
-                            avito_account.id, chat_id, self.chat_bot.id, new_task.message_id,
-                        )
+                    ai_answer_sender_task.delay(
+                        avito_account.id, chat_id, self.chat_bot.id, new_task.message_id,
+                    )
 
             if author_id == user_id and self.chat_bot.is_active and self.chat_bot.shutdown_after_manager:  # Если исходящих
                 task, created = await ChatBotTask.objects.aget_or_create(

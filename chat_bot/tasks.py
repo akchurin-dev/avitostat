@@ -45,8 +45,8 @@ async def chat_bot_task_dao_save(new_task_id: str, ai_answer: dict):
 
 
 @shared_task
-def ai_answer_sender_task(avito_account_id, chat_id, chat_bot_id, new_task_id, item_id):
-    async_to_sync(ai_answer_sender)(avito_account_id, chat_id, chat_bot_id, new_task_id, item_id)
+def ai_answer_sender_task(avito_account_id, chat_id, chat_bot_id, new_task_id):
+    async_to_sync(ai_answer_sender)(avito_account_id, chat_id, chat_bot_id, new_task_id)
 
 
 # TODO  Можно контроль наличия тасок сделать через РЕДИС попробовать чтобы меньше обращений к БД было
@@ -318,9 +318,15 @@ class ChatBotSummaryReportClass(PdfReportBaseClass):
         counter = 1
         text = "<div style='font-family: Arial, sans-serif;'><b>Сводка по переписке:</b><br><br>"
 
+        title = chat.get("context").get("value").get("title")
         city_name_from_item = chat.get("context").get("value").get("location").get("title") or None
+
+        if title:
+            text += f"<p style='margin-left: 20px;'>{counter}. Название объявления: {title}</p>"
+            counter += 1
+
         if city_name_from_item:
-            text += f"<p style='margin-left: 20px;'><b>{counter}. <u>Город {city_name_from_item}</u></b></p>"
+            text += f"<p style='margin-left: 20px;'><b>{counter}. <u>Город обращения: {city_name_from_item}</u></b></p>"
             counter += 1
 
         for key, value in chat_summary.get("paragraphs").items():
@@ -335,10 +341,15 @@ class ChatBotSummaryReportClass(PdfReportBaseClass):
         text = ("🎉 <b>Новый клиент из AVITO 🎉 \n\n</b> "
                 "   📋 Сводка по переписке:\n\n")
 
+        title = chat.get("context").get("value").get("title")
         city_name_from_item = chat.get("context").get("value").get("location").get("title") or None
 
+        if title:
+            text += f"🔹 {counter}. Название объявления: {title}\n"
+            counter += 1
+
         if city_name_from_item:
-            text += f"🔸 {counter}. <u><b>Город {city_name_from_item}</b></u> \n"
+            text += f"🔸 {counter}. <u><b>Город обращения: {city_name_from_item}</b></u> \n"
             counter += 1
 
         for key, value in chat_summary.get("paragraphs").items():
