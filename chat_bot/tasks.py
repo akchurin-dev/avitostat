@@ -181,13 +181,17 @@ class BotStatisticsDailyReportClass(PdfReportBaseClass):
         #STATISTICS
         avito_account = AvitoAccount.objects.filter(id=avito_account_id).last()
         tomorrow = (datetime.datetime.now().date()-datetime.timedelta(days=1)).strftime("%d.%m.%Y")
+        avito_account_name = statistics.get("avito_account_name")
+        total_chats_count = statistics.get("total_chats_count")
+        bot_chats_count = statistics.get("bot_chats_count")
+        contacts_count = statistics.get("contacts_count")
 
         text = (
             f"📈 <b>Статистика переписок бота за {tomorrow}</b> 📅\n\n"
-            f"👤 <b>Ваш Аккаунт:</b> {statistics.get("avito_account_name")}\n"
-            f"💬 <b>Всего чатов:</b> {statistics.get("total_chats_count")}\n"
-            f"🤖 <b>Чатов с ботом:</b> {statistics.get("bot_chats_count")}\n"
-            f"🎉 <b>Получено контактов:</b> {statistics.get("contacts_count")}\n\n"
+            f"👤 <b>Ваш Аккаунт:</b> {avito_account_name}</code>\n"
+            f"💬 <b>Всего чатов:</b> {total_chats_count}</code>\n"
+            f"🤖 <b>Чатов с ботом:</b> {bot_chats_count}</code>\n"
+            f"🎉 <b>Получено контактов:</b> {contacts_count}</code>\n\n"
         )
         BotStatisticsDailyReportClass.text_sender_to_tg(text, avito_account.telegram_id)
 
