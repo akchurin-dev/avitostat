@@ -76,7 +76,7 @@ async def ai_answer_sender(avito_account_id, chat_id, chat_bot_id, new_task_id):
                 logger.info(f"ai_answer_sender 2 log info")
                 logger.warning(f"ai_answer_sender 2 log warning")
                 logger.exception(f"ai_answer_sender 2 log exception")
-                await sync_to_async(ChatBotSummaryReportClass.summary_sender_main_task.delay)(avito_account_id, chat_id)
+                await sync_to_async(ChatBotSummaryReportClass.summary_sender_main_task)(avito_account_id, chat_id)
 
 
 
