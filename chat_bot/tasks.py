@@ -1,8 +1,6 @@
 import asyncio
 import datetime
-import logging
 from pathlib import Path
-from pprint import pprint
 
 from aiogram import types
 import pdfkit
@@ -10,7 +8,7 @@ from jinja2 import Template
 from django.db.models import Q
 from django.utils import timezone
 
-from avito_account.api.items import ItemsApiSync
+from base.celery import logger
 from messaging.api import get_chats, MessagingAPISync
 from messaging.bad_mes_report.utils_bad_messaging_report import chats_timestamp_to_datetime
 from messaging.bad_mes_report.utils_chats import filter_chats_for_last_period, \
@@ -24,7 +22,7 @@ from chat_bot.api.core import send_message_to_avito, read_chat
 from chat_bot.models import AiChatBot, ChatBotTask
 from messaging.api import get_chats_last_50_messages
 from celery import shared_task
-logger = logging.getLogger(__name__)
+
 
 
 async def chat_bot_task_dao_save(new_task_id: str, ai_answer: dict):
