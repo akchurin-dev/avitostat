@@ -71,7 +71,7 @@ async def ai_answer_sender(avito_account_id, chat_id, chat_bot_id, new_task_id):
             await chat_bot_task_dao_save(new_task_id, ai_answer)
             if ai_answer.get("contacts") is not None:
                 if ENVIRONMENT == "PRODUCTION":
-                    await asyncio.sleep(300)
+                    await asyncio.sleep(5) # 300 by default
                 await sync_to_async(ChatBotSummaryReportClass.summary_sender_main_task.delay)(avito_account_id, chat_id)
 
 
@@ -321,6 +321,7 @@ class ChatBotSummaryReportClass(PdfReportBaseClass):
             chat["messages"] = messages
             if messages is not None and len(messages) > 0:  # skip who can't have bot chats
                 chat_summary = chat_summary_ai_generator(avito_account, chat_id)
+                logger.info(f"Summary report chat_summary - {chat_summary}.")
                 if chat_summary is not None:
                     ChatBotSummaryReportClass.summary_sender(avito_account, chat_summary, chat)
                     # здесь неважно в какой именно инстанс для данного чата добавить флаг, главное чтобы он появился
@@ -335,8 +336,11 @@ class ChatBotSummaryReportClass(PdfReportBaseClass):
     def summary_sender(avito_account, chat_summary, chat):
         # TEXT MESSAGE
         summary_text = ChatBotSummaryReportClass.get_chat_summary_text(chat_summary, chat)
+        logger.info(f"Summary report summary_text {summary_text}.")
         if summary_text and len(summary_text) > 20:  # 20 is random value)
             ChatBotSummaryReportClass.text_sender_to_tg(text=summary_text, telegram_id=avito_account.telegram_id)
+            logger.info(f"Summary report text sended to {avito_account.name} telegram.")
+
         # PDF FILE
         summary_html = ChatBotSummaryReportClass.get_chat_summary_html(chat_summary, chat)
         ChatHistoryReportClass.history_pdf_sender_main_task.delay(avito_account.id, chat, summary_html)
