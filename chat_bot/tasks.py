@@ -53,6 +53,9 @@ def ai_answer_sender_task(avito_account_id, chat_id, chat_bot_id, new_task_id):
 # TODO  хранить chat_id:message_id1, message_id2...
 
 async def ai_answer_sender(avito_account_id, chat_id, chat_bot_id, new_task_id):
+    logger.info(f"ai_answer_sender 1 log info")
+    logger.warning(f"ai_answer_sender 1 log warning")
+    logger.exception(f"ai_answer_sender 1 log exception")
     avito_account = await AvitoAccount.objects.aget(pk=avito_account_id)
     chat_bot = await AiChatBot.objects.aget(pk=chat_bot_id)
     chat_with_messages = await get_chats_last_50_messages(avito_account, chats=[{"id": chat_id}])
@@ -70,6 +73,9 @@ async def ai_answer_sender(avito_account_id, chat_id, chat_bot_id, new_task_id):
             if ai_answer.get("contacts") is not None:
                 if ENVIRONMENT == "PRODUCTION":
                     await asyncio.sleep(5) # 300 by default
+                logger.info(f"ai_answer_sender 2 log info")
+                logger.warning(f"ai_answer_sender 2 log warning")
+                logger.exception(f"ai_answer_sender 2 log exception")
                 await sync_to_async(ChatBotSummaryReportClass.summary_sender_main_task.delay)(avito_account_id, chat_id)
 
 
@@ -307,6 +313,9 @@ class ChatBotSummaryReportClass(PdfReportBaseClass):
     @staticmethod
     @shared_task
     def summary_sender_main_task(avito_account_id, chat_id):
+        logger.info(f"Summary report 1 log info")
+        logger.warning(f"Summary report 1 log warning")
+        logger.exception(f"Summary report 1 log exception")
         all_tasks = ChatBotTask.objects.filter(chat_id=chat_id)
         if ENVIRONMENT == "PRODUCTION":
             if all_tasks.filter(summary_sanded=True).exists():
