@@ -137,7 +137,8 @@ class BotStatisticsDailyReportClass(PdfReportBaseClass):
             avito_accounts = AvitoAccount.objects.filter(id=365995534)
         for avito_account in avito_accounts:
             chat_bot_is_active = hasattr(avito_account, "ai_chat_bots") and avito_account.ai_chat_bots.is_active
-            if chat_bot_is_active:
+            need_report_flag = hasattr(avito_account, "ai_chat_bots") and avito_account.ai_chat_bots.statistics_daily_report
+            if chat_bot_is_active and need_report_flag:
                 if ENVIRONMENT == "DEVELOPMENT":
                     async_to_sync(avito_account.update_refresh_token_async)()
                 BotStatisticsDailyReportClass.statistics_sender_small_task.delay(avito_account.id)

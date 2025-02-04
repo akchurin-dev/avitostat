@@ -2,6 +2,7 @@ from asgiref.sync import async_to_sync
 from django.db import models
 from django.contrib.auth.models import User
 from avito_account.models.models import AvitoAccount, moscow_time
+from base.settings import ENVIRONMENT
 from chat_bot.api.subscriptions import subscribe_to_messages, stop_subscribe_to_messages
 from django.core.validators import MinValueValidator, MaxValueValidator
 
@@ -30,6 +31,9 @@ class AiChatBot(models.Model):
     work_time_from = models.TimeField("Начало работы МСК (Пн-Вс)")
     work_time_to = models.TimeField("Окончание работы МСК (Пн-Вс)")
 
+    statistics_daily_report = models.BooleanField(default=True, verbose_name="Ежедневная статистика")
+    histories_for_statistics = models.BooleanField(default=False, verbose_name="История чатов для статистики")
+
     class Meta:
         verbose_name = "ИИ чат бот"
         verbose_name_plural = "ИИ чат боты"
@@ -38,6 +42,9 @@ class AiChatBot(models.Model):
         previous = AiChatBot.objects.filter(pk=self.pk).last()
         # Сначала сохраняем объект
         super().save(*args, **kwargs)
+
+        if ENVIRONMENT == "DEVELOPMENT":
+            async_to_sync(self.avito_account.update_refresh_token_async)()
 
         if previous is None:  # Если изначально вообще небыло инстанса
             if self.is_active:
