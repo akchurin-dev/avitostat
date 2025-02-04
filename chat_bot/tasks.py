@@ -321,22 +321,22 @@ class ChatBotSummaryReportClass(PdfReportBaseClass):
             if all_tasks.filter(summary_sanded=True).exists():
                 logger.info(f"Summary report already sent for chat_id {chat_id}.")
                 return
-        else:
-            avito_account = AvitoAccount.objects.filter(id=avito_account_id).last()
-            chat = MessagingAPISync.get_chat_by_id(avito_account, chat_id)
-            messages = MessagingAPISync.get_chat_last_50_messages_by_chat_id(avito_account, chat_id)
-            chat["messages"] = messages
-            if messages is not None and len(messages) > 0:  # skip who can't have bot chats
-                chat_summary = chat_summary_ai_generator(avito_account, chat_id)
-                logger.info(f"Summary report chat_summary - {chat_summary}.")
-                if chat_summary is not None:
-                    ChatBotSummaryReportClass.summary_sender(avito_account, chat_summary, chat)
-                    # здесь неважно в какой именно инстанс для данного чата добавить флаг, главное чтобы он появился
-                    last_chat_bot_task = all_tasks.last()
-                    if last_chat_bot_task is not None:
-                        # Flag adding for in future we can't be sanding summary_report twice
-                        last_chat_bot_task.summary_sanded = True
-                        last_chat_bot_task.save()
+
+        avito_account = AvitoAccount.objects.filter(id=avito_account_id).last()
+        chat = MessagingAPISync.get_chat_by_id(avito_account, chat_id)
+        messages = MessagingAPISync.get_chat_last_50_messages_by_chat_id(avito_account, chat_id)
+        chat["messages"] = messages
+        if messages is not None and len(messages) > 0:  # skip who can't have bot chats
+            chat_summary = chat_summary_ai_generator(avito_account, chat_id)
+            logger.info(f"Summary report chat_summary - {chat_summary}.")
+            if chat_summary is not None:
+                ChatBotSummaryReportClass.summary_sender(avito_account, chat_summary, chat)
+                # здесь неважно в какой именно инстанс для данного чата добавить флаг, главное чтобы он появился
+                last_chat_bot_task = all_tasks.last()
+                if last_chat_bot_task is not None:
+                    # Flag adding for in future we can't be sanding summary_report twice
+                    last_chat_bot_task.summary_sanded = True
+                    last_chat_bot_task.save()
 
 
     @staticmethod
