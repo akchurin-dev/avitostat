@@ -26,9 +26,9 @@ ssh avitostata
 логи в РЕАЛЬНОМ времени
 
 sudo journalctl -u gunicorn.service -f
+sudo journalctl -u celery-worker.service -f
 sudo journalctl -u welcome_bot.service -f
 sudo journalctl -u redis-server -f
-sudo journalctl -u celery-worker.service -f
 sudo journalctl -u celery-beat.service -f
 
 sudo systemctl stop  welcome_bot

@@ -1,10 +1,9 @@
 import os
 import logging
 from celery import Celery
-from celery.signals import task_failure
 
 # Настройка логирования
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(message)s')
 logger = logging.getLogger(__name__)
 
 # Устанавливаем переменную окружения для настройки Django settings module
