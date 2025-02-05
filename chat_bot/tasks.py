@@ -133,15 +133,23 @@ class BotStatisticsDailyReportClass(PdfReportBaseClass):
     @shared_task
     def statistics_sender_main_task():
         avito_accounts = AvitoAccount.objects.all()
+        logger.warning(f"statistics_sender_main_task STARTED for {len(avito_accounts)} accounts")
         if ENVIRONMENT == "DEVELOPMENT":
-            avito_accounts = AvitoAccount.objects.filter(id=365995534)
+            avito_accounts = AvitoAccount.objects.filter(id=145213826)
         for avito_account in avito_accounts:
-            chat_bot_is_active = hasattr(avito_account, "ai_chat_bots") and avito_account.ai_chat_bots.is_active
+            chat_bot_is_active_flag = hasattr(avito_account, "ai_chat_bots") and avito_account.ai_chat_bots.is_active
             need_report_flag = hasattr(avito_account, "ai_chat_bots") and avito_account.ai_chat_bots.statistics_daily_report
-            if chat_bot_is_active and need_report_flag:
+            if chat_bot_is_active_flag and need_report_flag:
+                logger.warning("processing")
+                logger.debug(f"need_report_flag - {need_report_flag}")
                 if ENVIRONMENT == "DEVELOPMENT":
                     async_to_sync(avito_account.update_refresh_token_async)()
                 BotStatisticsDailyReportClass.statistics_sender_small_task.delay(avito_account.id)
+            else:
+                logger.warning(f"skipped avito_account - {avito_account.name}")
+                logger.debug(f"chat_bot_is_active_flag - {chat_bot_is_active_flag}")
+                logger.debug(f"need_report_flag - {need_report_flag}")
+
 
     @staticmethod
     @shared_task

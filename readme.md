@@ -35,9 +35,12 @@ sudo systemctl stop  welcome_bot
 sudo systemctl stop  gunicorn
 sudo systemctl stop  celery-worker
 sudo systemctl stop  celery-beat
+
+РЕДИС НЕ ОСТАНАВЛИВАЕМ НИКОГДА, но если надо
 redis-cli flushall
 
-redis-cli flushall
+
+
 systemctl daemon-reload
 sudo systemctl start welcome_bot
 sudo systemctl start gunicorn
