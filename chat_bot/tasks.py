@@ -176,6 +176,7 @@ class BotStatisticsDailyReportClass(PdfReportBaseClass):
     @staticmethod
     @shared_task
     def statistics_pdf_sender_task(avito_account_id: str, statistics: dict):
+
         #STATISTICS
         avito_account = AvitoAccount.objects.filter(id=avito_account_id).last()
         html = BotStatisticsDailyReportClass.get_html(statistics)
