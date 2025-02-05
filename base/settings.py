@@ -250,10 +250,10 @@ else:
         #     'schedule': crontab(hour=6, minute=19),
         # },
         #
-        # 'chat_bot_daily_report_task_DEBUG': {
-        #     'task': 'chat_bot.tasks.statistics_sender_main_task',
-        #     'schedule': 30.0,  #  каждые 100 секунд
-        # },
+        'chat_bot_daily_report_task_DEBUG': {
+            'task': 'chat_bot.tasks.statistics_sender_main_task',
+            'schedule': 20.0,  #  каждые 100 секунд
+        },
         # 'chat_bot_daily_report_task': {
         #     'task': 'chat_bot.ChatBotDailyReport.report_sender_via_celery',
         #     'schedule': crontab(hour=6, minute=0),  # Ежедневно в 11:00 утра

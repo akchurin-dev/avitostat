@@ -133,22 +133,42 @@ class BotStatisticsDailyReportClass(PdfReportBaseClass):
     @shared_task
     def statistics_sender_main_task():
         avito_accounts = AvitoAccount.objects.all()
+        logger.warning(f"statistics_sender_main_task STARTED for {len(avito_accounts)} accounts")
         if ENVIRONMENT == "DEVELOPMENT":
-            avito_accounts = AvitoAccount.objects.filter(id=365995534)
+            avito_accounts = AvitoAccount.objects.filter(id=145213826)
         for avito_account in avito_accounts:
-            chat_bot_is_active = hasattr(avito_account, "ai_chat_bots") and avito_account.ai_chat_bots.is_active
-            if chat_bot_is_active:
+            chat_bot_is_active_flag = hasattr(avito_account, "ai_chat_bots") and avito_account.ai_chat_bots.is_active
+            need_report_flag = hasattr(avito_account, "ai_chat_bots") and avito_account.ai_chat_bots.statistics_daily_report
+            if chat_bot_is_active_flag and need_report_flag:
+                logger.warning("processing")
+                logger.info(f"need_report_flag - {need_report_flag}")
                 if ENVIRONMENT == "DEVELOPMENT":
                     async_to_sync(avito_account.update_refresh_token_async)()
                 BotStatisticsDailyReportClass.statistics_sender_small_task.delay(avito_account.id)
+            else:
+                logger.warning(f"skipped avito_account - {avito_account.name}")
+                logger.info(f"chat_bot_is_active_flag - {chat_bot_is_active_flag}")
+                logger.info(f"need_report_flag - {need_report_flag}")
+
 
     @staticmethod
     @shared_task
     def statistics_sender_small_task(avito_account_id):
         avito_account = AvitoAccount.objects.get(id=avito_account_id)
         statistics = BotStatisticsDailyReportClass.get_raw_data(avito_account)
+
+        # TEXT MESSAGE
         if statistics is not None and statistics.get("bot_chats_count") > 0: #
             BotStatisticsDailyReportClass.statistics_txt_sender_task.delay(str(avito_account.id), statistics)
+
+            # HISTORY PDFs
+            need_history_flag = hasattr(avito_account, "ai_chat_bots") and avito_account.ai_chat_bots.histories_for_statistics
+            if need_history_flag:
+                chats = statistics.get("chats") or None
+                if chats:
+                    for chat in chats:
+                        ChatHistoryReportClass.history_pdf_sender_main_task.delay(avito_account_id=avito_account.id,
+                                                                                  chat=chat)
         else:
             logger.info(f"BotStatisticsDailyReportClass not have Bot_chats for {avito_account.name}, skipped")
 
@@ -156,6 +176,7 @@ class BotStatisticsDailyReportClass(PdfReportBaseClass):
     @staticmethod
     @shared_task
     def statistics_pdf_sender_task(avito_account_id: str, statistics: dict):
+
         #STATISTICS
         avito_account = AvitoAccount.objects.filter(id=avito_account_id).last()
         html = BotStatisticsDailyReportClass.get_html(statistics)
@@ -199,12 +220,6 @@ class BotStatisticsDailyReportClass(PdfReportBaseClass):
             f"🎉 <b>Получено контактов:</b> <code> {contacts_count}</code>\n\n"
         )
         BotStatisticsDailyReportClass.text_sender_to_tg(text, avito_account.telegram_id)
-
-        #HISTORY
-        chats = statistics.get("chats") or None
-        if chats:
-            for chat in chats:
-                ChatHistoryReportClass.history_pdf_sender_main_task.delay(avito_account_id=avito_account.id, chat=chat)
 
     @staticmethod
     def get_raw_data(avito_account, period="day"):
