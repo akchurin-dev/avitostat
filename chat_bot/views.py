@@ -2,7 +2,8 @@ import asyncio
 import datetime
 
 from base.settings import ENVIRONMENT
-from chat_bot.tasks import BotStatisticsDailyReportClass, ChatBotSummaryReportClass, ai_answer_sender
+from chat_bot.tasks import BotStatisticsDailyReportClass, ChatBotSummaryReportClass, ai_answer_sender, \
+    PdfReportBaseClass
 import pytz
 from asgiref.sync import sync_to_async, async_to_sync
 from celery.result import AsyncResult
@@ -150,6 +151,11 @@ class SummarySenderView(View):
         ChatBotSummaryReportClass.summary_sender_main_task.delay(163634833, "u2i-jl7kFERA8KE843KWuc4SyQ")
         return (JsonResponse({"status": "ok"}, status=200))
 
+@method_decorator(csrf_exempt, name='dispatch')
+class MiltipleFilesSenderTestView(View):
+    def get(self, request, *args, **kwargs):
+        PdfReportBaseClass.batch_files_sender_to_tg()
+        return (JsonResponse({"status": "ok"}, status=200))
 
 
 

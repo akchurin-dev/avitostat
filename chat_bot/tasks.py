@@ -4,6 +4,7 @@ from pathlib import Path
 
 from aiogram import types
 import pdfkit
+from aiogram.types import InputMediaDocument
 from jinja2 import Template
 from django.db.models import Q
 from django.utils import timezone
@@ -126,6 +127,113 @@ class PdfReportBaseClass:
                     text = text[4000:]
                 except Exception as e:
                     pass
+
+    @staticmethod
+    def batch_files_sender_to_tg():
+        file_paths = [file for file in Path("chat_bot/pdfs").iterdir() if file.is_file()]
+        media_group = list()
+
+        for f in file_paths:
+            with open(f, "rb") as fin:
+                # Up to 1024 characters.
+                # https://core.telegram.org/bots/api#inputmediadocument
+                caption = f"Total students in {f}: {len(fin.readlines())}\n"
+                # After the len(fin.readlines()) file's current position
+                # will be at the end of the file. seek(0) sets the position
+                # to the begining of the file so we can read it again during
+                # sending.
+                fin.seek(0)
+                media_group.append(types.FSInputFile(f))
+
+        # bot.send_media_group(-4221870448, media=media_group)
+
+        bot.send_raw(
+            chat_id=-4221870448,
+            function="send_media_group",
+            media=media_group)
+
+        # bot.send_media_group()
+
+    # @staticmethod
+    # def batch_files_sender_to_tg(pdf_paths: list, telegram_id: str, batch_size: int = 10):
+    #     """
+    #     Отправляет несколько PDF файлов группами по 2-10 файлов в одном сообщении.
+    #
+    #     Args:
+    #         pdf_paths (list): Список путей к PDF файлам (максимум 20)
+    #         telegram_id (str): ID телеграм чата для отправки
+    #         batch_size (int): Размер группы файлов (по умолчанию 10)
+    #     """
+    #     if not pdf_paths:
+    #         logger.warning("batch_files_sender_to_tg: Список файлов пуст")
+    #         return
+    #
+    #     logger.info(f"batch_files_sender_to_tg: Начало отправки {len(pdf_paths)} файлов")
+    #
+    #     # Ограничиваем количество файлов до 20
+    #     pdf_paths = pdf_paths[:20]
+    #
+    #     # Убеждаемся что размер группы от 2 до 10
+    #     batch_size = max(2, min(10, batch_size))
+    #     logger.info(f"batch_files_sender_to_tg: Размер группы установлен на {batch_size}")
+    #
+    #     chat_id = "-4221870448" if ENVIRONMENT == "DEVELOPMENT" else telegram_id
+    #     logger.info(f"batch_files_sender_to_tg: Отправка в чат {chat_id}")
+    #
+    #     # Разбиваем файлы на группы
+    #     total_batches = (len(pdf_paths) + batch_size - 1) // batch_size
+    #     for i in range(0, len(pdf_paths), batch_size):
+    #         current_batch = i // batch_size + 1
+    #         batch = pdf_paths[i:i + batch_size]
+    #         media_group = []
+    #
+    #         logger.info(f"batch_files_sender_to_tg: Подготовка группы {current_batch}/{total_batches}")
+    #
+    #         def main():
+    #             file_paths = (
+    #                 "students10.txt",
+    #                 "students11.txt",
+    #                 "students12.txt"
+    #             )
+    #             # From 2 to 10 items in one media group
+    #             # https://core.telegram.org/bots/api#sendmediagroup
+    #             media_group = list()
+    #             for f in file_paths:
+    #                 with open(f, "rb") as fin:
+    #                     # Up to 1024 characters.
+    #                     # https://core.telegram.org/bots/api#inputmediadocument
+    #                     caption = f"Total students in {f}: {len(fin.readlines())}\n"
+    #                     # After the len(fin.readlines()) file's current position
+    #                     # will be at the end of the file. seek(0) sets the position
+    #                     # to the begining of the file so we can read it again during
+    #                     # sending.
+    #                     fin.seek(0)
+    #                     media_group.append(types.FSInputFile(f))
+    #
+    #             bot.send_media_group(-4221870448, media=media_group)
+    #
+    #         #     for pdf_path in batch:
+    #         #         try:
+    #         #             with open(pdf_path, "rb") as fin:
+    #         #                 caption = f"Отчет: {Path(pdf_path).name}"
+    #         #                 fin.seek(0)
+    #         #                 media_group.append(InputMediaDocument(fin, caption=caption))
+    #         #                 logger.info(f"batch_files_sender_to_tg: Файл {pdf_path} добавлен в группу")
+    #         #         except Exception as e:
+    #         #             logger.exception(f"batch_files_sender_to_tg: Ошибка при подготовке файла {pdf_path}: {str(e)}")
+    #         #             continue
+    #         #
+    #         #     if media_group:
+    #         #         try:
+    #         #             logger.info(f"batch_files_sender_to_tg: Отправка группы {current_batch}/{total_batches} ({len(media_group)} файлов)")
+    #         #             bot.send_media_group(CHAT_ID, media=media_group)
+    #         #             logger.info(f"batch_files_sender_to_tg: Группа {current_batch}/{total_batches} успешно отправлена")
+    #         #         except Exception as e:
+    #         #             logger.exception(f"batch_files_sender_to_tg: Ошибка при отправке группы {current_batch}/{total_batches}: {str(e)}")
+    #         #     else:
+    #         #         logger.warning(f"batch_files_sender_to_tg: Группа {current_batch}/{total_batches} пуста, пропускаем")
+    #         #
+    #         # logger.info("batch_files_sender_to_tg: Отправка всех файлов завершена")завершена
 
 class BotStatisticsDailyReportClass(PdfReportBaseClass):
 
