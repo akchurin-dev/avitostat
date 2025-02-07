@@ -106,7 +106,7 @@ class PdfReportBaseClass:
                     chat_id=chat_id,
                     function="send_document",
                     document=types.FSInputFile(pdf_path))
-                logger.exception(f"PDF file sent success to {telegram_id}")
+                logger.warning(f"PDF file sent success to {telegram_id}")
             except Exception as e:
                 logger.exception(f"Error sending file {pdf_path}: {e}")
 
