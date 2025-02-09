@@ -162,7 +162,7 @@ class BotStatisticsDailyReportClass(PdfReportBaseClass):
             BotStatisticsDailyReportClass.statistics_txt_sender_task.delay(str(avito_account.id), statistics)
 
             # HISTORY PDFs
-            need_history_flag = hasattr(avito_account, "ai_chat_bots") and avito_account.ai_chat_bots.histories_for_statistics
+            need_history_flag = hasattr(avito_account, "ai_chat_bots") and avito_account.ai_chat_bots.histories_closed
             if need_history_flag:
                 chats = statistics.get("chats") or None
                 if chats:

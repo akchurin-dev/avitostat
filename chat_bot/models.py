@@ -32,7 +32,8 @@ class AiChatBot(models.Model):
     work_time_to = models.TimeField("Окончание работы МСК (Пн-Вс)")
 
     statistics_daily_report = models.BooleanField(default=True, verbose_name="Ежедневная статистика")
-    histories_for_statistics = models.BooleanField(default=False, verbose_name="История чатов для статистики")
+    histories_closed = models.BooleanField(default=False, verbose_name="История дожатых клиентов")
+    histories_open = models.BooleanField(default=False, verbose_name="История НЕдожатых клиентов")
 
     class Meta:
         verbose_name = "ИИ чат бот"
