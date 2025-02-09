@@ -1,6 +1,7 @@
 import asyncio
 import datetime
 import time
+from calendar import month
 from pathlib import Path
 
 from aiogram import types
@@ -158,7 +159,8 @@ class BotStatisticsDailyReportClass(PdfReportBaseClass):
     def statistics_sender_main_task():
         avito_accounts = AvitoAccount.objects.all()
         logger.warning(f"statistics_sender_main_task STARTED for {len(avito_accounts)} accounts")
-        if ENVIRONMENT == "DEVELOPMENT": avito_accounts = AvitoAccount.objects.filter(id=163634833)
+        # if ENVIRONMENT == "DEVELOPMENT": avito_accounts = AvitoAccount.objects.filter(id=145213826) # Rauf
+        if ENVIRONMENT == "DEVELOPMENT": avito_accounts = AvitoAccount.objects.filter(id=163634833) # Stroyka
         tasks = []
         for avito_account in avito_accounts:
             chat_bot_is_active_flag = hasattr(avito_account, "ai_chat_bots") and avito_account.ai_chat_bots.is_active
@@ -168,13 +170,13 @@ class BotStatisticsDailyReportClass(PdfReportBaseClass):
                 logger.info(f"need_report_flag - {need_report_flag}")
 
                 if ENVIRONMENT == "DEVELOPMENT": async_to_sync(avito_account.update_refresh_token_async)()
-                tasks.append(BotStatisticsDailyReportClass.statistics_sender_small_task.s(avito_account.id))
+                BotStatisticsDailyReportClass.statistics_sender_small_task(avito_account.id)
             else:
                 logger.warning(f"skipped avito_account - {avito_account.name}")
                 logger.info(f"chat_bot_is_active_flag - {chat_bot_is_active_flag}")
                 logger.info(f"need_report_flag - {need_report_flag}")
-            if tasks:
-                chain(*tasks).apply_async()
+            # if tasks:
+            #     chain(*tasks).apply_async()
 
 
 
@@ -193,7 +195,7 @@ class BotStatisticsDailyReportClass(PdfReportBaseClass):
                 chats = statistics.get("chats") or None
                 if chats:
                     for i, chat in enumerate(chats):
-                        ChatHistoryReportClass.history_pdf_sender_task.delay(avito_account_id=avito_account.id, chat=chat)
+                        ChatHistoryReportClass.history_closed_pdf_sender_task.delay(avito_account_id=avito_account.id, chat=chat)
                         if (i + 1) % 25 == 0:
                             time.sleep(60)  # Sleep for 60 seconds after every 25 tasks because of flood control
         else:
@@ -214,7 +216,7 @@ class BotStatisticsDailyReportClass(PdfReportBaseClass):
         chats = statistics.get("chats") or None
         if chats:
             for chat in chats:
-                ChatHistoryReportClass.history_pdf_sender_task.delay(avito_account_id=avito_account.id, chat=chat)
+                ChatHistoryReportClass.history_closed_pdf_sender_task.delay(avito_account_id=avito_account.id, chat=chat)
 
     @staticmethod
     def get_html(statistics):
@@ -252,42 +254,48 @@ class BotStatisticsDailyReportClass(PdfReportBaseClass):
         chats = async_to_sync(get_chats)(avito_account, period=period)
         if chats:
             if ENVIRONMENT == "PRODUCTION":last_24_hours = timezone.now() - datetime.timedelta(days=1)
-            else: last_24_hours = timezone.now() - datetime.timedelta(days=1)
+            else: last_24_hours = timezone.now().replace(hour=0, minute=0, second=0, microsecond=0) - datetime.timedelta(days=1)
             chat_bot_tasks = ChatBotTask.objects.filter(avito_account=avito_account,
-                                                       created_at__gte=last_24_hours,
-                                                       tokens_completion__gt=0)
-            if chat_bot_tasks.exists():
-                bot_answered_mes_ids = list(chat_bot_tasks.values_list("message_id", flat=True).distinct())
-                unique_bot_chat_ids = chat_bot_tasks.values_list("chat_id", flat=True).distinct()
-                contacts = chat_bot_tasks.filter(
-                                                    Q(address__isnull=False) & ~Q(address="") |
-                                                    Q(mobile__isnull=False) & ~Q(mobile="") |
-                                                    Q(whatsapp__isnull=False) & ~Q(whatsapp="") |
-                                                    Q(telegram__isnull=False) & ~Q(telegram="") |
-                                                    Q(email__isnull=False) & ~Q(email="")
-                                                ).values("chat_id").distinct().count()
-                # Chats with messages getting
-                actual_chats = async_to_sync(filter_chats_for_last_period)(chats, period=period)
-                actual_chats_with_mes = async_to_sync(get_chats_last_50_messages)(avito_account, actual_chats)
-                only_with_text = filter_chats_only_with_text(actual_chats_with_mes)
-                bot_chats_with_messages = filter_by_bot_answered_chat_ids(only_with_text, unique_bot_chat_ids)
+                                                        created_at__gte=last_24_hours,
+                                                        created_at__lt=timezone.now().replace(hour=0, minute=0, second=0, microsecond=0),
+                                                        tokens_completion__gt=0)
 
-                statistics = {
-                    "avito_account_id": avito_account.id,  # for pdf file naming
-                    "avito_account_name": avito_account.name,
-                    "total_chats_count": len(only_with_text),
-                    "bot_chats_count": len(unique_bot_chat_ids),
-                    "contacts_count": contacts,
-                    "chats": bot_chats_with_messages,
-                    "bot_answered_mes_ids": bot_answered_mes_ids
-                }
-                return statistics
+            if not chat_bot_tasks.exists() and ENVIRONMENT == "PRODUCTION": return None
+            bot_answered_mes_ids = list(chat_bot_tasks.values_list("message_id", flat=True).distinct())
+            unique_bot_chat_ids = chat_bot_tasks.values_list("chat_id", flat=True).distinct()
+            tasks_with_contacts = chat_bot_tasks.filter(
+                                                Q(address__isnull=False) & ~Q(address="") |
+                                                Q(mobile__isnull=False) & ~Q(mobile="") |
+                                                Q(whatsapp__isnull=False) & ~Q(whatsapp="") |
+                                                Q(telegram__isnull=False) & ~Q(telegram="") |
+                                                Q(email__isnull=False) & ~Q(email="")
+                                            ).values("chat_id").distinct()
+            contacts_count = len(tasks_with_contacts)
+            contacts_chat_ids = list(tasks_with_contacts.values_list("chat_id", flat=True).distinct())
+            # Chats with messages getting
+            actual_chats = async_to_sync(filter_chats_for_last_period)(chats, period=period)
+            actual_chats_with_mes = async_to_sync(get_chats_last_50_messages)(avito_account, actual_chats)
+            only_with_text = filter_chats_only_with_text(actual_chats_with_mes)
+            bot_chats_with_messages = filter_by_bot_answered_chat_ids(only_with_text, unique_bot_chat_ids)
+
+            statistics = {
+                "avito_account_id": avito_account.id,  # for pdf file naming
+                "avito_account_name": avito_account.name,
+                "total_chats_count": len(only_with_text),
+                "bot_chats_count": len(unique_bot_chat_ids),
+                "contacts_count": contacts_count,
+                "chats": bot_chats_with_messages,
+
+                "bot_answered_mes_ids": bot_answered_mes_ids,
+                "contacts_chat_ids": contacts_chat_ids,
+            }
+            return statistics
 
 class ChatHistoryReportClass(PdfReportBaseClass):
 
     @staticmethod
     @shared_task
-    def history_pdf_sender_task(avito_account_id, chat, summary_html = None):
+    def history_closed_pdf_sender_task(avito_account_id, chat, summary_html = None):
         """
             1) sometimes we don't have summary_html
         """
@@ -383,7 +391,7 @@ class ChatBotSummaryReportClass(PdfReportBaseClass):
 
         # PDF FILE
         summary_html = ChatBotSummaryReportClass.get_chat_summary_html(chat_summary, chat)
-        ChatHistoryReportClass.history_pdf_sender_task.delay(avito_account.id, chat, summary_html)
+        ChatHistoryReportClass.history_closed_pdf_sender_task.delay(avito_account.id, chat, summary_html)
 
 
     @staticmethod

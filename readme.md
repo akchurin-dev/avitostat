@@ -40,7 +40,6 @@ sudo systemctl stop  celery-beat
 redis-cli flushall
 
 
-
 systemctl daemon-reload
 sudo systemctl start welcome_bot
 sudo systemctl start gunicorn
