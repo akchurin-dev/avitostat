@@ -135,7 +135,7 @@ class BotStatisticsDailyReportClass(PdfReportBaseClass):
         avito_accounts = AvitoAccount.objects.all()
         logger.warning(f"statistics_sender_main_task STARTED for {len(avito_accounts)} accounts")
         if ENVIRONMENT == "DEVELOPMENT":
-            avito_accounts = AvitoAccount.objects.filter(id=145213826)
+            avito_accounts = AvitoAccount.objects.filter(id=163634833)
         for avito_account in avito_accounts:
             chat_bot_is_active_flag = hasattr(avito_account, "ai_chat_bots") and avito_account.ai_chat_bots.is_active
             need_report_flag = hasattr(avito_account, "ai_chat_bots") and avito_account.ai_chat_bots.statistics_daily_report
@@ -144,7 +144,7 @@ class BotStatisticsDailyReportClass(PdfReportBaseClass):
                 logger.info(f"need_report_flag - {need_report_flag}")
                 if ENVIRONMENT == "DEVELOPMENT":
                     async_to_sync(avito_account.update_refresh_token_async)()
-                BotStatisticsDailyReportClass.statistics_sender_small_task.delay(avito_account.id)
+                BotStatisticsDailyReportClass.statistics_sender_small_task(avito_account.id)
             else:
                 logger.warning(f"skipped avito_account - {avito_account.name}")
                 logger.info(f"chat_bot_is_active_flag - {chat_bot_is_active_flag}")
@@ -159,16 +159,21 @@ class BotStatisticsDailyReportClass(PdfReportBaseClass):
 
         # TEXT MESSAGE
         if statistics is not None and statistics.get("bot_chats_count") > 0: #
-            BotStatisticsDailyReportClass.statistics_txt_sender_task.delay(str(avito_account.id), statistics)
+            BotStatisticsDailyReportClass.statistics_txt_sender_task(str(avito_account.id), statistics)
 
             # HISTORY PDFs
-            need_history_flag = hasattr(avito_account, "ai_chat_bots") and avito_account.ai_chat_bots.histories_closed
-            if need_history_flag:
+            need_history_closed_flag = hasattr(avito_account, "ai_chat_bots") and avito_account.ai_chat_bots.histories_closed
+            need_history_open_flag = hasattr(avito_account, "ai_chat_bots") and avito_account.ai_chat_bots.histories_open
+            if need_history_closed_flag or need_history_open_flag:
                 chats = statistics.get("chats") or None
+                chats_with_contacts_ids = statistics.get("chats_with_contacts_ids") or None
                 if chats:
                     for chat in chats:
-                        ChatHistoryReportClass.history_pdf_sender_main_task.delay(avito_account_id=avito_account.id,
-                                                                                  chat=chat)
+                        if need_history_closed_flag and chat.get("id") in chats_with_contacts_ids:
+                            ChatHistoryReportClass.history_pdf_sender_main_task(avito_account_id=avito_account.id, chat=chat)
+                    for chat in chats:
+                        if need_history_open_flag and chat.get("id") not in chats_with_contacts_ids:
+                            ChatHistoryReportClass.history_pdf_sender_main_task(avito_account_id=avito_account.id, chat=chat)
         else:
             logger.info(f"BotStatisticsDailyReportClass not have Bot_chats for {avito_account.name}, skipped")
 
@@ -226,26 +231,25 @@ class BotStatisticsDailyReportClass(PdfReportBaseClass):
         #TODO после всех манипуляций оптимизировать запросы в БД
         chats = async_to_sync(get_chats)(avito_account, period=period)
         if chats:
-            if ENVIRONMENT == "PRODUCTION":
-                last_24_hours = timezone.now() - datetime.timedelta(days=1)
-            else:
-                last_24_hours = timezone.now() - datetime.timedelta(days=1)
+            if ENVIRONMENT == "PRODUCTION":last_24_hours = timezone.now() - datetime.timedelta(days=1)
+            else: last_24_hours = timezone.now() - datetime.timedelta(days=1)
 
             chat_bot_tasks = ChatBotTask.objects.filter(avito_account=avito_account,
-                                                       created_at__gte=last_24_hours,
+                                                       created_at__date=last_24_hours.date(),
                                                        tokens_completion__gt=0)
-
             if chat_bot_tasks.exists():
                 bot_answered_mes_ids = list(chat_bot_tasks.values_list("message_id", flat=True).distinct())
                 unique_bot_chat_ids = chat_bot_tasks.values_list("chat_id", flat=True).distinct()
 
-                contacts = chat_bot_tasks.filter(
+                tasks_with_contact = chat_bot_tasks.filter(
                                                     Q(address__isnull=False) & ~Q(address="") |
                                                     Q(mobile__isnull=False) & ~Q(mobile="") |
                                                     Q(whatsapp__isnull=False) & ~Q(whatsapp="") |
                                                     Q(telegram__isnull=False) & ~Q(telegram="") |
                                                     Q(email__isnull=False) & ~Q(email="")
-                                                ).values("chat_id").distinct().count()
+                                                ).values("chat_id").distinct()
+
+                contacts_count = len(tasks_with_contact)
 
                 # Chats with messages getting
                 actual_chats = async_to_sync(filter_chats_for_last_period)(chats, period=period)
@@ -258,9 +262,11 @@ class BotStatisticsDailyReportClass(PdfReportBaseClass):
                     "avito_account_name": avito_account.name,
                     "total_chats_count": len(only_with_text),
                     "bot_chats_count": len(unique_bot_chat_ids),
-                    "contacts_count": contacts,
+                    "contacts_count": contacts_count,
                     "chats": bot_chats_with_messages,
-                    "bot_answered_mes_ids": bot_answered_mes_ids
+
+                    "bot_answered_mes_ids": bot_answered_mes_ids,
+                    "chats_with_contacts_ids": tasks_with_contact.values_list("chat_id", flat=True),
                 }
 
                 return statistics
