@@ -154,7 +154,7 @@ class SummarySenderView(View):
 @method_decorator(csrf_exempt, name='dispatch')
 class MiltipleFilesSenderTestView(View):
     def get(self, request, *args, **kwargs):
-        PdfReportBaseClass.batch_files_sender_to_tg()
+        PdfReportBaseClass.batch_files_sender_to_tg_not_used()
         return (JsonResponse({"status": "ok"}, status=200))
 
 

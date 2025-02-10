@@ -1,9 +1,11 @@
 import asyncio
 import datetime
+import time
 from pathlib import Path
 
 from aiogram import types
 import pdfkit
+from aiogram.types import InputMediaDocument
 from jinja2 import Template
 from django.db.models import Q
 from django.utils import timezone
@@ -43,11 +45,9 @@ async def chat_bot_task_dao_save(new_task_id: str, ai_answer: dict):
 
     await new_task.asave()
 
-
 @shared_task
 def ai_answer_sender_task(avito_account_id, chat_id, chat_bot_id, new_task_id):
     async_to_sync(ai_answer_sender)(avito_account_id, chat_id, chat_bot_id, new_task_id)
-
 
 # TODO  Можно контроль наличия тасок сделать через РЕДИС попробовать чтобы меньше обращений к БД было
 # TODO  хранить chat_id:message_id1, message_id2...
@@ -107,6 +107,31 @@ class PdfReportBaseClass:
                     document=types.FSInputFile(pdf_path))
             except Exception as e:
                 pass
+
+    @staticmethod
+    def batch_files_sender_to_tg_not_used():
+        #TODO передача и парсинг путей файлов не реализованы
+        try:
+            file_paths = [file for file in Path("chat_bot/pdfs").iterdir() if file.is_file()]
+            media_group = list()
+            for i, f in enumerate(file_paths):
+                try:
+                    with open(f, "rb") as fin:
+                        fin.seek(0)
+                        media_group.append(InputMediaDocument(media=types.FSInputFile(f)))
+                    # Send the media group if it reaches 10 files or if it's the last file
+                    if (i + 1) % 10 == 0 or (i + 1) == len(file_paths):
+                        bot.send_raw(
+                            chat_id=-4221870448,
+                            function="send_media_group",
+                            media=media_group)
+                        media_group = list()  # Reset the media group after sending
+                        celery_logger.info("Media group sent successfully.")
+                        time.sleep(40) #for enable flood control
+                except Exception as e:
+                    celery_logger.error(f"Error processing file {f}: {e}")
+        except Exception as e:
+            celery_logger.error(f"Error sending media group: {e}")
 
     @staticmethod
     def text_sender_to_tg(text, telegram_id):
@@ -276,7 +301,6 @@ class BotStatisticsDailyReportClass(PdfReportBaseClass):
             for chat in chats:
                 ChatHistoryReportClass.history_pdf_sender_task.delay(avito_account_id=avito_account.id, chat=chat)
 
-
 class ChatHistoryReportClass(PdfReportBaseClass):
 
     @staticmethod
@@ -328,7 +352,6 @@ class ChatHistoryReportClass(PdfReportBaseClass):
             if message.get("id") in bot_answered_mes_ids:
                 set_from_bot_next = True  # Активируем флаг для следующей итерации
         return chat
-
 
 class ChatBotSummaryReportClass(PdfReportBaseClass):
     """
