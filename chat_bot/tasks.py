@@ -167,14 +167,13 @@ class BotStatisticsDailyReportClass(PdfReportBaseClass):
                     celery_logger.info(f"need_report_flag - {need_report_flag}")
                     if ENVIRONMENT == "DEVELOPMENT":
                         async_to_sync(avito_account.update_refresh_token_async)()
-                    BotStatisticsDailyReportClass.statistics_sender_small_task(avito_account.id)
+                    BotStatisticsDailyReportClass.statistics_sender_small_task.delay(avito_account.id)
                 else:
                     celery_logger.warning(f"skipped avito_account - {avito_account.name}")
                     celery_logger.info(f"chat_bot_is_active_flag - {chat_bot_is_active_flag}")
                     celery_logger.info(f"need_report_flag - {need_report_flag}")
             except Exception as error:
                 celery_logger.exception(f"statistics_sender_main_task error - {error}", exc_info=True)
-
 
     @staticmethod
     @shared_task
