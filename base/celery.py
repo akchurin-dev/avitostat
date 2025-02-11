@@ -4,7 +4,7 @@ from celery import Celery
 
 # Настройка логирования
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(message)s')
-logger = logging.getLogger(__name__)
+celery_logger = logging.getLogger(__name__)
 
 # Устанавливаем переменную окружения для настройки Django settings module
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'base.settings')

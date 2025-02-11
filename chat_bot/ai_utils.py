@@ -58,7 +58,6 @@ def ai_answer_assist(ai_assistant: AiChatBot, chat: list, ):
             f"Правила при общении:{ai_assistant.rules}"
             f"Необходимо в ходе разговора наличие шагов:{ai_assistant.checkpoints}"
             "Ответы давать только на русском языке"
-            "Контакты можно брать только из ВХОДЯЩИХ СООБЩЕНИЙ ОТ КЛИЕНТА!!!"
         )
         messages = [{"role": "system", "content": prompt}, ]
         messages.extend(chat_history_formatted)
