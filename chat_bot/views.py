@@ -68,6 +68,7 @@ class WebhookInboxView(View):
         return chat_stopped and self.chat_bot.shutdown_after_manager
 
 
+
     async def post(self, request, *args, **kwargs):
         decoded_string = request.body.decode('utf-8')
         self.data = json.loads(decoded_string)
