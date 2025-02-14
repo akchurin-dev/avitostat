@@ -6,14 +6,14 @@ from base.settings import ENVIRONMENT
 
 
 async def subscribe_to_messages(avito_account: AvitoAccount):
-    # await avito_account.update_refresh_token_async()
+    await avito_account.update_refresh_token_async()
     url = "https://api.avito.ru/messenger/v3/webhook"
     headers = {'authorization': f"Bearer {avito_account.access_token}"}
 
     if ENVIRONMENT == "PRODUCTION":
         subscribe_url = "https://avitostata.ru/chat_bot/webhook_inbox"
     else:
-        subscribe_url = "https://4fd5-103-231-75-115.ngrok-free.app/chat_bot/webhook_inbox"
+        subscribe_url = "https://46d8-103-231-75-115.ngrok-free.app/chat_bot/webhook_inbox"
 
     async with httpx.AsyncClient() as client:
         params = {"url": subscribe_url}
