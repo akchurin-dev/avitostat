@@ -102,6 +102,24 @@ async def get_chats_last_50_messages(avito_account: AvitoAccount, chats: list) -
 
 import requests
 class MessagingAPISync:
+    @staticmethod
+    def get_chats_last_50_messages(avito_account: AvitoAccount, chats: list) -> list:
+        if len(chats) > 0:
+            with httpx.Client() as client:
+                for chat in chats:
+                    chat_id = chat.get("id")
+                    url = f"https://api.avito.ru/messenger/v3/accounts/{avito_account.id}/chats/{chat_id}/messages/"
+                    headers = {'authorization': f"Bearer {avito_account.access_token}"}
+                    params = {"limit": 50, "offset": 0}
+                    response = client.get(url, headers=headers, params=params, timeout=300)
+                    if response.status_code == 200:
+                        new_messages = response.json().get("messages")
+                        if len(new_messages) == 0:
+                            break
+                        chat["messages"] = new_messages[::-1]
+                    else:
+                        raise HTTPException(status_code=response.status_code, detail=response.text)
+        return chats
 
     @staticmethod
     def get_chat_by_id(avito_account: AvitoAccount, chat_id: str):
