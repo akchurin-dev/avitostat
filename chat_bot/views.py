@@ -1,7 +1,7 @@
 import datetime
 import time
 from base.settings import ENVIRONMENT
-from chat_bot.tasks import BotStatisticsDailyReportClass, ChatBotSummaryReportClass, PdfReportBaseClass
+from chat_bot.tasks import BotStatisticsDailyReportClass, ChatBotSummaryReportClass, PdfReportBaseClass, AiAnswerAvitoClass
 import pytz
 from asgiref.sync import sync_to_async, async_to_sync
 from celery.result import AsyncResult
@@ -14,6 +14,7 @@ from django.utils.decorators import method_decorator
 from django.views import View
 import json
 from chat_bot.api.subscriptions import subscribe_to_messages, stop_subscribe_to_messages, check_subscriptions
+
 moscow_tz = pytz.timezone('Europe/Moscow')
 
 @method_decorator(csrf_exempt, name='dispatch')
@@ -44,7 +45,7 @@ class WebhookInboxViewClass(View):
         return chat_stopped and self.chat_bot.shutdown_after_manager
 
     @staticmethod
-    def revoke_old_tasks(self, chat_id: str):
+    def revoke_old_tasks( chat_id: str):
         current_time = now().astimezone(moscow_tz)
         last_2_hours = current_time - datetime.timedelta(hours=2)
         old_tasks = ChatBotTask.objects.filter(
@@ -84,7 +85,7 @@ class WebhookInboxViewClass(View):
                 if created:
                     if ENVIRONMENT == "PRODUCTION":
                         time.sleep(self.chat_bot.waiting_minutes * 60)  # WAIT TIME BEFORE ANY ACTIONS
-                    ai_answer_sender_task.delay(avito_account.id, chat_id, self.chat_bot.id, new_task.message_id)
+                    AiAnswerAvitoClass.ai_answer_sender_task.delay(avito_account.id, chat_id, self.chat_bot.id, new_task.message_id)
 
 
 
