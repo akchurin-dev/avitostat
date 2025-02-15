@@ -58,49 +58,55 @@ class WebhookInboxViewClass(View):
                 if existing_task and existing_task.status == "PENDING":
                     existing_task.revoke(terminate=True)
 
-    def post(self, request, *args, **kwargs):
-        decoded_string = request.body.decode('utf-8')
-        self.data = json.loads(decoded_string)
+    def incoming_messages_handler(self, chat_id, message_id, last_message, avito_account):
+        self.revoke_old_tasks(chat_id)
+        new_task, created = ChatBotTask.objects.get_or_create(
+            chat_id=chat_id,
+            message_id=message_id,
+            avito_account=avito_account,
+            text=last_message,
+        )
 
+        if created:
+            if ENVIRONMENT == "PRODUCTION":
+                time.sleep(self.chat_bot.waiting_minutes * 60)  # WAIT TIME BEFORE ANY ACTIONS
+            AiAnswerAvitoClass.ai_answer_sender_task.delay(avito_account.id, chat_id, self.chat_bot.id, new_task.message_id)
+
+    def outgoing_messages_handler(self, chat_id, message_id, last_message, avito_account):
+        #Core logic for outgoing messages
+        self.revoke_old_tasks(chat_id)  # Вдруг были старые задачи из-за входящих сообщений для ответа ИИ
+
+        # Логика остановки бота если человек вмешался в разговор
+        task, created = ChatBotTask.objects.get_or_create(
+            avito_account=avito_account,
+            chat_id=chat_id,
+            message_id=message_id,
+            answer_text=last_message,
+        )
+        if created:  # Если создалась таска значит небыло ответа такого от ИИ
+            task.chat_shutdown_by_user = True  # Останавливаем дальнейшие ответы от ИИ если человек вмешался в разговор
+            task.save()
+
+    def post(self, request, *args, **kwargs):
+        self.data = json.loads(request.body.decode('utf-8'))
         user_id = self.data.get("payload").get("value").get("user_id")
         avito_account = AvitoAccount.objects.get(id=user_id)
         self.chat_bot = AiChatBot.objects.get(avito_account=avito_account)
 
         if (self.data.get("payload").get("type") == "message"
                 and self.data.get("payload").get("value").get("type") == "text"):  # skip system messages
+
+
             message_id, chat_id, author_id, last_message, is_time_to_work, bot_stopped_for_chat = self.prepare_data()
             if bot_stopped_for_chat: print("!!!BOT STOPPER FOR CHAT!!!") #TODO: remove after testing
             msg_from_client = author_id != user_id
 
             # для входящих сообщений
             if msg_from_client  and self.chat_bot.is_active and is_time_to_work and not bot_stopped_for_chat:
-                self.revoke_old_tasks(chat_id)
-                new_task, created = ChatBotTask.objects.get_or_create(
-                    chat_id=chat_id,
-                    message_id=message_id,
-                    avito_account=avito_account,
-                    text=last_message,
-                )
-
-                if created:
-                    if ENVIRONMENT == "PRODUCTION":
-                        time.sleep(self.chat_bot.waiting_minutes * 60)  # WAIT TIME BEFORE ANY ACTIONS
-                    AiAnswerAvitoClass.ai_answer_sender_task.delay(avito_account.id, chat_id, self.chat_bot.id, new_task.message_id)
-
-
+                self.incoming_messages_handler(chat_id, message_id, last_message, avito_account)
 
             if not msg_from_client and self.chat_bot.is_active and self.chat_bot.shutdown_after_manager:  # Для исходящих
-                task, created = ChatBotTask.objects.get_or_create(
-                    avito_account=avito_account,
-                    chat_id=chat_id,
-                    message_id=message_id,
-                    answer_text=last_message,
-                )
-                self.revoke_old_tasks(chat_id) #Вдруг были старые задачи из-за входящих сообщений для ответа ИИ
-
-                if created:  # Если создалась таска значит небыло ответа такого от ИИ
-                    task.chat_shutdown_by_user = True  #  Останавливаем дальнейшие ответы от ИИ если человек вмешался в разговор
-                    task.save()
+                self.outgoing_messages_handler(chat_id, message_id, last_message, avito_account)
 
         return JsonResponse({"status": "ok"}, status=200)
 

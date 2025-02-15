@@ -48,7 +48,7 @@ def format_chat_history(messages):
     return formatted_messages
 
 
-def ai_answer_assist(ai_assistant: AiChatBot, chat: list, ):
+def ai_answer_with_contacts(ai_assistant: AiChatBot, chat: list, ):
     try:
         result = {}
         chat_history_formatted = format_chat_history(chat)

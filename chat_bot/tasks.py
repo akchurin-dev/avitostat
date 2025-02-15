@@ -9,6 +9,7 @@ from aiogram.types import InputMediaDocument
 from jinja2 import Template
 from django.db.models import Q
 from django.utils import timezone
+from openai import max_retries
 
 from base.celery import celery_logger
 from messaging.api import get_chats, MessagingAPISync
@@ -19,7 +20,7 @@ from asgiref.sync import async_to_sync, sync_to_async
 from telegram_bot import bot
 from avito_account.models.models import AvitoAccount
 from base.settings import ENVIRONMENT
-from chat_bot.ai_utils import ai_answer_assist, chat_summary_ai_generator
+from chat_bot.ai_utils import ai_answer_with_contacts, chat_summary_ai_generator
 from chat_bot.api.core import send_message_to_avito, read_chat, AvitoMessengerSync
 from chat_bot.models import AiChatBot, ChatBotTask
 from messaging.api import get_chats_last_50_messages
@@ -45,12 +46,6 @@ class AiAnswerAvitoClass:
 
         new_task.save()
 
-    # @shared_task
-    # def ai_answer_sender_task(avito_account_id, chat_id, chat_bot_id, new_task_id):
-    #     async_to_sync(ai_answer_sender)(avito_account_id, chat_id, chat_bot_id, new_task_id)
-
-    # TODO  Можно контроль наличия тасок сделать через РЕДИС попробовать чтобы меньше обращений к БД было
-    # TODO  хранить chat_id:message_id1, message_id2...
     @staticmethod
     @shared_task
     def ai_answer_sender_task(avito_account_id, chat_id, chat_bot_id, new_task_id):
@@ -64,14 +59,14 @@ class AiAnswerAvitoClass:
             actual_message = chat_with_messages[0].get("messages")[-2]
         if actual_message.get("direction") == "in" and actual_message.get("type") == "text":
             AvitoMessengerSync.read_chat(avito_account, avito_account.id, chat_id)
-            ai_answer = ai_answer_assist(chat_bot, chat_with_messages[0].get("messages")[:])
+            ai_answer = ai_answer_with_contacts(chat_bot, chat_with_messages[0].get("messages")[:])
             if ai_answer:
                 message_text = ai_answer.get("answer") + "…"
                 AvitoMessengerSync.send_message_to_avito(avito_account, avito_account.id, chat_id, message_text)
                 AiAnswerAvitoClass.chat_bot_task_dao_save(new_task_id, ai_answer)
                 if ai_answer.get("contacts") is not None:
                     if ENVIRONMENT == "PRODUCTION":
-                        time.sleep(5) # 300 by default
+                        time.sleep(300) # 300 by default
                     ChatBotSummaryReportClass.summary_sender_main_task.delay(avito_account_id, chat_id)
 
 class PdfReportBaseClass:
@@ -140,7 +135,7 @@ class PdfReportBaseClass:
                     function="send_message",
                     text=text,
                     parse_mode="HTML",
-                    disable_web_page_preview=True
+                    disable_web_page_preview=True,
                 )
                     text = text[4000:]
                 except Exception as e:
@@ -370,10 +365,8 @@ class ChatBotSummaryReportClass(PdfReportBaseClass):
         chat["messages"] = messages
         if messages is not None and len(messages) > 0:  # skip who can't have bot chats
             chat_summary = chat_summary_ai_generator(avito_account, chat_id)
-            celery_logger.info(f"Summary report chat_summary - {chat_summary}.")
             if chat_summary is not None:
                 ChatBotSummaryReportClass.summary_sender(avito_account, chat_summary, chat)
-                # здесь неважно в какой именно инстанс для данного чата добавить флаг, главное чтобы он появился
                 last_chat_bot_task = all_tasks.last()
                 if last_chat_bot_task is not None:
                     # Flag adding for in future we can't be sanding summary_report twice
