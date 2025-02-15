@@ -57,7 +57,7 @@ class AiAnswerAvitoClass:
         result = {}
         chat_history_formatted = format_chat_history(chat_with_messages[0].get("messages"))
         celery_logger.info(f"Последнее сообщение для ИИ ответа-{chat_history_formatted[-1]}")
-        prompt = ("Твоя задача - понять были ли переданы контакты одной из сторон в ходе переписки")
+        prompt = "Твоя задача - понять были ли переданы контакты одной из сторон в ходе переписки"
         messages = [{"role": "system", "content": prompt}, ]
         messages.extend(chat_history_formatted)
         response = client.beta.chat.completions.parse(

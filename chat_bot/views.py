@@ -81,11 +81,9 @@ class WebhookInboxViewClass(View):
     def outgoing_messages_handler(chat_id, message_id, last_message, avito_account):
         WebhookInboxViewClass.revoke_ai_answer_old_tasks(chat_id)  # Вдруг были старые задачи из-за входящих сообщений для ответа ИИ
         #TODO отмена предыдущих тасок для саммари для данного чата
-        contacts = AiAnswerAvitoClass.chat_contacts_checker_task(avito_account, chat_id)
-        AiAnswerAvitoClass.chat_bot_task_save(ai_answer=contacts,
-                                              new_task_id=message_id,
-                                              avito_account_id=avito_account.id)
-        if contacts:
+        contacts_without_answer = AiAnswerAvitoClass.chat_contacts_checker_task(avito_account, chat_id)
+        AiAnswerAvitoClass.chat_bot_task_save(message_id, contacts_without_answer, avito_account.id)
+        if contacts_without_answer:
             if ENVIRONMENT == "PRODUCTION":
                 time.sleep(300)  # 300 by default
             ChatBotSummaryReportClass.summary_sender_main_task.delay(avito_account.id, chat_id)
@@ -121,6 +119,7 @@ class WebhookInboxViewClass(View):
                 WebhookInboxViewClass.incoming_messages_handler(chat_id, message_id, last_message, avito_account, chat_bot)
 
             # Для исходящих
+            #TODO можно добавить флаг о саммари даже если бот неактивен (о переписках менеджеров)
             if not incoming_mgs and chat_bot.is_active:
                 WebhookInboxViewClass.outgoing_messages_handler(chat_id, message_id, last_message, avito_account)
 
