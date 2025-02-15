@@ -20,7 +20,8 @@ from asgiref.sync import async_to_sync, sync_to_async
 from telegram_bot import bot
 from avito_account.models.models import AvitoAccount
 from base.settings import ENVIRONMENT
-from chat_bot.ai_utils import ai_answer_with_contacts, chat_summary_ai_generator
+from chat_bot.ai_utils import ai_answer_with_contacts, chat_summary_ai_generator, format_chat_history, client, \
+    ChatBotAnswerSchema, contacts_data_prepare
 from chat_bot.api.core import send_message_to_avito, read_chat, AvitoMessengerSync
 from chat_bot.models import AiChatBot, ChatBotTask
 from messaging.api import get_chats_last_50_messages
@@ -28,10 +29,12 @@ from celery import shared_task
 
 class AiAnswerAvitoClass:
     @staticmethod
-    def chat_bot_task_dao_save(new_task_id: str, ai_answer: dict):
-        new_task = ChatBotTask.objects.filter(message_id=new_task_id)
-        new_task = new_task[0]
-        new_task.answer_text = ai_answer.get("answer")
+    def chat_bot_task_save(new_task_id: str, ai_answer: dict, avito_account_id: str):
+        new_task, created = ChatBotTask.objects.get_or_create(
+            avito_account_id=avito_account_id,
+            message_id=new_task_id,
+        )
+        new_task.answer_text = ai_answer.get("answer", "Не предусмотрено")
         new_task.tokens_completion = ai_answer.get("tokens_completion")
         new_task.tokens_prompt = ai_answer.get("tokens_prompt")
 
@@ -45,6 +48,31 @@ class AiAnswerAvitoClass:
             new_task.email = contacts.get("email", None)
 
         new_task.save()
+
+    @staticmethod
+    @shared_task
+    def chat_contacts_checker_task(avito_account: AvitoAccount, chat_id: str):
+        celery_logger.warning(f"chat_contacts_checker_task STARTED")
+        chat_with_messages = MessagingAPISync.get_chats_last_50_messages(avito_account, chats=[{"id": chat_id}])
+        result = {}
+        chat_history_formatted = format_chat_history(chat_with_messages[0].get("messages"))
+        celery_logger.info(f"Последнее сообщение для ИИ ответа-{chat_history_formatted[-1]}")
+        prompt = ("Твоя задача - понять были ли переданы контакты одной из сторон в ходе переписки")
+        messages = [{"role": "system", "content": prompt}, ]
+        messages.extend(chat_history_formatted)
+        response = client.beta.chat.completions.parse(
+            model="gpt-4o-2024-08-06",
+            messages=messages,
+            response_format=ChatBotAnswerSchema,
+            max_tokens=2000,
+        )
+
+        data = response.choices[0].message.parsed
+        if data is not None:
+            result['contacts'] = contacts_data_prepare(data)
+            result['tokens_completion'] = response.usage.completion_tokens
+            result['tokens_prompt'] = response.usage.prompt_tokens
+            return result
 
     @staticmethod
     @shared_task
@@ -63,7 +91,7 @@ class AiAnswerAvitoClass:
             if ai_answer:
                 message_text = ai_answer.get("answer") + "…"
                 AvitoMessengerSync.send_message_to_avito(avito_account, avito_account.id, chat_id, message_text)
-                AiAnswerAvitoClass.chat_bot_task_dao_save(new_task_id, ai_answer)
+                AiAnswerAvitoClass.chat_bot_task_save(new_task_id, ai_answer, avito_account.id)
                 if ai_answer.get("contacts") is not None:
                     if ENVIRONMENT == "PRODUCTION":
                         time.sleep(300) # 300 by default
@@ -429,7 +457,3 @@ class ChatBotSummaryReportClass(PdfReportBaseClass):
             text += f"🔹 {counter}. {value} \n"
             counter += 1
         return text
-
-
-
-
