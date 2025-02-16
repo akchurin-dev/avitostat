@@ -29,13 +29,15 @@ from celery import shared_task
 
 class AiAnswerAvitoClass:
     @staticmethod
-    def incoming_task_save(new_task_id: str, ai_answer: dict):
-        new_task = ChatBotTask.objects.filter(message_id=new_task_id)
-        new_task = new_task[0]
+    def task_contacts_save(new_task_id: str, ai_answer: dict, is_incoming: bool):
+        #Core fields
+        new_task = ChatBotTask.objects.filter(message_id=new_task_id).last()
+        new_task.is_incoming = is_incoming
         new_task.answer_text = ai_answer.get("answer", "Не предусмотрено")
         new_task.tokens_completion = ai_answer.get("tokens_completion")
         new_task.tokens_prompt = ai_answer.get("tokens_prompt")
 
+        #Contact fields
         contacts = ai_answer.get("contacts")
         if contacts is not None:
             new_task.city = contacts.get("city", None)
@@ -47,24 +49,24 @@ class AiAnswerAvitoClass:
 
         new_task.save()
 
-    @staticmethod
-    def outgoing_task_save(new_task_id: str, ai_answer: dict):
-        new_task = ChatBotTask.objects.filter(message_id=new_task_id)
-        new_task = new_task[0]
-        new_task.answer_text = ai_answer.get("answer", "Не предусмотрено")
-        new_task.tokens_completion = ai_answer.get("tokens_completion")
-        new_task.tokens_prompt = ai_answer.get("tokens_prompt")
-
-        contacts = ai_answer.get("contacts")
-        if contacts is not None:
-            new_task.city = contacts.get("city", None)
-            new_task.address = contacts.get("address", None)
-            new_task.mobile = contacts.get("mobile", None)
-            new_task.whatsapp = contacts.get("whatsapp", None)
-            new_task.telegram = contacts.get("telegram", None)
-            new_task.email = contacts.get("email", None)
-
-        new_task.save()
+    # @staticmethod
+    # def outgoing_task_save(new_task_id: str, ai_answer: dict):
+    #     new_task = ChatBotTask.objects.filter(message_id=new_task_id)
+    #     new_task = new_task[0]
+    #     new_task.answer_text = ai_answer.get("answer", "Не предусмотрено")
+    #     new_task.tokens_completion = ai_answer.get("tokens_completion")
+    #     new_task.tokens_prompt = ai_answer.get("tokens_prompt")
+    #
+    #     contacts = ai_answer.get("contacts")
+    #     if contacts is not None:
+    #         new_task.city = contacts.get("city", None)
+    #         new_task.address = contacts.get("address", None)
+    #         new_task.mobile = contacts.get("mobile", None)
+    #         new_task.whatsapp = contacts.get("whatsapp", None)
+    #         new_task.telegram = contacts.get("telegram", None)
+    #         new_task.email = contacts.get("email", None)
+    #
+    #     new_task.save()
 
     @staticmethod
     @shared_task
@@ -109,7 +111,7 @@ class AiAnswerAvitoClass:
             if ai_answer:
                 message_text = ai_answer.get("answer") + "…"
                 AvitoMessengerSync.send_message_to_avito(avito_account, avito_account.id, chat_id, message_text)
-                AiAnswerAvitoClass.incoming_task_save(new_task_id, ai_answer)
+                AiAnswerAvitoClass.task_contacts_save(new_task_id, ai_answer, is_incoming=True)
                 if ai_answer.get("contacts") is not None:
                     if ENVIRONMENT == "PRODUCTION":
                         time.sleep(300) # 300 by default
@@ -461,6 +463,8 @@ class ChatBotSummaryReportClass(PdfReportBaseClass):
                 "   📋 Сводка по переписке:\n\n")
 
         title = chat.get("context").get("value").get("title")
+
+        #TODO ниже может быть без локации
         city_name_from_item = chat.get("context").get("value").get("location").get("title") or None
 
         if title:
