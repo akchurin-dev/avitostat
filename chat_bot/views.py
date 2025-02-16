@@ -1,5 +1,8 @@
 import datetime
 import time
+
+from celery import shared_task
+
 from base.settings import ENVIRONMENT
 from chat_bot.tasks import BotStatisticsDailyReportClass, ChatBotSummaryReportClass, PdfReportBaseClass, \
     AiAnswerAvitoClass
@@ -22,14 +25,33 @@ moscow_tz = pytz.timezone('Europe/Moscow')
 class WebhookInboxViewClass(View):
 
     @staticmethod
-    def prepare_data(data, chat_bot):
-        message_id = data.get('payload').get('value').get('id')
+    def message_data(data) -> dict:
+        #From request
         chat_id = data.get("payload").get("value").get("chat_id")
+        message_id = data.get('payload').get('value').get('id')
         author_id = data.get("payload").get("value").get("author_id")
-        message = data.get("payload").get("value").get("content").get("text")
+        user_id = data.get("payload").get("value").get("user_id")
+        text = data.get("payload").get("value").get("content").get("text")
+        incoming_mgs = author_id != user_id
+
+        #Objects
+        avito_account = AvitoAccount.objects.get(id=user_id)
+        chat_bot = AiChatBot.objects.get(avito_account=avito_account)
+
+        # Service data
         is_time_to_work = WebhookInboxViewClass.check_chat_bot_scheduler(chat_bot)
         bot_stopped_for_chat = WebhookInboxViewClass.chat_shutdown_check(chat_id, chat_bot)
-        return message_id, chat_id, author_id, message, is_time_to_work, bot_stopped_for_chat
+
+        return {
+            "chat_id": chat_id,
+            "message_id": message_id,
+            "last_message": text,
+            "avito_account": avito_account,
+            "chat_bot": chat_bot,
+            "incoming_mgs": incoming_mgs,
+            "is_time_to_work": is_time_to_work,
+            "bot_stopped_for_chat": bot_stopped_for_chat,
+        }
 
     @staticmethod
     def check_chat_bot_scheduler(chat_bot: AiChatBot) -> bool:
@@ -66,11 +88,7 @@ class WebhookInboxViewClass(View):
     def incoming_messages_handler(chat_id, message_id, last_message, avito_account, chat_bot):
         WebhookInboxViewClass.revoke_ai_answer_old_tasks(chat_id)
         new_task, created = ChatBotTask.objects.get_or_create(
-            chat_id=chat_id,
-            message_id=message_id,
-            avito_account=avito_account,
-            text=last_message,
-        )
+            avito_account=avito_account, chat_id=chat_id, message_id=message_id, text=last_message, is_incoming=True,)
 
         if created:
             if ENVIRONMENT == "PRODUCTION":
@@ -78,15 +96,21 @@ class WebhookInboxViewClass(View):
             AiAnswerAvitoClass.ai_answer_sender_task.delay(avito_account.id, chat_id, chat_bot.id, new_task.message_id)
 
     @staticmethod
-    def outgoing_messages_handler(chat_id, message_id, last_message, avito_account):
+    def outgoing_messages_handler(chat_id, message_id, last_message, avito_account, chat_bot):
         WebhookInboxViewClass.revoke_ai_answer_old_tasks(chat_id)  # Вдруг были старые задачи из-за входящих сообщений для ответа ИИ
         #TODO отмена предыдущих тасок для саммари для данного чата
-        contacts_without_answer = AiAnswerAvitoClass.chat_contacts_checker_task(avito_account, chat_id)
-        AiAnswerAvitoClass.chat_bot_task_save(message_id, contacts_without_answer, avito_account.id)
-        if contacts_without_answer:
-            if ENVIRONMENT == "PRODUCTION":
-                time.sleep(300)  # 300 by default
-            ChatBotSummaryReportClass.summary_sender_main_task.delay(avito_account.id, chat_id)
+        new_task, created = ChatBotTask.objects.get_or_create(
+            avito_account=avito_account, chat_id=chat_id, message_id=message_id, text=last_message, is_incoming=False, )
+
+        if created:
+            time.sleep(chat_bot.waiting_minutes * 60)  # WAIT TIME BEFORE ANY ACTIONS
+
+            contacts_without_answer = AiAnswerAvitoClass.chat_contacts_checker_task(avito_account, chat_id)
+            AiAnswerAvitoClass.outgoing_task_save(message_id, contacts_without_answer, avito_account.id)
+            if contacts_without_answer:
+                if ENVIRONMENT == "PRODUCTION":
+                    time.sleep(300)  # 300 by default
+                ChatBotSummaryReportClass.summary_sender_main_task.delay(avito_account.id, chat_id)
 
 
         # Логика остановки бота если человек вмешался в разговор
@@ -100,31 +124,33 @@ class WebhookInboxViewClass(View):
             task.chat_shutdown_by_user = True  # Останавливаем дальнейшие ответы от ИИ если человек вмешался в разговор
             task.save()
 
-    def post(self, request, *args, **kwargs):
-        data = json.loads(request.body.decode('utf-8'))
-        user_id = data.get("payload").get("value").get("user_id")
-        avito_account = AvitoAccount.objects.get(id=user_id)
-        chat_bot = AiChatBot.objects.get(avito_account=avito_account)
+    @staticmethod
+    @shared_task
+    def webhook_processing_task(request):
+        request_data = json.loads(request.body.decode('utf-8'))
+        md = WebhookInboxViewClass.message_data(request_data)
 
-        if (data.get("payload").get("type") == "message"
-                and data.get("payload").get("value").get("type") == "text"):  # skip system messages
+        if (request_data.get("payload").get("type") == "message"
+                and request_data.get("payload").get("value").get("type") == "text"):  # skip system messages
 
-            message_id, chat_id, author_id, last_message, is_time_to_work, bot_stopped_for_chat =\
-                WebhookInboxViewClass.prepare_data(data, chat_bot)
 
-            incoming_mgs = author_id != user_id
 
             # для входящих сообщений
-            if incoming_mgs  and chat_bot.is_active and is_time_to_work and not bot_stopped_for_chat:
-                WebhookInboxViewClass.incoming_messages_handler(chat_id, message_id, last_message, avito_account, chat_bot)
+            if incoming_mgs and chat_bot.is_active and is_time_to_work and not bot_stopped_for_chat:
+                WebhookInboxViewClass.incoming_messages_handler(chat_id, message_id, last_message, avito_account,
+                                                                chat_bot)
 
             # Для исходящих
-            #TODO можно добавить флаг о саммари даже если бот неактивен (о переписках менеджеров)
+            # TODO можно добавить флаг о саммари даже если бот неактивен (о переписках менеджеров)
             if not incoming_mgs and chat_bot.is_active:
-                WebhookInboxViewClass.outgoing_messages_handler(chat_id, message_id, last_message, avito_account)
-
+                WebhookInboxViewClass.outgoing_messages_handler(chat_id, message_id, last_message, avito_account,
+                                                                chat_bot)
 
             if bot_stopped_for_chat: print("!!!BOT STOPPER FOR CHAT!!!")  # TODO: remove after testing
+
+
+    def post(self, request, *args, **kwargs):
+        WebhookInboxViewClass.webhook_processing_task(request)
         return JsonResponse({"status": "ok"}, status=200)
 
 

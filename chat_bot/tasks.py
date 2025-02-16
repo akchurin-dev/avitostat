@@ -29,11 +29,28 @@ from celery import shared_task
 
 class AiAnswerAvitoClass:
     @staticmethod
-    def chat_bot_task_save(new_task_id: str, ai_answer: dict, avito_account_id: str):
-        new_task, created = ChatBotTask.objects.get_or_create(
-            avito_account_id=avito_account_id,
-            message_id=new_task_id,
-        )
+    def incoming_task_save(new_task_id: str, ai_answer: dict):
+        new_task = ChatBotTask.objects.filter(message_id=new_task_id)
+        new_task = new_task[0]
+        new_task.answer_text = ai_answer.get("answer", "Не предусмотрено")
+        new_task.tokens_completion = ai_answer.get("tokens_completion")
+        new_task.tokens_prompt = ai_answer.get("tokens_prompt")
+
+        contacts = ai_answer.get("contacts")
+        if contacts is not None:
+            new_task.city = contacts.get("city", None)
+            new_task.address = contacts.get("address", None)
+            new_task.mobile = contacts.get("mobile", None)
+            new_task.whatsapp = contacts.get("whatsapp", None)
+            new_task.telegram = contacts.get("telegram", None)
+            new_task.email = contacts.get("email", None)
+
+        new_task.save()
+
+    @staticmethod
+    def outgoing_task_save(new_task_id: str, ai_answer: dict):
+        new_task = ChatBotTask.objects.filter(message_id=new_task_id)
+        new_task = new_task[0]
         new_task.answer_text = ai_answer.get("answer", "Не предусмотрено")
         new_task.tokens_completion = ai_answer.get("tokens_completion")
         new_task.tokens_prompt = ai_answer.get("tokens_prompt")
@@ -77,6 +94,7 @@ class AiAnswerAvitoClass:
     @staticmethod
     @shared_task
     def ai_answer_sender_task(avito_account_id, chat_id, chat_bot_id, new_task_id):
+        shared_task.__name__ = f"ai_answer_{new_task_id}"
         celery_logger.warning(f"ai_answer_sender STARTED")
         avito_account = AvitoAccount.objects.get(pk=avito_account_id)
         chat_bot = AiChatBot.objects.get(pk=chat_bot_id)
@@ -91,7 +109,7 @@ class AiAnswerAvitoClass:
             if ai_answer:
                 message_text = ai_answer.get("answer") + "…"
                 AvitoMessengerSync.send_message_to_avito(avito_account, avito_account.id, chat_id, message_text)
-                AiAnswerAvitoClass.chat_bot_task_save(new_task_id, ai_answer, avito_account.id)
+                AiAnswerAvitoClass.incoming_task_save(new_task_id, ai_answer)
                 if ai_answer.get("contacts") is not None:
                     if ENVIRONMENT == "PRODUCTION":
                         time.sleep(300) # 300 by default
