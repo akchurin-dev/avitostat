@@ -109,7 +109,7 @@ class WebhookInboxViewClass(View):
                 ChatBotSummaryReportClass.summary_sender_main_task(avito_account.id, chat_id)
             # Логика остановки бота если человек вмешался в разговор
             if chat_bot.shutdown_after_manager:
-                #TODO идея если на след день пишет человек то бот не должен останавливаться
+                #INFO идея если на след день пишет человек то бот не должен останавливаться
                 new_task.chat_shutdown_by_user = True  # Останавливаем дальнейшие ответы от ИИ если человек вмешался
                 new_task.save()
 
@@ -136,7 +136,7 @@ class WebhookInboxViewClass(View):
                 WebhookInboxViewClass.incoming_messages_handler(new_task, chat_id, avito_account, chat_bot)
 
             # Для исходящих
-            # TODO можно добавить флаг о саммари даже если бот неактивен (о переписках менеджеров)
+            # INFO можно добавить флаг о саммари даже если бот неактивен (о переписках менеджеров)
             if not incoming_mgs and chat_bot.is_active:
                 WebhookInboxViewClass.outgoing_messages_handler(chat_id, message_id, avito_account, chat_bot, new_task)
         else:

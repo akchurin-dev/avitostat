@@ -384,11 +384,10 @@ class ChatBotSummaryReportClass(PdfReportBaseClass):
         if ENVIRONMENT == "PRODUCTION":
             time.sleep(300)  # 300 by default
         all_tasks = ChatBotTask.objects.filter(chat_id=chat_id)
-        #TODO Условие убрать после тестов
-        # if ENVIRONMENT == "PRODUCTION":
-        if all_tasks.filter(summary_sanded=True).exists():
-            celery_logger.info(f"Summary report already sent for chat_id {chat_id}.")
-            return
+        if ENVIRONMENT == "PRODUCTION":
+            if all_tasks.filter(summary_sanded=True).exists():
+                celery_logger.info(f"Summary report already sent for chat_id {chat_id}.")
+                return
 
         avito_account = AvitoAccount.objects.filter(id=avito_account_id).last()
         chat = MessagingAPISync.get_chat_by_id(avito_account, chat_id)
@@ -431,7 +430,7 @@ class ChatBotSummaryReportClass(PdfReportBaseClass):
             text += f"<p style='margin-left: 20px;'>{counter}. Название объявления: {title}</p>"
             counter += 1
 
-            # TODO ниже может быть без локации например через личку
+            # INFO ниже может быть без локации например через личку
         location = chat.get("context").get("value").get("location", None)
         if location:
             city_name_from_item = chat.get("context").get("value").get("location").get("title")
@@ -460,7 +459,7 @@ class ChatBotSummaryReportClass(PdfReportBaseClass):
             text += f"🔹 {counter}. Название объявления: {title}\n"
             counter += 1
 
-        #TODO ниже может быть без локации например через личку
+        #INFO ниже может быть без локации например через личку
         location = chat.get("context").get("value").get("location", None)
         if location:
             city_name_from_item = chat.get("context").get("value").get("location").get("title")
