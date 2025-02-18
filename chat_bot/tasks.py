@@ -381,6 +381,8 @@ class ChatBotSummaryReportClass(PdfReportBaseClass):
     @staticmethod
     @shared_task
     def summary_sender_main_task(avito_account_id, chat_id):
+        if ENVIRONMENT == "PRODUCTION":
+            time.sleep(300)  # 300 by default
         all_tasks = ChatBotTask.objects.filter(chat_id=chat_id)
         #TODO Условие убрать после тестов
         # if ENVIRONMENT == "PRODUCTION":

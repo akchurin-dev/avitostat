@@ -64,7 +64,12 @@ class WebhookInboxViewClass(View):
     @staticmethod
     def chat_shutdown_check(chat_id, chat_bot) -> bool:
         chat_stopped = ChatBotTask.objects.filter(chat_id=chat_id, chat_shutdown_by_user=True,).exists()
-        return chat_stopped and chat_bot.shutdown_after_manager
+        stopped = chat_stopped and chat_bot.shutdown_after_manager
+        if stopped:
+            celery_logger.warning(f"chat_stopped by manager manually answers - {chat_stopped}")
+        else:
+            celery_logger.info(f"chat_stopped by manager manually answers - {chat_stopped}")
+        return stopped
 
     @staticmethod
     def revoke_ai_answer_old_tasks(chat_id: str):
@@ -94,17 +99,14 @@ class WebhookInboxViewClass(View):
         # TODO отмена предыдущих тасок для саммари для данного чата ПРОВЕРИТЬ КАК ТО через флауэр
         WebhookInboxViewClass.revoke_ai_answer_old_tasks(chat_id)  # Вдруг были старые задачи из-за входящих сообщений для ответа ИИ
         time.sleep(chat_bot.waiting_minutes * 60)  # WAIT TIME BEFORE ANY ACTIONS
-        answer_from_ai = ChatBotTask.objects.filter(message_id=message_id, tokens_completion__gt=0).exists()
-        if answer_from_ai:
+        answered_from_ai = ChatBotTask.objects.filter(message_id=message_id, tokens_completion__gt=0).exists()
+        if answered_from_ai:
             return None
-        if not answer_from_ai:
-            contacts_without_answer = AiAnswerAvitoClass.chat_contacts_checker_task(avito_account, chat_id)
-            AiAnswerAvitoClass.task_contacts_save(message_id, contacts_without_answer, is_incoming=False)
-            if contacts_without_answer:
-                if ENVIRONMENT == "PRODUCTION":
-                    time.sleep(300)  # 300 by default
+        if not answered_from_ai:
+            contacts = AiAnswerAvitoClass.chat_contacts_checker_task(avito_account, chat_id)
+            AiAnswerAvitoClass.task_contacts_save(message_id, contacts, is_incoming=False)
+            if contacts:
                 ChatBotSummaryReportClass.summary_sender_main_task(avito_account.id, chat_id)
-
             # Логика остановки бота если человек вмешался в разговор
             if chat_bot.shutdown_after_manager:
                 #TODO идея если на след день пишет человек то бот не должен останавливаться
@@ -119,9 +121,6 @@ class WebhookInboxViewClass(View):
          is_time_to_work, bot_stopped_for_chat) = WebhookInboxViewClass.message_data(request_data)
         celery_logger.warning(f"Request data is - {request_data}")
 
-        # if ENVIRONMENT == "DEVELOPMENT":
-        #     async_to_sync(avito_account.update_refresh_token_async)()
-
         new_task, created = ChatBotTask.objects.get_or_create(
             avito_account=avito_account, chat_id=chat_id, message_id=message_id, text=text,)
 
@@ -135,11 +134,11 @@ class WebhookInboxViewClass(View):
             if incoming_mgs and chat_bot.is_active and is_time_to_work and not bot_stopped_for_chat:
                 AvitoMessengerSync.read_chat(avito_account, user_id, chat_id)
                 WebhookInboxViewClass.incoming_messages_handler(new_task, chat_id, avito_account, chat_bot)
+
             # Для исходящих
             # TODO можно добавить флаг о саммари даже если бот неактивен (о переписках менеджеров)
             if not incoming_mgs and chat_bot.is_active:
                 WebhookInboxViewClass.outgoing_messages_handler(chat_id, message_id, avito_account, chat_bot, new_task)
-            if bot_stopped_for_chat: print("!!!BOT STOPPER FOR CHAT!!!")  # TODO: remove after testing
         else:
             celery_logger.warning(f"this type of message is not supported yet: {request_data.get('payload').get('type')}")
 
