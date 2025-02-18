@@ -106,7 +106,6 @@ class AiAnswerAvitoClass:
         if actual_message.get("type") == "system":  # тк при номере последним становится уже сообщение с предупреждением
             actual_message = chat_with_messages[0].get("messages")[-2]
         if actual_message.get("direction") == "in" and actual_message.get("type") == "text":
-            AvitoMessengerSync.read_chat(avito_account, avito_account.id, chat_id)
             ai_answer = ai_answer_with_contacts(chat_bot, chat_with_messages[0].get("messages")[:])
             if ai_answer:
                 message_text = ai_answer.get("answer") + "…"
@@ -402,10 +401,11 @@ class ChatBotSummaryReportClass(PdfReportBaseClass):
     @shared_task
     def summary_sender_main_task(avito_account_id, chat_id):
         all_tasks = ChatBotTask.objects.filter(chat_id=chat_id)
-        if ENVIRONMENT == "PRODUCTION":
-            if all_tasks.filter(summary_sanded=True).exists():
-                celery_logger.info(f"Summary report already sent for chat_id {chat_id}.")
-                return
+        #TODO Условие убрать после тестов
+        # if ENVIRONMENT == "PRODUCTION":
+        if all_tasks.filter(summary_sanded=True).exists():
+            celery_logger.info(f"Summary report already sent for chat_id {chat_id}.")
+            return
 
         avito_account = AvitoAccount.objects.filter(id=avito_account_id).last()
         chat = MessagingAPISync.get_chat_by_id(avito_account, chat_id)
@@ -414,15 +414,11 @@ class ChatBotSummaryReportClass(PdfReportBaseClass):
         if messages is not None and len(messages) > 0:  # skip who can't have bot chats
             chat_summary = chat_summary_ai_generator(avito_account, chat_id)
             if chat_summary is not None:
-                ChatBotSummaryReportClass.summary_sender(avito_account, chat_summary, chat)
-                last_chat_bot_task = all_tasks.last()
-                if last_chat_bot_task is not None:
-                    # Flag adding for in future we can't be sanding summary_report twice
-                    last_chat_bot_task.summary_sanded = True
-                    last_chat_bot_task.save()
+                ChatBotSummaryReportClass.summary_sender(avito_account, chat_summary, chat, all_tasks)
+
 
     @staticmethod
-    def summary_sender(avito_account, chat_summary, chat):
+    def summary_sender(avito_account, chat_summary, chat, all_tasks):
         # TEXT MESSAGE
         summary_text = ChatBotSummaryReportClass.get_chat_summary_text(chat_summary, chat)
         celery_logger.info(f"Summary report summary_text {summary_text}.")
@@ -434,17 +430,30 @@ class ChatBotSummaryReportClass(PdfReportBaseClass):
         summary_html = ChatBotSummaryReportClass.get_chat_summary_html(chat_summary, chat)
         ChatHistoryReportClass.history_pdf_sender_task.delay(avito_account.id, chat, summary_html)
 
+        last_chat_bot_task = all_tasks.last()
+        if last_chat_bot_task is not None:
+            # Flag adding for in future we can't be sanding summary_report twice
+            last_chat_bot_task.summary_sanded = True
+            last_chat_bot_task.save()
+
+
     @staticmethod
     def get_chat_summary_html(chat_summary, chat):
         counter = 1
         text = "<div style='font-family: Arial, sans-serif;'><b>Сводка по переписке:</b><br><br>"
 
         title = chat.get("context").get("value").get("title")
-        city_name_from_item = chat.get("context").get("value").get("location").get("title") or None
-
+        if title and len(title) == 0: title = "Без названия"
         if title:
             text += f"<p style='margin-left: 20px;'>{counter}. Название объявления: {title}</p>"
             counter += 1
+
+            # TODO ниже может быть без локации например через личку
+        location = chat.get("context").get("value").get("location", None)
+        if location:
+            city_name_from_item = chat.get("context").get("value").get("location").get("title")
+        else:
+            city_name_from_item = "Без локации"
 
         if city_name_from_item:
             text += f"<p style='margin-left: 20px;'><b>{counter}. <u>Город обращения: {city_name_from_item}</u></b></p>"
@@ -463,13 +472,17 @@ class ChatBotSummaryReportClass(PdfReportBaseClass):
                 "   📋 Сводка по переписке:\n\n")
 
         title = chat.get("context").get("value").get("title")
-
-        #TODO ниже может быть без локации
-        city_name_from_item = chat.get("context").get("value").get("location").get("title") or None
-
+        if title and len(title) == 0: title = "Без названия"
         if title:
             text += f"🔹 {counter}. Название объявления: {title}\n"
             counter += 1
+
+        #TODO ниже может быть без локации например через личку
+        location = chat.get("context").get("value").get("location", None)
+        if location:
+            city_name_from_item = chat.get("context").get("value").get("location").get("title")
+        else:
+            city_name_from_item = "Без локации"
 
         if city_name_from_item:
             text += f"🔸 {counter}. <u><b>Город обращения: {city_name_from_item}</b></u> \n"
