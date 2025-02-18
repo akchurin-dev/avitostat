@@ -49,25 +49,6 @@ class AiAnswerAvitoClass:
 
         new_task.save()
 
-    # @staticmethod
-    # def outgoing_task_save(new_task_id: str, ai_answer: dict):
-    #     new_task = ChatBotTask.objects.filter(message_id=new_task_id)
-    #     new_task = new_task[0]
-    #     new_task.answer_text = ai_answer.get("answer", "Не предусмотрено")
-    #     new_task.tokens_completion = ai_answer.get("tokens_completion")
-    #     new_task.tokens_prompt = ai_answer.get("tokens_prompt")
-    #
-    #     contacts = ai_answer.get("contacts")
-    #     if contacts is not None:
-    #         new_task.city = contacts.get("city", None)
-    #         new_task.address = contacts.get("address", None)
-    #         new_task.mobile = contacts.get("mobile", None)
-    #         new_task.whatsapp = contacts.get("whatsapp", None)
-    #         new_task.telegram = contacts.get("telegram", None)
-    #         new_task.email = contacts.get("email", None)
-    #
-    #     new_task.save()
-
     @staticmethod
     @shared_task
     def chat_contacts_checker_task(avito_account: AvitoAccount, chat_id: str):
