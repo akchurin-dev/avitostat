@@ -21,7 +21,7 @@ from telegram_bot import bot
 from avito_account.models.models import AvitoAccount
 from base.settings import ENVIRONMENT
 from chat_bot.ai_utils import ai_answer_with_contacts, chat_summary_ai_generator, format_chat_history, client, \
-    ChatBotAnswerSchema, contacts_data_prepare
+    ChatBotContactsSchema, contacts_data_prepare
 from chat_bot.api.core import send_message_to_avito, read_chat, AvitoMessengerSync
 from chat_bot.models import AiChatBot, ChatBotTask
 from messaging.api import get_chats_last_50_messages
@@ -57,19 +57,21 @@ class AiAnswerAvitoClass:
         result = {}
         chat_history_formatted = format_chat_history(chat_with_messages[0].get("messages"))
         celery_logger.info(f"Последнее сообщение для ИИ ответа-{chat_history_formatted[-1]}")
-        prompt = "Твоя задача - понять были ли переданы контакты одной из сторон в ходе переписки"
+        prompt = ("Предоставь address , mobile , whatsapp , telegram , email если они имеются в переписке"
+                  "Никакие данные СОЧИНЯТЬ НЕВКОЕМ СЛУЧАЕ НЕЛЬЗЯ!!!! ОТ ЭТОГО ЗАВИСЯТ ЖИЗНИ ЛЮДЕЙ")
         messages = [{"role": "system", "content": prompt}, ]
         messages.extend(chat_history_formatted)
         response = client.beta.chat.completions.parse(
             model="gpt-4o-2024-08-06",
             messages=messages,
-            response_format=ChatBotAnswerSchema,
+            response_format=ChatBotContactsSchema,
             max_tokens=2000,
         )
 
         data = response.choices[0].message.parsed
         if data is not None:
             result['contacts'] = contacts_data_prepare(data)
+            celery_logger.info(f"Contacts from chat-{result.get('contacts')}")
             result['tokens_completion'] = response.usage.completion_tokens
             result['tokens_prompt'] = response.usage.prompt_tokens
             return result
@@ -92,10 +94,13 @@ class AiAnswerAvitoClass:
                 message_text = ai_answer.get("answer") + "…"
                 AvitoMessengerSync.send_message_to_avito(avito_account, avito_account.id, chat_id, message_text)
                 AiAnswerAvitoClass.task_contacts_save(new_task_id, ai_answer, is_incoming=True)
-                if ai_answer.get("contacts") is not None:
-                    if ENVIRONMENT == "PRODUCTION":
-                        time.sleep(300) # 300 by default
-                    ChatBotSummaryReportClass.summary_sender_main_task.delay(avito_account_id, chat_id)
+                contacts = ai_answer.get("contacts")
+                if contacts is not None:
+                    # if ENVIRONMENT == "PRODUCTION":
+                    #     time.sleep(300) # 300 by default
+                    ChatBotSummaryReportClass.summary_sender_main_task(avito_account_id, chat_id)
+                    celery_logger.exception("FROM ai_answer_sender_task")
+
 
 class PdfReportBaseClass:
     @staticmethod
@@ -384,10 +389,11 @@ class ChatBotSummaryReportClass(PdfReportBaseClass):
         if ENVIRONMENT == "PRODUCTION":
             time.sleep(300)  # 300 by default
         all_tasks = ChatBotTask.objects.filter(chat_id=chat_id)
-        if ENVIRONMENT == "PRODUCTION":
-            if all_tasks.filter(summary_sanded=True).exists():
-                celery_logger.info(f"Summary report already sent for chat_id {chat_id}.")
-                return
+        #TODO Не забудь раскоментить
+        # if ENVIRONMENT == "PRODUCTION":
+        if all_tasks.filter(summary_sanded=True).exists():
+            celery_logger.info(f"Summary report already sent for chat_id {chat_id}.")
+            return
 
         avito_account = AvitoAccount.objects.filter(id=avito_account_id).last()
         chat = MessagingAPISync.get_chat_by_id(avito_account, chat_id)
