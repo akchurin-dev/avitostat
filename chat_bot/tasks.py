@@ -21,7 +21,7 @@ from telegram_bot import bot
 from avito_account.models.models import AvitoAccount
 from base.settings import ENVIRONMENT
 from chat_bot.ai_utils import ai_answer_with_contacts, chat_summary_ai_generator, format_chat_history, client, \
-    ChatBotContactsSchema, contacts_data_prepare
+    ChatBotContactsSchema, contacts_data_prepare, ChatBotAnswerSchema
 from chat_bot.api.core import send_message_to_avito, read_chat, AvitoMessengerSync
 from chat_bot.models import AiChatBot, ChatBotTask
 from messaging.api import get_chats_last_50_messages
@@ -57,15 +57,19 @@ class AiAnswerAvitoClass:
         result = {}
         chat_history_formatted = format_chat_history(chat_with_messages[0].get("messages"))
         celery_logger.info(f"Последнее сообщение для ИИ ответа-{chat_history_formatted[-1]}")
-        prompt = ("Предоставь address , mobile , whatsapp , telegram , email если они имеются в переписке"
-                  "Никакие данные СОЧИНЯТЬ НЕВКОЕМ СЛУЧАЕ НЕЛЬЗЯ!!!! ОТ ЭТОГО ЗАВИСЯТ ЖИЗНИ ЛЮДЕЙ")
+        prompt = (
+            "Извлеки контакты из чата. "
+            "Если данных нет – укажи None. "
+            "Не выдумывай, используй только факты из текста. "
+            "Ответ должен соответствовать схеме: address, mobile, whatsapp, telegram, email."
+        )
         messages = [{"role": "system", "content": prompt}, ]
         messages.extend(chat_history_formatted)
         response = client.beta.chat.completions.parse(
             model="gpt-4o-2024-08-06",
             messages=messages,
-            response_format=ChatBotContactsSchema,
-            max_tokens=2000,
+            response_format=ChatBotAnswerSchema,
+            max_tokens=1000,
         )
 
         data = response.choices[0].message.parsed
