@@ -97,14 +97,17 @@ class WebhookInboxViewClass(View):
     @staticmethod
     def outgoing_messages_handler(chat_id, message_id, avito_account, chat_bot, new_task, answered_from_ai=False):
         # TODO отмена предыдущих тасок для саммари для данного чата ПРОВЕРИТЬ КАК ТО через флауэр
+        new_task.is_incoming = False
+        new_task.save()
         WebhookInboxViewClass.revoke_ai_answer_old_tasks(chat_id)  # Вдруг были старые задачи из-за входящих сообщений для ответа ИИ
         # time.sleep(chat_bot.waiting_minutes * 60)  # WAIT TIME BEFORE ANY ACTIONS
 
         #Checking answered from AI
-        tasks = list(ChatBotTask.objects.filter(chat_id=chat_id).order_by("created_at"))
+        tasks = list(ChatBotTask.objects.filter(chat_id=chat_id, is_incoming=True).order_by("created_at"))
         for task in tasks[-5:]:
-            if task.answer_text and task.answer_text == new_task.text:
+            if task.answer_text and task.answer_text + "..." == new_task.text:
                 answered_from_ai = True
+                break
 
         if answered_from_ai:
             return None
