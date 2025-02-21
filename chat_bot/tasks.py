@@ -20,9 +20,8 @@ from asgiref.sync import async_to_sync, sync_to_async
 from telegram_bot import bot
 from avito_account.models.models import AvitoAccount
 from base.settings import ENVIRONMENT
-from chat_bot.ai_utils import ai_answer_with_contacts, chat_summary_ai_generator, format_chat_history, client, \
-    ChatBotContactsSchema, contacts_data_prepare, ChatBotAnswerSchema
-from chat_bot.api.core import send_message_to_avito, read_chat, AvitoMessengerSync
+from chat_bot.ai_utils import ai_answer_with_contacts, chat_summary_ai_generator
+from chat_bot.api.core import AvitoMessengerSync
 from chat_bot.models import AiChatBot, ChatBotTask
 from messaging.api import get_chats_last_50_messages
 from celery import shared_task
@@ -54,31 +53,9 @@ class AiAnswerAvitoClass:
     def chat_contacts_checker_task(avito_account: AvitoAccount, chat_id: str):
         celery_logger.warning(f"chat_contacts_checker_task STARTED")
         chat_with_messages = MessagingAPISync.get_chats_last_50_messages(avito_account, chats=[{"id": chat_id}])
-        result = {}
-        chat_history_formatted = format_chat_history(chat_with_messages[0].get("messages"))
-        celery_logger.info(f"Последнее сообщение для ИИ ответа-{chat_history_formatted[-1]}")
-        prompt = (
-            "Извлеки контакты из чата. "
-            "Если данных нет – укажи None. "
-            "Не выдумывай, используй только факты из текста. "
-            "Ответ должен соответствовать схеме: address, mobile, whatsapp, telegram, email."
-        )
-        messages = [{"role": "system", "content": prompt}, ]
-        messages.extend(chat_history_formatted)
-        response = client.beta.chat.completions.parse(
-            model="gpt-4o-2024-08-06",
-            messages=messages,
-            response_format=ChatBotAnswerSchema,
-            max_tokens=1000,
-        )
-
-        data = response.choices[0].message.parsed
-        if data is not None:
-            result['contacts'] = contacts_data_prepare(data)
-            celery_logger.info(f"Contacts from chat-{result.get('contacts')}")
-            result['tokens_completion'] = response.usage.completion_tokens
-            result['tokens_prompt'] = response.usage.prompt_tokens
-            return result
+        ai_assistant = AiChatBot.objects.filter(avito_account=avito_account).last()
+        contacts = ai_answer_with_contacts(ai_assistant, chat=chat_with_messages[0].get("messages"))
+        print(123)
 
     @staticmethod
     @shared_task
