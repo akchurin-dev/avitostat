@@ -135,6 +135,7 @@ class WebhookInboxViewClass(View):
 
         # async_to_sync(avito_account.update_refresh_token_async)()
 
+
         celery_logger.warning(f"Request id - {message_id}")
         celery_logger.warning(f"account - {avito_account.name}")
         celery_logger.warning(f"Request text - {text}")
