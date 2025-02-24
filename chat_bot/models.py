@@ -64,29 +64,24 @@ class AiChatBot(models.Model):
 
 
 class ChatBotTask(models.Model):
-    # Core fields
-    avito_account = models.ForeignKey(AvitoAccount, on_delete=models.CASCADE)
-    is_incoming = models.BooleanField(default=True, verbose_name="Входящее сообщение")
     chat_id = models.CharField()
+    chat_shutdown_by_user = models.BooleanField(default=False)
     message_id = models.CharField(primary_key=True, unique=True)
+    avito_account = models.ForeignKey(AvitoAccount, on_delete=models.CASCADE)
     text = models.TextField(verbose_name="Текст сообщения")
+    created_at = models.DateTimeField(auto_now_add=True)
 
-    # AI fields
     answer_text = models.TextField(verbose_name="Текст ответа", blank=True, null=True)
     tokens_completion = models.IntegerField(default=0, verbose_name="Токены на вычисления")
     tokens_prompt = models.IntegerField(default=0, verbose_name="Токены на контекст")
 
-    # Contact fields
     address = models.TextField(blank=True, null=True, default=None, verbose_name="Адрес клиента")
     mobile = models.TextField(blank=True, null=True, default=None, verbose_name="Мобильный номер")
     whatsapp = models.TextField(blank=True, null=True, default=None, verbose_name="Вацап")
     telegram = models.TextField(blank=True, null=True, default=None, verbose_name="Телеграм")
     email = models.TextField(blank=True, null=True, default=None, verbose_name="Емайл")
 
-    # Service fields
     summary_sanded = models.BooleanField(default=False, verbose_name="Сводка была отправлена")
-    chat_shutdown_by_user = models.BooleanField(default=False)
-    created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
         verbose_name = "Ответ чат бота"

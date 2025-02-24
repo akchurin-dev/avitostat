@@ -13,19 +13,20 @@ client = OpenAI(api_key=settings.OPENAI_SECRET_KEY)
 
 class ChatBotAnswerSchema(BaseModel):
     answer: str
-    address: str | None
-    mobile: str | None
-    whatsapp: str | None
-    telegram: str | None
-    email: str | None
+    client_address: str | None
+    client_mobile: str | None
+    client_whatsapp: str | None
+    client_telegram: str | None
+    client_email: str | None
+
 
 def contacts_data_prepare(data: dict) -> dict | None:
     contacts = {key: value for key, value in {
-        "address": data.address,
-        "mobile": data.mobile,
-        "whatsapp": data.whatsapp,
-        "telegram": data.telegram,
-        "email": data.email,
+        "address": data.client_address,
+        "mobile": data.client_mobile,
+        "whatsapp": data.client_whatsapp,
+        "telegram": data.client_telegram,
+        "email": data.client_email,
     }.items() if value is not None}
     if not contacts:
         result = None
@@ -47,7 +48,7 @@ def format_chat_history(messages):
     return formatted_messages
 
 
-def ai_answer_with_contacts(ai_assistant: AiChatBot, chat: list, ):
+def ai_answer_assist(ai_assistant: AiChatBot, chat: list, ):
     try:
         result = {}
         chat_history_formatted = format_chat_history(chat)
@@ -57,7 +58,6 @@ def ai_answer_with_contacts(ai_assistant: AiChatBot, chat: list, ):
             f"Правила при общении:{ai_assistant.rules}"
             f"Необходимо в ходе разговора наличие шагов:{ai_assistant.checkpoints}"
             "Ответы давать только на русском языке"
-            "Контакты доставать как клиента так и менеджера если имеются в переписке"
         )
         messages = [{"role": "system", "content": prompt}, ]
         messages.extend(chat_history_formatted)

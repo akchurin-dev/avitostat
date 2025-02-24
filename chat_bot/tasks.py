@@ -1,6 +1,8 @@
+import asyncio
 import datetime
 import time
 from pathlib import Path
+
 from aiogram import types
 import pdfkit
 from aiogram.types import InputMediaDocument
@@ -13,70 +15,68 @@ from messaging.api import get_chats, MessagingAPISync
 from messaging.bad_mes_report.utils_bad_messaging_report import chats_timestamp_to_datetime
 from messaging.bad_mes_report.utils_chats import filter_chats_for_last_period, \
     filter_chats_only_with_text, filter_by_bot_answered_chat_ids
-from asgiref.sync import async_to_sync
+from asgiref.sync import async_to_sync, sync_to_async
 from telegram_bot import bot
 from avito_account.models.models import AvitoAccount
 from base.settings import ENVIRONMENT
-from chat_bot.ai_utils import ai_answer_with_contacts, chat_summary_ai_generator
-from chat_bot.api.core import AvitoMessengerSync
+from chat_bot.ai_utils import ai_answer_assist, chat_summary_ai_generator
+from chat_bot.api.core import send_message_to_avito, read_chat
 from chat_bot.models import AiChatBot, ChatBotTask
 from messaging.api import get_chats_last_50_messages
 from celery import shared_task
 
-class AiAnswerAvitoClass:
-    @staticmethod
-    def task_contacts_save(new_task_id: str, ai_answer: dict, is_incoming: bool):
-        #Core fields
-        new_task = ChatBotTask.objects.filter(message_id=new_task_id).last()
-        new_task.is_incoming = is_incoming
-        new_task.answer_text = ai_answer.get("answer", "Не предусмотрено")
-        new_task.tokens_completion = ai_answer.get("tokens_completion")
-        new_task.tokens_prompt = ai_answer.get("tokens_prompt")
 
-        #Contact fields
-        contacts = ai_answer.get("contacts")
-        if contacts is not None:
-            new_task.city = contacts.get("city", None)
-            new_task.address = contacts.get("address", None)
-            new_task.mobile = contacts.get("mobile", None)
-            new_task.whatsapp = contacts.get("whatsapp", None)
-            new_task.telegram = contacts.get("telegram", None)
-            new_task.email = contacts.get("email", None)
 
-        new_task.save()
+async def chat_bot_task_dao_save(new_task_id: str, ai_answer: dict):
+    new_task = await sync_to_async(list)(ChatBotTask.objects.filter(message_id=new_task_id))
+    new_task = new_task[0]
+    new_task.answer_text = ai_answer.get("answer")
+    new_task.tokens_completion = ai_answer.get("tokens_completion")
+    new_task.tokens_prompt = ai_answer.get("tokens_prompt")
 
-    @staticmethod
-    @shared_task
-    def chat_contacts_checker_task(avito_account: AvitoAccount, chat_id: str):
-        celery_logger.warning(f"chat_contacts_checker_task STARTED")
-        chat_with_messages = MessagingAPISync.get_chats_last_50_messages(avito_account, chats=[{"id": chat_id}])
-        ai_assistant = AiChatBot.objects.filter(avito_account=avito_account).last()
-        contacts = ai_answer_with_contacts(ai_assistant, chat=chat_with_messages[0].get("messages"))
-        print(123)
+    contacts = ai_answer.get("contacts")
+    if contacts is not None:
+        new_task.city = contacts.get("city", None)
+        new_task.address = contacts.get("address", None)
+        new_task.mobile = contacts.get("mobile", None)
+        new_task.whatsapp = contacts.get("whatsapp", None)
+        new_task.telegram = contacts.get("telegram", None)
+        new_task.email = contacts.get("email", None)
 
-    @staticmethod
-    @shared_task
-    def ai_answer_sender_task(avito_account_id, chat_id, chat_bot_id, new_task_id):
-        shared_task.__name__ = f"ai_answer_{new_task_id}"
-        celery_logger.warning(f"ai_answer_sender STARTED")
-        avito_account = AvitoAccount.objects.get(pk=avito_account_id)
-        chat_bot = AiChatBot.objects.get(pk=chat_bot_id)
-        chat_with_messages = MessagingAPISync.get_chats_last_50_messages(avito_account, chats=[{"id": chat_id}])
-        # ответ генерируем только если менеджер всё ещё не ответил
-        actual_message = chat_with_messages[0].get("messages")[-1]
-        if actual_message.get("type") == "system":  # тк при номере последним становится уже сообщение с предупреждением
-            actual_message = chat_with_messages[0].get("messages")[-2]
-        if actual_message.get("direction") == "in" and actual_message.get("type") == "text":
-            ai_answer = ai_answer_with_contacts(chat_bot, chat_with_messages[0].get("messages")[:])
-            if ai_answer:
-                message_text = ai_answer.get("answer") + "…"
-                AvitoMessengerSync.send_message_to_avito(avito_account, avito_account.id, chat_id, message_text)
-                AiAnswerAvitoClass.task_contacts_save(new_task_id, ai_answer, is_incoming=True)
-                contacts = ai_answer.get("contacts")
-                if contacts is not None:
-                    ChatBotSummaryReportClass.summary_sender_main_task(avito_account_id, chat_id)
-                    celery_logger.exception("FROM ai_answer_sender_task")
+    await new_task.asave()
 
+@shared_task
+def ai_answer_sender_task(avito_account_id, chat_id, chat_bot_id, new_task_id):
+    async_to_sync(ai_answer_sender)(avito_account_id, chat_id, chat_bot_id, new_task_id)
+
+# TODO  Можно контроль наличия тасок сделать через РЕДИС попробовать чтобы меньше обращений к БД было
+# TODO  хранить chat_id:message_id1, message_id2...
+
+async def ai_answer_sender(avito_account_id, chat_id, chat_bot_id, new_task_id):
+    celery_logger.info(f"ai_answer_sender 1 log info")
+    celery_logger.warning(f"ai_answer_sender 1 log warning")
+    celery_logger.exception(f"ai_answer_sender 1 log exception")
+    avito_account = await AvitoAccount.objects.aget(pk=avito_account_id)
+    chat_bot = await AiChatBot.objects.aget(pk=chat_bot_id)
+    chat_with_messages = await get_chats_last_50_messages(avito_account, chats=[{"id": chat_id}])
+    # ответ генерируем только если менеджер всё ещё не ответил
+    actual_message = chat_with_messages[0].get("messages")[-1]
+    if actual_message.get("type") == "system":  # тк при номере последним становится уже сообщение с предупреждением
+        actual_message = chat_with_messages[0].get("messages")[-2]
+    if actual_message.get("direction") == "in" and actual_message.get("type") == "text":
+        await read_chat(avito_account, avito_account.id, chat_id)
+        ai_answer = ai_answer_assist(chat_bot, chat_with_messages[0].get("messages")[:])
+        if ai_answer:
+            message_text = ai_answer.get("answer") + "…"
+            await send_message_to_avito(avito_account, avito_account.id, chat_id, message_text)
+            await chat_bot_task_dao_save(new_task_id, ai_answer)
+            if ai_answer.get("contacts") is not None:
+                if ENVIRONMENT == "PRODUCTION":
+                    await asyncio.sleep(5) # 300 by default
+                celery_logger.info(f"ai_answer_sender 2 log info")
+                celery_logger.warning(f"ai_answer_sender 2 log warning")
+                celery_logger.exception(f"ai_answer_sender 2 log exception")
+                await sync_to_async(ChatBotSummaryReportClass.summary_sender_main_task.delay)(avito_account_id, chat_id)
 
 class PdfReportBaseClass:
     @staticmethod
@@ -144,7 +144,7 @@ class PdfReportBaseClass:
                     function="send_message",
                     text=text,
                     parse_mode="HTML",
-                    disable_web_page_preview=True,
+                    disable_web_page_preview=True
                 )
                     text = text[4000:]
                 except Exception as e:
@@ -362,8 +362,9 @@ class ChatBotSummaryReportClass(PdfReportBaseClass):
     @staticmethod
     @shared_task
     def summary_sender_main_task(avito_account_id, chat_id):
-        if ENVIRONMENT == "PRODUCTION":
-            time.sleep(300)  # 300 by default
+        celery_logger.info(f"Summary report 1 log info")
+        celery_logger.warning(f"Summary report 1 log warning")
+        celery_logger.exception(f"Summary report 1 log exception")
         all_tasks = ChatBotTask.objects.filter(chat_id=chat_id)
         if ENVIRONMENT == "PRODUCTION":
             if all_tasks.filter(summary_sanded=True).exists():
@@ -376,12 +377,18 @@ class ChatBotSummaryReportClass(PdfReportBaseClass):
         chat["messages"] = messages
         if messages is not None and len(messages) > 0:  # skip who can't have bot chats
             chat_summary = chat_summary_ai_generator(avito_account, chat_id)
+            celery_logger.info(f"Summary report chat_summary - {chat_summary}.")
             if chat_summary is not None:
-                ChatBotSummaryReportClass.summary_sender(avito_account, chat_summary, chat, all_tasks)
-
+                ChatBotSummaryReportClass.summary_sender(avito_account, chat_summary, chat)
+                # здесь неважно в какой именно инстанс для данного чата добавить флаг, главное чтобы он появился
+                last_chat_bot_task = all_tasks.last()
+                if last_chat_bot_task is not None:
+                    # Flag adding for in future we can't be sanding summary_report twice
+                    last_chat_bot_task.summary_sanded = True
+                    last_chat_bot_task.save()
 
     @staticmethod
-    def summary_sender(avito_account, chat_summary, chat, all_tasks):
+    def summary_sender(avito_account, chat_summary, chat):
         # TEXT MESSAGE
         summary_text = ChatBotSummaryReportClass.get_chat_summary_text(chat_summary, chat)
         celery_logger.info(f"Summary report summary_text {summary_text}.")
@@ -393,30 +400,17 @@ class ChatBotSummaryReportClass(PdfReportBaseClass):
         summary_html = ChatBotSummaryReportClass.get_chat_summary_html(chat_summary, chat)
         ChatHistoryReportClass.history_pdf_sender_task.delay(avito_account.id, chat, summary_html)
 
-        last_chat_bot_task = all_tasks.last()
-        if last_chat_bot_task is not None:
-            # Flag adding for in future we can't be sanding summary_report twice
-            last_chat_bot_task.summary_sanded = True
-            last_chat_bot_task.save()
-
-
     @staticmethod
     def get_chat_summary_html(chat_summary, chat):
         counter = 1
         text = "<div style='font-family: Arial, sans-serif;'><b>Сводка по переписке:</b><br><br>"
 
         title = chat.get("context").get("value").get("title")
-        if title and len(title) == 0: title = "Без названия"
+        city_name_from_item = chat.get("context").get("value").get("location").get("title") or None
+
         if title:
             text += f"<p style='margin-left: 20px;'>{counter}. Название объявления: {title}</p>"
             counter += 1
-
-            # INFO ниже может быть без локации например через личку
-        location = chat.get("context").get("value").get("location", None)
-        if location:
-            city_name_from_item = chat.get("context").get("value").get("location").get("title")
-        else:
-            city_name_from_item = "Без локации"
 
         if city_name_from_item:
             text += f"<p style='margin-left: 20px;'><b>{counter}. <u>Город обращения: {city_name_from_item}</u></b></p>"
@@ -435,17 +429,11 @@ class ChatBotSummaryReportClass(PdfReportBaseClass):
                 "   📋 Сводка по переписке:\n\n")
 
         title = chat.get("context").get("value").get("title")
-        if title and len(title) == 0: title = "Без названия"
+        city_name_from_item = chat.get("context").get("value").get("location").get("title") or None
+
         if title:
             text += f"🔹 {counter}. Название объявления: {title}\n"
             counter += 1
-
-        #INFO ниже может быть без локации например через личку
-        location = chat.get("context").get("value").get("location", None)
-        if location:
-            city_name_from_item = chat.get("context").get("value").get("location").get("title")
-        else:
-            city_name_from_item = "Без локации"
 
         if city_name_from_item:
             text += f"🔸 {counter}. <u><b>Город обращения: {city_name_from_item}</b></u> \n"
@@ -455,3 +443,7 @@ class ChatBotSummaryReportClass(PdfReportBaseClass):
             text += f"🔹 {counter}. {value} \n"
             counter += 1
         return text
+
+
+
+
