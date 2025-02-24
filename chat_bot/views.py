@@ -132,6 +132,8 @@ class WebhookInboxViewClass(View):
         (chat_id, message_id, author_id, user_id, text, is_incoming, avito_account, chat_bot,
          is_time_to_work, bot_stopped_for_chat) = WebhookInboxViewClass.message_data(request_data)
 
+        # async_to_sync(avito_account.update_refresh_token_async)()
+
         celery_logger.warning(f"Request id - {message_id}")
         celery_logger.warning(f"account - {avito_account.name}")
         celery_logger.warning(f"Request text - {text}")

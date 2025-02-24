@@ -1,22 +1,19 @@
-import asyncio
 import datetime
 import time
 from pathlib import Path
-
 from aiogram import types
 import pdfkit
 from aiogram.types import InputMediaDocument
 from jinja2 import Template
 from django.db.models import Q
 from django.utils import timezone
-from openai import max_retries
 
 from base.celery import celery_logger
 from messaging.api import get_chats, MessagingAPISync
 from messaging.bad_mes_report.utils_bad_messaging_report import chats_timestamp_to_datetime
 from messaging.bad_mes_report.utils_chats import filter_chats_for_last_period, \
     filter_chats_only_with_text, filter_by_bot_answered_chat_ids
-from asgiref.sync import async_to_sync, sync_to_async
+from asgiref.sync import async_to_sync
 from telegram_bot import bot
 from avito_account.models.models import AvitoAccount
 from base.settings import ENVIRONMENT

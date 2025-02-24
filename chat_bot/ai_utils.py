@@ -12,20 +12,12 @@ client = OpenAI(api_key=settings.OPENAI_SECRET_KEY)
 
 
 class ChatBotAnswerSchema(BaseModel):
-    answer: str
+    answer_to_user: str
     address: str | None
     mobile: str | None
     whatsapp: str | None
     telegram: str | None
     email: str | None
-
-class ChatBotContactsSchema(BaseModel):
-    address: str | None
-    mobile: str | None
-    whatsapp: str | None
-    telegram: str | None
-    email: str | None
-
 
 def contacts_data_prepare(data: dict) -> dict | None:
     contacts = {key: value for key, value in {
@@ -65,6 +57,7 @@ def ai_answer_with_contacts(ai_assistant: AiChatBot, chat: list, ):
             f"Правила при общении:{ai_assistant.rules}"
             f"Необходимо в ходе разговора наличие шагов:{ai_assistant.checkpoints}"
             "Ответы давать только на русском языке"
+            "Контакты доставать как клиента так и менеджера если имеются в переписке"
         )
         messages = [{"role": "system", "content": prompt}, ]
         messages.extend(chat_history_formatted)
@@ -76,7 +69,7 @@ def ai_answer_with_contacts(ai_assistant: AiChatBot, chat: list, ):
         )
         data = response.choices[0].message.parsed
         if data is not None:
-            result['answer'] = data.answer
+            result['answer'] = data.answer_to_user
             result['contacts'] = contacts_data_prepare(data)
             result['tokens_completion'] = response.usage.completion_tokens
             result['tokens_prompt'] = response.usage.prompt_tokens
