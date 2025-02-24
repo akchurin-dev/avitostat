@@ -128,13 +128,11 @@ class WebhookInboxViewClass(View):
 
     @staticmethod
     @shared_task
-    def webhook_processing_task(request):
-        request_data = json.loads(request.body.decode('utf-8'))
+    def webhook_processing_task(request_data):
         (chat_id, message_id, author_id, user_id, text, is_incoming, avito_account, chat_bot,
          is_time_to_work, bot_stopped_for_chat) = WebhookInboxViewClass.message_data(request_data)
-
-        # async_to_sync(avito_account.update_refresh_token_async)()
-
+        if ENVIRONMENT != "PRODUCTION":
+            async_to_sync(avito_account.update_refresh_token_async)()
 
         celery_logger.warning(f"Request id - {message_id}")
         celery_logger.warning(f"account - {avito_account.name}")
@@ -164,7 +162,8 @@ class WebhookInboxViewClass(View):
 
 
     def post(self, request, *args, **kwargs):
-        WebhookInboxViewClass.webhook_processing_task.delay(request)
+        request_data = json.loads(request.body.decode('utf-8'))
+        WebhookInboxViewClass.webhook_processing_task.delay(request_data)
         return JsonResponse({"status": "ok"}, status=200)
 
 
