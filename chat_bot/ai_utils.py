@@ -12,7 +12,7 @@ client = OpenAI(api_key=settings.OPENAI_SECRET_KEY)
 
 
 class ChatBotAnswerSchema(BaseModel):
-    answer_to_user: str
+    answer: str
     address: str | None
     mobile: str | None
     whatsapp: str | None
@@ -69,7 +69,7 @@ def ai_answer_with_contacts(ai_assistant: AiChatBot, chat: list, ):
         )
         data = response.choices[0].message.parsed
         if data is not None:
-            result['answer'] = data.answer_to_user
+            result['answer'] = data.answer
             result['contacts'] = contacts_data_prepare(data)
             result['tokens_completion'] = response.usage.completion_tokens
             result['tokens_prompt'] = response.usage.prompt_tokens

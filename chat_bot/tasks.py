@@ -74,8 +74,6 @@ class AiAnswerAvitoClass:
                 AiAnswerAvitoClass.task_contacts_save(new_task_id, ai_answer, is_incoming=True)
                 contacts = ai_answer.get("contacts")
                 if contacts is not None:
-                    # if ENVIRONMENT == "PRODUCTION":
-                    #     time.sleep(300) # 300 by default
                     ChatBotSummaryReportClass.summary_sender_main_task(avito_account_id, chat_id)
                     celery_logger.exception("FROM ai_answer_sender_task")
 
@@ -367,11 +365,10 @@ class ChatBotSummaryReportClass(PdfReportBaseClass):
         if ENVIRONMENT == "PRODUCTION":
             time.sleep(300)  # 300 by default
         all_tasks = ChatBotTask.objects.filter(chat_id=chat_id)
-        #TODO Не забудь раскоментить
-        # if ENVIRONMENT == "PRODUCTION":
-        if all_tasks.filter(summary_sanded=True).exists():
-            celery_logger.info(f"Summary report already sent for chat_id {chat_id}.")
-            return
+        if ENVIRONMENT == "PRODUCTION":
+            if all_tasks.filter(summary_sanded=True).exists():
+                celery_logger.info(f"Summary report already sent for chat_id {chat_id}.")
+                return
 
         avito_account = AvitoAccount.objects.filter(id=avito_account_id).last()
         chat = MessagingAPISync.get_chat_by_id(avito_account, chat_id)

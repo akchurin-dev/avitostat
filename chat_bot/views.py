@@ -88,19 +88,20 @@ class WebhookInboxViewClass(View):
     @staticmethod
     def incoming_messages_handler(new_task, chat_id, avito_account, chat_bot):
         WebhookInboxViewClass.revoke_ai_answer_old_tasks(chat_id)
-        # if ENVIRONMENT == "PRODUCTION":
-        #     time.sleep(chat_bot.waiting_minutes * 60)  # WAIT TIME BEFORE ANY ACTIONS
-        # else:
-        #     time.sleep(chat_bot.waiting_minutes * 30)
+        if ENVIRONMENT == "PRODUCTION":
+            time.sleep(chat_bot.waiting_minutes * 60)  # WAIT TIME BEFORE ANY ACTIONS
+        else:
+            time.sleep(chat_bot.waiting_minutes * 30)
         AiAnswerAvitoClass.ai_answer_sender_task(avito_account.id, chat_id, chat_bot.id, new_task.message_id)
 
     @staticmethod
+    @shared_task
     def outgoing_messages_handler(chat_id, message_id, avito_account, chat_bot, new_task, answered_from_ai=False):
         # TODO отмена предыдущих тасок для саммари для данного чата ПРОВЕРИТЬ КАК ТО через флауэр
         new_task.is_incoming = False
         new_task.save()
         WebhookInboxViewClass.revoke_ai_answer_old_tasks(chat_id)  # Вдруг были старые задачи из-за входящих сообщений для ответа ИИ
-        # time.sleep(chat_bot.waiting_minutes * 60)  # WAIT TIME BEFORE ANY ACTIONS
+        time.sleep(chat_bot.waiting_minutes * 60)  # WAIT TIME BEFORE ANY ACTIONS
 
         #Checking answered from AI
         tasks = list(ChatBotTask.objects.filter(chat_id=chat_id, is_incoming=True).order_by("created_at"))
@@ -162,7 +163,7 @@ class WebhookInboxViewClass(View):
 
 
     def post(self, request, *args, **kwargs):
-        WebhookInboxViewClass.webhook_processing_task(request)
+        WebhookInboxViewClass.webhook_processing_task.delay(request)
         return JsonResponse({"status": "ok"}, status=200)
 
 
