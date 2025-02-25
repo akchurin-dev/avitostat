@@ -161,7 +161,7 @@ class WebhookInboxViewClass(View):
 
     def post(self, request, *args, **kwargs):
         request_data = json.loads(request.body.decode('utf-8'))
-        WebhookInboxViewClass.webhook_processing_task(request_data)
+        WebhookInboxViewClass.webhook_processing_task.delay(request_data)
         return JsonResponse({"status": "ok"}, status=200)
 
 
