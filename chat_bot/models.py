@@ -7,7 +7,22 @@ from chat_bot.api.subscriptions import subscribe_to_messages, stop_subscribe_to_
 from django.core.validators import MinValueValidator, MaxValueValidator
 
 
-class AiChatBot(models.Model):
+class AIChatBotBase(models.Model):
+    is_active = models.BooleanField(default=False, verbose_name="Активирован")
+    total_info = models.TextField(verbose_name="Общая информация")
+    rules = models.TextField(verbose_name="Правила при общении")
+    checkpoints = models.TextField(verbose_name="Шаги при общении")
+    target_action = models.TextField(verbose_name="Целевое действие",
+                                     default="Взять номер телефона клиента для связи")
+
+    work_time_from = models.TimeField("Начало работы МСК (Пн-Вс)")
+    work_time_to = models.TimeField("Окончание работы МСК (Пн-Вс)")
+
+    class Meta:
+        abstract = True
+
+
+class AiChatBot(AIChatBotBase):
     avito_account = models.OneToOneField(
         AvitoAccount,
         on_delete=models.CASCADE,
@@ -15,21 +30,12 @@ class AiChatBot(models.Model):
         verbose_name="ИИ чат бот"
     )
 
-    is_active = models.BooleanField(default=False, verbose_name="Активирован")
-    total_info = models.TextField(verbose_name="Общая информация")
-    rules = models.TextField(verbose_name="Правила при общении")
-    checkpoints = models.TextField(verbose_name="Шаги при общении")
-    target_action = models.TextField(verbose_name="Целевое действие",
-                                     default="Взять номер телефона клиента для связи")
     waiting_minutes = models.PositiveSmallIntegerField(
         validators=[MinValueValidator(1), MaxValueValidator(60)],
         verbose_name="Ожидание ответа от менеджера(минуты)",
         help_text="Укажите количество минут от 1 до 120"
     )
     shutdown_after_manager = models.BooleanField(default=False, verbose_name="Выключаться после менеджера")
-
-    work_time_from = models.TimeField("Начало работы МСК (Пн-Вс)")
-    work_time_to = models.TimeField("Окончание работы МСК (Пн-Вс)")
 
     statistics_daily_report = models.BooleanField(default=True, verbose_name="Ежедневная статистика")
     histories_closed = models.BooleanField(default=False, verbose_name="История дожатых клиентов")

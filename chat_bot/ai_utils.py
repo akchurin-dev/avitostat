@@ -4,7 +4,7 @@ from pydantic import BaseModel
 
 from avito_account.models.models import AvitoAccount
 from base import settings
-from chat_bot.models import AiChatBot
+from chat_bot.models import AIChatBotBase
 from messaging.api import get_chats_last_50_messages
 
 MODEL = "gpt-4o-2024-08-06"
@@ -47,7 +47,7 @@ def format_chat_history(messages):
     return formatted_messages
 
 
-def ai_answer_with_contacts(ai_assistant: AiChatBot, chat: list, ):
+def ai_answer_with_contacts(ai_assistant: AIChatBotBase, chat: list, ):
     try:
         result = {}
         chat_history_formatted = format_chat_history(chat)
