@@ -53,7 +53,6 @@ class AiAnswerAvitoClass:
         chat_with_messages = MessagingAPISync.get_chats_last_50_messages(avito_account, chats=[{"id": chat_id}])
         ai_assistant = AiChatBot.objects.filter(avito_account=avito_account).last()
         contacts = ai_answer_with_contacts(ai_assistant, chat=chat_with_messages[0].get("messages"))
-        print(123)
 
     @staticmethod
     @shared_task
@@ -76,7 +75,6 @@ class AiAnswerAvitoClass:
                 contacts = ai_answer.get("contacts")
                 if contacts is not None:
                     ChatBotSummaryReportClass.summary_sender_main_task(avito_account_id, chat_id)
-                    celery_logger.exception("FROM ai_answer_sender_task")
 
 
 class PdfReportBaseClass:
@@ -191,11 +189,14 @@ class BotStatisticsDailyReportClass(PdfReportBaseClass):
 
     @staticmethod
     def history_main_sender(avito_account: AvitoAccount, statistics: dict):
-        chats_with_contacts_ids = statistics.get("chats_with_contacts_ids") or None
+        chats_with_contacts_ids = statistics.get("chats_with_contacts_ids", [])
         need_history_closed_flag = hasattr(avito_account,"ai_chat_bots") and avito_account.ai_chat_bots.histories_closed
         need_history_open_flag = hasattr(avito_account,"ai_chat_bots") and avito_account.ai_chat_bots.histories_open
-        have_closed_chats = len(statistics.get("chats_with_contacts_ids")) > 0
-        have_open_chats = len(statistics.get("chats")) - len(chats_with_contacts_ids) > 0
+
+        chats = statistics.get("chats", [])
+        have_closed_chats = len(chats_with_contacts_ids) > 0
+        have_open_chats = (len(chats) - len(chats_with_contacts_ids)) > 0
+
         if need_history_closed_flag or need_history_open_flag:
             chats = statistics.get("chats") or None
 

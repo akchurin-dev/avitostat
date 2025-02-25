@@ -36,7 +36,7 @@ class WebhookInboxViewClass(View):
         message_id = data.get('id')
         author_id = data.get("payload").get("value").get("author_id")
         user_id = data.get("payload").get("value").get("user_id")
-        text = data.get("payload").get("value").get("content").get("text")
+        text = data.get("payload").get("value").get("content").get("text", "Не предусмотрено")
         incoming_mgs = author_id != user_id
 
         #Objects
@@ -118,7 +118,6 @@ class WebhookInboxViewClass(View):
             AiAnswerAvitoClass.task_contacts_save(message_id, contacts, is_incoming=False)
             if contacts.get("contacts") is not None:
                 celery_logger.warning(f"Contacts found Contacts found Contacts found - {contacts}")
-                celery_logger.exception("FROM outgoing_messages_handler")
                 ChatBotSummaryReportClass.summary_sender_main_task(avito_account.id, chat_id)
             # Логика остановки бота если человек вмешался в разговор
             if chat_bot.shutdown_after_manager:
