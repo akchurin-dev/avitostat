@@ -40,7 +40,7 @@ class WebhookInboxViewClass(View):
         incoming_mgs = author_id != user_id
 
         #Objects
-        avito_account = AvitoAccount.objects.get(id=user_id)
+        avito_account = AvitoAccount.objects.get(id__in=[author_id, user_id])
         chat_bot = AiChatBot.objects.get(avito_account=avito_account)
 
         # Service data
@@ -101,7 +101,6 @@ class WebhookInboxViewClass(View):
         new_task.is_incoming = False
         new_task.save()
         WebhookInboxViewClass.revoke_ai_answer_old_tasks(chat_id)  # Вдруг были старые задачи из-за входящих сообщений для ответа ИИ
-        time.sleep(chat_bot.waiting_minutes * 60)  # WAIT TIME BEFORE ANY ACTIONS
 
         #Checking answered from AI
         tasks = list(ChatBotTask.objects.filter(chat_id=chat_id, is_incoming=True).order_by("created_at"))
@@ -116,7 +115,7 @@ class WebhookInboxViewClass(View):
         if not answered_from_ai:
             contacts = AiAnswerAvitoClass.chat_contacts_checker_task(avito_account, chat_id)
             AiAnswerAvitoClass.task_contacts_save(message_id, contacts, is_incoming=False)
-            if contacts.get("contacts") is not None:
+            if contacts and contacts.get("contacts") is not None:
                 celery_logger.warning(f"Contacts found Contacts found Contacts found - {contacts}")
                 ChatBotSummaryReportClass.summary_sender_main_task(avito_account.id, chat_id)
             # Логика остановки бота если человек вмешался в разговор
@@ -162,7 +161,7 @@ class WebhookInboxViewClass(View):
 
     def post(self, request, *args, **kwargs):
         request_data = json.loads(request.body.decode('utf-8'))
-        WebhookInboxViewClass.webhook_processing_task.delay(request_data)
+        WebhookInboxViewClass.webhook_processing_task(request_data)
         return JsonResponse({"status": "ok"}, status=200)
 
 

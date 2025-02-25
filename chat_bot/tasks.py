@@ -52,7 +52,8 @@ class AiAnswerAvitoClass:
         celery_logger.warning(f"chat_contacts_checker_task STARTED")
         chat_with_messages = MessagingAPISync.get_chats_last_50_messages(avito_account, chats=[{"id": chat_id}])
         ai_assistant = AiChatBot.objects.filter(avito_account=avito_account).last()
-        contacts = ai_answer_with_contacts(ai_assistant, chat=chat_with_messages[0].get("messages"))
+        ai_answer = ai_answer_with_contacts(ai_assistant, chat=chat_with_messages[0].get("messages"))
+        return ai_answer.get("contacts")
 
     @staticmethod
     @shared_task
