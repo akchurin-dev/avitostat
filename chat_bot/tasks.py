@@ -29,19 +29,20 @@ class AiAnswerAvitoClass:
         #Core fields
         new_task = ChatBotTask.objects.filter(message_id=new_task_id).last()
         new_task.is_incoming = is_incoming
-        new_task.answer_text = ai_answer.get("answer", "Не предусмотрено")
-        new_task.tokens_completion = ai_answer.get("tokens_completion")
-        new_task.tokens_prompt = ai_answer.get("tokens_prompt")
+        if ai_answer:
+            new_task.answer_text = ai_answer.get("answer", "Не предусмотрено")
+            new_task.tokens_completion = ai_answer.get("tokens_completion")
+            new_task.tokens_prompt = ai_answer.get("tokens_prompt")
 
-        #Contact fields
-        contacts = ai_answer.get("contacts")
-        if contacts is not None:
-            new_task.city = contacts.get("city", None)
-            new_task.address = contacts.get("address", None)
-            new_task.mobile = contacts.get("mobile", None)
-            new_task.whatsapp = contacts.get("whatsapp", None)
-            new_task.telegram = contacts.get("telegram", None)
-            new_task.email = contacts.get("email", None)
+            #Contact fields
+            contacts = ai_answer.get("contacts")
+            if contacts is not None:
+                new_task.city = contacts.get("city", None)
+                new_task.address = contacts.get("address", None)
+                new_task.mobile = contacts.get("mobile", None)
+                new_task.whatsapp = contacts.get("whatsapp", None)
+                new_task.telegram = contacts.get("telegram", None)
+                new_task.email = contacts.get("email", None)
 
         new_task.save()
 
