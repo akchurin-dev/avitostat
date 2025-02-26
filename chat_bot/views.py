@@ -40,7 +40,7 @@ class WebhookInboxViewClass(View):
         incoming_mgs = author_id != user_id
 
         #Objects
-        avito_account = AvitoAccount.objects.get(id__in=[author_id, user_id])
+        avito_account = AvitoAccount.objects.get(id=user_id)
         chat_bot = AiChatBot.objects.get(avito_account=avito_account)
 
         # Service data
@@ -196,7 +196,7 @@ class StatisticsDailyReportView(View):
 @method_decorator(csrf_exempt, name='dispatch')
 class SummarySenderView(View):
     def get(self, request, *args, **kwargs):
-        ChatBotSummaryReportClass.summary_sender_main_task.delay(163634833, "u2i-jl7kFERA8KE843KWuc4SyQ")
+        ChatBotSummaryReportClass.summary_sender_main_task(163634833, "u2i-jl7kFERA8KE843KWuc4SyQ")
         return (JsonResponse({"status": "ok"}, status=200))
 
 @method_decorator(csrf_exempt, name='dispatch')

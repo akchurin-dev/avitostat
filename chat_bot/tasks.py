@@ -29,6 +29,7 @@ class AiAnswerAvitoClass:
         #Core fields
         new_task = ChatBotTask.objects.filter(message_id=new_task_id).last()
         new_task.is_incoming = is_incoming
+
         if ai_answer:
             new_task.answer_text = ai_answer.get("answer", "Не предусмотрено")
             new_task.tokens_completion = ai_answer.get("tokens_completion")
@@ -365,15 +366,16 @@ class ChatBotSummaryReportClass(PdfReportBaseClass):
     @staticmethod
     @shared_task
     def summary_sender_main_task(avito_account_id, chat_id):
-        if ENVIRONMENT == "PRODUCTION":
-            time.sleep(300)  # 300 by default
+        avito_account = AvitoAccount.objects.filter(id=avito_account_id).last()
         all_tasks = ChatBotTask.objects.filter(chat_id=chat_id)
         if ENVIRONMENT == "PRODUCTION":
+            time.sleep(300)
             if all_tasks.filter(summary_sanded=True).exists():
                 celery_logger.info(f"Summary report already sent for chat_id {chat_id}.")
                 return
+        if ENVIRONMENT == "DEVELOPMENT":
+            async_to_sync(avito_account.update_refresh_token_async)()
 
-        avito_account = AvitoAccount.objects.filter(id=avito_account_id).last()
         chat = MessagingAPISync.get_chat_by_id(avito_account, chat_id)
         messages = MessagingAPISync.get_chat_last_50_messages_by_chat_id(avito_account, chat_id)
         chat["messages"] = messages
@@ -441,6 +443,12 @@ class ChatBotSummaryReportClass(PdfReportBaseClass):
         if title and len(title) == 0: title = "Без названия"
         if title:
             text += f"🔹 {counter}. Название объявления: {title}\n"
+            counter += 1
+
+        client_name = chat.get("users")[0].get("name")
+        if client_name and len(client_name) ==0: client_name = "Без имени"
+        if client_name:
+            text += f"🔹 {counter}. Имя клиента: {client_name}\n"
             counter += 1
 
         #INFO ниже может быть без локации например через личку
