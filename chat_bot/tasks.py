@@ -29,13 +29,11 @@ class AiAnswerAvitoClass:
         #Core fields
         new_task = ChatBotTask.objects.filter(message_id=new_task_id).last()
         new_task.is_incoming = is_incoming
-        new_task.tokens_completion = 0 #by default
-        new_task.tokens_prompt = 0 #by default
 
         if ai_answer:
             new_task.answer_text = ai_answer.get("answer", "Не предусмотрено")
-            new_task.tokens_completion = ai_answer.get("tokens_completion")
-            new_task.tokens_prompt = ai_answer.get("tokens_prompt")
+            new_task.tokens_completion = ai_answer.get("tokens_completion") if ai_answer.get("tokens_completion") is not None else 0
+            new_task.tokens_prompt = ai_answer.get("tokens_prompt") if ai_answer.get("tokens_prompt") is not None else 0
 
             #Contact fields
             contacts = ai_answer.get("contacts")
