@@ -41,8 +41,6 @@ class WebhookInboxViewClass(View):
 
         #Objects
         avito_account = AvitoAccount.objects.get(id=user_id)
-        celery_logger.exception(f"User_id - {user_id}")
-        celery_logger.exception(f"Author_id - {author_id}")
         chat_bot = AiChatBot.objects.get(avito_account=avito_account)
 
         # Service data
@@ -163,7 +161,7 @@ class WebhookInboxViewClass(View):
 
     def post(self, request, *args, **kwargs):
         request_data = json.loads(request.body.decode('utf-8'))
-        WebhookInboxViewClass.webhook_processing_task(request_data)
+        WebhookInboxViewClass.webhook_processing_task.delay(request_data)
         return JsonResponse({"status": "ok"}, status=200)
 
 
