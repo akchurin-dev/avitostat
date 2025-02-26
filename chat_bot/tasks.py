@@ -29,6 +29,7 @@ class AiAnswerAvitoClass:
         #Core fields
         new_task = ChatBotTask.objects.filter(message_id=new_task_id).last()
         new_task.is_incoming = is_incoming
+
         if ai_answer:
             new_task.answer_text = ai_answer.get("answer", "Не предусмотрено")
             new_task.tokens_completion = ai_answer.get("tokens_completion")
