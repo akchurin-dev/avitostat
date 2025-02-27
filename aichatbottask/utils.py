@@ -52,9 +52,11 @@ def change_task_status(task_id: int, new_status: Task.Status) -> bool:
     """ Return True if status changed successfully and False if task was canceled """
 
     with atomic():
-        status = Task.objects.get(pk=task_id).status
+        task = Task.objects.get(pk=task_id)
+        get_recent_tasks_by_chat(task.chat_id).select_for_update(no_key=True)
+        task.refresh_from_db()
 
-        if status == Task.Status.CANCELED.value:
+        if task.status == Task.Status.CANCELED.value:
             logger.info(f"Task {task_id} was CANCELED")
             return False
 
