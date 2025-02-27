@@ -69,14 +69,7 @@ class AiChatBot(AIChatBotBase):
         super().delete()
 
 
-class ChatBotTask(models.Model):
-    # Core fields
-    avito_account = models.ForeignKey(AvitoAccount, on_delete=models.CASCADE)
-    is_incoming = models.BooleanField(default=True, verbose_name="Входящее сообщение")
-    chat_id = models.CharField()
-    message_id = models.CharField(primary_key=True, unique=True)
-    text = models.TextField(verbose_name="Текст сообщения")
-
+class AIChatBotTaskBase(models.Model):
     # AI fields
     answer_text = models.TextField(verbose_name="Текст ответа", blank=True, null=True)
     tokens_completion = models.IntegerField(default=0, verbose_name="Токены на вычисления")
@@ -91,8 +84,22 @@ class ChatBotTask(models.Model):
 
     # Service fields
     summary_sanded = models.BooleanField(default=False, verbose_name="Сводка была отправлена")
-    chat_shutdown_by_user = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        abstract = True
+
+
+class ChatBotTask(AIChatBotTaskBase):
+    # Core fields
+    avito_account = models.ForeignKey(AvitoAccount, on_delete=models.CASCADE)
+    is_incoming = models.BooleanField(default=True, verbose_name="Входящее сообщение")
+    chat_id = models.CharField()
+    message_id = models.CharField(primary_key=True, unique=True)
+    text = models.TextField(verbose_name="Текст сообщения")
+
+    # Service fields
+    chat_shutdown_by_user = models.BooleanField(default=False)
 
     class Meta:
         verbose_name = "Ответ чат бота"

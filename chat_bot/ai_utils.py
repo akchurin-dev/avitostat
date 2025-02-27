@@ -47,6 +47,26 @@ def format_chat_history(messages):
     return formatted_messages
 
 
+class AIAnswerContacts(BaseModel):
+    address: str | None
+    mobile: str | None
+    whatsapp: str | None
+    telegram: str | None
+    email: str | None
+
+
+class AIAnswerWithContacts(BaseModel):
+    answer: str
+    contacts: AIAnswerContacts | None
+    tokens_completion: int
+    tokens_prompt: int
+
+
+def ai_answer_with_contacts_typed(ai_assistant: AIChatBotBase, chat: list) -> AIAnswerWithContacts:
+    res = ai_answer_with_contacts(ai_assistant, chat)
+    return AIAnswerWithContacts.model_validate(res)
+
+
 def ai_answer_with_contacts(ai_assistant: AIChatBotBase, chat: list, ):
     try:
         result = {}

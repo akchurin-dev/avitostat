@@ -92,6 +92,7 @@ INSTALLED_APPS = [
     'payments',
     'chat_bot',
     'bitrix',
+    'aichatbottask',
 ]
 
 MIDDLEWARE = [

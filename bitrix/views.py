@@ -2,7 +2,6 @@ import pprint
 import re
 from typing import Any
 
-from asgiref.sync import async_to_sync
 from django.contrib.auth.decorators import login_required
 from django.http import HttpRequest
 from django.http import HttpResponse
@@ -16,7 +15,6 @@ from loguru import logger
 
 from bitrix import tasks as bitrix_tasks
 from bitrix.utils import accounts as bitrix_accounts
-from bitrix.utils import ai_chat_bots as bitrix_ai_chat_bots
 from bitrix.utils import bitrix_bots
 from bitrix.utils import openlines as bitrix_openlines
 from bitrix.utils import bitrix_installation
@@ -59,10 +57,10 @@ def bitrix_app_installed(request: HttpRequest, *args, **kwargs) -> HttpResponse:
         logger.info(f"Bitrix domain '{bitrix_domain}' not associated with user")
         return HttpResponse(status=204)
 
-    async_to_sync(bitrix_accounts.create_bitrix_account)(bitrix_domain, owner_id, access_token, refresh_token)
+    bitrix_accounts.create_bitrix_account(bitrix_domain, owner_id, access_token, refresh_token)
     logger.info(f"new access {access_token}")
-    async_to_sync(bitrix_bots.register_bitrix_chat_bot)(bitrix_domain)
-    async_to_sync(bitrix_openlines.activate_bot)(bitrix_domain)
+    bitrix_bots.register_bitrix_chat_bot(bitrix_domain)
+    bitrix_openlines.activate_bot(bitrix_domain)
 
     return HttpResponse(status=204)
 
@@ -82,15 +80,8 @@ def bitrix_bot_event(request: HttpRequest, *args, **kwargs) -> HttpResponse:
         logger.warning(err)
         return HttpResponseBadRequest()
 
-    chat_bot = async_to_sync(bitrix_ai_chat_bots.define_chat_bot)(bitrix_domain, dialog_id)
-
-    if chat_bot is None:
-        async_to_sync(bitrix_openlines.redirect_client_to_manager)(bitrix_domain, chat_id)
-        logger.info(f"Chat bot for bitrix dialog (dialog_id={dialog_id}) not found. Dialog redirected to manager.")
-        return HttpResponse(status=204)
-
-    bitrix_tasks.generate_answer.delay(bitrix_domain, dialog_id, chat_bot.id)
-
+    bitrix_tasks.handle_bitrix_message.delay(bitrix_domain, dialog_id, chat_id)
+    
     return HttpResponse(status=204)
 
 

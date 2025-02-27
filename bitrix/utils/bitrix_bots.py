@@ -15,7 +15,7 @@ class BitrixBot(pydantic.BaseModel):
     OPENLINE: Literal["Y", "N"]
 
 
-async def register_bitrix_chat_bot(bitrix_domain: str):
+def register_bitrix_chat_bot(bitrix_domain: str):
     """ https://apidocs.bitrix24.ru/api-reference/chat-bots/imbot-register.html """
     
     data = {
@@ -27,7 +27,7 @@ async def register_bitrix_chat_bot(bitrix_domain: str):
         }
     }
 
-    response = await bitrix_api.post(
+    response = bitrix_api.post(
         bitrix_domain=bitrix_domain,
         operation="imbot.register",
         json=data,
@@ -39,20 +39,20 @@ async def register_bitrix_chat_bot(bitrix_domain: str):
     response.raise_for_status()
 
 
-async def get_bitrix_bot_list(bitrix_domain: str):
+def get_bitrix_bot_list(bitrix_domain: str):
     """ https://apidocs.bitrix24.ru/api-reference/chat-bots/imbot-bot-list.html """
 
     operation = "imbot.bot.list"
 
-    response = await bitrix_api.get(bitrix_domain, operation)
+    response = bitrix_api.get(bitrix_domain, operation)
     response.raise_for_status()
 
     data = response.json()
     return [BitrixBot.model_validate(b) for b in data["result"].values()]
 
 
-async def get_bitrix_bot_id(bitrix_domain: str) -> int:
-    bots = await get_bitrix_bot_list(bitrix_domain)
+def get_bitrix_bot_id(bitrix_domain: str) -> int:
+    bots = get_bitrix_bot_list(bitrix_domain)
 
     for bot in bots:
         if bot.CODE == settings.BITRIX_BOT_CODE:

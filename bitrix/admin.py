@@ -16,8 +16,8 @@ class BitrixAccountAdmin(admin.ModelAdmin):
         return qs
 
 
-@admin.register(bitrix_models.AIChatBot)
-class AIChatBotAdmin(admin.ModelAdmin):
+@admin.register(bitrix_models.BitrixAIChatBot)
+class BitrixAIChatBotAdmin(admin.ModelAdmin):
     def get_queryset(self, request: HttpRequest) -> QuerySet:
         qs = super().get_queryset(request)
 

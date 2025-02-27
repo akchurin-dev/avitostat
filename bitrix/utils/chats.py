@@ -13,10 +13,10 @@ class Message(pydantic.BaseModel):
     text: str
 
 
-async def get_messages(bitrix_domain: str, dialog_id: int | str, messages_count: int) -> list[Message]:
+def get_messages(bitrix_domain: str, dialog_id: int | str, messages_count: int) -> list[Message]:
     """ https://apidocs.bitrix24.ru/api-reference/chats/messages/im-dialog-messages-get.html """
 
-    response = await bitrix_api.get(
+    response = bitrix_api.get(
         bitrix_domain=bitrix_domain,
         operation="im.dialog.messages.get",
         params={
@@ -31,10 +31,10 @@ async def get_messages(bitrix_domain: str, dialog_id: int | str, messages_count:
     return [Message.model_validate(m) for m in data["result"]["messages"]]
 
 
-async def send_message(bitrix_domain: str, dialog_id: int | str, message: str):
+def send_message(bitrix_domain: str, dialog_id: int | str, message: str):
     """ https://apidocs.bitrix24.ru/api-reference/chat-bots/messages/imbot-message-add.html """
 
-    response = await bitrix_api.post(
+    response = bitrix_api.post(
         bitrix_domain=bitrix_domain,
         operation="imbot.message.add",
         json={
