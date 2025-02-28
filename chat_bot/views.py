@@ -92,7 +92,7 @@ class WebhookInboxViewClass(View):
             time.sleep(chat_bot.waiting_minutes * 60)  # WAIT TIME BEFORE ANY ACTIONS
         else:
             time.sleep(chat_bot.waiting_minutes * 30)
-        AiAnswerAvitoClass.ai_answer_sender_task(avito_account.id, chat_id, chat_bot.id, new_task.message_id)
+        AiAnswerAvitoClass.ai_answer_sender_task.delay(avito_account.id, chat_id, chat_bot.id, new_task.message_id)
 
     @staticmethod
     @shared_task
