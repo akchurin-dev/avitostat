@@ -1,0 +1,51 @@
+{% extends "admin/change_form.html" %}
+{% load i18n %}
+
+{% block content %}
+
+{% if change %}
+    {{ block.super }}
+{% else %}
+
+{% csrf_token %}
+<label for="domain">Ваш Bitrix24 домен:</label>
+<input type="text" id="domain" name="domain" placeholder="https://username.bitrix.ru"><br><br>
+<input id="redirect-button" type="button" value="Перейти"/>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Регулярное выражение для проверки домена
+        var regex = /[\w\-]+\.bitrix24\.((ru)|(com))/;
+        const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
+        
+        document.getElementById("redirect-button").addEventListener("click", async function() {
+            // Получаем значение из поля ввода
+            var input = document.getElementById('domain').value.trim();
+
+            // Ищем часть строки, соответствующую регулярному выражению
+            var match = input.match(regex);
+
+            // Если найдено соответствие, берем его для составления ссылки
+            if (match) {
+                var domain = match[0];
+
+                const url = `/bitrix/installation-link?bitrix_domain=${encodeURIComponent(domain)}`;
+                const response = await fetch(url);
+                const data = await response.json();
+
+                if (response.ok) {
+                    // Выполняем редирект
+                    window.location.href = data.link;
+                } else {
+                    alert('Ошибка при отправке данных на сервер, попробуйте еще раз');
+                }
+            } else {
+                alert('Пожалуйста, введите корректный Bitrix24 домен. Пример: https://username.bitrix.ru');
+            }
+        });
+    });
+</script>
+
+{% endif %}
+
+{% endblock %}

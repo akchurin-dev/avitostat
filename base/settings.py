@@ -31,6 +31,24 @@ LOCALHOST_IP = os.getenv('LOCALHOST_IP')
 TELEGRAM_BOT_TOKEN = os.getenv('TELEGRAM_BOT_TOKEN')
 TELEGRAM_BOT_TOKEN_PROD = os.getenv('TELEGRAM_BOT_TOKEN_PROD')
 
+
+# https://apidocs.bitrix24.ru/api-reference/oauth/index.html
+
+BITRIX_CLIENT_ID = os.getenv('BITRIX_CLIENT_ID')
+BITRIX_OAUTH_CLIENT_ID = os.getenv('BITRIX_OAUTH_CLIENT_ID')
+BITRIX_OAUTH_CLIENT_SECRET = os.getenv('BITRIX_OAUTH_CLIENT_SECRET')
+BITRIX_BOT_CODE = "AvitostatBot"
+
+BITRIX_WEBHOOK_HOST = "www.avitostata.ru"
+if ENVIRONMENT == "DEVELOPMENT":
+    BITRIX_WEBHOOK_HOST = "greatly-astounding-cicada.cloudpub.ru:443"
+
+
+USE_GPT = True
+if ENVIRONMENT == "DEVELOPMENT":
+    USE_GPT = False
+
+
 DB_HOST = os.getenv('DB_HOST')
 DB_PORT = os.getenv('DB_PORT')
 DB_USER = os.getenv('DB_USER')
@@ -73,6 +91,8 @@ INSTALLED_APPS = [
     'deep_tests',
     'payments',
     'chat_bot',
+    'bitrix',
+    'aichatbottask',
 ]
 
 MIDDLEWARE = [
