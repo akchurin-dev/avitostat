@@ -1,9 +1,9 @@
 import re
-import httpx
 from datetime import datetime, timedelta
 import pytz
 from asgiref.sync import sync_to_async
 
+from avito_account import avito_api
 from avito_account.models.excluded_items import ExcludedItem
 from avito_account.models.models import AvitoAccount
 from conversion.utils import dates_for_period_with_extra_reserve, active_services_for_period_filtering
@@ -11,7 +11,7 @@ from base.exceptions import HTTPException
 
 
 async def operations(access_token: str, start_date: str, end_date: str) -> dict:
-    url = "https://api.avito.ru/core/v1/accounts/operations_history/"
+    action = "/core/v1/accounts/operations_history/"
     headers = {
         "Authorization": f"Bearer {access_token}",
         "Content-Type": "application/json"
@@ -21,13 +21,12 @@ async def operations(access_token: str, start_date: str, end_date: str) -> dict:
         "dateTimeTo": end_date
     }
 
-    async with httpx.AsyncClient() as client:
-        response = await client.post(url, headers=headers, json=params)
+    response = avito_api.client.post(action, headers=headers, json=params)
 
-        if response.status_code == 200:
-            return response.json()
-        else:
-            raise HTTPException(status_code=response.status_code, detail=response.text)
+    if response.status_code == 200:
+        return response.json()
+    else:
+        raise HTTPException(status_code=response.status_code, detail=response.text)
 
 
 async def get_operations_splitted_by_week(access_token: str, start_date: str, end_date: str) -> dict:

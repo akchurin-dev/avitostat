@@ -19,6 +19,11 @@ GITHUB_TOKEN = os.getenv('GITHUB_TOKEN')
 AVITO_CLIENT_ID = os.getenv('AVITO_CLIENT_ID')
 AVITO_CLIENT_SECRET = os.getenv('AVITO_CLIENT_SECRET')
 
+AVITO_WEBHOOK_HOST = "avitostata.ru"
+if ENVIRONMENT == "DEVELOPMENT":
+    # AVITO_WEBHOOK_HOST = "de9c-144-126-237-4.ngrok-free.app"
+    AVITO_WEBHOOK_HOST = os.getenv('AVITO_WEBHOOK_HOST')
+
 OPENAI_SECRET_KEY = os.getenv('OPENAI_SECRET_KEY')
 
 YOOKASSA_TEST_SHOP_ID = os.getenv('YOOKASSA_TEST_SHOP_ID')
@@ -30,6 +35,11 @@ YOOKASSA_PROD_SECRET_KEY = os.getenv('YOOKASSA_PROD_SECRET_KEY')
 LOCALHOST_IP = os.getenv('LOCALHOST_IP')
 TELEGRAM_BOT_TOKEN = os.getenv('TELEGRAM_BOT_TOKEN')
 TELEGRAM_BOT_TOKEN_PROD = os.getenv('TELEGRAM_BOT_TOKEN_PROD')
+
+USE_GPT = True
+if ENVIRONMENT in ["DEVELOPMENT", "TESTING"]:
+    # USE_GPT = True
+    USE_GPT = False
 
 DB_HOST = os.getenv('DB_HOST')
 DB_PORT = os.getenv('DB_PORT')
@@ -47,11 +57,13 @@ ALLOWED_HOSTS = [
     "77.75.156.35", "77.75.154.128/25", "2a02:5180::/32",
 ]
 
-if ENVIRONMENT == 'DEVELOPMENT':
+if ENVIRONMENT in ['DEVELOPMENT', 'TESTING']:
     DEBUG = True
     ALLOWED_HOSTS = ["*", ]
 else:
     DEBUG = False
+
+TEST_DJANGO_HOST = os.getenv("TEST_DJANGO_HOST") # Хост, у которого селери спрашивает значения конфигов во время тестов
 
 # Application definition
 

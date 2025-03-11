@@ -90,6 +90,8 @@ class WebhookInboxViewClass(View):
         WebhookInboxViewClass.revoke_ai_answer_old_tasks(chat_id)
         if ENVIRONMENT == "PRODUCTION":
             time.sleep(chat_bot.waiting_minutes * 60)  # WAIT TIME BEFORE ANY ACTIONS
+        elif ENVIRONMENT == "TESTING":
+            time.sleep(10)
         else:
             time.sleep(chat_bot.waiting_minutes * 30)
         AiAnswerAvitoClass.ai_answer_sender_task.delay(avito_account.id, chat_id, chat_bot.id, new_task.message_id)

@@ -1,5 +1,6 @@
 import json
 from django import forms
+from django.conf import settings
 from django.contrib import admin
 from django.db.models import Q
 from django.shortcuts import redirect
@@ -95,7 +96,7 @@ class AvitoAccountAdmin(admin.ModelAdmin):
         state = {
             "created_by_id": request.user.id,
         }
-        return redirect("https://www.avito.ru/oauth?response_type=code&client_id=_pBlAY6LnBWr_sKlgHfX&scope=messenger"
+        return redirect(f"https://www.avito.ru/oauth?response_type=code&client_id={settings.AVITO_CLIENT_ID}&scope=messenger"
                         ":read,messenger:write,user_balance:read,user_operations:read,user:read,autoload:reports,"
                         f"items:info,items:apply_vas,stats:read&state={json.dumps(state)}")
 

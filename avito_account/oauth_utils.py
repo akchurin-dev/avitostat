@@ -1,5 +1,4 @@
-import os
-import requests
+from avito_account import avito_api
 from avito_account.models.models import AvitoAccount
 from base import settings
 from base.exceptions import HTTPException
@@ -10,7 +9,7 @@ client_secret = settings.AVITO_CLIENT_SECRET
 
 def get_avito_tokens(code: str):  # Если использованный токен -должен быть ексепшн, просто обновить код надо
     #TODO добавить сроки просрочки и проверку вынести в отдельный миксин перед отправкой запросов
-    url = 'https://api.avito.ru/token/'
+    action = '/token/'
     data = {
         'grant_type': 'authorization_code',
         'client_id': client_id,
@@ -18,7 +17,7 @@ def get_avito_tokens(code: str):  # Если использованный ток
         'code': code
     }
 
-    response = requests.post(url, data=data)
+    response = avito_api.client.post(action, data=data)
     if response.status_code == 200:
         return response.json()
     else:
@@ -26,12 +25,12 @@ def get_avito_tokens(code: str):  # Если использованный ток
 
 
 def get_avito_account_info(access_token: str):
-    url = 'https://api.avito.ru/core/v1/accounts/self'
+    action = '/core/v1/accounts/self'
     headers = {
         'authorization': f"Bearer {access_token}"
     }
 
-    response = requests.get(url, headers=headers)
+    response = avito_api.client.get(action, headers=headers)
 
     if response.status_code == 200:
         return response.json()
@@ -62,7 +61,7 @@ def create_or_update_avito_account(code: str, created_by_id: int) -> AvitoAccoun
 
 
 def refresh_token(avito_account: AvitoAccount):
-    url = 'https://api.avito.ru/token/'
+    action = '/token/'
     data = {
         'grant_type': 'refresh_token',
         'client_id': client_id,
@@ -70,7 +69,7 @@ def refresh_token(avito_account: AvitoAccount):
         'refresh_token': avito_account.refresh_token
     }
 
-    response = requests.post(url, data=data)
+    response = avito_api.client.post(action, data=data)
     response_data = response.json()
 
     if response.status_code != 200:
