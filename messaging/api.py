@@ -205,6 +205,8 @@ def _print_chat(messages: list):
     lines: list[str] = ["Read messages"]
     
     for msg in messages:
-        lines.append(f"{msg["direction"]}: {msg.get("content", {}).get("text")}")
+        direction = msg["direction"]
+        text = msg.get("content", {}).get("text")
+        lines.append(f"{direction}: {text}")
 
     logger.info("\n".join(lines))
