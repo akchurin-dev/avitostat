@@ -391,7 +391,7 @@ class ChatBotSummaryReportClass(PdfReportBaseClass):
     """
     @staticmethod
     @shared_task
-    def summary_sender_main_task(avito_account_id, chat_id, *, trace_id: str):
+    def summary_sender_main_task(avito_account_id, chat_id, *, trace_id: str | None = None):
         tlogger = TraceLogger(trace_id)
 
         avito_account = AvitoAccount.objects.filter(id=avito_account_id).last()

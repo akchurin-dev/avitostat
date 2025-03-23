@@ -89,7 +89,7 @@ class WebhookInboxViewClass(View):
                     existing_task.revoke(terminate=True)
 
     @staticmethod
-    def incoming_messages_handler(new_task, chat_id, avito_account, chat_bot, *, tlogger: TraceLogger):
+    def incoming_messages_handler(new_task, chat_id, avito_account, chat_bot, *, trace_id: str):
         WebhookInboxViewClass.revoke_ai_answer_old_tasks(chat_id)
         if ENVIRONMENT == "PRODUCTION":
             time.sleep(chat_bot.waiting_minutes * 60)  # WAIT TIME BEFORE ANY ACTIONS
@@ -97,7 +97,7 @@ class WebhookInboxViewClass(View):
             time.sleep(10)
         else:
             time.sleep(chat_bot.waiting_minutes * 30)
-        AiAnswerAvitoClass.ai_answer_sender_task.delay(avito_account.id, chat_id, chat_bot.id, new_task.message_id, tlogger=tlogger)
+        AiAnswerAvitoClass.ai_answer_sender_task.delay(avito_account.id, chat_id, chat_bot.id, new_task.message_id, trace_id=trace_id)
 
     @staticmethod
     @shared_task
@@ -180,7 +180,7 @@ class WebhookInboxViewClass(View):
             return
         
         AvitoMessengerSync.read_chat(avito_account, user_id, chat_id)
-        WebhookInboxViewClass.incoming_messages_handler(new_task, chat_id, avito_account, chat_bot, tlogger=tlogger)
+        WebhookInboxViewClass.incoming_messages_handler(new_task, chat_id, avito_account, chat_bot, trace_id=trace_id)
 
     def post(self, request, *args, **kwargs):
         request_data = json.loads(request.body.decode('utf-8'))
