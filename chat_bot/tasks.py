@@ -137,7 +137,8 @@ class PdfReportBaseClass:
     @staticmethod
     def text_sender_to_tg(text, telegram_id):
         if text:
-            chat_id = "-4221870448" if ENVIRONMENT == "DEVELOPMENT" else telegram_id
+            # chat_id = "-4221870448" if ENVIRONMENT == "DEVELOPMENT" else telegram_id
+            chat_id = telegram_id
             while text:
                 try:
                     bot.send_raw(

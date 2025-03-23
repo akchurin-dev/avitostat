@@ -159,3 +159,34 @@ python manage.py migrate avito_account 0003_workschedule
 на      def get(self, request, *args, **kwargs):
 
 
+
+# Запуск интеграционных тестов
+
+docker compose down
+
+docker compose -f docker-compose.test.yaml up -d
+
+py manage.py migrate --run-syncdb
+
+py manage.py createsuperuser
+
+Установи env var ENVIRONMENT = "TESTING"
+
+Установи в env var AVITO_WEBHOOK_HOST твой ngrok url
+
+Установи в env var TEST_DJANGO_HOST http:localhost:8000 или твой ngrok url,
+если запускаешь с впн и запросы на локалхост не проходят
+
+py manage.py runserver
+
+celery -A base worker -l info --pool solo
+
+run ngrok
+
+Вручную добавь AvitoAccount для аккаунта клиента, установи env var TEST_CUSTOMER_AVITO_ACCOUNT_ID
+
+Вручную добавь AvitoAccount для аккаунта продавца, в поле telegram_id вставь id тестового тг-чата для отчетов и установи env var TEST_SELLER_AVITO_ACCOUNT_ID
+
+Установи все env var'ы описанные в .env.test.sample
+
+pytest -s

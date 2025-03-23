@@ -1,4 +1,5 @@
 from asgiref.sync import  async_to_sync
+import httpx
 from openai import OpenAI
 from pydantic import BaseModel
 
@@ -48,6 +49,20 @@ def format_chat_history(messages):
 
 
 def ai_answer_with_contacts(ai_assistant: AiChatBot, chat: list, ):
+    if not _use_gpt_flag():
+        return {
+            'answer': "mock answer",
+            'contacts': {
+                "address": None,
+                "mobile": None,
+                "whatsapp": None,
+                "telegram": None,
+                "email": None,
+            },
+            'tokens_completion': 1,
+            'tokens_prompt': 2,
+        }
+
     try:
         result = {}
         chat_history_formatted = format_chat_history(chat)
@@ -74,8 +89,8 @@ def ai_answer_with_contacts(ai_assistant: AiChatBot, chat: list, ):
             result['tokens_completion'] = response.usage.completion_tokens
             result['tokens_prompt'] = response.usage.prompt_tokens
             return result
-    except Exception:
-        raise Exception
+    except Exception as e:
+        raise e
 
 
 class ChatSummarySchema(BaseModel):
@@ -99,6 +114,17 @@ def chat_summary_data_prepare(data: dict) -> dict | None:
 
 
 def chat_summary_ai_generator(avito_account: AvitoAccount, chat_id: str):
+    if not _use_gpt_flag():
+        return {
+            'paragraphs': {
+                "paragraph1": "paragraph1",
+                "paragraph2": "paragraph2",
+                "paragraph3": "paragraph3",
+            },
+            'tokens_completion': 1,
+            'tokens_prompt': 2,
+        }
+
     result = {}
     chat_with_messages = async_to_sync(get_chats_last_50_messages)(avito_account, chats=[{"id": chat_id}])
 
@@ -128,3 +154,15 @@ def chat_summary_ai_generator(avito_account: AvitoAccount, chat_id: str):
         result['tokens_completion'] = response.usage.completion_tokens
         result['tokens_prompt'] = response.usage.prompt_tokens
         return result
+
+
+def _use_gpt_flag():
+    if settings.ENVIRONMENT != "TESTING":
+        return settings.USE_GPT
+
+    url = f"{settings.TEST_DJANGO_HOST}/deep_tests/use-gpt-flag"
+
+    response = httpx.get(url)
+    response.raise_for_status()
+
+    return response.text == "True"

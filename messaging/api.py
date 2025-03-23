@@ -1,10 +1,13 @@
 import datetime
 import json
-from avito_account.models.models import AvitoAccount
-from base.exceptions import HTTPException
+
 import httpx
 from httpx import HTTPStatusError
+from loguru import logger
 
+from avito_account.models.models import AvitoAccount
+from base import settings
+from base.exceptions import HTTPException
 from conversion.utils import dates_for_period_without_extra_reserve
 
 
@@ -91,10 +94,12 @@ async def get_chats_last_50_messages(avito_account: AvitoAccount, chats: list) -
                 params = {"limit": 50, "offset": 0}
                 response = await client.get(url, headers=headers, params=params, timeout=300)
                 if response.status_code == 200:
-                    new_messages = response.json().get("messages")
+                    new_messages = response.json().get("messages")[::-1]
                     if len(new_messages) == 0:
                         break
-                    chat["messages"] = new_messages[::-1]
+                    new_messages = _filter_messages(new_messages)
+                    _print_chat(new_messages)
+                    chat["messages"] = new_messages
                 else:
                     raise HTTPException(status_code=response.status_code, detail=response.text)
     return chats
@@ -113,10 +118,12 @@ class MessagingAPISync:
                     params = {"limit": 50, "offset": 0}
                     response = client.get(url, headers=headers, params=params, timeout=300)
                     if response.status_code == 200:
-                        new_messages = response.json().get("messages")
+                        new_messages = response.json().get("messages")[::-1]
                         if len(new_messages) == 0:
                             break
-                        chat["messages"] = new_messages[::-1]
+                        new_messages = _filter_messages(new_messages)
+                        _print_chat(new_messages)
+                        chat["messages"] = new_messages
                     else:
                         raise HTTPException(status_code=response.status_code, detail=response.text)
         return chats
@@ -149,6 +156,8 @@ class MessagingAPISync:
         response = requests.get(url, headers=headers, params=params)
         if response.status_code == 200:
             messages = response.json().get("messages")[::-1]
+            messages = _filter_messages(messages)
+            _print_chat(messages)
             return messages
         else:
             raise HTTPException(status_code=response.status_code, detail=response.text)
@@ -171,3 +180,35 @@ async def get_calls_statistic_last_week(avito_account: AvitoAccount):
                 return data
         else:
             raise HTTPException(status_code=response.status_code, detail=response.text)
+
+
+def _filter_messages(messages: list) -> list:
+    if settings.ENVIRONMENT != "TESTING":
+        return messages
+
+    url = f"{settings.TEST_DJANGO_HOST}/deep_tests/prev-session-last-avito-message"
+
+    response = httpx.get(url)
+    response.raise_for_status()
+
+    prev_session_last_message_id = response.text
+    result = []
+
+    for msg in messages[::-1]:
+        if msg["id"] == prev_session_last_message_id:
+            break
+
+        result.append(msg)
+
+    return result[::-1]
+
+
+def _print_chat(messages: list):
+    lines: list[str] = ["Read messages"]
+
+    for msg in messages:
+        direction = msg["direction"]
+        text = msg.get("content", {}).get("text")
+        lines.append(f"{direction}: {text}")
+
+    logger.info("\n".join(lines))
