@@ -1,3 +1,4 @@
+from tests.config import avito_config
 from tests.utils import avito_utils as test_utils
 from tests.utils import avitostat_test_api
 from tests.utils import telegram
@@ -36,6 +37,7 @@ class TestSummarySending:
         avitostat_test_api.set_prev_session_last_avito_message(self.prev_session_last_msg)
 
     def teardown_method(self):
+        avitostat_test_api.delete_avito_chat_bot_tasks(avito_chat_id=avito_config.config.avito_chat_id)
         avitostat_test_api.delete_avito_ai_chat_bot(ai_chat_bot_id=self.ai_chat_bot.id)
         avitostat_test_api.reset_prev_session_last_avito_message()
 

@@ -155,3 +155,9 @@ class UseGPTFlagAPIView(APIView):
 
     def _current_value_response(self) -> HttpResponse:
         return HttpResponse(content=str(settings.USE_GPT).encode())
+
+
+@api_view(["DELETE"])
+def delete_chat_bot_tasks(request: Request) -> Response:
+    chat_bot_models.ChatBotTask.objects.filter(**request.query_params.dict()).delete()
+    return Response(status=204)

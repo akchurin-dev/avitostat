@@ -24,6 +24,7 @@ urlpatterns = [
     path('avito-ai-chat-bot', views.AvitoAIChatBotCreateAPIView.as_view()),
     path('avito-ai-chat-bot/<int:pk>', views.AvitoAIChatBotRetrieveUpdateDestroyAPIView.as_view()),
     path('avito-ai-chat-bot-by-avito-account/<int:avito_account_pk>', views.AvitoAIChatBotByAvitoAccountDestroyAPIView.as_view()),
+    path('avito-ai-chat-bot-task', views.delete_chat_bot_tasks),
     path('prev-session-last-avito-message', views.PrevSessionLastAvitoMessageAPIView.as_view()),
     path('use-gpt-flag', views.UseGPTFlagAPIView.as_view()),
 ]

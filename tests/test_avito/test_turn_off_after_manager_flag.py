@@ -1,3 +1,4 @@
+from tests.config import avito_config
 from tests.utils import avitostat_test_api
 from tests.utils import avito_utils as test_utils
 from tests.utils.avito_utils import avito_accounts
@@ -24,8 +25,12 @@ class TestTurnOffAfterManagerFlag:
         self.last_avito_msg = self.prev_session_last_message_id
         avitostat_test_api.set_prev_session_last_avito_message(self.prev_session_last_message_id)
 
+    def teardown_method(self):
+        avitostat_test_api.delete_avito_chat_bot_tasks(avito_chat_id=avito_config.config.avito_chat_id)
+        avitostat_test_api.delete_avito_ai_chat_bot(ai_chat_bot_id=self.aichatbot.id)
+
     def test_turn_off_after_manager_enabled(self):
-        avitostat_test_api.create_avito_ai_chat_bot(self.avito_account.id, turn_off_after_manager=True)
+        self.aichatbot = avitostat_test_api.create_avito_ai_chat_bot(self.avito_account.id, turn_off_after_manager=True)
         avitostat_test_api.reset_prev_session_last_avito_message()
         
         # Клиент присылает сообщение
@@ -52,7 +57,7 @@ class TestTurnOffAfterManagerFlag:
         )
 
     def test_turn_off_after_manager_disabled(self):
-        avitostat_test_api.create_avito_ai_chat_bot(self.avito_account.id, turn_off_after_manager=False)
+        self.aichatbot = avitostat_test_api.create_avito_ai_chat_bot(self.avito_account.id, turn_off_after_manager=False)
 
         # Клиент присылает сообщение
         test_utils.write_message_from_client_account()
@@ -78,7 +83,7 @@ class TestTurnOffAfterManagerFlag:
         )
 
     def test_bot_dont_turn_off_after_itself_when_turn_off_after_manager_enabled(self):
-        avitostat_test_api.create_avito_ai_chat_bot(self.avito_account.id, turn_off_after_manager=True)
+        self.aichatbot = avitostat_test_api.create_avito_ai_chat_bot(self.avito_account.id, turn_off_after_manager=True)
 
         # Клиент присылает сообщение
         test_utils.write_message_from_client_account()

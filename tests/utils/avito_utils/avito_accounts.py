@@ -1,5 +1,7 @@
 import httpx
+from loguru import logger
 from pydantic import BaseModel
+import time
 
 from tests import config as global_config
 from tests.config import avito_config
@@ -21,7 +23,15 @@ def get_avito_account_info(access_token: str, refresh_token: str) -> AvitoAccoun
         "Authorization": "Bearer " + access_token,
     }
 
-    response = avito_api.avito_client.get(action, headers=headers)
+    for _ in range(1000):
+        try:
+            response = avito_api.avito_client.get(action, headers=headers)
+        except httpx.TimeoutException:
+            logger.info(f"TimeoutException when request to avito '{action}'")
+            time.sleep(0.5)
+        else:
+            break
+
     response.raise_for_status()
 
     return AvitoAccount.model_validate(response.json())

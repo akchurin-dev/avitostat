@@ -10,7 +10,7 @@ from utils import httpx_helper
 
 avito_client = httpx_helper.create_client(
     base_url="https://api.avito.ru",
-    timeout=httpx.Timeout(30, read=5),
+    timeout=httpx.Timeout(5),
     retries=3,
 )
 
@@ -51,11 +51,18 @@ def request(
         "Authorization": "Bearer " + avito_account.access_token
     }
 
-    if method == "GET":
-        response = avito_client.get(action, headers=headers, params=params)
+    for _ in range(1000):
+        try:
+            if method == "GET":
+                response = avito_client.get(action, headers=headers, params=params)
 
-    if method == "POST":
-        response = avito_client.post(action, data=data, json=json, params=params, headers=headers)
+            if method == "POST":
+                response = avito_client.post(action, data=data, json=json, params=params, headers=headers)
+        except httpx.TimeoutException:
+            logger.info(f"TimeoutException when request to avito, action='{action}'")
+            time.sleep(0.5)
+        else:
+            break
 
     time.sleep(0.5)
 

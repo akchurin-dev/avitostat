@@ -66,6 +66,3 @@ def wait_bot_handle_message():
         counter.next()
 
     print()
-
-
-avito_accounts.init_config_seller_data()

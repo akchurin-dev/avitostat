@@ -32,4 +32,4 @@ def create_client(
     )
 
 
-DEFAULT_TIMEOUT = httpx.Timeout(180, pool=None)
+DEFAULT_TIMEOUT = httpx.Timeout(15, pool=None)
