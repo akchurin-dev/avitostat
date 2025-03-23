@@ -22,6 +22,7 @@ from chat_bot.api.core import AvitoMessengerSync
 from chat_bot.models import AiChatBot, ChatBotTask
 from messaging.api import get_chats_last_50_messages
 from celery import shared_task
+from utils.logging import TraceLogger
 
 class AiAnswerAvitoClass:
     @staticmethod
@@ -58,25 +59,48 @@ class AiAnswerAvitoClass:
 
     @staticmethod
     @shared_task
-    def ai_answer_sender_task(avito_account_id, chat_id, chat_bot_id, new_task_id):
+    def ai_answer_sender_task(avito_account_id, chat_id, chat_bot_id, new_task_id, *, trace_id: str):
         shared_task.__name__ = f"ai_answer_{new_task_id}"
-        celery_logger.warning(f"ai_answer_sender STARTED")
+
+        tlogger = TraceLogger(trace_id)
+        tlogger.info(f"ai_answer_sender STARTED")
+
         avito_account = AvitoAccount.objects.get(pk=avito_account_id)
         chat_bot = AiChatBot.objects.get(pk=chat_bot_id)
-        chat_with_messages = MessagingAPISync.get_chats_last_50_messages(avito_account, chats=[{"id": chat_id}])
+        messages = MessagingAPISync.get_chats_last_50_messages(avito_account, chats=[{"id": chat_id}])[0]["messages"]
+
         # ответ генерируем только если менеджер всё ещё не ответил
-        actual_message = chat_with_messages[0].get("messages")[-1]
-        if actual_message.get("type") == "system":  # тк при номере последним становится уже сообщение с предупреждением
-            actual_message = chat_with_messages[0].get("messages")[-2]
-        if actual_message.get("direction") == "in" and actual_message.get("type") == "text":
-            ai_answer = ai_answer_with_contacts(chat_bot, chat_with_messages[0].get("messages")[:])
-            if ai_answer:
-                message_text = ai_answer.get("answer") + "…"
-                AvitoMessengerSync.send_message_to_avito(avito_account, avito_account.id, chat_id, message_text)
-                AiAnswerAvitoClass.task_contacts_save(new_task_id, ai_answer, is_incoming=True)
-                contacts = ai_answer.get("contacts")
-                if contacts is not None:
-                    ChatBotSummaryReportClass.summary_sender_main_task(avito_account_id, chat_id)
+        actual_message_type = messages[-1]["type"]
+        actual_message_direction = messages[-1]["direction"]
+
+        if actual_message_type == "system":  # тк при номере последним становится уже сообщение с предупреждением
+            actual_message_type = messages[-2]["type"]
+            actual_message_direction = messages[-2]["direction"]
+
+        if actual_message_type != "text":
+            tlogger.info(f"Stop handling. Unsupported message type, got {actual_message_type}")
+            return
+
+        if actual_message_direction != "in":
+            tlogger.info(f"Stop handling. Actual message is outgoing")
+            return
+
+        ai_answer = ai_answer_with_contacts(chat_bot, messages[:])
+
+        if not ai_answer:
+            tlogger.warning(f"Stop handling. AI answer is empty, got {ai_answer}")
+            return
+
+        message_text = ai_answer["answer"] + "…"
+        AvitoMessengerSync.send_message_to_avito(avito_account, avito_account.id, chat_id, message_text)
+        tlogger.info("Answer was sent to avito successfully")
+        AiAnswerAvitoClass.task_contacts_save(new_task_id, ai_answer, is_incoming=True)
+        tlogger.info("AIChatBotTask was updated successfully")
+
+        if ai_answer.get("contacts"):
+            ChatBotSummaryReportClass.summary_sender_main_task(avito_account_id, chat_id, trace_id=tlogger.trace_id)
+        else:
+            tlogger.info("Contacts not found")
 
 
 class PdfReportBaseClass:
@@ -305,6 +329,7 @@ class BotStatisticsDailyReportClass(PdfReportBaseClass):
             for chat in chats:
                 ChatHistoryReportClass.history_pdf_sender_task.delay(avito_account_id=avito_account.id, chat=chat)
 
+
 class ChatHistoryReportClass(PdfReportBaseClass):
 
     @staticmethod
@@ -366,34 +391,46 @@ class ChatBotSummaryReportClass(PdfReportBaseClass):
     """
     @staticmethod
     @shared_task
-    def summary_sender_main_task(avito_account_id, chat_id):
+    def summary_sender_main_task(avito_account_id, chat_id, *, trace_id: str):
+        tlogger = TraceLogger(trace_id)
+
         avito_account = AvitoAccount.objects.filter(id=avito_account_id).last()
         all_tasks = ChatBotTask.objects.filter(chat_id=chat_id)
+
         if ENVIRONMENT == "PRODUCTION":
             time.sleep(300)
-            if all_tasks.filter(summary_sanded=True).exists():
-                celery_logger.info(f"Summary report already sent for chat_id {chat_id}.")
-                return
         if ENVIRONMENT == "DEVELOPMENT":
             async_to_sync(avito_account.update_refresh_token_async)()
+
+        if all_tasks.filter(summary_sanded=True).exists():
+            tlogger.info(f"Summary report already sent for chat_id {chat_id}.")
+            return
 
         chat = MessagingAPISync.get_chat_by_id(avito_account, chat_id)
         messages = MessagingAPISync.get_chat_last_50_messages_by_chat_id(avito_account, chat_id)
         chat["messages"] = messages
-        if messages is not None and len(messages) > 0:  # skip who can't have bot chats
-            chat_summary = chat_summary_ai_generator(avito_account, chat_id)
-            if chat_summary is not None:
-                ChatBotSummaryReportClass.summary_sender(avito_account, chat_summary, chat, all_tasks)
+
+        if messages is None or len(messages) == 0:
+            tlogger.info("Stop summary sending. No messages in chat")
+            return
+
+        chat_summary = chat_summary_ai_generator(avito_account, chat_id)
+        if chat_summary:
+            ChatBotSummaryReportClass.summary_sender(avito_account, chat_summary, chat, all_tasks, tlogger=tlogger)
+        else:
+            tlogger.info(f"Chat summary is empty, got {chat_summary}")
 
 
     @staticmethod
-    def summary_sender(avito_account, chat_summary, chat, all_tasks):
+    def summary_sender(avito_account, chat_summary, chat, all_tasks, *, tlogger: TraceLogger):
         # TEXT MESSAGE
         summary_text = ChatBotSummaryReportClass.get_chat_summary_text(chat_summary, chat)
-        celery_logger.info(f"Summary report summary_text {summary_text}.")
+        tlogger.info(f"Summary report summary_text {summary_text}.")
         if summary_text and len(summary_text) > 20:  # 20 is random value)
             ChatBotSummaryReportClass.text_sender_to_tg(text=summary_text, telegram_id=avito_account.telegram_id)
-            celery_logger.info(f"Summary report text sended to {avito_account.name} telegram.")
+            tlogger.info(f"Summary report text sended to {avito_account.name} telegram.")
+        else:
+            tlogger.info(f"Summary text is empty or not enought long")
 
         # PDF FILE
         summary_html = ChatBotSummaryReportClass.get_chat_summary_html(chat_summary, chat)
