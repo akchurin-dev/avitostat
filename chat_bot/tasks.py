@@ -50,9 +50,15 @@ class AiAnswerAvitoClass:
 
     @staticmethod
     @shared_task
-    def chat_contacts_checker_task(avito_account: AvitoAccount, chat_id: str):
-        celery_logger.warning(f"chat_contacts_checker_task STARTED")
-        chat_with_messages = MessagingAPISync.get_chats_last_50_messages(avito_account, chats=[{"id": chat_id}])
+    def chat_contacts_checker_task(avito_account: AvitoAccount, chat_id: str, *, trace_id: str | None = None):
+        tlogger = TraceLogger(trace_id)
+        tlogger.info(f"chat_contacts_checker_task STARTED")
+
+        chat_with_messages = MessagingAPISync.get_chats_last_50_messages(
+            avito_account=avito_account,
+            chats=[{"id": chat_id}],
+            trace_id=tlogger.trace_id,
+        )
         ai_assistant = AiChatBot.objects.filter(avito_account=avito_account).last()
         ai_answer = ai_answer_with_contacts(ai_assistant, chat=chat_with_messages[0].get("messages"))
         return ai_answer.get("contacts")
@@ -67,7 +73,11 @@ class AiAnswerAvitoClass:
 
         avito_account = AvitoAccount.objects.get(pk=avito_account_id)
         chat_bot = AiChatBot.objects.get(pk=chat_bot_id)
-        messages = MessagingAPISync.get_chats_last_50_messages(avito_account, chats=[{"id": chat_id}])[0]["messages"]
+        messages = MessagingAPISync.get_chats_last_50_messages(
+            avito_account=avito_account,
+            chats=[{"id": chat_id}],
+            trace_id=tlogger.trace_id
+        )[0]["messages"]
 
         # ответ генерируем только если менеджер всё ещё не ответил
         actual_message_type = messages[-1]["type"]
@@ -91,8 +101,10 @@ class AiAnswerAvitoClass:
             tlogger.warning(f"Stop handling. AI answer is empty, got {ai_answer}")
             return
 
-        message_text = ai_answer["answer"] + "…"
-        AvitoMessengerSync.send_message_to_avito(avito_account, avito_account.id, chat_id, message_text)
+        if ai_answer.get("answer"):
+            ai_answer["answer"] += "…"
+
+        AvitoMessengerSync.send_message_to_avito(avito_account, avito_account.id, chat_id, ai_answer["answer"])
         tlogger.info("Answer was sent to avito successfully")
         AiAnswerAvitoClass.task_contacts_save(new_task_id, ai_answer, is_incoming=True)
         tlogger.info("AIChatBotTask was updated successfully")
@@ -414,7 +426,7 @@ class ChatBotSummaryReportClass(PdfReportBaseClass):
             tlogger.info("Stop summary sending. No messages in chat")
             return
 
-        chat_summary = chat_summary_ai_generator(avito_account, chat_id)
+        chat_summary = chat_summary_ai_generator(avito_account, chat_id, tlogger=tlogger)
         if chat_summary:
             ChatBotSummaryReportClass.summary_sender(avito_account, chat_summary, chat, all_tasks, tlogger=tlogger)
         else:
@@ -428,7 +440,7 @@ class ChatBotSummaryReportClass(PdfReportBaseClass):
         tlogger.info(f"Summary report summary_text {summary_text}.")
         if summary_text and len(summary_text) > 20:  # 20 is random value)
             ChatBotSummaryReportClass.text_sender_to_tg(text=summary_text, telegram_id=avito_account.telegram_id)
-            tlogger.info(f"Summary report text sended to {avito_account.name} telegram.")
+            tlogger.info(f"Summary report text sended to telegram of '{avito_account.name}'")
         else:
             tlogger.info(f"Summary text is empty or not enought long")
 

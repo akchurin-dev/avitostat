@@ -9,6 +9,7 @@ from avito_account.models.models import AvitoAccount
 from base import settings
 from base.exceptions import HTTPException
 from conversion.utils import dates_for_period_without_extra_reserve
+from utils.logging import TraceLogger
 
 
 # TODO ДОБАВИТЬ ПРОВЕРКУ НА ПРОСРОЧЕННОСТЬ и обновление токена
@@ -59,6 +60,10 @@ async def get_chats(avito_account: AvitoAccount, period: str = "week", max_retri
             elif response.status_code == 403:
                 retries += 1
                 if retries > max_retries:
+                    logger.error((
+                        "Not success response in get_chats function. "
+                        f"Got status=403, data={response.text}"
+                    ))
                     raise HTTPStatusError("Превышено максимальное количество попыток обновления токена",
                                           request=response.request, response=response)
                 print(
@@ -84,7 +89,8 @@ async def check_timestamp_in_period(timestamp: int, period: str = "week") -> boo
     return timestamp_in_period
 
 
-async def get_chats_last_50_messages(avito_account: AvitoAccount, chats: list) -> list:
+async def get_chats_last_50_messages(avito_account: AvitoAccount, chats: list, *, trace_id: str | None = None) -> list:
+    tlogger = TraceLogger(trace_id)
     if len(chats) > 0:
         async with httpx.AsyncClient() as client:
             for chat in chats:
@@ -98,7 +104,7 @@ async def get_chats_last_50_messages(avito_account: AvitoAccount, chats: list) -
                     if len(new_messages) == 0:
                         break
                     new_messages = _filter_messages(new_messages)
-                    _print_chat(new_messages)
+                    _print_chat(new_messages, tlogger=tlogger)
                     chat["messages"] = new_messages
                 else:
                     raise HTTPException(status_code=response.status_code, detail=response.text)
@@ -108,7 +114,8 @@ async def get_chats_last_50_messages(avito_account: AvitoAccount, chats: list) -
 import requests
 class MessagingAPISync:
     @staticmethod
-    def get_chats_last_50_messages(avito_account: AvitoAccount, chats: list) -> list:
+    def get_chats_last_50_messages(avito_account: AvitoAccount, chats: list, *, trace_id: str | None = None) -> list:
+        tlogger = TraceLogger(trace_id)
         if len(chats) > 0:
             with httpx.Client() as client:
                 for chat in chats:
@@ -122,7 +129,7 @@ class MessagingAPISync:
                         if len(new_messages) == 0:
                             break
                         new_messages = _filter_messages(new_messages)
-                        _print_chat(new_messages)
+                        _print_chat(new_messages, tlogger=tlogger)
                         chat["messages"] = new_messages
                     else:
                         raise HTTPException(status_code=response.status_code, detail=response.text)
@@ -149,7 +156,8 @@ class MessagingAPISync:
 
 
     @staticmethod
-    def get_chat_last_50_messages_by_chat_id(avito_account: AvitoAccount, chat_id: str):
+    def get_chat_last_50_messages_by_chat_id(avito_account: AvitoAccount, chat_id: str, *, trace_id: str | None = None):
+        tlogger = TraceLogger(trace_id)
         url = f"https://api.avito.ru/messenger/v3/accounts/{avito_account.id}/chats/{chat_id}/messages/"
         headers = {'authorization': f"Bearer {avito_account.access_token}"}
         params = {"limit": 50, "offset": 0}
@@ -157,7 +165,7 @@ class MessagingAPISync:
         if response.status_code == 200:
             messages = response.json().get("messages")[::-1]
             messages = _filter_messages(messages)
-            _print_chat(messages)
+            _print_chat(messages, tlogger=tlogger)
             return messages
         else:
             raise HTTPException(status_code=response.status_code, detail=response.text)
@@ -203,7 +211,7 @@ def _filter_messages(messages: list) -> list:
     return result[::-1]
 
 
-def _print_chat(messages: list):
+def _print_chat(messages: list, *, tlogger: TraceLogger):
     lines: list[str] = ["Read messages"]
 
     for msg in messages:
@@ -211,4 +219,4 @@ def _print_chat(messages: list):
         text = msg.get("content", {}).get("text")
         lines.append(f"{direction}: {text}")
 
-    logger.info("\n".join(lines))
+    tlogger.info("\n".join(lines))

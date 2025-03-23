@@ -7,6 +7,7 @@ from avito_account.models.models import AvitoAccount
 from base import settings
 from chat_bot.models import AiChatBot
 from messaging.api import get_chats_last_50_messages
+from utils.logging import TraceLogger
 
 MODEL = "gpt-4o-2024-08-06"
 client = OpenAI(api_key=settings.OPENAI_SECRET_KEY)
@@ -113,7 +114,7 @@ def chat_summary_data_prepare(data: dict) -> dict | None:
     return result
 
 
-def chat_summary_ai_generator(avito_account: AvitoAccount, chat_id: str):
+def chat_summary_ai_generator(avito_account: AvitoAccount, chat_id: str, *, tlogger: TraceLogger):
     if not _use_gpt_flag():
         return {
             'paragraphs': {
@@ -126,7 +127,7 @@ def chat_summary_ai_generator(avito_account: AvitoAccount, chat_id: str):
         }
 
     result = {}
-    chat_with_messages = async_to_sync(get_chats_last_50_messages)(avito_account, chats=[{"id": chat_id}])
+    chat_with_messages = async_to_sync(get_chats_last_50_messages)(avito_account, chats=[{"id": chat_id}], trace_id=tlogger.trace_id)
 
     prompt = (f"""Твоя задача - проанализировать переписку чата
         И сгенерировать сводку по чату которая должна содержать пункты:
