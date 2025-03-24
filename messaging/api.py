@@ -212,7 +212,7 @@ def _filter_messages(messages: list) -> list:
 
 
 def _print_chat(messages: list, *, tlogger: TraceLogger):
-    lines: list[str] = ["Read messages"]
+    lines: list[str] = ["Get messages:"]
 
     for msg in messages:
         direction = msg["direction"]

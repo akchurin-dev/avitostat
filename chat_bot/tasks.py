@@ -76,7 +76,7 @@ class AiAnswerAvitoClass:
         messages = MessagingAPISync.get_chats_last_50_messages(
             avito_account=avito_account,
             chats=[{"id": chat_id}],
-            trace_id=tlogger.trace_id
+            trace_id=tlogger.trace_id,
         )[0]["messages"]
 
         # ответ генерируем только если менеджер всё ещё не ответил

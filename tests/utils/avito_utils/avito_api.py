@@ -62,9 +62,15 @@ def request(
             logger.info(f"TimeoutException when request to avito, action='{action}'")
             time.sleep(0.5)
         else:
-            break
+            if response.is_server_error:
+                logger.info((
+                    "Server error when request to avito: "
+                    f"action='{action}', status={response.status_code}, data={response.text}"
+                ))
+            else:
+                break
 
-    time.sleep(0.5)
+        time.sleep(0.5)
 
     if _is_token_expired(response):
         raise Exception(f"Avito access-token of {avito_account.name} is expired")

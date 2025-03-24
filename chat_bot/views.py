@@ -89,15 +89,26 @@ class WebhookInboxViewClass(View):
                     existing_task.revoke(terminate=True)
 
     @staticmethod
-    def incoming_messages_handler(new_task, chat_id, avito_account, chat_bot, *, trace_id: str):
+    def incoming_messages_handler(new_task, chat_id, avito_account, chat_bot, *, tlogger: TraceLogger):
         WebhookInboxViewClass.revoke_ai_answer_old_tasks(chat_id)
-        if ENVIRONMENT == "PRODUCTION":
-            time.sleep(chat_bot.waiting_minutes * 60)  # WAIT TIME BEFORE ANY ACTIONS
-        elif ENVIRONMENT == "TESTING":
-            time.sleep(10)
-        else:
-            time.sleep(chat_bot.waiting_minutes * 30)
-        AiAnswerAvitoClass.ai_answer_sender_task.delay(avito_account.id, chat_id, chat_bot.id, new_task.message_id, trace_id=trace_id)
+        wait_sec = chat_bot.waiting_minutes * 60
+
+        if ENVIRONMENT == "DEVELOPMENT":
+            wait_sec //= 2
+
+        if ENVIRONMENT == "TESTING":
+            wait_sec = 10
+
+        tlogger.info(f"Wait for {wait_sec} seconds...")
+        time.sleep(wait_sec)
+
+        AiAnswerAvitoClass.ai_answer_sender_task.delay(
+            avito_account_id=avito_account.id,
+            chat_id=chat_id,
+            chat_bot_id=chat_bot.id,
+            new_task_id=new_task.message_id,
+            trace_id=tlogger.trace_id,
+        )
 
     @staticmethod
     @shared_task
@@ -200,9 +211,9 @@ class WebhookInboxViewClass(View):
         if bot_stopped_for_chat:
             tlogger.info("Stop handling. Bot stopped for chat")
             return
-        
+
         AvitoMessengerSync.read_chat(avito_account, user_id, chat_id)
-        WebhookInboxViewClass.incoming_messages_handler(new_task, chat_id, avito_account, chat_bot, trace_id=trace_id)
+        WebhookInboxViewClass.incoming_messages_handler(new_task, chat_id, avito_account, chat_bot, tlogger=tlogger)
 
     def post(self, request, *args, **kwargs):
         request_data = json.loads(request.body.decode('utf-8'))
