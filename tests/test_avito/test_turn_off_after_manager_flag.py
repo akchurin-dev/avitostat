@@ -104,3 +104,26 @@ class TestTurnOffAfterManagerFlag:
             last_message_id=self.last_avito_msg,
             new_messages_count=1,
         )[0]
+
+    def test_incoming_outgoing_incoming_when_turn_off_after_manager_enabled(self):
+        self.aichatbot = avitostat_test_api.create_avito_ai_chat_bot(self.avito_account.id, turn_off_after_manager=True)
+
+        # Клиент присылает сообщение
+        # Не ждем пока сообщение обработается
+        test_utils.write_message_from_client_account()
+        test_utils.wait_bot_handle_message(wait_sec=1)
+
+        # Менеджер отвечает
+        # Не ждем пока сообщение обработается
+        test_utils.write_message_from_seller_account()
+        test_utils.wait_bot_handle_message(wait_sec=1)
+
+        # Клиент присылает сообщение
+        test_utils.write_message_from_client_account()
+        test_utils.wait_bot_handle_message()
+
+        # Из исходящих только сообщение менеджера
+        avito_chats.check_new_outgoing_messages(
+            last_message_id=self.last_avito_msg,
+            new_messages_count=1,
+        )

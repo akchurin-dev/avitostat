@@ -57,8 +57,7 @@ def write_message_from_seller_account():
     logger.info("Seller sent message")
 
 
-def wait_bot_handle_message():
-    wait_sec = global_config.BOT_HANDLE_MESSAGE_WAIT_TIME_SEC
+def wait_bot_handle_message(wait_sec: int = global_config.BOT_HANDLE_MESSAGE_WAIT_TIME_SEC):
     counter = progress.counter.Countdown("Wait bot handle message, left seconds ", max=wait_sec)
 
     for _ in range (wait_sec):

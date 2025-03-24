@@ -5,7 +5,7 @@ from pydantic import BaseModel
 
 from avito_account.models.models import AvitoAccount
 from base import settings
-from chat_bot.models import AiChatBot
+from chat_bot.models import AIChatBotBase
 from messaging.api import get_chats_last_50_messages
 from utils.logging import TraceLogger
 
@@ -49,7 +49,27 @@ def format_chat_history(messages):
     return formatted_messages
 
 
-def ai_answer_with_contacts(ai_assistant: AiChatBot, chat: list, ):
+class AIAnswerContacts(BaseModel):
+    address: str | None
+    mobile: str | None
+    whatsapp: str | None
+    telegram: str | None
+    email: str | None
+
+
+class AIAnswerWithContacts(BaseModel):
+    answer: str
+    contacts: AIAnswerContacts | None
+    tokens_completion: int
+    tokens_prompt: int
+
+
+def ai_answer_with_contacts_typed(ai_assistant: AIChatBotBase, chat: list) -> AIAnswerWithContacts:
+    res = ai_answer_with_contacts(ai_assistant, chat)
+    return AIAnswerWithContacts.model_validate(res)
+
+
+def ai_answer_with_contacts(ai_assistant: AIChatBotBase, chat: list, ):
     if not _use_gpt_flag():
         return {
             'answer': "mock answer",

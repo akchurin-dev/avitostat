@@ -1,32 +1,34 @@
 import datetime
-import time
 from pathlib import Path
+import time
+
 from aiogram import types
-import pdfkit
 from aiogram.types import InputMediaDocument
-from jinja2 import Template
+from asgiref.sync import async_to_sync
+from celery import shared_task
 from django.db.models import Q
 from django.utils import timezone
-
-from base.celery import celery_logger
-from messaging.api import get_chats, MessagingAPISync
-from messaging.bad_mes_report.utils_bad_messaging_report import chats_timestamp_to_datetime
-from messaging.bad_mes_report.utils_chats import filter_chats_for_last_period, \
-    filter_chats_only_with_text, filter_by_bot_answered_chat_ids
-from asgiref.sync import async_to_sync
+from jinja2 import Template
+import pdfkit
 from telegram_bot import bot
+
+from aichatbottasks import utils as aichatbottasks
 from avito_account.models.models import AvitoAccount
+from base.celery import celery_logger
 from base.settings import ENVIRONMENT
 from chat_bot.ai_utils import ai_answer_with_contacts, chat_summary_ai_generator
 from chat_bot.api.core import AvitoMessengerSync
 from chat_bot.models import AiChatBot, ChatBotTask
+from messaging.api import get_chats, MessagingAPISync
+from messaging.bad_mes_report.utils_chats import filter_chats_for_last_period, \
+    filter_chats_only_with_text, filter_by_bot_answered_chat_ids
+from messaging.bad_mes_report.utils_bad_messaging_report import chats_timestamp_to_datetime
 from messaging.api import get_chats_last_50_messages
-from celery import shared_task
 from utils.logging import TraceLogger
 
 class AiAnswerAvitoClass:
     @staticmethod
-    def task_contacts_save(new_task_id: str, ai_answer: dict, is_incoming: bool):
+    def task_contacts_save(new_task_id: str, ai_answer: dict | None, is_incoming: bool):
         #Core fields
         new_task = ChatBotTask.objects.filter(message_id=new_task_id).last()
         new_task.is_incoming = is_incoming
@@ -64,12 +66,21 @@ class AiAnswerAvitoClass:
         return ai_answer.get("contacts")
 
     @staticmethod
+    @aichatbottasks.interrupt_task_if_error
     @shared_task
-    def ai_answer_sender_task(avito_account_id, chat_id, chat_bot_id, new_task_id, *, trace_id: str):
-        shared_task.__name__ = f"ai_answer_{new_task_id}"
-
+    def ai_answer_sender_task(avito_account_id, chat_id, chat_bot_id, new_task_id, aichatbottask_id: int, *, trace_id: str):
         tlogger = TraceLogger(trace_id)
         tlogger.info(f"ai_answer_sender STARTED")
+
+        aichatbottasks.wait_for_permission_to_start(aichatbottask_id)
+        ok = aichatbottasks.change_task_status(
+            task_id=aichatbottask_id,
+            new_status=aichatbottasks.Task.Status.PREPARING_DATA,
+            tlogger=tlogger,
+        )
+        if not ok:
+            tlogger.info("Stop handling. Can't go to data preparing")
+            return
 
         avito_account = AvitoAccount.objects.get(pk=avito_account_id)
         chat_bot = AiChatBot.objects.get(pk=chat_bot_id)
@@ -88,21 +99,54 @@ class AiAnswerAvitoClass:
             actual_message_direction = messages[-2]["direction"]
 
         if actual_message_type != "text":
+            aichatbottasks.change_task_status(
+                task_id=aichatbottask_id,
+                new_status=aichatbottasks.Task.Status.CANCELED,
+                tlogger=tlogger,
+            )
             tlogger.info(f"Stop handling. Unsupported message type, got {actual_message_type}")
             return
 
         if actual_message_direction != "in":
+            aichatbottasks.change_task_status(
+                task_id=aichatbottask_id,
+                new_status=aichatbottasks.Task.Status.CANCELED,
+                tlogger=tlogger,
+            )
             tlogger.info(f"Stop handling. Actual message is outgoing")
+            return
+
+        ok = aichatbottasks.change_task_status(
+            task_id=aichatbottask_id,
+            new_status=aichatbottasks.Task.Status.ANSWER_GENERATION,
+            tlogger=tlogger,
+        )
+        if not ok:
+            tlogger.info("Stop handling. Can't go to answer generation")
             return
 
         ai_answer = ai_answer_with_contacts(chat_bot, messages[:])
 
         if not ai_answer:
+            aichatbottasks.change_task_status(
+                task_id=aichatbottask_id,
+                new_status=aichatbottasks.Task.Status.CANCELED,
+                tlogger=tlogger,
+            )
             tlogger.warning(f"Stop handling. AI answer is empty, got {ai_answer}")
             return
 
         if ai_answer.get("answer"):
             ai_answer["answer"] += "…"
+
+        ok = aichatbottasks.change_task_status(
+            task_id=aichatbottask_id,
+            new_status=aichatbottasks.Task.Status.ANSWER_SENDING,
+            tlogger=tlogger,
+        )
+        if not ok:
+            tlogger.info("Stop handling. Can't go to answer sending")
+            return
 
         AvitoMessengerSync.send_message_to_avito(avito_account, avito_account.id, chat_id, ai_answer["answer"])
         tlogger.info("Answer was sent to avito successfully")
@@ -113,6 +157,12 @@ class AiAnswerAvitoClass:
             ChatBotSummaryReportClass.summary_sender_main_task(avito_account_id, chat_id, trace_id=tlogger.trace_id)
         else:
             tlogger.info("Contacts not found")
+
+        aichatbottasks.change_task_status(
+            task_id=aichatbottask_id,
+            new_status=aichatbottasks.Task.Status.FINISHED,
+            tlogger=tlogger,
+        )
 
 
 class PdfReportBaseClass:
