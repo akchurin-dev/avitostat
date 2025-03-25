@@ -1,5 +1,6 @@
 import datetime
 import json
+from typing import NamedTuple
 
 from asgiref.sync import sync_to_async, async_to_sync
 from celery import shared_task
@@ -10,15 +11,15 @@ from django.utils.timezone import now, is_naive
 from django.views import View
 import pytz
 
-from aichatbottasks import utils as aichatbottasks
+from avito_account.models.models import AvitoAccount
 from base.settings import ENVIRONMENT
 from chat_bot.api.core import AvitoMessengerSync
 from chat_bot.avito_aichatbottasks import get_object_id
 from chat_bot.tasks import BotStatisticsDailyReportClass, ChatBotSummaryReportClass, PdfReportBaseClass, \
     AiAnswerAvitoClass
-from avito_account.models.models import AvitoAccount
 from chat_bot.api.subscriptions import subscribe_to_messages, stop_subscribe_to_messages, check_subscriptions
 from chat_bot.models import AiChatBot, ChatBotTask
+from messaging.api import MessagingAPISync
 from utils.logging import new_trace_id, TraceLogger
 
 
@@ -27,12 +28,25 @@ moscow_tz = pytz.timezone('Europe/Moscow')
 
 @method_decorator(csrf_exempt, name='dispatch')
 class WebhookInboxViewClass(View):
+    class MessageData(NamedTuple):
+        chat_id: str
+        request_id: str
+        message_id: str
+        author_id: int
+        user_id: int
+        text: str
+        incoming_msg: bool
+        avito_account: AvitoAccount
+        chat_bot: AiChatBot
+        is_time_to_work: bool
+        bot_stopped_for_chat: bool
 
     @staticmethod
-    def message_data(data, *, tlogger: TraceLogger):
+    def message_data(data, *, tlogger: TraceLogger) -> MessageData:
         #From request
         chat_id = data.get("payload").get("value").get("chat_id")
-        message_id = data.get('id')
+        request_id = data.get('id')
+        message_id = data["payload"]["value"]["id"]
         author_id = data.get("payload").get("value").get("author_id")
         user_id = data.get("payload").get("value").get("user_id")
         text = data.get("payload").get("value").get("content").get("text", "Не предусмотрено")
@@ -46,7 +60,19 @@ class WebhookInboxViewClass(View):
         is_time_to_work = WebhookInboxViewClass.check_chat_bot_scheduler(chat_bot)
         bot_stopped_for_chat = WebhookInboxViewClass.chat_shutdown_check(chat_id, chat_bot, tlogger=tlogger)
 
-        return chat_id, message_id, author_id, user_id, text, incoming_mgs, avito_account, chat_bot, is_time_to_work, bot_stopped_for_chat
+        return WebhookInboxViewClass.MessageData(
+            chat_id=chat_id,
+            request_id=request_id,
+            message_id=message_id,
+            author_id=author_id,
+            user_id=user_id,
+            text=text,
+            incoming_msg=incoming_mgs,
+            avito_account=avito_account,
+            chat_bot=chat_bot,
+            is_time_to_work=is_time_to_work,
+            bot_stopped_for_chat=bot_stopped_for_chat,
+        )
 
     @staticmethod
     def check_chat_bot_scheduler(chat_bot: AiChatBot) -> bool:
@@ -71,17 +97,15 @@ class WebhookInboxViewClass(View):
         return stopped
 
     @staticmethod
-    def incoming_messages_handler(new_task, chat_id, avito_account, chat_bot, *, tlogger: TraceLogger):
-        aichatbottask = aichatbottasks.create_task(
-            object_id=get_object_id(avito_account.id, chat_id),
-            tlogger=tlogger,
-        )
-        ok = aichatbottasks.cancel_tasks(
-            except_task_id=aichatbottask.pk,
-            tlogger=tlogger,
-        )
-        if not ok:
-            return
+    def incoming_messages_handler(
+        new_task: ChatBotTask,
+        chat_id: str,
+        message_id: str,
+        avito_account: AvitoAccount,
+        chat_bot: AiChatBot,
+        *,
+        tlogger: TraceLogger,
+    ) -> None:
 
         wait_sec = chat_bot.waiting_minutes * 60
 
@@ -94,57 +118,29 @@ class WebhookInboxViewClass(View):
         tlogger.info(f"Wait for {wait_sec} seconds...")
 
         AiAnswerAvitoClass.ai_answer_sender_task.s(
-            avito_account_id=avito_account.id,
+            avito_account_id=avito_account.pk,
             chat_id=chat_id,
-            chat_bot_id=chat_bot.id,
+            message_id=message_id,
+            chat_bot_id=chat_bot.pk,
             new_task_id=new_task.message_id,
-            aichatbottask_id=aichatbottask.pk,
             trace_id=tlogger.trace_id,
         ).apply_async(countdown=wait_sec)
 
     @staticmethod
-    def launch_outgoing_messages_handler(chat_id, message_id, avito_account, chat_bot, new_task, tlogger: TraceLogger):
-        aichatbottask = aichatbottasks.create_task(
-            object_id=get_object_id(avito_account.id, chat_id),
-            tlogger=tlogger,
-        )
-        ok = aichatbottasks.cancel_tasks(
-            except_task_id=aichatbottask.pk,
-            tlogger=tlogger,
-        )
-        if not ok:
-            tlogger.info("Stop handling. Can't cancel other tasks")
-            return
-
-        WebhookInboxViewClass.outgoing_messages_handler(
-            chat_id=chat_id,
-            message_id=message_id,
-            avito_account=avito_account,
-            chat_bot=chat_bot,
-            new_task=new_task,
-            aichatbottask_id=aichatbottask.pk,
-            trace_id=tlogger.trace_id,
-        )
-
-    @staticmethod
-    @aichatbottasks.interrupt_task_if_error
-    @shared_task
-    def outgoing_messages_handler(chat_id, message_id, avito_account, chat_bot, new_task, aichatbottask_id: int, trace_id: str):
+    def outgoing_messages_handler(
+        chat_id: str,
+        message_id: str,
+        avito_account: AvitoAccount,
+        chat_bot: AiChatBot,
+        new_task: ChatBotTask,
+        trace_id: str,
+    ) -> None:
         tlogger = TraceLogger(trace_id)
         tlogger.info("Start outgoing_messages_handler")
 
         # TODO отмена предыдущих тасок для саммари для данного чата ПРОВЕРИТЬ КАК ТО через флауэр
         new_task.is_incoming = False
         new_task.save()
-
-        ok = aichatbottasks.change_task_status(
-            task_id=aichatbottask_id,
-            new_status=aichatbottasks.Task.Status.PREPARING_DATA,
-            tlogger=tlogger,
-        )
-        if not ok:
-            tlogger.info("Stop handling. Can't go to data preparing")
-            return
 
         #Checking answered from AI
         tasks = list(ChatBotTask.objects.filter(chat_id=chat_id, is_incoming=True).order_by("created_at"))
@@ -159,40 +155,35 @@ class WebhookInboxViewClass(View):
         tlogger.info(f"Last answers: " + str([task.answer_text for task in tasks[-5:]]))
 
         if answered_from_ai:
-            aichatbottasks.change_task_status(
-                task_id=aichatbottask_id,
-                new_status=aichatbottasks.Task.Status.CANCELED,
-                tlogger=tlogger,
-            )
             tlogger.info("Stop handling. Message generated by ai")
             return
 
         tlogger.info("Message wrote by manager manually")
 
-        ok = aichatbottasks.change_task_status(
-            task_id=aichatbottask_id,
-            new_status=aichatbottasks.Task.Status.ANSWER_GENERATION,
-            tlogger=tlogger,
+        messages = MessagingAPISync.get_chat_last_50_messages_by_chat_id(
+            avito_account=avito_account,
+            chat_id=chat_id,
+            trace_id=tlogger.trace_id,
         )
-        if not ok:
-            tlogger.info("Stop handling. Can't go to answer generation")
+
+        last_message_id = messages[-1]["id"]
+        if messages[-1]["type"] == "system":
+            last_message_id = messages[-2]["id"]
+
+        if last_message_id != message_id:
+            tlogger.info(f"Stop handling. Message (id={message_id}) is not actual")
             return
 
-        contacts = AiAnswerAvitoClass.chat_contacts_checker_task(avito_account, chat_id, trace_id=tlogger.trace_id)
+        contacts = AiAnswerAvitoClass.chat_contacts_checker_task(
+            avito_account_id=avito_account.pk,
+            chat=messages,
+            trace_id=tlogger.trace_id,
+        )
         AiAnswerAvitoClass.task_contacts_save(message_id, contacts, is_incoming=False)
-
-        ok = aichatbottasks.change_task_status(
-            task_id=aichatbottask_id,
-            new_status=aichatbottasks.Task.Status.ANSWER_SENDING,
-            tlogger=tlogger,
-        )
-        if not ok:
-            tlogger.info("Stop handling. Can't go to answer sending")
-            return
 
         if contacts and contacts.get("contacts") is not None:
             tlogger.info(f"Contacts found Contacts found Contacts found - {contacts}")
-            ChatBotSummaryReportClass.summary_sender_main_task(avito_account.id, chat_id, trace_id=tlogger.trace_id)
+            ChatBotSummaryReportClass.summary_sender_main_task(avito_account.pk, chat_id, trace_id=tlogger.trace_id)
         else:
             tlogger.info(F"Contacts is empty, got {contacts}")
 
@@ -203,29 +194,26 @@ class WebhookInboxViewClass(View):
             new_task.save()
             tlogger.info("Bot successfully disabled after manager")
 
-        aichatbottasks.change_task_status(
-            task_id=aichatbottask_id,
-            new_status=aichatbottasks.Task.Status.FINISHED,
-            tlogger=tlogger,
-        )
-
     @staticmethod
     @shared_task
     def webhook_processing_task(request_data, *, trace_id: str):
         tlogger = TraceLogger(trace_id)
         
-        (chat_id, message_id, author_id, user_id, text, is_incoming, avito_account, chat_bot,
-         is_time_to_work, bot_stopped_for_chat) = WebhookInboxViewClass.message_data(request_data, tlogger=tlogger)
+        data = WebhookInboxViewClass.message_data(request_data, tlogger=tlogger)
         if ENVIRONMENT != "PRODUCTION":
-            async_to_sync(avito_account.update_refresh_token_async)()
+            async_to_sync(data.avito_account.update_refresh_token_async)()
 
-        tlogger.info(f"Request id - {message_id}")
-        tlogger.info(f"account - {avito_account.name}")
-        tlogger.info(f"Request text - {text}")
-        tlogger.info(f"is_incoming - {is_incoming}")
+        tlogger.info(f"Request id - {data.request_id}")
+        tlogger.info(f"account - {data.avito_account.name}")
+        tlogger.info(f"Request text - {data.text}")
+        tlogger.info(f"is_incoming - {data.incoming_msg}")
 
         new_task, created = ChatBotTask.objects.get_or_create(
-            avito_account=avito_account, chat_id=chat_id, message_id=message_id, text=text,)
+            avito_account=data.avito_account,
+            chat_id=data.chat_id,
+            message_id=data.message_id,
+            text=data.text,
+        )
 
         if not created: # Значит уже была создана таска и сообщение было обработано как вх так и исх
             tlogger.info(f"Stop handling. Request already processed: message_id - {new_task.message_id}")
@@ -242,32 +230,39 @@ class WebhookInboxViewClass(View):
             tlogger.info(f"Stop handling. Unexpected message type, got {message_type}")
             return
 
-        if not chat_bot.is_active:
+        if not data.chat_bot.is_active:
             tlogger.info("Stop handling. AIChatBot inactive")
             return
 
         # Исходящие сообщения
-        if not is_incoming:
-            WebhookInboxViewClass.launch_outgoing_messages_handler(
-                chat_id=chat_id,
-                message_id=message_id,
-                avito_account=avito_account,
-                chat_bot=chat_bot,
+        if not data.incoming_msg:
+            WebhookInboxViewClass.outgoing_messages_handler(
+                chat_id=data.chat_id,
+                message_id=data.message_id,
+                avito_account=data.avito_account,
+                chat_bot=data.chat_bot,
                 new_task=new_task,
-                tlogger=tlogger,
+                trace_id=tlogger.trace_id,
             )
             return
 
-        if not is_time_to_work:
+        if not data.is_time_to_work:
             tlogger.info("Stop handling. AIChatBot out of work time")
             return
 
-        if bot_stopped_for_chat:
+        if data.bot_stopped_for_chat:
             tlogger.info("Stop handling. Bot stopped for chat")
             return
 
-        AvitoMessengerSync.read_chat(avito_account, user_id, chat_id)
-        WebhookInboxViewClass.incoming_messages_handler(new_task, chat_id, avito_account, chat_bot, tlogger=tlogger)
+        AvitoMessengerSync.read_chat(data.avito_account, data.user_id, data.chat_id)
+        WebhookInboxViewClass.incoming_messages_handler(
+            new_task=new_task,
+            chat_id=data.chat_id,
+            message_id=data.message_id,
+            avito_account=data.avito_account,
+            chat_bot=data.chat_bot,
+            tlogger=tlogger,
+        )
 
     def post(self, request, *args, **kwargs):
         request_data = json.loads(request.body.decode('utf-8'))

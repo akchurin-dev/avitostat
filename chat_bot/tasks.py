@@ -12,7 +12,6 @@ from jinja2 import Template
 import pdfkit
 from telegram_bot import bot
 
-from aichatbottasks import utils as aichatbottasks
 from avito_account.models.models import AvitoAccount
 from base.celery import celery_logger
 from base.settings import ENVIRONMENT
@@ -52,35 +51,32 @@ class AiAnswerAvitoClass:
 
     @staticmethod
     @shared_task
-    def chat_contacts_checker_task(avito_account: AvitoAccount, chat_id: str, *, trace_id: str | None = None):
+    def chat_contacts_checker_task(avito_account_id: int, chat: list[dict], *, trace_id: str | None = None) -> dict | None:
         tlogger = TraceLogger(trace_id)
         tlogger.info(f"chat_contacts_checker_task STARTED")
+        
+        ai_assistant = AiChatBot.objects.get(avito_account_id=avito_account_id)
+        ai_answer = ai_answer_with_contacts(ai_assistant, chat=chat)
 
-        chat_with_messages = MessagingAPISync.get_chats_last_50_messages(
-            avito_account=avito_account,
-            chats=[{"id": chat_id}],
-            trace_id=tlogger.trace_id,
-        )
-        ai_assistant = AiChatBot.objects.filter(avito_account=avito_account).last()
-        ai_answer = ai_answer_with_contacts(ai_assistant, chat=chat_with_messages[0].get("messages"))
+        if ai_answer is None:
+            return None
+
         return ai_answer.get("contacts")
 
     @staticmethod
-    @aichatbottasks.interrupt_task_if_error
     @shared_task
-    def ai_answer_sender_task(avito_account_id, chat_id, chat_bot_id, new_task_id, aichatbottask_id: int, *, trace_id: str):
+    def ai_answer_sender_task(
+        avito_account_id: int,
+        chat_id: str,
+        message_id: str,
+        chat_bot_id: int,
+        new_task_id: str,
+        *,
+        trace_id: str,
+    ) -> None:
+
         tlogger = TraceLogger(trace_id)
         tlogger.info(f"ai_answer_sender STARTED")
-
-        aichatbottasks.wait_for_permission_to_start(aichatbottask_id)
-        ok = aichatbottasks.change_task_status(
-            task_id=aichatbottask_id,
-            new_status=aichatbottasks.Task.Status.PREPARING_DATA,
-            tlogger=tlogger,
-        )
-        if not ok:
-            tlogger.info("Stop handling. Can't go to data preparing")
-            return
 
         avito_account = AvitoAccount.objects.get(pk=avito_account_id)
         chat_bot = AiChatBot.objects.get(pk=chat_bot_id)
@@ -91,64 +87,31 @@ class AiAnswerAvitoClass:
         )[0]["messages"]
 
         # ответ генерируем только если менеджер всё ещё не ответил
-        actual_message_type = messages[-1]["type"]
-        actual_message_direction = messages[-1]["direction"]
+        last_message_type = messages[-1]["type"]
+        last_message_id = messages[-1]["id"]
 
-        if actual_message_type == "system":  # тк при номере последним становится уже сообщение с предупреждением
-            actual_message_type = messages[-2]["type"]
-            actual_message_direction = messages[-2]["direction"]
+        if last_message_type == "system":  # тк при номере последним становится уже сообщение с предупреждением
+            last_message_type = messages[-2]["type"]
+            last_message_id = messages[-2]["id"]
 
-        if actual_message_type != "text":
-            aichatbottasks.change_task_status(
-                task_id=aichatbottask_id,
-                new_status=aichatbottasks.Task.Status.CANCELED,
-                tlogger=tlogger,
-            )
-            tlogger.info(f"Stop handling. Unsupported message type, got {actual_message_type}")
+        if last_message_type != "text":
+            tlogger.info(f"Stop handling. Unsupported message type, got {last_message_type}")
             return
 
-        if actual_message_direction != "in":
-            aichatbottasks.change_task_status(
-                task_id=aichatbottask_id,
-                new_status=aichatbottasks.Task.Status.CANCELED,
-                tlogger=tlogger,
-            )
-            tlogger.info(f"Stop handling. Actual message is outgoing")
-            return
-
-        ok = aichatbottasks.change_task_status(
-            task_id=aichatbottask_id,
-            new_status=aichatbottasks.Task.Status.ANSWER_GENERATION,
-            tlogger=tlogger,
-        )
-        if not ok:
-            tlogger.info("Stop handling. Can't go to answer generation")
+        if last_message_id != message_id:
+            tlogger.info(f"Stop handling. Message (id={message_id}) is not actual")
             return
 
         ai_answer = ai_answer_with_contacts(chat_bot, messages[:])
 
         if not ai_answer:
-            aichatbottasks.change_task_status(
-                task_id=aichatbottask_id,
-                new_status=aichatbottasks.Task.Status.CANCELED,
-                tlogger=tlogger,
-            )
             tlogger.warning(f"Stop handling. AI answer is empty, got {ai_answer}")
             return
 
         if ai_answer.get("answer"):
             ai_answer["answer"] += "…"
 
-        ok = aichatbottasks.change_task_status(
-            task_id=aichatbottask_id,
-            new_status=aichatbottasks.Task.Status.ANSWER_SENDING,
-            tlogger=tlogger,
-        )
-        if not ok:
-            tlogger.info("Stop handling. Can't go to answer sending")
-            return
-
-        AvitoMessengerSync.send_message_to_avito(avito_account, avito_account.id, chat_id, ai_answer["answer"])
+        AvitoMessengerSync.send_message_to_avito(avito_account, avito_account.pk, chat_id, ai_answer["answer"])
         tlogger.info("Answer was sent to avito successfully")
         AiAnswerAvitoClass.task_contacts_save(new_task_id, ai_answer, is_incoming=True)
         tlogger.info("AIChatBotTask was updated successfully")
@@ -157,12 +120,6 @@ class AiAnswerAvitoClass:
             ChatBotSummaryReportClass.summary_sender_main_task(avito_account_id, chat_id, trace_id=tlogger.trace_id)
         else:
             tlogger.info("Contacts not found")
-
-        aichatbottasks.change_task_status(
-            task_id=aichatbottask_id,
-            new_status=aichatbottasks.Task.Status.FINISHED,
-            tlogger=tlogger,
-        )
 
 
 class PdfReportBaseClass:

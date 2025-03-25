@@ -160,11 +160,12 @@ def send_message_from_client_account(message: str):
     )
 
 
-def send_message_from_seller_account(message: str):
-    send_message(
+def send_message_from_seller_account(message: str) -> str:
+    response = send_message(
         author_account_id=avito_config.config.seller_avito_account_id,
         message=message,
     )
+    return response.json()["id"]
 
 
 def send_message(author_account_id: int, message: str):
@@ -187,6 +188,8 @@ def send_message(author_account_id: int, message: str):
         json=data,
     )
     response.raise_for_status()
+
+    return response
 
 
 def mark_chat_as_readed(avito_account_id: int):

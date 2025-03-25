@@ -115,7 +115,7 @@ class TestTurnOffAfterManagerFlag:
 
         # Менеджер отвечает
         # Не ждем пока сообщение обработается
-        test_utils.write_message_from_seller_account()
+        self.last_avito_msg = test_utils.write_message_from_seller_account()
         test_utils.wait_bot_handle_message(wait_sec=1)
 
         # Клиент присылает сообщение
@@ -125,5 +125,5 @@ class TestTurnOffAfterManagerFlag:
         # Из исходящих только сообщение менеджера
         avito_chats.check_new_outgoing_messages(
             last_message_id=self.last_avito_msg,
-            new_messages_count=1,
+            new_messages_count=0,
         )

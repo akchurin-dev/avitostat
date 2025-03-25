@@ -50,11 +50,12 @@ def send_address_from_client_account():
     logger.info("Client sent address")
 
 
-def write_message_from_seller_account():
+def write_message_from_seller_account() -> str:
     # input("Отправьте сообщение с аккаунта продавца...")
     message = "я менеджер, чем вам помочь"
-    avito_chats.send_message_from_seller_account(message)
+    msg_id = avito_chats.send_message_from_seller_account(message)
     logger.info("Seller sent message")
+    return msg_id
 
 
 def wait_bot_handle_message(wait_sec: int = global_config.BOT_HANDLE_MESSAGE_WAIT_TIME_SEC):

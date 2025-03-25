@@ -216,7 +216,8 @@ def _print_chat(messages: list, *, tlogger: TraceLogger):
 
     for msg in messages:
         direction = msg["direction"]
+        id = msg["id"]
         text = msg.get("content", {}).get("text")
-        lines.append(f"{direction}: {text}")
+        lines.append(f"{direction} ({id}): {text}")
 
     tlogger.info("\n".join(lines))
