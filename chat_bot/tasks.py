@@ -116,8 +116,9 @@ class AiAnswerAvitoClass:
         AiAnswerAvitoClass.task_contacts_save(new_task_id, ai_answer, is_incoming=True)
         tlogger.info("AIChatBotTask was updated successfully")
 
-        if ai_answer.get("contacts"):
-            tlogger.info(f"Contacts was found: {ai_answer["contacts"]}")
+        contacts = ai_answer.get("contacts")
+        if contacts:
+            tlogger.info(f"Contacts was found: {contacts}")
             ChatBotSummaryReportClass.summary_sender_main_task(avito_account_id, chat_id, trace_id=tlogger.trace_id)
         else:
             tlogger.info("Contacts not found")
