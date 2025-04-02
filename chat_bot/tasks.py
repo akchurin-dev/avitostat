@@ -61,7 +61,7 @@ class AiAnswerAvitoClass:
         if ai_answer is None:
             return None
 
-        return ai_answer.get("contacts")
+        return ai_answer
 
     @staticmethod
     @shared_task

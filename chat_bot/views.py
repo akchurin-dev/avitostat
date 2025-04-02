@@ -174,14 +174,18 @@ class WebhookInboxViewClass(View):
             tlogger.info(f"Stop handling. Message (id={message_id}) is not actual")
             return
 
-        contacts = AiAnswerAvitoClass.chat_contacts_checker_task(
+        ai_answer = AiAnswerAvitoClass.chat_contacts_checker_task(
             avito_account_id=avito_account.pk,
             chat=messages,
             trace_id=tlogger.trace_id,
         )
-        AiAnswerAvitoClass.task_contacts_save(message_id, contacts, is_incoming=False)
+        AiAnswerAvitoClass.task_contacts_save(message_id, ai_answer, is_incoming=False)
 
-        if contacts and contacts.get("contacts") is not None:
+        contacts = None
+        if ai_answer and "contacts" in ai_answer:
+            contacts = ai_answer["contacts"]
+
+        if contacts:
             tlogger.info(f"Contacts found Contacts found Contacts found - {contacts}")
             ChatBotSummaryReportClass.summary_sender_main_task(avito_account.pk, chat_id, trace_id=tlogger.trace_id)
         else:
