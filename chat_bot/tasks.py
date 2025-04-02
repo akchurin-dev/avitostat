@@ -58,9 +58,6 @@ class AiAnswerAvitoClass:
         ai_assistant = AiChatBot.objects.get(avito_account_id=avito_account_id)
         ai_answer = ai_answer_with_contacts(ai_assistant, chat=chat)
 
-        if ai_answer is None:
-            return None
-
         return ai_answer
 
     @staticmethod

@@ -182,8 +182,8 @@ class WebhookInboxViewClass(View):
         AiAnswerAvitoClass.task_contacts_save(message_id, ai_answer, is_incoming=False)
 
         contacts = None
-        if ai_answer and "contacts" in ai_answer:
-            contacts = ai_answer["contacts"]
+        if ai_answer:
+            contacts = ai_answer.get("contacts")
 
         if contacts:
             tlogger.info(f"Contacts found Contacts found Contacts found - {contacts}")
