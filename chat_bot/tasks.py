@@ -117,6 +117,7 @@ class AiAnswerAvitoClass:
         tlogger.info("AIChatBotTask was updated successfully")
 
         if ai_answer.get("contacts"):
+            tlogger.info(f"Contacts was found: {ai_answer["contacts"]}")
             ChatBotSummaryReportClass.summary_sender_main_task(avito_account_id, chat_id, trace_id=tlogger.trace_id)
         else:
             tlogger.info("Contacts not found")
@@ -446,8 +447,9 @@ class ChatBotSummaryReportClass(PdfReportBaseClass):
         summary_text = ChatBotSummaryReportClass.get_chat_summary_text(chat_summary, chat)
         tlogger.info(f"Summary report summary_text {summary_text}.")
         if summary_text and len(summary_text) > 20:  # 20 is random value)
+            tlogger.info(f"Send summary report to chat_id='{avito_account.telegram_id}'")
             ChatBotSummaryReportClass.text_sender_to_tg(text=summary_text, telegram_id=avito_account.telegram_id)
-            tlogger.info(f"Summary report text sended to telegram of '{avito_account.name}'")
+            tlogger.info(f"Summary report was sent successfully")
         else:
             tlogger.info(f"Summary text is empty or not enought long")
 

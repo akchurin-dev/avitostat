@@ -1,10 +1,11 @@
-import logging
 import os
 from pathlib import Path
 from typing import Literal
-import pytz
+
 from celery.schedules import crontab, schedule
 from dotenv import load_dotenv
+from loguru import logger
+import pytz
 from sentry_sdk.integrations.celery import CeleryIntegration
 from sentry_sdk.integrations.django import DjangoIntegration
 
@@ -15,6 +16,10 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 load_dotenv()
 ENVIRONMENT: Literal["PRODUCTION", "DEVELOPMENT", "TESTING"]
 ENVIRONMENT = os.getenv('ENVIRONMENT')
+logger.warning(f"ENVIRONMENT: {ENVIRONMENT}")
+if ENVIRONMENT not in ["PRODUCTION", "DEVELOPMENT", "TESTING"]:
+    raise Exception(f"Unexpected ENVIRONMENT value, got {ENVIRONMENT}")
+
 SECRET_KEY = os.getenv('SECRET_KEY')
 GITHUB_TOKEN = os.getenv('GITHUB_TOKEN')
 
