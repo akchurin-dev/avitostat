@@ -186,7 +186,7 @@ class WebhookInboxViewClass(View):
             contacts = ai_answer.get("contacts")
 
         if contacts:
-            tlogger.info(f"Contacts found Contacts found Contacts found - {contacts}")
+            tlogger.info(f"Contacts found - {contacts}")
             ChatBotSummaryReportClass.summary_sender_main_task(avito_account.pk, chat_id, trace_id=tlogger.trace_id)
         else:
             tlogger.info(F"Contacts is empty, got {contacts}")
