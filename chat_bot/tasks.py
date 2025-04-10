@@ -15,7 +15,7 @@ from telegram_bot import bot
 from avito_account.models.models import AvitoAccount
 from base.celery import celery_logger
 from base.settings import ENVIRONMENT
-from chat_bot.ai_utils import ai_answer_with_contacts, chat_summary_ai_generator
+from chat_bot.ai_utils import ai_answer_with_contacts, avito_chat_summary_ai_generator
 from chat_bot.api.core import AvitoMessengerSync
 from chat_bot.models import AiChatBot, ChatBotTask
 from messaging.api import get_chats, MessagingAPISync
@@ -413,6 +413,10 @@ class ChatBotSummaryReportClass(PdfReportBaseClass):
         tlogger = TraceLogger(trace_id)
 
         avito_account = AvitoAccount.objects.filter(id=avito_account_id).last()
+
+        if avito_account is None:
+            raise Exception(f"Avito with id={avito_account_id} account isn't found")
+
         all_tasks = ChatBotTask.objects.filter(chat_id=chat_id)
 
         if ENVIRONMENT == "PRODUCTION":
@@ -432,7 +436,7 @@ class ChatBotSummaryReportClass(PdfReportBaseClass):
             tlogger.info("Stop summary sending. No messages in chat")
             return
 
-        chat_summary = chat_summary_ai_generator(avito_account, chat_id, tlogger=tlogger)
+        chat_summary = avito_chat_summary_ai_generator(avito_account, chat_id, tlogger=tlogger)
         if chat_summary:
             ChatBotSummaryReportClass.summary_sender(avito_account, chat_summary, chat, all_tasks, tlogger=tlogger)
         else:

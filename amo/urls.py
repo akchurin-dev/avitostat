@@ -1,0 +1,9 @@
+from django.urls import path
+
+from amo import views
+
+
+urlpatterns = [
+    path("oauth", views.oauth_callback),
+    path("webhook-inbox", views.webhook_inbox),
+]

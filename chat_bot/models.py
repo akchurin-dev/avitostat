@@ -1,27 +1,48 @@
+import datetime
+
 from asgiref.sync import async_to_sync
 from django.db import models
+from django.db.models import F
+from django.db.models import Q
 from django.contrib.auth.models import User
+from django.core.validators import MinValueValidator, MaxValueValidator
+
 from avito_account.models.models import AvitoAccount, moscow_time
 from base.settings import ENVIRONMENT
 from chat_bot.api.subscriptions import subscribe_to_messages, stop_subscribe_to_messages
-from django.core.validators import MinValueValidator, MaxValueValidator
 
 
 class AIChatBotBase(models.Model):
     is_active = models.BooleanField(default=False, verbose_name="Активирован")
-    total_info = models.TextField(verbose_name="Общая информация")
-    rules = models.TextField(verbose_name="Правила при общении")
-    checkpoints = models.TextField(verbose_name="Шаги при общении")
-    target_action = models.TextField(
-        verbose_name="Целевое действие",
-        default="Взять номер телефона клиента для связи",
+
+    waiting_minutes = models.PositiveSmallIntegerField(
+        validators=[MinValueValidator(1), MaxValueValidator(60)],
+        verbose_name="Ожидание ответа от менеджера(минуты)",
+        help_text="Укажите количество минут от 1 до 120"
     )
+    shutdown_after_manager = models.BooleanField(default=False, verbose_name="Выключаться после менеджера")
 
     work_time_from = models.TimeField("Начало работы МСК (Пн-Вс)")
     work_time_to = models.TimeField("Окончание работы МСК (Пн-Вс)")
 
     class Meta:
         abstract = True
+
+    @classmethod
+    def get_available_chat_bots(cls):
+        msk_tz = datetime.timezone(datetime.timedelta(hours=3))
+        msk_time_now = datetime.datetime.now(msk_tz).time()
+
+        return cls.objects.filter(
+            Q(
+                work_time_from__lte=msk_time_now,
+                work_time_to__gte=msk_time_now,
+            ) | Q(
+                Q(work_time_from__lte=msk_time_now) | Q(work_time_to__gte=msk_time_now),
+                work_time_from__gte=F("work_time_to"),
+            ),
+            is_active=True,
+        )
 
 
 class AiChatBot(AIChatBotBase):
@@ -32,12 +53,13 @@ class AiChatBot(AIChatBotBase):
         verbose_name="ИИ чат бот"
     )
 
-    waiting_minutes = models.PositiveSmallIntegerField(
-        validators=[MinValueValidator(1), MaxValueValidator(60)],
-        verbose_name="Ожидание ответа от менеджера(минуты)",
-        help_text="Укажите количество минут от 1 до 120"
+    total_info = models.TextField(verbose_name="Общая информация")
+    rules = models.TextField(verbose_name="Правила при общении")
+    checkpoints = models.TextField(verbose_name="Шаги при общении")
+    target_action = models.TextField(
+        verbose_name="Целевое действие",
+        default="Взять номер телефона клиента для связи",
     )
-    shutdown_after_manager = models.BooleanField(default=False, verbose_name="Выключаться после менеджера")
 
     statistics_daily_report = models.BooleanField(default=True, verbose_name="Ежедневная статистика")
     histories_closed = models.BooleanField(default=False, verbose_name="История дожатых клиентов")
@@ -71,25 +93,72 @@ class AiChatBot(AIChatBotBase):
         super().delete()
 
 
-class ChatBotTask(models.Model):
-    # Core fields
-    avito_account = models.ForeignKey(AvitoAccount, on_delete=models.CASCADE)
-    is_incoming = models.BooleanField(default=True, verbose_name="Входящее сообщение")
-    chat_id = models.CharField()
-    message_id = models.CharField(primary_key=True, unique=True)
-    text = models.TextField(verbose_name="Текст сообщения")
-
-    # AI fields
-    answer_text = models.TextField(verbose_name="Текст ответа", blank=True, null=True)
-    tokens_completion = models.IntegerField(default=0, verbose_name="Токены на вычисления")
-    tokens_prompt = models.IntegerField(default=0, verbose_name="Токены на контекст")
-
+class ClientContactsContainer(models.Model):
     # Contact fields
     address = models.TextField(blank=True, null=True, default=None, verbose_name="Адрес клиента")
     mobile = models.TextField(blank=True, null=True, default=None, verbose_name="Мобильный номер")
     whatsapp = models.TextField(blank=True, null=True, default=None, verbose_name="Вацап")
     telegram = models.TextField(blank=True, null=True, default=None, verbose_name="Телеграм")
     email = models.TextField(blank=True, null=True, default=None, verbose_name="Емайл")
+
+    class Meta:
+        abstract = True
+
+    @classmethod
+    def save_contacts(
+        cls,
+        pk,
+        address: str | None,
+        mobile: str | None,
+        whatsapp: str | None,
+        telegram: str | None,
+        email: str | None,
+    ) -> None:
+
+        contact = cls.objects.get(pk=pk)
+
+        if address:
+            contact.address = address
+
+        if mobile:
+            contact.mobile = mobile
+
+        if whatsapp:
+            contact.whatsapp = whatsapp
+
+        if telegram:
+            contact.telegram = telegram
+
+        if email:
+            contact.email = email
+
+        contact.save()
+
+
+class AIResultContainer(models.Model):
+    answer_text = models.TextField(verbose_name="Текст ответа", blank=True, null=True)
+    tokens_completion = models.IntegerField(default=0, verbose_name="Токены на вычисления")
+    tokens_prompt = models.IntegerField(default=0, verbose_name="Токены на контекст")
+
+    class Meta:
+        abstract = True
+
+    @classmethod
+    def save_ai_result(cls, pk, answer_text: str, tokens_completion: int, tokens_prompt: int) -> None:
+        cls.objects.filter(pk=pk).update(
+            answer_text=answer_text,
+            tokens_completion=tokens_completion,
+            tokens_prompt=tokens_prompt,
+        )
+
+
+class ChatBotTask(AIResultContainer, ClientContactsContainer):
+    # Core fields
+    avito_account = models.ForeignKey(AvitoAccount, on_delete=models.CASCADE)
+    is_incoming = models.BooleanField(default=True, verbose_name="Входящее сообщение")
+    chat_id = models.CharField()
+    message_id = models.CharField(primary_key=True, unique=True)
+    text = models.TextField(verbose_name="Текст сообщения")
 
     # Service fields
     summary_sanded = models.BooleanField(default=False, verbose_name="Сводка была отправлена")

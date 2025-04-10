@@ -1,4 +1,13 @@
+from typing import Literal
+
 import httpx
+
+from utils.logging import TraceLogger
+
+
+MethodType = Literal["GET", "POST", "PATCH", "DELETE"]
+
+DEFAULT_TIMEOUT = httpx.Timeout(15, pool=None)
 
 
 def create_client(
@@ -32,4 +41,45 @@ def create_client(
     )
 
 
-DEFAULT_TIMEOUT = httpx.Timeout(15, pool=None)
+def request(
+    method: MethodType,
+    url: str,
+    params: dict | None = None,
+    data: dict | None = None,
+    json: dict | None = None,
+    headers: dict | None = None,
+    tlogger: TraceLogger | None = None,
+) -> httpx.Response:
+
+    tlogger = tlogger or TraceLogger()
+
+    response = httpx.request(
+        method=method,
+        url=url,
+        params=params,
+        data=data,
+        json=json,
+        headers=headers,
+    )
+
+    if not response.is_success:
+        tlogger.info((
+            f"Not success response when request '{url}'. "
+            f"Got status={response.status_code}, data={response.text[:500]}"
+        ))
+
+    return response
+
+
+def add_bearer(headers: dict | None, token: str) -> dict:
+    return add_header(headers, key="Authorization", value="Bearer " + token)
+
+
+def add_header(headers: dict | None, key: str, value) -> dict:
+    if headers is None:
+        headers = {}
+    else:
+        headers = headers.copy()
+
+    headers[key] = value
+    return headers

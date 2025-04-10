@@ -5,7 +5,7 @@ from pydantic import BaseModel
 
 from avito_account.models.models import AvitoAccount
 from base import settings
-from chat_bot.models import AIChatBotBase
+from chat_bot.models import AiChatBot
 from messaging.api import get_chats_last_50_messages
 from utils.logging import TraceLogger
 
@@ -21,7 +21,8 @@ class ChatBotAnswerSchema(BaseModel):
     telegram: str | None
     email: str | None
 
-def contacts_data_prepare(data: dict) -> dict | None:
+
+def contacts_data_prepare(data: ChatBotAnswerSchema) -> dict | None:
     contacts = {key: value for key, value in {
         "address": data.address,
         "mobile": data.mobile,
@@ -50,27 +51,27 @@ def format_chat_history(messages):
 
 
 class AIAnswerContacts(BaseModel):
-    address: str | None
-    mobile: str | None
-    whatsapp: str | None
-    telegram: str | None
-    email: str | None
+    address: str | None = None
+    mobile: str | None = None
+    whatsapp: str | None = None
+    telegram: str | None = None
+    email: str | None = None
 
 
 class AIAnswerWithContacts(BaseModel):
     answer: str
-    contacts: AIAnswerContacts | None
+    contacts: AIAnswerContacts | None = None
     tokens_completion: int
     tokens_prompt: int
 
 
-def ai_answer_with_contacts_typed(ai_assistant: AIChatBotBase, chat: list) -> AIAnswerWithContacts:
+def ai_answer_with_contacts_typed(ai_assistant: AiChatBot, chat: list) -> AIAnswerWithContacts:
     res = ai_answer_with_contacts(ai_assistant, chat)
     return AIAnswerWithContacts.model_validate(res)
 
 
-def ai_answer_with_contacts(ai_assistant: AIChatBotBase, chat: list, ):
-    if not _use_gpt_flag():
+def ai_answer_with_contacts(ai_assistant: AiChatBot, chat: list, ):
+    if not use_gpt_flag():
         return {
             'answer': "mock answer",
             'contacts': {
@@ -98,7 +99,7 @@ def ai_answer_with_contacts(ai_assistant: AIChatBotBase, chat: list, ):
         messages = [{"role": "system", "content": prompt}, ]
         messages.extend(chat_history_formatted)
         response = client.beta.chat.completions.parse(
-            model="gpt-4o-2024-08-06",
+            model=MODEL,
             messages=messages,
             response_format=ChatBotAnswerSchema,
             max_tokens=2000,
@@ -110,8 +111,8 @@ def ai_answer_with_contacts(ai_assistant: AIChatBotBase, chat: list, ):
             result['tokens_completion'] = response.usage.completion_tokens
             result['tokens_prompt'] = response.usage.prompt_tokens
             return result
-    except Exception as e:
-        raise e
+    except:
+        raise
 
 
 class ChatSummarySchema(BaseModel):
@@ -120,7 +121,7 @@ class ChatSummarySchema(BaseModel):
     paragraph3: str | None
 
 
-def chat_summary_data_prepare(data: dict) -> dict | None:
+def chat_summary_data_prepare(data: ChatSummarySchema) -> dict | None:
     parahraphs = {key: value for key, value in {
         "paragraph1": data.paragraph1,
         "paragraph2": data.paragraph2,
@@ -134,8 +135,30 @@ def chat_summary_data_prepare(data: dict) -> dict | None:
     return result
 
 
-def chat_summary_ai_generator(avito_account: AvitoAccount, chat_id: str, *, tlogger: TraceLogger):
-    if not _use_gpt_flag():
+def avito_chat_summary_ai_generator(avito_account: AvitoAccount, chat_id: str, *, tlogger: TraceLogger):
+    chat = async_to_sync(get_chats_last_50_messages)(avito_account, chats=[{"id": chat_id}], trace_id=tlogger.trace_id)
+    return chat_summary_generator(chat)
+
+
+class ChatSummaryParagraphs(BaseModel):
+    paragraph1: str | None = None
+    paragraph2: str | None = None
+    paragraph3: str | None = None
+
+
+class ChatSummary(BaseModel):
+    paragraphs: ChatSummaryParagraphs | None = None
+    tokens_completion: int
+    tokens_prompt: int
+
+
+def chat_summary_generator_typed(chat) -> ChatSummary:
+    summary = chat_summary_generator(chat)
+    return ChatSummary.model_validate(summary)
+
+
+def chat_summary_generator(chat):
+    if not use_gpt_flag():
         return {
             'paragraphs': {
                 "paragraph1": "paragraph1",
@@ -147,7 +170,6 @@ def chat_summary_ai_generator(avito_account: AvitoAccount, chat_id: str, *, tlog
         }
 
     result = {}
-    chat_with_messages = async_to_sync(get_chats_last_50_messages)(avito_account, chats=[{"id": chat_id}], trace_id=tlogger.trace_id)
 
     prompt = (f"""Твоя задача - проанализировать переписку чата
         И сгенерировать сводку по чату которая должна содержать пункты:
@@ -158,11 +180,11 @@ def chat_summary_ai_generator(avito_account: AvitoAccount, chat_id: str, *, tlog
          
          ВАЖНО - нумеровать пункты пожалуйста ненадо.
          Ответ выдавай НА РУССКОМ ЯЗЫКЕ, проверяй правильность построения предложений на русском при переводе!
-        Чат с сообщениями - {chat_with_messages[-20:]}
+        Чат с сообщениями - {chat[-20:]}
         """)
 
     response = client.beta.chat.completions.parse(
-        model="gpt-4o-2024-08-06",
+        model=MODEL,
         messages=[
             {"role": "assistant", "content": prompt},
         ],
@@ -177,7 +199,7 @@ def chat_summary_ai_generator(avito_account: AvitoAccount, chat_id: str, *, tlog
         return result
 
 
-def _use_gpt_flag():
+def use_gpt_flag():
     if settings.ENVIRONMENT != "TESTING":
         return settings.USE_GPT
 

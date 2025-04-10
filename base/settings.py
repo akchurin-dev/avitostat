@@ -14,7 +14,8 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 
 # SECURITY WARNING: keep the secret key used in production secret!
 load_dotenv()
-ENVIRONMENT: Literal["PRODUCTION", "DEVELOPMENT", "TESTING"]
+
+ENVIRONMENT: Literal["PRODUCTION", "DEVELOPMENT", "TESTING"] | None
 ENVIRONMENT = os.getenv('ENVIRONMENT')
 logger.warning(f"ENVIRONMENT: {ENVIRONMENT}")
 if ENVIRONMENT not in ["PRODUCTION", "DEVELOPMENT", "TESTING"]:
@@ -43,10 +44,15 @@ LOCALHOST_IP = os.getenv('LOCALHOST_IP')
 TELEGRAM_BOT_TOKEN = os.getenv('TELEGRAM_BOT_TOKEN')
 TELEGRAM_BOT_TOKEN_PROD = os.getenv('TELEGRAM_BOT_TOKEN_PROD')
 
+AMO_INTEGRATION_ID = os.getenv('AMO_INTEGRATION_ID')
+AMO_SECRET = os.getenv('AMO_SECRET')
+AMO_WEBHOOK_DOMAIN = os.getenv('AMO_WEBHOOK_DOMAIN', "")
+AMO_REDIRECT_URI = f"https://{AMO_WEBHOOK_DOMAIN}/amo/oauth"
+
 USE_GPT = True
 if ENVIRONMENT in ["DEVELOPMENT", "TESTING"]:
-    # USE_GPT = True
     USE_GPT = False
+    USE_GPT = True
 
 DB_HOST = os.getenv('DB_HOST')
 DB_PORT = os.getenv('DB_PORT')
@@ -67,6 +73,10 @@ ALLOWED_HOSTS = [
 if ENVIRONMENT in ["DEVELOPMENT", "TESTING"]:
     DEBUG = True
     ALLOWED_HOSTS = ["*", ]
+    INTERNAL_IPS = [
+        '127.0.0.1',
+        'localhost',
+    ]
 else:
     DEBUG = False
 
@@ -86,6 +96,7 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
+    'debug_toolbar',
     'rest_framework',
     'avito_account',
     'conversion',
@@ -93,6 +104,8 @@ INSTALLED_APPS = [
     'deep_tests',
     'payments',
     'chat_bot',
+    'amo',
+    'chatbottasks',
 ]
 
 MIDDLEWARE = [
@@ -105,6 +118,7 @@ MIDDLEWARE = [
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
     'payments.middleware.UserProfileMiddleware',
     'rollbar.contrib.django.middleware.RollbarNotifierMiddleware',
+    'debug_toolbar.middleware.DebugToolbarMiddleware',
 ]
 
 ROOT_URLCONF = 'base.urls'
