@@ -1,31 +1,33 @@
 import datetime
-import time
 from pathlib import Path
+import time
+
 from aiogram import types
-import pdfkit
 from aiogram.types import InputMediaDocument
-from jinja2 import Template
+from asgiref.sync import async_to_sync
+from celery import shared_task
 from django.db.models import Q
 from django.utils import timezone
-
-from base.celery import celery_logger
-from messaging.api import get_chats, MessagingAPISync
-from messaging.bad_mes_report.utils_bad_messaging_report import chats_timestamp_to_datetime
-from messaging.bad_mes_report.utils_chats import filter_chats_for_last_period, \
-    filter_chats_only_with_text, filter_by_bot_answered_chat_ids
-from asgiref.sync import async_to_sync
+from jinja2 import Template
+import pdfkit
 from telegram_bot import bot
+
 from avito_account.models.models import AvitoAccount
+from base.celery import celery_logger
 from base.settings import ENVIRONMENT
 from chat_bot.ai_utils import ai_answer_with_contacts, chat_summary_ai_generator
 from chat_bot.api.core import AvitoMessengerSync
 from chat_bot.models import AiChatBot, ChatBotTask
+from messaging.api import get_chats, MessagingAPISync
+from messaging.bad_mes_report.utils_chats import filter_chats_for_last_period, \
+    filter_chats_only_with_text, filter_by_bot_answered_chat_ids
+from messaging.bad_mes_report.utils_bad_messaging_report import chats_timestamp_to_datetime
 from messaging.api import get_chats_last_50_messages
-from celery import shared_task
+from utils.logging import TraceLogger
 
 class AiAnswerAvitoClass:
     @staticmethod
-    def task_contacts_save(new_task_id: str, ai_answer: dict, is_incoming: bool):
+    def task_contacts_save(new_task_id: str, ai_answer: dict | None, is_incoming: bool):
         #Core fields
         new_task = ChatBotTask.objects.filter(message_id=new_task_id).last()
         new_task.is_incoming = is_incoming
@@ -49,34 +51,74 @@ class AiAnswerAvitoClass:
 
     @staticmethod
     @shared_task
-    def chat_contacts_checker_task(avito_account: AvitoAccount, chat_id: str):
-        celery_logger.warning(f"chat_contacts_checker_task STARTED")
-        chat_with_messages = MessagingAPISync.get_chats_last_50_messages(avito_account, chats=[{"id": chat_id}])
-        ai_assistant = AiChatBot.objects.filter(avito_account=avito_account).last()
-        ai_answer = ai_answer_with_contacts(ai_assistant, chat=chat_with_messages[0].get("messages"))
-        return ai_answer.get("contacts")
+    def chat_contacts_checker_task(avito_account_id: int, chat: list[dict], *, trace_id: str | None = None) -> dict | None:
+        tlogger = TraceLogger(trace_id)
+        tlogger.info(f"chat_contacts_checker_task STARTED")
+        
+        ai_assistant = AiChatBot.objects.get(avito_account_id=avito_account_id)
+        ai_answer = ai_answer_with_contacts(ai_assistant, chat=chat)
+
+        return ai_answer
 
     @staticmethod
     @shared_task
-    def ai_answer_sender_task(avito_account_id, chat_id, chat_bot_id, new_task_id):
-        shared_task.__name__ = f"ai_answer_{new_task_id}"
-        celery_logger.warning(f"ai_answer_sender STARTED")
+    def ai_answer_sender_task(
+        avito_account_id: int,
+        chat_id: str,
+        message_id: str,
+        chat_bot_id: int,
+        new_task_id: str,
+        *,
+        trace_id: str,
+    ) -> None:
+
+        tlogger = TraceLogger(trace_id)
+        tlogger.info(f"ai_answer_sender STARTED")
+
         avito_account = AvitoAccount.objects.get(pk=avito_account_id)
         chat_bot = AiChatBot.objects.get(pk=chat_bot_id)
-        chat_with_messages = MessagingAPISync.get_chats_last_50_messages(avito_account, chats=[{"id": chat_id}])
+        messages = MessagingAPISync.get_chats_last_50_messages(
+            avito_account=avito_account,
+            chats=[{"id": chat_id}],
+            trace_id=tlogger.trace_id,
+        )[0]["messages"]
+
         # ответ генерируем только если менеджер всё ещё не ответил
-        actual_message = chat_with_messages[0].get("messages")[-1]
-        if actual_message.get("type") == "system":  # тк при номере последним становится уже сообщение с предупреждением
-            actual_message = chat_with_messages[0].get("messages")[-2]
-        if actual_message.get("direction") == "in" and actual_message.get("type") == "text":
-            ai_answer = ai_answer_with_contacts(chat_bot, chat_with_messages[0].get("messages")[:])
-            if ai_answer:
-                message_text = ai_answer.get("answer") + "…"
-                AvitoMessengerSync.send_message_to_avito(avito_account, avito_account.id, chat_id, message_text)
-                AiAnswerAvitoClass.task_contacts_save(new_task_id, ai_answer, is_incoming=True)
-                contacts = ai_answer.get("contacts")
-                if contacts is not None:
-                    ChatBotSummaryReportClass.summary_sender_main_task(avito_account_id, chat_id)
+        last_message_type = messages[-1]["type"]
+        last_message_id = messages[-1]["id"]
+
+        if last_message_type == "system":  # тк при номере последним становится уже сообщение с предупреждением
+            last_message_type = messages[-2]["type"]
+            last_message_id = messages[-2]["id"]
+
+        if last_message_type != "text":
+            tlogger.info(f"Stop handling. Unsupported message type, got {last_message_type}")
+            return
+
+        if last_message_id != message_id:
+            tlogger.info(f"Stop handling. Message (id={message_id}) is not actual")
+            return
+
+        ai_answer = ai_answer_with_contacts(chat_bot, messages[:])
+
+        if not ai_answer:
+            tlogger.warning(f"Stop handling. AI answer is empty, got {ai_answer}")
+            return
+
+        if ai_answer.get("answer"):
+            ai_answer["answer"] += "…"
+
+        AvitoMessengerSync.send_message_to_avito(avito_account, avito_account.pk, chat_id, ai_answer["answer"])
+        tlogger.info("Answer was sent to avito successfully")
+        AiAnswerAvitoClass.task_contacts_save(new_task_id, ai_answer, is_incoming=True)
+        tlogger.info("AIChatBotTask was updated successfully")
+
+        contacts = ai_answer.get("contacts")
+        if contacts:
+            tlogger.info(f"Contacts was found: {contacts}")
+            ChatBotSummaryReportClass.summary_sender_main_task(avito_account_id, chat_id, trace_id=tlogger.trace_id)
+        else:
+            tlogger.info("Contacts not found")
 
 
 class PdfReportBaseClass:
@@ -137,7 +179,8 @@ class PdfReportBaseClass:
     @staticmethod
     def text_sender_to_tg(text, telegram_id):
         if text:
-            chat_id = "-4221870448" if ENVIRONMENT == "DEVELOPMENT" else telegram_id
+            # chat_id = "-4221870448" if ENVIRONMENT == "DEVELOPMENT" else telegram_id
+            chat_id = telegram_id
             while text:
                 try:
                     bot.send_raw(
@@ -304,6 +347,7 @@ class BotStatisticsDailyReportClass(PdfReportBaseClass):
             for chat in chats:
                 ChatHistoryReportClass.history_pdf_sender_task.delay(avito_account_id=avito_account.id, chat=chat)
 
+
 class ChatHistoryReportClass(PdfReportBaseClass):
 
     @staticmethod
@@ -365,34 +409,47 @@ class ChatBotSummaryReportClass(PdfReportBaseClass):
     """
     @staticmethod
     @shared_task
-    def summary_sender_main_task(avito_account_id, chat_id):
+    def summary_sender_main_task(avito_account_id, chat_id, *, trace_id: str | None = None):
+        tlogger = TraceLogger(trace_id)
+
         avito_account = AvitoAccount.objects.filter(id=avito_account_id).last()
         all_tasks = ChatBotTask.objects.filter(chat_id=chat_id)
+
         if ENVIRONMENT == "PRODUCTION":
             time.sleep(300)
-            if all_tasks.filter(summary_sanded=True).exists():
-                celery_logger.info(f"Summary report already sent for chat_id {chat_id}.")
-                return
         if ENVIRONMENT == "DEVELOPMENT":
             async_to_sync(avito_account.update_refresh_token_async)()
+
+        if all_tasks.filter(summary_sanded=True).exists():
+            tlogger.info(f"Summary report already sent for chat_id {chat_id}.")
+            return
 
         chat = MessagingAPISync.get_chat_by_id(avito_account, chat_id)
         messages = MessagingAPISync.get_chat_last_50_messages_by_chat_id(avito_account, chat_id)
         chat["messages"] = messages
-        if messages is not None and len(messages) > 0:  # skip who can't have bot chats
-            chat_summary = chat_summary_ai_generator(avito_account, chat_id)
-            if chat_summary is not None:
-                ChatBotSummaryReportClass.summary_sender(avito_account, chat_summary, chat, all_tasks)
+
+        if messages is None or len(messages) == 0:
+            tlogger.info("Stop summary sending. No messages in chat")
+            return
+
+        chat_summary = chat_summary_ai_generator(avito_account, chat_id, tlogger=tlogger)
+        if chat_summary:
+            ChatBotSummaryReportClass.summary_sender(avito_account, chat_summary, chat, all_tasks, tlogger=tlogger)
+        else:
+            tlogger.info(f"Chat summary is empty, got {chat_summary}")
 
 
     @staticmethod
-    def summary_sender(avito_account, chat_summary, chat, all_tasks):
+    def summary_sender(avito_account, chat_summary, chat, all_tasks, *, tlogger: TraceLogger):
         # TEXT MESSAGE
         summary_text = ChatBotSummaryReportClass.get_chat_summary_text(chat_summary, chat)
-        celery_logger.info(f"Summary report summary_text {summary_text}.")
+        tlogger.info(f"Summary report summary_text {summary_text}.")
         if summary_text and len(summary_text) > 20:  # 20 is random value)
+            tlogger.info(f"Send summary report to chat_id='{avito_account.telegram_id}'")
             ChatBotSummaryReportClass.text_sender_to_tg(text=summary_text, telegram_id=avito_account.telegram_id)
-            celery_logger.info(f"Summary report text sended to {avito_account.name} telegram.")
+            tlogger.info(f"Summary report was sent successfully")
+        else:
+            tlogger.info(f"Summary text is empty or not enought long")
 
         # PDF FILE
         summary_html = ChatBotSummaryReportClass.get_chat_summary_html(chat_summary, chat)

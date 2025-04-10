@@ -1,9 +1,11 @@
-import logging
 import os
 from pathlib import Path
-import pytz
+from typing import Literal
+
 from celery.schedules import crontab, schedule
 from dotenv import load_dotenv
+from loguru import logger
+import pytz
 from sentry_sdk.integrations.celery import CeleryIntegration
 from sentry_sdk.integrations.django import DjangoIntegration
 
@@ -12,12 +14,22 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 
 # SECURITY WARNING: keep the secret key used in production secret!
 load_dotenv()
+ENVIRONMENT: Literal["PRODUCTION", "DEVELOPMENT", "TESTING"]
 ENVIRONMENT = os.getenv('ENVIRONMENT')
+logger.warning(f"ENVIRONMENT: {ENVIRONMENT}")
+if ENVIRONMENT not in ["PRODUCTION", "DEVELOPMENT", "TESTING"]:
+    raise Exception(f"Unexpected ENVIRONMENT value, got {ENVIRONMENT}")
+
 SECRET_KEY = os.getenv('SECRET_KEY')
 GITHUB_TOKEN = os.getenv('GITHUB_TOKEN')
 
 AVITO_CLIENT_ID = os.getenv('AVITO_CLIENT_ID')
 AVITO_CLIENT_SECRET = os.getenv('AVITO_CLIENT_SECRET')
+
+AVITO_WEBHOOK_HOST = "avitostata.ru"
+if ENVIRONMENT in ["DEVELOPMENT", "TESTING"]:
+    # AVITO_WEBHOOK_HOST = "de9c-144-126-237-4.ngrok-free.app"
+    AVITO_WEBHOOK_HOST = os.getenv('AVITO_WEBHOOK_HOST')
 
 OPENAI_SECRET_KEY = os.getenv('OPENAI_SECRET_KEY')
 
@@ -30,6 +42,11 @@ YOOKASSA_PROD_SECRET_KEY = os.getenv('YOOKASSA_PROD_SECRET_KEY')
 LOCALHOST_IP = os.getenv('LOCALHOST_IP')
 TELEGRAM_BOT_TOKEN = os.getenv('TELEGRAM_BOT_TOKEN')
 TELEGRAM_BOT_TOKEN_PROD = os.getenv('TELEGRAM_BOT_TOKEN_PROD')
+
+USE_GPT = True
+if ENVIRONMENT in ["DEVELOPMENT", "TESTING"]:
+    # USE_GPT = True
+    USE_GPT = False
 
 DB_HOST = os.getenv('DB_HOST')
 DB_PORT = os.getenv('DB_PORT')
@@ -47,11 +64,14 @@ ALLOWED_HOSTS = [
     "77.75.156.35", "77.75.154.128/25", "2a02:5180::/32",
 ]
 
-if ENVIRONMENT == 'DEVELOPMENT':
+if ENVIRONMENT in ["DEVELOPMENT", "TESTING"]:
     DEBUG = True
     ALLOWED_HOSTS = ["*", ]
 else:
     DEBUG = False
+
+if ENVIRONMENT == "TESTING":
+    TEST_DJANGO_HOST = os.getenv("TEST_DJANGO_HOST") # Хост, у которого селери спрашивает значения конфигов во время тестов
 
 # Application definition
 

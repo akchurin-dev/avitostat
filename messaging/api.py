@@ -1,11 +1,15 @@
 import datetime
 import json
-from avito_account.models.models import AvitoAccount
-from base.exceptions import HTTPException
+
 import httpx
 from httpx import HTTPStatusError
+from loguru import logger
 
+from avito_account.models.models import AvitoAccount
+from base import settings
+from base.exceptions import HTTPException
 from conversion.utils import dates_for_period_without_extra_reserve
+from utils.logging import TraceLogger
 
 
 # TODO ДОБАВИТЬ ПРОВЕРКУ НА ПРОСРОЧЕННОСТЬ и обновление токена
@@ -56,6 +60,10 @@ async def get_chats(avito_account: AvitoAccount, period: str = "week", max_retri
             elif response.status_code == 403:
                 retries += 1
                 if retries > max_retries:
+                    logger.error((
+                        "Not success response in get_chats function. "
+                        f"Got status=403, data={response.text}"
+                    ))
                     raise HTTPStatusError("Превышено максимальное количество попыток обновления токена",
                                           request=response.request, response=response)
                 print(
@@ -81,7 +89,8 @@ async def check_timestamp_in_period(timestamp: int, period: str = "week") -> boo
     return timestamp_in_period
 
 
-async def get_chats_last_50_messages(avito_account: AvitoAccount, chats: list) -> list:
+async def get_chats_last_50_messages(avito_account: AvitoAccount, chats: list, *, trace_id: str | None = None) -> list:
+    tlogger = TraceLogger(trace_id)
     if len(chats) > 0:
         async with httpx.AsyncClient() as client:
             for chat in chats:
@@ -91,10 +100,12 @@ async def get_chats_last_50_messages(avito_account: AvitoAccount, chats: list) -
                 params = {"limit": 50, "offset": 0}
                 response = await client.get(url, headers=headers, params=params, timeout=300)
                 if response.status_code == 200:
-                    new_messages = response.json().get("messages")
+                    new_messages = response.json().get("messages")[::-1]
                     if len(new_messages) == 0:
                         break
-                    chat["messages"] = new_messages[::-1]
+                    new_messages = _filter_messages(new_messages)
+                    _print_chat(new_messages, tlogger=tlogger)
+                    chat["messages"] = new_messages
                 else:
                     raise HTTPException(status_code=response.status_code, detail=response.text)
     return chats
@@ -103,7 +114,8 @@ async def get_chats_last_50_messages(avito_account: AvitoAccount, chats: list) -
 import requests
 class MessagingAPISync:
     @staticmethod
-    def get_chats_last_50_messages(avito_account: AvitoAccount, chats: list) -> list:
+    def get_chats_last_50_messages(avito_account: AvitoAccount, chats: list, *, trace_id: str | None = None) -> list:
+        tlogger = TraceLogger(trace_id)
         if len(chats) > 0:
             with httpx.Client() as client:
                 for chat in chats:
@@ -113,10 +125,12 @@ class MessagingAPISync:
                     params = {"limit": 50, "offset": 0}
                     response = client.get(url, headers=headers, params=params, timeout=300)
                     if response.status_code == 200:
-                        new_messages = response.json().get("messages")
+                        new_messages = response.json().get("messages")[::-1]
                         if len(new_messages) == 0:
                             break
-                        chat["messages"] = new_messages[::-1]
+                        new_messages = _filter_messages(new_messages)
+                        _print_chat(new_messages, tlogger=tlogger)
+                        chat["messages"] = new_messages
                     else:
                         raise HTTPException(status_code=response.status_code, detail=response.text)
         return chats
@@ -142,13 +156,16 @@ class MessagingAPISync:
 
 
     @staticmethod
-    def get_chat_last_50_messages_by_chat_id(avito_account: AvitoAccount, chat_id: str):
+    def get_chat_last_50_messages_by_chat_id(avito_account: AvitoAccount, chat_id: str, *, trace_id: str | None = None):
+        tlogger = TraceLogger(trace_id)
         url = f"https://api.avito.ru/messenger/v3/accounts/{avito_account.id}/chats/{chat_id}/messages/"
         headers = {'authorization': f"Bearer {avito_account.access_token}"}
         params = {"limit": 50, "offset": 0}
         response = requests.get(url, headers=headers, params=params)
         if response.status_code == 200:
             messages = response.json().get("messages")[::-1]
+            messages = _filter_messages(messages)
+            _print_chat(messages, tlogger=tlogger)
             return messages
         else:
             raise HTTPException(status_code=response.status_code, detail=response.text)
@@ -171,3 +188,36 @@ async def get_calls_statistic_last_week(avito_account: AvitoAccount):
                 return data
         else:
             raise HTTPException(status_code=response.status_code, detail=response.text)
+
+
+def _filter_messages(messages: list) -> list:
+    if settings.ENVIRONMENT != "TESTING":
+        return messages
+
+    url = f"{settings.TEST_DJANGO_HOST}/deep_tests/prev-session-last-avito-message"
+
+    response = httpx.get(url)
+    response.raise_for_status()
+
+    prev_session_last_message_id = response.text
+    result = []
+
+    for msg in messages[::-1]:
+        if msg["id"] == prev_session_last_message_id:
+            break
+
+        result.append(msg)
+
+    return result[::-1]
+
+
+def _print_chat(messages: list, *, tlogger: TraceLogger):
+    lines: list[str] = ["Get messages:"]
+
+    for msg in messages:
+        direction = msg["direction"]
+        id = msg["id"]
+        text = msg.get("content", {}).get("text")
+        lines.append(f"{direction} ({id}): {text}")
+
+    tlogger.info("\n".join(lines))

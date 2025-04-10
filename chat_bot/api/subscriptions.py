@@ -2,7 +2,7 @@ from pprint import pprint
 import httpx
 from avito_account.models.models import AvitoAccount
 from base.exceptions import HTTPException
-from base.settings import ENVIRONMENT
+from base import settings
 
 
 async def subscribe_to_messages(avito_account: AvitoAccount):
@@ -10,10 +10,7 @@ async def subscribe_to_messages(avito_account: AvitoAccount):
     url = "https://api.avito.ru/messenger/v3/webhook"
     headers = {'authorization': f"Bearer {avito_account.access_token}"}
 
-    if ENVIRONMENT == "PRODUCTION":
-        subscribe_url = "https://avitostata.ru/chat_bot/webhook_inbox"
-    else:
-        subscribe_url = "https://de9c-144-126-237-4.ngrok-free.app/chat_bot/webhook_inbox"
+    subscribe_url = f"https://{settings.AVITO_WEBHOOK_HOST}/chat_bot/webhook_inbox"
 
     async with httpx.AsyncClient() as client:
         params = {"url": subscribe_url}
@@ -33,10 +30,7 @@ async def stop_subscribe_to_messages(avito_account: AvitoAccount):
         'authorization': f"Bearer {avito_account.access_token}"
     }
 
-    if ENVIRONMENT == "PRODUCTION":
-        stop_subscribe_url = "https://avitostata.ru/chat_bot/webhook_inbox"
-    else:
-        stop_subscribe_url = "https://71cb-103-231-75-115.ngrok-free.app/chat_bot/webhook_inbox"
+    stop_subscribe_url = f"https://{settings.AVITO_WEBHOOK_HOST}/chat_bot/webhook_inbox"
 
     async with httpx.AsyncClient() as client:
         params = {"url": stop_subscribe_url}

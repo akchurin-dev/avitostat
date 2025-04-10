@@ -1,11 +1,13 @@
 from asgiref.sync import  async_to_sync
+import httpx
 from openai import OpenAI
 from pydantic import BaseModel
 
 from avito_account.models.models import AvitoAccount
 from base import settings
-from chat_bot.models import AiChatBot
+from chat_bot.models import AIChatBotBase
 from messaging.api import get_chats_last_50_messages
+from utils.logging import TraceLogger
 
 MODEL = "gpt-4o-2024-08-06"
 client = OpenAI(api_key=settings.OPENAI_SECRET_KEY)
@@ -47,7 +49,41 @@ def format_chat_history(messages):
     return formatted_messages
 
 
-def ai_answer_with_contacts(ai_assistant: AiChatBot, chat: list, ):
+class AIAnswerContacts(BaseModel):
+    address: str | None
+    mobile: str | None
+    whatsapp: str | None
+    telegram: str | None
+    email: str | None
+
+
+class AIAnswerWithContacts(BaseModel):
+    answer: str
+    contacts: AIAnswerContacts | None
+    tokens_completion: int
+    tokens_prompt: int
+
+
+def ai_answer_with_contacts_typed(ai_assistant: AIChatBotBase, chat: list) -> AIAnswerWithContacts:
+    res = ai_answer_with_contacts(ai_assistant, chat)
+    return AIAnswerWithContacts.model_validate(res)
+
+
+def ai_answer_with_contacts(ai_assistant: AIChatBotBase, chat: list, ):
+    if not _use_gpt_flag():
+        return {
+            'answer': "mock answer",
+            'contacts': {
+                "address": None,
+                "mobile": None,
+                "whatsapp": None,
+                "telegram": None,
+                "email": None,
+            },
+            'tokens_completion': 1,
+            'tokens_prompt': 2,
+        }
+
     try:
         result = {}
         chat_history_formatted = format_chat_history(chat)
@@ -74,8 +110,8 @@ def ai_answer_with_contacts(ai_assistant: AiChatBot, chat: list, ):
             result['tokens_completion'] = response.usage.completion_tokens
             result['tokens_prompt'] = response.usage.prompt_tokens
             return result
-    except Exception:
-        raise Exception
+    except Exception as e:
+        raise e
 
 
 class ChatSummarySchema(BaseModel):
@@ -98,9 +134,20 @@ def chat_summary_data_prepare(data: dict) -> dict | None:
     return result
 
 
-def chat_summary_ai_generator(avito_account: AvitoAccount, chat_id: str):
+def chat_summary_ai_generator(avito_account: AvitoAccount, chat_id: str, *, tlogger: TraceLogger):
+    if not _use_gpt_flag():
+        return {
+            'paragraphs': {
+                "paragraph1": "paragraph1",
+                "paragraph2": "paragraph2",
+                "paragraph3": "paragraph3",
+            },
+            'tokens_completion': 1,
+            'tokens_prompt': 2,
+        }
+
     result = {}
-    chat_with_messages = async_to_sync(get_chats_last_50_messages)(avito_account, chats=[{"id": chat_id}])
+    chat_with_messages = async_to_sync(get_chats_last_50_messages)(avito_account, chats=[{"id": chat_id}], trace_id=tlogger.trace_id)
 
     prompt = (f"""Твоя задача - проанализировать переписку чата
         И сгенерировать сводку по чату которая должна содержать пункты:
@@ -128,3 +175,15 @@ def chat_summary_ai_generator(avito_account: AvitoAccount, chat_id: str):
         result['tokens_completion'] = response.usage.completion_tokens
         result['tokens_prompt'] = response.usage.prompt_tokens
         return result
+
+
+def _use_gpt_flag():
+    if settings.ENVIRONMENT != "TESTING":
+        return settings.USE_GPT
+
+    url = f"{settings.TEST_DJANGO_HOST}/deep_tests/use-gpt-flag"
+
+    response = httpx.get(url)
+    response.raise_for_status()
+
+    return response.text == "True"
