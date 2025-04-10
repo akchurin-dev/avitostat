@@ -9,8 +9,8 @@ from chat_bot.ai_utils import use_gpt_flag
 
 class AIAnswerPayload(BaseModel):
     answer: str
-    contacts: dict[str, str] | None = None
-    lead_info: dict[str, str] | None = None
+    contacts: dict[str, str | None] | None = None
+    lead_info: dict[str, str | None] | None = None
 
 
 class AIAnswer(BaseModel):
@@ -61,14 +61,14 @@ def _get_answer_schema(fields: list[amo.models.FillableField]) -> dict:
         "properties": {
             "answer": {"type": "string"},
             "contacts": {
-                "type": "object",
-                "properties": {field.name: {"type": "string"} for field in contact_fields},
+                "type": ["object", "null"],
+                "properties": {field.name: {"type": ["string", "null"]} for field in contact_fields},
                 "required": [field.name for field in contact_fields],
                 "additionalProperties": False,
             },
             "lead_info": {
-                "type": "object",
-                "properties": {field.name: {"type": "string"} for field in lead_fields},
+                "type": ["object", "null"],
+                "properties": {field.name: {"type": ["string", "null"]} for field in lead_fields},
                 "required": [field.name for field in lead_fields],
                 "additionalProperties": False,
             },
@@ -91,12 +91,7 @@ def _dialog_to_str(dialog: list[Message]) -> str:
 
 
 def _get_prompt(chatbot: amo.models.AmoChatBot, fields: list[amo.models.FillableField]) -> str:
-    prompt = (
-        "Прочитай переписку, достань из нее данные о сделке, контакты и сгенерируй ответ клиенту"
-        "Ответы давать только на русском языке"
-        "Контакты доставать как клиента так и менеджера если имеются в переписке"
-    )
-
+    prompt = ""
     prompt = _add_chatbot_prompt(prompt, chatbot)
     prompt = _add_fillable_fields_prompt(prompt, fields)
 
@@ -139,8 +134,8 @@ def _add_fillable_fields_prompt(prompt: str, fields: list[amo.models.FillableFie
 
     for field in fields:
         new_articles.append((
-            f"Поле: {field.name}.\n"
-            f"Описание: {field.description}."
+            f"Поле: {field.name}\n"
+            f"Описание: {field.description}"
         ))
 
     new_text = "\n\n\n".join(new_articles)

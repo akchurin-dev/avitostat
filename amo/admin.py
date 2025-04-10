@@ -56,7 +56,7 @@ class AmoAccountAdmin(admin.ModelAdmin):
 
 class FillableFieldInline(admin.TabularInline):
     model = amo.models.FillableField
-    fields = ["name", "entity"]
+    fields = ["name", "description", "entity"]
     extra = 0
 
 
