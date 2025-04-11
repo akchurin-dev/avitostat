@@ -1,3 +1,5 @@
+import pprint
+
 from celery import shared_task
 
 import amo.models
@@ -34,7 +36,7 @@ def prepare_message_handling_data(*, task_id: int, trace_id: str):
 
         if not talk_opened:
             task.cancel(tlogger=tlogger)
-            tlogger.info(f"Stop handling. Talk is closed")
+            tlogger.info("Stop handling. Talk is closed")
             return
 
         if len(messages) > 0 and messages[-1].id != task.message_id:
@@ -50,7 +52,7 @@ def prepare_message_handling_data(*, task_id: int, trace_id: str):
         assert task.chatbot is not None
         if manager_interfere and task.chatbot.shutdown_after_manager:
             task.cancel(tlogger=tlogger)
-            tlogger.info(f"Stop handling. Shutdown after manager")
+            tlogger.info("Stop handling. Shutdown after manager")
             return
 
         generate_ai_answer.delay(
@@ -63,7 +65,7 @@ def prepare_message_handling_data(*, task_id: int, trace_id: str):
 
 
 @shared_task
-def generate_ai_answer(messages_serializable: list[dict], *, task_id: int, trace_id: str):
+def generate_ai_answer(messages_serializable: list[dict], task_id: int, trace_id: str):
     @amo.models.AmoChatBotTask.interrupt_task_if_error
     def f(messages: list[amo_messages.Message], *, task_id: int, trace_id: str) -> None:
         tlogger = TraceLogger(trace_id)
@@ -76,8 +78,19 @@ def generate_ai_answer(messages_serializable: list[dict], *, task_id: int, trace
             tlogger.info("Stop handling. Can't go to answer generation")
             return
 
-        ai_answer = amo_ai.generate_answer(task.chatbot, messages)
+        ai_answer = amo_ai.generate_answer(
+            chatbot=task.chatbot,
+            messages=messages,
+            account=task.account,
+            lead_id=task.lead_id,
+            tlogger=tlogger,
+        )
         ai_answer.payload.answer += "..."
+
+        tlogger.info(pprint.pformat({
+            "Title": "AI answer",
+            "ai_answer": ai_answer.model_dump(),
+        }))
 
         handle_ai_answer.delay(
             ai_answer_serializable=ai_answer.model_dump(),

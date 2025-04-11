@@ -17,7 +17,7 @@ from utils import logging
 @api_view(["GET"])
 def oauth_callback(request: Request) -> Response:
     tlogger = logging.TraceLogger()
-    
+
     serializer = amo.serializers.OauthCallbackQueryParamsSerializer(data=request.query_params.dict())
     serializer.is_valid(raise_exception=True)
     if isinstance(serializer.validated_data, dict):
@@ -32,7 +32,7 @@ def oauth_callback(request: Request) -> Response:
         )
 
     state = amo.schemas.OauthStateSchema.model_validate_json(data["state"])
-    domain=data["referer"]
+    domain = data["referer"]
 
     amo_accounts.create_account_or_update_tokens(
         domain=domain,
@@ -53,7 +53,6 @@ def webhook_inbox(request: Request) -> Response:
     account_id: int = int(request.data["account[id]"])
     entity_type = request.data["message[add][0][entity_type]"]
     lead_id: int | None = int(request.data["message[add][0][entity_id]"]) if entity_type == "lead" else None
-    contact_id: str = request.data["message[add][0][contact_id]"]
     chat_id: str = request.data["message[add][0][chat_id]"]
     talk_id: int = int(request.data["message[add][0][talk_id]"])
     message_id: str = request.data["message[add][0][id]"]
@@ -66,7 +65,6 @@ def webhook_inbox(request: Request) -> Response:
     message_handling.launch_handler(
         account_id=account_id,
         lead_id=lead_id,
-        contact_id=contact_id,
         chat_id=chat_id,
         talk_id=talk_id,
         message_id=message_id,

@@ -2,7 +2,6 @@ import datetime
 
 import amo.models
 import amo.tasks
-from amo.utils import amo_api
 from amo.utils import amo_chatbots
 from base import settings
 from utils.logging import TraceLogger
@@ -11,7 +10,6 @@ from utils.logging import TraceLogger
 def launch_handler(
     account_id: int,
     lead_id: int | None,
-    contact_id: str,
     chat_id: str,
     talk_id: int,
     message_id: str,
@@ -40,7 +38,7 @@ def launch_handler(
     chatbot = amo_chatbots.define_chatbot(account_id, lead_id, tlogger=tlogger)
 
     if chatbot is None:
-        tlogger.info(f"Stop handling. Active chat bots aren't found")
+        tlogger.info("Stop handling. Active chat bots aren't found")
         return
 
     tlogger.info(f"Selected chat bot is {chatbot}")

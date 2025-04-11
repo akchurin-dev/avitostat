@@ -25,7 +25,7 @@ class Talk(NamedTuple):
 def get_lead_chat(account_id: str, lead_id: str, talk_id: int, tlogger: TraceLogger) -> Talk:
     events = amo_api.get_lead_events(account_id, lead_id, tlogger=tlogger)
 
-    # type 89 для входящих сообщений, 90 - для исходящих 
+    # type 89 для входящих сообщений, 90 - для исходящих
     message_events = [e for e in events if e["type"] in [89, 90] and e["data"]["dialog"]["id"] == talk_id]
 
     messages = [

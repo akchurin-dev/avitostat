@@ -1,4 +1,3 @@
-import urllib.parse
 from django.contrib import admin
 from django.http import HttpRequest
 from django.http.response import HttpResponse
@@ -50,7 +49,7 @@ class AmoAccountAdmin(admin.ModelAdmin):
             "mode": "popup",
             "state": amo.schemas.OauthStateSchema(created_by_id=request.user.pk).model_dump_json(),
         }
-        amo_oauth_link = f"https://www.amocrm.ru/oauth?" + urllib.parse.urlencode(params)
+        amo_oauth_link = "https://www.amocrm.ru/oauth?" + urllib.parse.urlencode(params)
         return redirect(to=amo_oauth_link)
 
 
@@ -76,9 +75,9 @@ class AmoChatBotAdmin(admin.ModelAdmin):
 
 @admin.register(amo.models.AmoPipelineStatus)
 class AmoPipelineStatusAdmin(admin.ModelAdmin):
-    fields = ["pipeline_name", "name", "chat_bot"]
-    readonly_fields = ["pipeline_name", "name"]
-    list_display = ["pipeline_name", "name", "chat_bot"]
+    fields = ["pipeline_name", "name", "description", "chat_bot"]
+    readonly_fields = ["pipeline_name", "name", "chat_bot"]
+    list_display = ["pipeline_name", "name", "description", "chat_bot"]
     list_select_related = ["chat_bot"]
     list_editable = ["chat_bot"]
 

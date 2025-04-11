@@ -106,7 +106,7 @@ def send_message(account_id: str, chat_id: str, text: str, tlogger: TraceLogger)
     data = {
         "text": text
     }
-    
+
     response = _amojo_request(
         method="POST",
         action=action,
@@ -213,6 +213,26 @@ def get_pipelines_statuses(domain: str, *, tlogger: TraceLogger) -> list[Pipelin
                 pipeline_id=pipeline["id"],
                 pipeline_name=pipeline["name"],
             ))
+
+    return statuses
+
+
+def get_pipeline_statuses(domain: str, pipeline_id: int | str, *, tlogger: TraceLogger) -> list[PipelineStatus]:
+    action = f"/api/v4/leads/pipelines/{pipeline_id}"
+
+    response = _request_with_token("GET", domain, action, tlogger=tlogger)
+    response.raise_for_status()
+
+    pipeline = response.json()
+    statuses: list[PipelineStatus] = []
+
+    for status in pipeline["_embedded"]["statuses"]:
+        statuses.append(PipelineStatus(
+            id=status["id"],
+            name=status["name"],
+            pipeline_id=pipeline["id"],
+            pipeline_name=pipeline["name"],
+        ))
 
     return statuses
 

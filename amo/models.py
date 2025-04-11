@@ -140,6 +140,11 @@ class AmoChatBot(chat_bot.models.AIChatBotBase):
         blank=True,
     )
 
+    pipeline_status_update_rules = models.TextField(
+        verbose_name="Правила обновления этапа воронки",
+        blank=True,
+    )
+
     class Meta:
         verbose_name = "Amo чат-бот"
         verbose_name_plural = "Amo чат-боты"
@@ -206,6 +211,11 @@ class AmoPipelineStatus(models.Model):
         max_length=255,
     )
 
+    description = models.TextField(
+        verbose_name="Описание этапа для промпта",
+        blank=True,
+    )
+
     chat_bot = models.ForeignKey(
         verbose_name="Чат-бот обработчик сделок",
         to=AmoChatBot,
@@ -252,6 +262,7 @@ class AmoChatBotTask(chat_bot.models.AIResultContainer, chatbottasks.Task):
 
     # В рамках одного чата может быть много разговоров.
     # На каждую новую сделку создается новый разговор
+    # Возможно в рамках одной сделки может быть много разговоров
     talk_id = models.IntegerField(
         verbose_name="Идентификатор разговора",
         db_index=True,

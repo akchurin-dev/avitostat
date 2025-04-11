@@ -7,7 +7,7 @@ def update_entity_fields(
     domain: str,
     entity: amo_api.EntityEnum,
     instance_id: int | str,
-    fields_values: dict[str, str],
+    fields_values: dict[str, str | None],
     skip_null: bool = True,
     *,
     tlogger: TraceLogger,
