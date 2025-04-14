@@ -70,7 +70,7 @@ def webhook_inbox(request: Request) -> Response:
     message_id: str = request.data["message[add][0][id]"]
     message_created_at: datetime.datetime = datetime.datetime.fromtimestamp(
         timestamp=int(request.data["message[add][0][created_at]"]),
-        tz=datetime.UTC,
+        tz=datetime.timezone.utc,
     )
     text: str = request.data["message[add][0][text]"]
 
