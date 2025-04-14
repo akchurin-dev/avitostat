@@ -1,4 +1,5 @@
 from django.contrib import admin
+from django.db.models.query import QuerySet
 from django.http import HttpRequest
 from django.http.response import HttpResponse
 from django.shortcuts import redirect
@@ -52,6 +53,14 @@ class AmoAccountAdmin(admin.ModelAdmin):
         amo_oauth_link = "https://www.amocrm.ru/oauth?" + urllib.parse.urlencode(params)
         return redirect(to=amo_oauth_link)
 
+    def get_queryset(self, request: HttpRequest) -> QuerySet:
+        qs = super().get_queryset(request)
+
+        if not request.user.is_superuser:
+            qs = qs.filter(created_by=request.user)
+
+        return qs
+
 
 class FillableFieldInline(admin.TabularInline):
     model = amo.models.FillableField
@@ -78,6 +87,14 @@ class AmoChatBotAdmin(admin.ModelAdmin):
     list_display = ["name", "account"]
     inlines = [FillableFieldInline, AmoPipelineStatusInline, AmoOriginInline]
 
+    def get_queryset(self, request: HttpRequest) -> QuerySet:
+        qs = super().get_queryset(request)
+
+        if not request.user.is_superuser:
+            qs = qs.filter(account__created_by=request.user)
+
+        return qs
+
 
 @admin.register(amo.models.AmoPipelineStatus)
 class AmoPipelineStatusAdmin(admin.ModelAdmin):
@@ -87,7 +104,23 @@ class AmoPipelineStatusAdmin(admin.ModelAdmin):
     list_select_related = ["chat_bot"]
     list_editable = ["chat_bot"]
 
+    def get_queryset(self, request: HttpRequest) -> QuerySet:
+        qs = super().get_queryset(request)
+
+        if not request.user.is_superuser:
+            qs = qs.filter(account__created_by=request.user)
+
+        return qs
+
 
 @admin.register(amo.models.AmoChatBotTask)
 class AmoChatBotTaskAdmin(admin.ModelAdmin):
     list_display = ["id", "status", "account", "text", "answer_text", "tokens_completion", "tokens_prompt"]
+
+    def get_queryset(self, request: HttpRequest) -> QuerySet:
+        qs = super().get_queryset(request)
+
+        if not request.user.is_superuser:
+            qs = qs.filter(account__created_by=request.user)
+
+        return qs
