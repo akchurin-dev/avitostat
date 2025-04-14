@@ -40,9 +40,20 @@ def generate_answer(
         lead_id=lead_id,
         tlogger=tlogger,
     )
-    available_pipeline_statuses_qs = amo.models.AmoPipelineStatus.objects.filter(account=account, pipeline_id=lead.pipeline_id)
-    current_status = available_pipeline_statuses_qs.get(amo_id=lead.status_id)
-    available_pipeline_statuses = list(available_pipeline_statuses_qs)
+    available_pipeline_statuses = amo_api.get_pipeline_statuses(
+        domain=account.domain,
+        pipeline_id=lead.pipeline_id,
+        tlogger=tlogger,
+    )
+
+    current_status = None
+
+    for status in available_pipeline_statuses:
+        if status.id == lead.status_id:
+            current_status = status
+
+    if current_status is None:
+        raise Exception(f"Status (id={lead.status_id}) not found in pipeline (id={lead.pipeline_id})")
 
     prompt = _get_prompt(chatbot, fillable_fields, available_pipeline_statuses, current_status)
     dialog_str = _dialog_to_str(messages)
@@ -74,7 +85,7 @@ def generate_answer(
 
 def _get_answer_schema(
     fields: list[amo.models.FillableField],
-    available_pipeline_statuses: list[amo.models.AmoPipelineStatus],
+    available_pipeline_statuses: list[amo_api.PipelineStatus],
 ) -> dict:
 
     lead_fields = [field for field in fields if field.entity == amo.models.AmoEntity.LEAD.value]
@@ -108,6 +119,7 @@ def _get_answer_schema(
             },
             "new_status": {
                 "type": ["string", "null"],
+                "description": "Новый этап сделки. Если сделка не меняет этап, то null",
                 "enum": [status.name for status in available_pipeline_statuses],
             },
         },
@@ -131,8 +143,8 @@ def _dialog_to_str(dialog: list[Message]) -> str:
 def _get_prompt(
     chatbot: amo.models.AmoChatBot,
     fields: list[amo.models.FillableField],
-    available_pipeline_statuses: list[amo.models.AmoPipelineStatus],
-    current_status: amo.models.AmoPipelineStatus,
+    available_pipeline_statuses: list[amo_api.PipelineStatus],
+    current_status: amo_api.PipelineStatus,
 ) -> str:
 
     prompt = ""
@@ -143,6 +155,7 @@ def _get_prompt(
         available_pipeline_statuses=available_pipeline_statuses,
         current_status=current_status,
     )
+    prompt = _add_fields_prompt(prompt, fields)
 
     return prompt
 
@@ -181,23 +194,34 @@ def _add_chatbot_prompt(prompt: str, chatbot: amo.models.AmoChatBot) -> str:
 def _add_pipelines_prompt(
     prompt: str,
     pipeline_status_update_rules: str,
-    available_pipeline_statuses: list[amo.models.AmoPipelineStatus],
-    current_status: amo.models.AmoPipelineStatus,
+    available_pipeline_statuses: list[amo_api.PipelineStatus],
+    current_status: amo_api.PipelineStatus,
 ) -> str:
 
     new_articles = [
         "Определи нужно ли перевести сделку в новый статус по следующим правилам:",
         pipeline_status_update_rules,
-        "Доступные статусы:"
+        "Доступные статусы: " + ", ".join([status.name for status in available_pipeline_statuses]),
+        f"Сейчас сделка находится в статусе '{current_status.name}'",
     ]
 
-    for status in available_pipeline_statuses:
-        new_articles.append((
-            f"Статус: {status.name}\n"
-            f"Описание: {status.description}"
-        ))
+    new_text = "\n\n".join(new_articles)
 
-    new_articles.append(f"Сейчас сделка находится в статусе '{current_status.name}'")
+    if prompt:
+        prompt += "\n\n\n"
+
+    return prompt + new_text
+
+
+def _add_fields_prompt(prompt: str, fields: list[amo.models.FillableField]) -> str:
+    new_articles = ["Твоя задача узнать у клиента следующие данные"]
+
+    for field in fields:
+        new_articles.append("\n".join([
+            "Поле: " + field.name,
+            "Описание: " + field.description,
+            f"Поле обязательное: {field.required}",
+        ]))
 
     new_text = "\n\n".join(new_articles)
 

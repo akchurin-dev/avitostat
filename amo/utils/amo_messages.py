@@ -22,11 +22,18 @@ class Talk(NamedTuple):
     opened: bool
 
 
-def get_lead_chat(account_id: str, lead_id: str, talk_id: int, tlogger: TraceLogger) -> Talk:
+def get_lead_chat(account_id: str, lead_id: str, tlogger: TraceLogger) -> Talk:
     events = amo_api.get_lead_events(account_id, lead_id, tlogger=tlogger)
 
+    lead_talks: list[int] = list(
+        amo.models.AmoTalkLeadLink.objects
+        .filter(account_id=int(account_id), lead_id=int(lead_id))
+        .values_list("talk_id", flat=True)
+    )
+
     # type 89 для входящих сообщений, 90 - для исходящих
-    message_events = [e for e in events if e["type"] in [89, 90] and e["data"]["dialog"]["id"] == talk_id]
+    message_events = [e for e in events if e["type"] in [89, 90]]
+    message_events = [e for e in message_events if e["data"]["dialog"]["id"] in lead_talks]
 
     messages = [
         Message(

@@ -48,19 +48,28 @@ def request(
     data: dict | None = None,
     json: dict | None = None,
     headers: dict | None = None,
+    timeout_retries: int = 0,
     tlogger: TraceLogger | None = None,
 ) -> httpx.Response:
 
     tlogger = tlogger or TraceLogger()
 
-    response = httpx.request(
-        method=method,
-        url=url,
-        params=params,
-        data=data,
-        json=json,
-        headers=headers,
-    )
+    for i in range(timeout_retries + 1):
+        try:
+            if i > 1:
+                tlogger.info(f"Try again request to {url}")
+
+            response = httpx.request(
+                method=method,
+                url=url,
+                params=params,
+                data=data,
+                json=json,
+                headers=headers,
+            )
+            break
+        except httpx.TimeoutException:
+            tlogger.info(f"Timeout exception when request to {url}")
 
     if not response.is_success:
         tlogger.info((

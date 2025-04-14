@@ -10,7 +10,8 @@ from utils.logging import TraceLogger
 
 def send_report(
     account: amo.models.AmoAccount,
-    lead: amo_api.Lead,
+    lead_id: int | str,
+    contact_id: int | str,
     messages: list[amo_messages.Message],
     *,
     tlogger: TraceLogger,
@@ -19,9 +20,15 @@ def send_report(
     messages_legacy_format = amo_messages.to_legacy_format(messages)
     ai_report = ai_utils.chat_summary_generator_typed(messages_legacy_format)
 
+    lead = amo_api.get_lead(
+        domain=account.domain,
+        lead_id=lead_id,
+        tlogger=tlogger,
+    )
+
     contact = amo_api.get_contact(
         domain=account.domain,
-        contact_id=lead.contacts_ids[0],
+        contact_id=contact_id,
         tlogger=tlogger,
     )
 

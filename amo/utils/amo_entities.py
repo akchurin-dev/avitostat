@@ -1,3 +1,5 @@
+import pprint
+
 from amo.utils import amo_api
 from amo.utils import amo_fields
 from utils.logging import TraceLogger
@@ -43,3 +45,5 @@ def update_entity_fields(
         json={"custom_fields_values": custom_fields_values},
         tlogger=tlogger,
     )
+
+    tlogger.info(f"Update {entity.value} id='{instance_id}', set\n" + pprint.pformat(custom_fields_values))

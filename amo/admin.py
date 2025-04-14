@@ -55,7 +55,7 @@ class AmoAccountAdmin(admin.ModelAdmin):
 
 class FillableFieldInline(admin.TabularInline):
     model = amo.models.FillableField
-    fields = ["name", "description", "entity"]
+    fields = ["name", "entity", "required", "description"]
     extra = 0
 
 
@@ -67,17 +67,23 @@ class AmoPipelineStatusInline(admin.TabularInline):
     extra = 0
 
 
+class AmoOriginInline(admin.TabularInline):
+    model = amo.models.AmoChatbotOriginLink
+    fields = ["origin"]
+    extra = 0
+
+
 @admin.register(amo.models.AmoChatBot)
 class AmoChatBotAdmin(admin.ModelAdmin):
     list_display = ["name", "account"]
-    inlines = [FillableFieldInline, AmoPipelineStatusInline]
+    inlines = [FillableFieldInline, AmoPipelineStatusInline, AmoOriginInline]
 
 
 @admin.register(amo.models.AmoPipelineStatus)
 class AmoPipelineStatusAdmin(admin.ModelAdmin):
-    fields = ["pipeline_name", "name", "description", "chat_bot"]
-    readonly_fields = ["pipeline_name", "name", "chat_bot"]
-    list_display = ["pipeline_name", "name", "description", "chat_bot"]
+    fields = ["pipeline_name", "name", "chat_bot"]
+    readonly_fields = ["pipeline_name", "name"]
+    list_display = ["pipeline_name", "name", "chat_bot"]
     list_select_related = ["chat_bot"]
     list_editable = ["chat_bot"]
 

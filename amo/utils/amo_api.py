@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from enum import Enum
 from typing import Any
 
@@ -48,8 +50,10 @@ def get_account_info(domain: str, access_token: str, *, tlogger: TraceLogger) ->
     return Account.model_validate_json(response.text)
 
 
-def subscribe_to_new_messages(domain: str, tlogger: TraceLogger) -> None:
+def subscribe_to_new_messages(domain: str, tlogger: TraceLogger | None = None) -> None:
     """ https://www.amocrm.ru/developers/content/crm_platform/webhooks-api#webhook-subscribe """
+
+    tlogger = tlogger or TraceLogger()
 
     action = "/api/v4/webhooks"
 
@@ -61,14 +65,18 @@ def subscribe_to_new_messages(domain: str, tlogger: TraceLogger) -> None:
     response = _request_with_token("POST", domain, action, json=data, tlogger=tlogger)
     response.raise_for_status()
 
+    tlogger.info(f"Add subsription for new messages for domain '{domain}'")
 
-def unsubscribe_from_messages(domain: str, tlogger: TraceLogger) -> None:
+
+def unsubscribe_from_messages(domain: str, tlogger: TraceLogger | None = None) -> None:
     """ https://www.amocrm.ru/developers/content/crm_platform/webhooks-api#webhooks-delete """
+
+    tlogger = tlogger or TraceLogger()
 
     action = "/api/v4/webhooks"
 
     data = {
-        "destination": "https://" + settings.AMO_WEBHOOK_DOMAIN + "/amo/oauth",
+        "destination": "https://" + settings.AMO_WEBHOOK_DOMAIN + "/amo/webhook-inbox",
     }
 
     response = _request_with_token(
@@ -79,6 +87,8 @@ def unsubscribe_from_messages(domain: str, tlogger: TraceLogger) -> None:
         tlogger=tlogger,
     )
     response.raise_for_status()
+
+    tlogger.info(f"Delete new messages subscription for domain '{domain}'")
 
 
 def get_lead_events(account_id: str, lead_id: str, tlogger: TraceLogger) -> list[dict]:
@@ -282,6 +292,22 @@ def get_fields(domain: str, entity: EntityEnum, *, tlogger: TraceLogger) -> list
     return [Field.model_validate(f) for f in response.json()["_embedded"]["custom_fields"]]
 
 
+class Source(BaseModel):
+    id: int
+    pipeline_id: int
+    origin_id: str
+    origin: str
+
+
+def get_sources(account_id: int, *, tlogger: TraceLogger) -> list[Source]:
+    action = "/ajax/v4/sources"
+
+    response = _request_with_csrf("GET", account_id, action, tlogger=tlogger)
+    response.raise_for_status()
+
+    return [Source.model_validate(source) for source in response.json()["_embedded"]["sources"]]
+
+
 def _request_with_token(
     method: httpx_helper.MethodType,
     domain: str,
@@ -329,7 +355,7 @@ def _request_with_token(
 
 def _request_with_csrf(
     method: httpx_helper.MethodType,
-    account_id: str,
+    account_id: str | int,
     action: str,
     params: dict | None = None,
     data: dict | None = None,
@@ -344,15 +370,11 @@ def _request_with_csrf(
     url = "https://" + account.domain + action
 
     cookies_data = {
-        "session_id": account.cookies_session_id,
-        "csrf_token": account.cookies_csrf_token,
-        "access_token": account.cookies_access_token,
-        "refresh_token": account.cookies_refresh_token,
+        "session_id": account.cookies_session_id or "",
+        "csrf_token": account.cookies_csrf_token or "",
+        "access_token": account.cookies_access_token or "",
+        "refresh_token": account.cookies_refresh_token or "",
     }
-
-    if any(v is None for v in cookies_data.values()):
-        tlogger.info(f"Some cookies is not defined, got {cookies_data}")
-        raise Exception("Not all cookies defined")
 
     cookies_str = "; ".join([k + "=" + str(v) for k, v in cookies_data.items()])
     headers = httpx_helper.add_header(headers, key="Cookie", value=cookies_str)

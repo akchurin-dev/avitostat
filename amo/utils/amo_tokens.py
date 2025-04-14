@@ -64,14 +64,10 @@ def update_tokens(domain: str, refresh_token: str | None = None) -> None:
 
 def update_hidden_api_tokens(account_id: str | int, *, tlogger: TraceLogger) -> None:
     account = amo.models.AmoAccount.objects.get(amo_id=account_id)
-    assert account.cookies_refresh_token is not None
-    assert account.cookies_access_token is not None
-    assert account.cookies_csrf_token is not None
-    assert account.cookies_session_id is not None
 
     tokens = _get_hidden_api_tokens(
         domain=account.domain,
-        refresh_token=account.cookies_refresh_token,
+        refresh_token=account.cookies_refresh_token or "",
         login=account.amo_login,
         password=account.amo_password,
         tlogger=tlogger,

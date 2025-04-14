@@ -1,6 +1,7 @@
 from django.contrib.auth.models import User
 from django.db import models
 
+from amo.utils import amo_api
 from amo.utils import amo_chatbottasks
 import chat_bot.models
 from chatbottasks import chatbottasks
@@ -13,7 +14,7 @@ class AmoAccount(models.Model):
     )
 
     telegram_id = models.CharField(
-        verbose_name="Идентификатор чата для отчетов",
+        verbose_name="ID телеграм-чата",
         max_length=255,
         null=True,
         blank=True,
@@ -149,8 +150,81 @@ class AmoChatBot(chat_bot.models.AIChatBotBase):
         verbose_name = "Amo чат-бот"
         verbose_name_plural = "Amo чат-боты"
 
+    def save(self, *args, **kwargs) -> None:
+        super().save(*args, **kwargs)
+
+        active_chatbots_exists = AmoChatBot.objects.filter(
+            account=self.account,
+            is_active=True,
+        ).exists()
+
+        if active_chatbots_exists:
+            amo_api.subscribe_to_new_messages(self.account.domain)
+
+        if not active_chatbots_exists:
+            try:
+                amo_api.unsubscribe_from_messages(self.account.domain)
+            except:
+                pass
+
+    def delete(self, *args, **kwargs) -> tuple[int, dict[str, int]]:
+        res = super().delete(*args, **kwargs)
+
+        active_chatbots_exists = AmoChatBot.objects.filter(
+            account=self.account,
+            is_active=True,
+        ).exists()
+
+        if not active_chatbots_exists:
+            try:
+                amo_api.unsubscribe_from_messages(self.account.domain)
+            except:
+                pass
+
+        return res
+
     def __str__(self):
         return f"{self.name} ({self.pk})"
+
+
+class AmoOrigin(models.Model):
+    amo_id = models.CharField(
+        verbose_name="Идентификатор в системе Amo",
+        max_length=64,
+        primary_key=True,
+    )
+
+    code = models.CharField(
+        verbose_name="Код",
+        max_length=64,
+    )
+
+    class Meta:
+        verbose_name = "Amo-источник"
+        verbose_name_plural = "Amo-источники"
+
+    def __str__(self):
+        return self.code
+
+
+class AmoChatbotOriginLink(models.Model):
+    chatbot = models.ForeignKey(
+        verbose_name="Чат-бот",
+        to=AmoChatBot,
+        on_delete=models.CASCADE,
+    )
+
+    origin = models.ForeignKey(
+        verbose_name="Источник",
+        to=AmoOrigin,
+        on_delete=models.CASCADE,
+    )
+
+    class Meta:
+        verbose_name = "Связь бот-источник"
+        verbose_name_plural = "Связи бот-источник"
+
+        unique_together = ["chatbot", "origin"]
 
 
 class AmoEntity(models.TextChoices):
@@ -171,12 +245,16 @@ class FillableField(models.Model):
     )
 
     entity = models.CharField(
-        verbose_name="К чему относится поле",
+        verbose_name="К чему относится",
         choices=AmoEntity.choices,
     )
 
     description = models.TextField(
-        verbose_name="Описание поля для промпта",
+        verbose_name="Описание для промпта",
+    )
+
+    required = models.BooleanField(
+        verbose_name="Обязательное",
     )
 
     class Meta:
@@ -211,11 +289,6 @@ class AmoPipelineStatus(models.Model):
         max_length=255,
     )
 
-    description = models.TextField(
-        verbose_name="Описание этапа для промпта",
-        blank=True,
-    )
-
     chat_bot = models.ForeignKey(
         verbose_name="Чат-бот обработчик сделок",
         to=AmoChatBot,
@@ -232,6 +305,30 @@ class AmoPipelineStatus(models.Model):
 
     def __str__(self):
         return f"{self.pipeline_name} -> {self.name}"
+
+
+class AmoTalkLeadLink(models.Model):
+    account = models.ForeignKey(
+        verbose_name="Amo-аккаунт",
+        to=AmoAccount,
+        on_delete=models.CASCADE,
+    )
+
+    talk_id = models.BigIntegerField(
+        verbose_name="Идентификатор разговора в системе амо",
+        db_index=True,
+    )
+
+    lead_id = models.BigIntegerField(
+        verbose_name="Идентификатор сделки в системе амо",
+        db_index=True,
+    )
+
+    class Meta:
+        verbose_name = "Связь разговор-сделка"
+        verbose_name = "Связи разговор-сделка"
+
+        unique_together = ["talk_id", "lead_id"]
 
 
 class AmoChatBotTask(chat_bot.models.AIResultContainer, chatbottasks.Task):
@@ -254,15 +351,19 @@ class AmoChatBotTask(chat_bot.models.AIResultContainer, chatbottasks.Task):
         db_index=True,
     )
 
+    contact_id = models.CharField(
+        verbose_name="Идентификатор контакта",
+        max_length=15,
+        db_index=True,
+    )
+
     chat_id = models.CharField(
         verbose_name="Идентификатор чата",
         max_length=255,
         db_index=True,
     )
 
-    # В рамках одного чата может быть много разговоров.
-    # На каждую новую сделку создается новый разговор
-    # Возможно в рамках одной сделки может быть много разговоров
+    # В рамках одного чата может быть много разговоров
     talk_id = models.IntegerField(
         verbose_name="Идентификатор разговора",
         db_index=True,

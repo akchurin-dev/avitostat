@@ -6,7 +6,9 @@ import amo.models
 from amo.utils import amo_ai
 from amo.utils import amo_api
 from amo.utils import amo_entities
+from amo.utils import amo_leads
 from amo.utils import amo_messages
+from amo.utils import amo_pipelines
 from amo.utils import amo_reports
 from utils.logging import TraceLogger
 
@@ -30,7 +32,6 @@ def prepare_message_handling_data(*, task_id: int, trace_id: str):
         messages, talk_opened = amo_messages.get_lead_chat(
             account_id=task.account.pk,
             lead_id=task.lead_id,
-            talk_id=task.talk_id,
             tlogger=tlogger,
         )
 
@@ -139,21 +140,41 @@ def handle_ai_answer(ai_answer_serializable: dict, messages_serializable: list[d
                 fields_values=ai_answer.payload.lead_info,
                 tlogger=tlogger,
             )
-
-        lead = amo_api.get_lead(
-            domain=task.account.domain,
-            lead_id=task.lead_id,
-            tlogger=tlogger,
-        )
+        else:
+            tlogger.info("Lead info wasn't recognized by AI")
 
         if ai_answer.payload.contacts:
             amo_entities.update_entity_fields(
                 domain=task.account.domain,
                 entity=amo_api.EntityEnum.CONTACTS,
-                instance_id=lead.contacts_ids[0],
+                instance_id=task.contact_id,
                 fields_values=ai_answer.payload.contacts,
                 tlogger=tlogger,
             )
+        else:
+            tlogger.info("Contact info wasn't recognized by AI")
+
+        if ai_answer.payload.new_status:
+            lead = amo_api.get_lead(
+                domain=task.account.domain,
+                lead_id=task.lead_id,
+                tlogger=tlogger,
+            )
+
+            status = amo_pipelines.get_status_by_name(
+                domain=task.account.domain,
+                pipeline_id=lead.pipeline_id,
+                status_name=ai_answer.payload.new_status,
+                tlogger=tlogger,
+            )
+
+            if lead.status_id != status.id:
+                amo_leads.change_lead_status(
+                    domain=task.account.domain,
+                    lead_id=lead.id,
+                    status_id=status.id,
+                    tlogger=tlogger,
+                )
 
         amo.models.AmoChatBotTask.save_ai_result(
             pk=task.pk,
@@ -166,14 +187,14 @@ def handle_ai_answer(ai_answer_serializable: dict, messages_serializable: list[d
             sent_report = amo.models.AmoChatBotTask.objects.filter(
                 account_id=task.account.pk,
                 lead_id=task.lead_id,
-                talk_id=task.talk_id,
                 sent_report=True,
             ).exists()
 
             if not sent_report:
                 amo_reports.send_report(
                     account=task.account,
-                    lead=lead,
+                    lead_id=task.lead_id,
+                    contact_id=task.contact_id,
                     messages=messages,
                     tlogger=tlogger,
                 )
