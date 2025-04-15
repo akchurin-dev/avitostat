@@ -64,15 +64,13 @@ class AmoAccountAdmin(admin.ModelAdmin):
 
 class FillableFieldInline(admin.TabularInline):
     model = amo.models.FillableField
-    fields = ["name", "entity", "required", "description"]
+    fields = ["name", "entity", "required_for_qualification", "description"]
     extra = 0
 
 
 class AmoPipelineStatusInline(admin.TabularInline):
-    model = amo.models.AmoPipelineStatus
-    fields = ["pipeline_name", "name"]
-    readonly_fields = ["pipeline_name", "name"]
-    can_delete = False
+    model = amo.models.AmoPipelineStatusChatbotLink
+    fields = ["status", "check_qualification"]
     extra = 0
 
 
@@ -86,23 +84,6 @@ class AmoOriginInline(admin.TabularInline):
 class AmoChatBotAdmin(admin.ModelAdmin):
     list_display = ["name", "account"]
     inlines = [FillableFieldInline, AmoPipelineStatusInline, AmoOriginInline]
-
-    def get_queryset(self, request: HttpRequest) -> QuerySet:
-        qs = super().get_queryset(request)
-
-        if not request.user.is_superuser:
-            qs = qs.filter(account__created_by=request.user)
-
-        return qs
-
-
-@admin.register(amo.models.AmoPipelineStatus)
-class AmoPipelineStatusAdmin(admin.ModelAdmin):
-    fields = ["pipeline_name", "name", "chat_bot"]
-    readonly_fields = ["pipeline_name", "name"]
-    list_display = ["pipeline_name", "name", "chat_bot"]
-    list_select_related = ["chat_bot"]
-    list_editable = ["chat_bot"]
 
     def get_queryset(self, request: HttpRequest) -> QuerySet:
         qs = super().get_queryset(request)

@@ -48,7 +48,7 @@ def request(
     data: dict | None = None,
     json: dict | None = None,
     headers: dict | None = None,
-    timeout_retries: int = 0,
+    timeout_retries: int = 3,
     tlogger: TraceLogger | None = None,
 ) -> httpx.Response:
 

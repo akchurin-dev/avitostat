@@ -27,6 +27,22 @@ services:
     volumes:
       - redis_data:/data
 
+  django:
+    build:
+      context: .
+    depends_on:
+      - db
+      - redis
+    command: "python3 manage.py runserver"
+    restart: always
+    ports:
+      - "8000:8000"
+    networks:
+      - custom
+    env_file: ".env"
+    volumes:
+      - .:/var/www/avitostat
+
 networks:
   custom:
     driver: bridge

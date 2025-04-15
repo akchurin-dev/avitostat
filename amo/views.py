@@ -7,6 +7,7 @@ from rest_framework.request import Request
 from rest_framework.response import Response
 from rest_framework import status
 
+import amo.models
 import amo.serializers
 import amo.schemas
 from amo.utils import amo_accounts
@@ -86,5 +87,17 @@ def webhook_inbox(request: Request) -> Response:
         text=text,
         trace_id=logging.new_trace_id(),
     )
+
+    return Response(status=status.HTTP_200_OK)
+
+
+@api_view(["PATCH"])
+def syncronize_amo_account(request: Request, pk: int) -> Response:
+    tlogger = logging.TraceLogger()
+
+    account = amo.models.AmoAccount.objects.get(pk=pk)
+
+    amo_pipelines.syncronize_pipelines(account.domain, tlogger=tlogger)
+    amo_sources.scan_new_origins(account.amo_id, tlogger=tlogger)
 
     return Response(status=status.HTTP_200_OK)

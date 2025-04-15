@@ -13,3 +13,5 @@ def change_lead_status(domain: str, lead_id: int | str, status_id: int | str, *,
         tlogger=tlogger,
     )
     response.raise_for_status()
+
+    tlogger.info(f"Lead (id={lead_id}) status was updated to status (id={status_id})")

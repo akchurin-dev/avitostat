@@ -103,6 +103,43 @@ class AmoAccount(models.Model):
         return self.domain
 
 
+class AmoPipelineStatus(models.Model):
+    account = models.ForeignKey(
+        verbose_name="Amo-аккаунт",
+        to=AmoAccount,
+        on_delete=models.CASCADE,
+    )
+
+    pipeline_id = models.BigIntegerField(
+        verbose_name="Идентификатор воронки в системе Amo",
+        db_index=True,
+    )
+
+    pipeline_name = models.CharField(
+        verbose_name="Название воронки",
+        max_length=255,
+    )
+
+    amo_id = models.BigIntegerField(
+        verbose_name="Идентификатор этапа в системе Amo",
+        db_index=True,
+    )
+
+    name = models.CharField(
+        verbose_name="Название этапа",
+        max_length=255,
+    )
+
+    class Meta:
+        verbose_name = "Этап Amo-воронки"
+        verbose_name_plural = "Этапы Amo-воронок"
+
+        unique_together = ["account", "pipeline_id", "amo_id"]
+
+    def __str__(self):
+        return f"{self.pipeline_name} -> {self.name}"
+
+
 class AmoChatBot(chat_bot.models.AIChatBotBase):
     account = models.ForeignKey(
         verbose_name="Amo-аккаунт",
@@ -113,6 +150,19 @@ class AmoChatBot(chat_bot.models.AIChatBotBase):
     name = models.CharField(
         verbose_name="Имя бота",
         max_length=255,
+        blank=True,
+    )
+
+    new_status_when_qualification = models.ForeignKey(
+        verbose_name="Этап воронки при достижении квалификации",
+        to="AmoPipelineStatus",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+    )
+
+    message_when_qualification = models.TextField(
+        verbose_name="Сообщение при достижении квалификации",
         blank=True,
     )
 
@@ -187,6 +237,29 @@ class AmoChatBot(chat_bot.models.AIChatBotBase):
         return f"{self.name} ({self.pk})"
 
 
+class AmoPipelineStatusChatbotLink(models.Model):
+    chatbot = models.ForeignKey(
+        verbose_name="Чат-бот",
+        to=AmoChatBot,
+        on_delete=models.CASCADE,
+    )
+
+    status = models.OneToOneField(
+        verbose_name="Этап воронки",
+        to=AmoPipelineStatus,
+        on_delete=models.CASCADE,
+    )
+
+    check_qualification = models.BooleanField(
+        verbose_name="Проверять квалификацию",
+        default=False,
+    )
+
+    class Meta:
+        verbose_name = "Связь бот-воронка"
+        verbose_name_plural = "Связи бот-воронка"
+
+
 class AmoOrigin(models.Model):
     amo_id = models.CharField(
         verbose_name="Идентификатор в системе Amo",
@@ -253,58 +326,14 @@ class FillableField(models.Model):
         verbose_name="Описание для промпта",
     )
 
-    required = models.BooleanField(
-        verbose_name="Обязательное",
+    required_for_qualification = models.BooleanField(
+        verbose_name="Нужно для квалификации",
+        default=False,
     )
 
     class Meta:
         verbose_name = "Заполняемое поле"
         verbose_name_plural = "Заполняемые поля"
-
-
-class AmoPipelineStatus(models.Model):
-    account = models.ForeignKey(
-        verbose_name="Amo-аккаунт",
-        to=AmoAccount,
-        on_delete=models.CASCADE,
-    )
-
-    pipeline_id = models.BigIntegerField(
-        verbose_name="Идентификатор воронки в системе Amo",
-        db_index=True,
-    )
-
-    pipeline_name = models.CharField(
-        verbose_name="Название воронки",
-        max_length=255,
-    )
-
-    amo_id = models.BigIntegerField(
-        verbose_name="Идентификатор этапа в системе Amo",
-        db_index=True,
-    )
-
-    name = models.CharField(
-        verbose_name="Название этапа",
-        max_length=255,
-    )
-
-    chat_bot = models.ForeignKey(
-        verbose_name="Чат-бот обработчик сделок",
-        to=AmoChatBot,
-        on_delete=models.SET_NULL,
-        null=True,
-        blank=True,
-    )
-
-    class Meta:
-        verbose_name = "Этап Amo-воронки"
-        verbose_name_plural = "Этапы Amo-воронок"
-
-        unique_together = ["account", "pipeline_id", "amo_id"]
-
-    def __str__(self):
-        return f"{self.pipeline_name} -> {self.name}"
 
 
 class AmoTalkLeadLink(models.Model):

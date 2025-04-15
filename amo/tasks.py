@@ -10,6 +10,7 @@ from amo.utils import amo_leads
 from amo.utils import amo_messages
 from amo.utils import amo_pipelines
 from amo.utils import amo_reports
+from amo.utils import qulification
 from utils.logging import TraceLogger
 
 
@@ -124,14 +125,6 @@ def handle_ai_answer(ai_answer_serializable: dict, messages_serializable: list[d
             tlogger.info("Stop handling. Can't go to answer sending")
             return
 
-        amo_api.send_message(
-            account_id=task.account.pk,
-            chat_id=task.chat_id,
-            text=ai_answer.payload.answer,
-            tlogger=tlogger,
-        )
-        tlogger.info("Message was sent successfully")
-
         if ai_answer.payload.lead_info:
             amo_entities.update_entity_fields(
                 domain=task.account.domain,
@@ -154,13 +147,34 @@ def handle_ai_answer(ai_answer_serializable: dict, messages_serializable: list[d
         else:
             tlogger.info("Contact info wasn't recognized by AI")
 
-        if ai_answer.payload.new_status:
-            lead = amo_api.get_lead(
-                domain=task.account.domain,
-                lead_id=task.lead_id,
-                tlogger=tlogger,
-            )
+        lead = amo_api.get_lead(
+            domain=task.account.domain,
+            lead_id=task.lead_id,
+            tlogger=tlogger,
+        )
 
+        assert task.chatbot is not None
+        status_changed_on_qualification = qulification.change_status_if_qualification(
+            chatbot=task.chatbot,
+            lead=lead,
+            contact_id=int(task.contact_id),
+            domain=task.account.domain,
+            tlogger=tlogger,
+        )
+
+        message = ai_answer.payload.answer
+        if status_changed_on_qualification and task.chatbot.message_when_qualification:
+            message = task.chatbot.message_when_qualification
+
+        amo_api.send_message(
+            account_id=task.account.pk,
+            chat_id=task.chat_id,
+            text=message,
+            tlogger=tlogger,
+        )
+        tlogger.info("Message was sent successfully")
+
+        if not status_changed_on_qualification and ai_answer.payload.new_status:
             status = amo_pipelines.get_status_by_name(
                 domain=task.account.domain,
                 pipeline_id=lead.pipeline_id,

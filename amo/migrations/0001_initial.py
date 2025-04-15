@@ -82,7 +82,7 @@ class Migration(migrations.Migration):
                 ('name', models.CharField(max_length=255, verbose_name='Название')),
                 ('entity', models.CharField(choices=[('CONTACT', 'Контакт'), ('LEAD', 'Сделка')], verbose_name='К чему относится')),
                 ('description', models.TextField(verbose_name='Описание для промпта')),
-                ('required', models.BooleanField(verbose_name='Обязательное')),
+                ('required', models.BooleanField(verbose_name='Обязательное', default=False)),
                 ('chatbot', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, to='amo.amochatbot', verbose_name='Чат-бот заполнитель поля')),
             ],
             options={

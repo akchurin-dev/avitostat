@@ -1,0 +1,29 @@
+{% extends "admin/change_form.html" %}
+
+{% block after_field_sets %}
+<input type="submit" value="Синхронизировать" id="syncronize-amo-account"></input>
+
+<script>
+    document.getElementById('syncronize-amo-account').addEventListener('click', function(e) {
+      e.preventDefault(); // Отменяем стандартное поведение формы
+      
+      fetch('/amo/sync-account/{{ object_id }}', {
+        method: 'PATCH',
+        credentials: 'omit',
+      })
+      .then(response => {
+        if (response.ok) {
+            console.log('Успех');
+            alert('Синхронизация выполнена!');
+        } else {
+            console.log('Ошибка:', response.contet);
+            alert('Ошибка синхронизации!');
+        }
+      })
+      .catch((error) => {
+        console.error('Ошибка:', error);
+        alert('Ошибка синхронизации!');
+      });
+    });
+    </script>
+{% endblock %}

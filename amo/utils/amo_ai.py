@@ -220,7 +220,6 @@ def _add_fields_prompt(prompt: str, fields: list[amo.models.FillableField]) -> s
         new_articles.append("\n".join([
             "Поле: " + field.name,
             "Описание: " + field.description,
-            f"Поле обязательное: {field.required}",
         ]))
 
     new_text = "\n\n".join(new_articles)
