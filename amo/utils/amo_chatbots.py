@@ -6,7 +6,7 @@ from utils.logging import TraceLogger
 
 
 def define_chatbot(account_id: int, lead_id: int, origin: str, *, tlogger: TraceLogger) -> amo.models.AmoChatBot | None:
-    chatbots = amo.models.AmoChatBot.get_available_chat_bots()
+    chatbots = amo.models.AmoChatBot.get_available_chatbots()
     chatbot = get_by_pipeline_status(chatbots, account_id, lead_id, tlogger=tlogger)
 
     if chatbot is None:

@@ -5,6 +5,7 @@ from amo.utils import amo_api
 from amo.utils import amo_chatbottasks
 import chat_bot.models
 from chatbottasks import chatbottasks
+from utils import miscellaneous
 
 
 class AmoAccount(models.Model):
@@ -153,6 +154,11 @@ class AmoChatBot(chat_bot.models.AIChatBotBase):
         blank=True,
     )
 
+    change_status_only_when_qualification = models.BooleanField(
+        verbose_name="Менять статус только при достижении квалификации",
+        default=True,
+    )
+
     new_status_when_qualification = models.ForeignKey(
         verbose_name="Этап воронки при достижении квалификации",
         to="AmoPipelineStatus",
@@ -196,9 +202,42 @@ class AmoChatBot(chat_bot.models.AIChatBotBase):
         blank=True,
     )
 
+    work_on_mon = models.BooleanField("Работает в пн", default=True)
+    work_on_tue = models.BooleanField("Работает во вт", default=True)
+    work_on_wed = models.BooleanField("Работает в ср", default=True)
+    work_on_thu = models.BooleanField("Работает в чт", default=True)
+    work_on_fri = models.BooleanField("Работает в пт", default=True)
+    work_on_sat = models.BooleanField("Работает в сб", default=True)
+    work_on_sun = models.BooleanField("Работает в вскр", default=True)
+
     class Meta:
         verbose_name = "Amo чат-бот"
         verbose_name_plural = "Amo чат-боты"
+
+    @classmethod
+    def get_available_chatbots(cls):
+        day_of_week = miscellaneous.datetime_now_with_tz(utc_offset_hours=3).weekday()
+
+        if day_of_week == 0:
+            field = "work_on_mon"
+        elif day_of_week == 1:
+            field = "work_on_tue"
+        elif day_of_week == 2:
+            field = "work_on_wed"
+        elif day_of_week == 3:
+            field = "work_on_thu"
+        elif day_of_week == 4:
+            field = "work_on_fri"
+        elif day_of_week == 5:
+            field = "work_on_sat"
+        elif day_of_week == 6:
+            field = "work_on_sun"
+        else:
+            raise Exception("Unreacheble")
+
+        kwargs = {field: True}
+
+        return super().get_available_chatbots().filter(**kwargs)
 
     def save(self, *args, **kwargs) -> None:
         super().save(*args, **kwargs)

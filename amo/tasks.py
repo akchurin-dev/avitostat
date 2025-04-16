@@ -174,7 +174,11 @@ def handle_ai_answer(ai_answer_serializable: dict, messages_serializable: list[d
         )
         tlogger.info("Message was sent successfully")
 
-        if not status_changed_on_qualification and ai_answer.payload.new_status:
+        if (
+            ai_answer.payload.new_status
+            and not status_changed_on_qualification
+            and not task.chatbot.change_status_only_when_qualification
+        ):
             status = amo_pipelines.get_status_by_name(
                 domain=task.account.domain,
                 pipeline_id=lead.pipeline_id,

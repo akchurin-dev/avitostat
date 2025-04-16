@@ -57,7 +57,11 @@ def generate_answer(
 
     prompt = _get_prompt(chatbot, fillable_fields, available_pipeline_statuses, current_status)
     dialog_str = _dialog_to_str(messages)
-    schema = _get_answer_schema(fillable_fields, available_pipeline_statuses)
+    schema = _get_answer_schema(
+        fields=fillable_fields,
+        available_pipeline_statuses=available_pipeline_statuses,
+        field_for_new_status=not chatbot.change_status_only_when_qualification,
+    )
 
     response = client.responses.create(
         model=MODEL,
@@ -86,44 +90,49 @@ def generate_answer(
 def _get_answer_schema(
     fields: list[amo.models.FillableField],
     available_pipeline_statuses: list[amo_api.PipelineStatus],
+    field_for_new_status: bool,
 ) -> dict:
 
     lead_fields = [field for field in fields if field.entity == amo.models.AmoEntity.LEAD.value]
     contact_fields = [field for field in fields if field.entity == amo.models.AmoEntity.CONTACT.value]
 
+    properties = {
+        "answer": {"type": "string"},
+        "contacts": {
+            "type": ["object", "null"],
+            "properties": {
+                field.name: {
+                    "type": ["string", "null"],
+                    "description": field.description,
+                } for field in contact_fields
+            },
+            "required": [field.name for field in contact_fields],
+            "additionalProperties": False,
+        },
+        "lead_info": {
+            "type": ["object", "null"],
+            "properties": {
+                field.name: {
+                    "type": ["string", "null"],
+                    "description": field.description,
+                } for field in lead_fields
+            },
+            "required": [field.name for field in lead_fields],
+            "additionalProperties": False,
+        },
+    }
+
+    if field_for_new_status:
+        properties["new_status"] = {
+            "type": ["string", "null"],
+            "description": "Новый этап сделки. Если сделка не меняет этап, то null",
+            "enum": [status.name for status in available_pipeline_statuses],
+        }
+
     schema = {
         "type": "object",
-        "properties": {
-            "answer": {"type": "string"},
-            "contacts": {
-                "type": ["object", "null"],
-                "properties": {
-                    field.name: {
-                        "type": ["string", "null"],
-                        "description": field.description,
-                    } for field in contact_fields
-                },
-                "required": [field.name for field in contact_fields],
-                "additionalProperties": False,
-            },
-            "lead_info": {
-                "type": ["object", "null"],
-                "properties": {
-                    field.name: {
-                        "type": ["string", "null"],
-                        "description": field.description,
-                    } for field in lead_fields
-                },
-                "required": [field.name for field in lead_fields],
-                "additionalProperties": False,
-            },
-            "new_status": {
-                "type": ["string", "null"],
-                "description": "Новый этап сделки. Если сделка не меняет этап, то null",
-                "enum": [status.name for status in available_pipeline_statuses],
-            },
-        },
-        "required": ["answer", "contacts", "lead_info", "new_status"],
+        "properties": properties,
+        "required": list(properties.keys()),
         "additionalProperties": False,
     }
 
@@ -149,13 +158,15 @@ def _get_prompt(
 
     prompt = ""
     prompt = _add_chatbot_prompt(prompt, chatbot)
-    prompt = _add_pipelines_prompt(
-        prompt=prompt,
-        pipeline_status_update_rules=chatbot.pipeline_status_update_rules,
-        available_pipeline_statuses=available_pipeline_statuses,
-        current_status=current_status,
-    )
     prompt = _add_fields_prompt(prompt, fields)
+
+    if chatbot.change_status_only_when_qualification:
+        prompt = _add_pipelines_prompt(
+            prompt=prompt,
+            pipeline_status_update_rules=chatbot.pipeline_status_update_rules,
+            available_pipeline_statuses=available_pipeline_statuses,
+            current_status=current_status,
+        )
 
     return prompt
 

@@ -41,7 +41,7 @@ services:
       - custom
     env_file: ".env"
     volumes:
-      - .:/var/www/avitostat
+      - .:/avitostat
 
 networks:
   custom:

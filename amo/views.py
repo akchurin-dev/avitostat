@@ -58,22 +58,29 @@ def oauth_callback(request: Request) -> HttpResponse:
 
 @api_view(["POST"])
 def webhook_inbox(request: Request) -> Response:
+    tlogger = logging.TraceLogger()
+
     if not isinstance(request.data, dict):
         raise Exception()
 
-    account_id: int = int(request.data["account[id]"])
-    entity_type = request.data["message[add][0][entity_type]"]
-    lead_id: int | None = int(request.data["message[add][0][entity_id]"]) if entity_type == "lead" else None
-    contact_id = request.data["message[add][0][contact_id]"]
-    origin = request.data["message[add][0][origin]"]
-    chat_id: str = request.data["message[add][0][chat_id]"]
-    talk_id: int = int(request.data["message[add][0][talk_id]"])
-    message_id: str = request.data["message[add][0][id]"]
-    message_created_at: datetime.datetime = datetime.datetime.fromtimestamp(
-        timestamp=int(request.data["message[add][0][created_at]"]),
-        tz=datetime.timezone.utc,
-    )
-    text: str = request.data["message[add][0][text]"]
+    try:
+        account_id: int = int(request.data["account[id]"])
+        entity_type = request.data["message[add][0][entity_type]"]
+        lead_id: int | None = int(request.data["message[add][0][entity_id]"]) if entity_type == "lead" else None
+        contact_id = request.data["message[add][0][contact_id]"]
+        origin = request.data["message[add][0][origin]"]
+        chat_id: str = request.data["message[add][0][chat_id]"]
+        talk_id: int = int(request.data["message[add][0][talk_id]"])
+        message_id: str = request.data["message[add][0][id]"]
+        message_created_at: datetime.datetime = datetime.datetime.fromtimestamp(
+            timestamp=int(request.data["message[add][0][created_at]"]),
+            tz=datetime.timezone.utc,
+        )
+        text: str = request.data["message[add][0][text]"]
+    except:
+        tlogger.info("Error when parse request data, request data =")
+        tlogger.info(request.data)
+        raise
 
     message_handling.launch_handler(
         account_id=account_id,

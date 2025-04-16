@@ -1,5 +1,3 @@
-import datetime
-
 from asgiref.sync import async_to_sync
 from django.db import models
 from django.db.models import F
@@ -10,6 +8,7 @@ from django.core.validators import MinValueValidator, MaxValueValidator
 from avito_account.models.models import AvitoAccount, moscow_time
 from base.settings import ENVIRONMENT
 from chat_bot.api.subscriptions import subscribe_to_messages, stop_subscribe_to_messages
+from utils import miscellaneous
 
 
 class AIChatBotBase(models.Model):
@@ -29,9 +28,8 @@ class AIChatBotBase(models.Model):
         abstract = True
 
     @classmethod
-    def get_available_chat_bots(cls):
-        msk_tz = datetime.timezone(datetime.timedelta(hours=3))
-        msk_time_now = datetime.datetime.now(msk_tz).time()
+    def get_available_chatbots(cls):
+        msk_time_now = miscellaneous.datetime_now_with_tz(utc_offset_hours=3).time()
 
         return cls.objects.filter(
             Q(
