@@ -93,6 +93,7 @@ def launch_handler(
     tlogger.info(f"Task ({task.pk}) created successfully")
 
     wait_sec = chatbot.waiting_minutes * 60
+    wait_sec /= 60 # TODO only while amo is being tested
 
     if settings.ENVIRONMENT == "DEVELOPMENT":
         wait_sec = 5
