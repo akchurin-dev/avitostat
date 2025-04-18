@@ -5,9 +5,16 @@ from amo.utils import amo_api
 from utils.logging import TraceLogger
 
 
-def define_chatbot(account_id: int, lead_id: int, origin: str, *, tlogger: TraceLogger) -> amo.models.AmoChatBot | None:
+def define_chatbot(
+    account: amo.models.AmoAccount,
+    lead: amo_api.Lead,
+    origin: str,
+    *,
+    tlogger: TraceLogger,
+) -> amo.models.AmoChatBot | None:
+
     chatbots = amo.models.AmoChatBot.get_available_chatbots()
-    chatbot = get_by_pipeline_status(chatbots, account_id, lead_id, tlogger=tlogger)
+    chatbot = get_by_pipeline_status(chatbots, account, lead, tlogger=tlogger)
 
     if chatbot is None:
         tlogger.info("Chatbot not found")
@@ -20,9 +27,14 @@ def define_chatbot(account_id: int, lead_id: int, origin: str, *, tlogger: Trace
     return chatbot
 
 
-def get_by_pipeline_status(chatbots: QuerySet, account_id: int, lead_id: int, *, tlogger: TraceLogger) -> amo.models.AmoChatBot | None:
-    account = amo.models.AmoAccount.objects.get(pk=account_id)
-    lead = amo_api.get_lead(account.domain, lead_id, tlogger=tlogger)
+def get_by_pipeline_status(
+    chatbots: QuerySet,
+    account: amo.models.AmoAccount,
+    lead: amo_api.Lead,
+    *,
+    tlogger: TraceLogger,
+) -> amo.models.AmoChatBot | None:
+
     status_bot_link = amo.models.AmoPipelineStatusChatbotLink.objects.filter(
         status__account=account,
         status__amo_id=lead.status_id,

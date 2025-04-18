@@ -65,9 +65,7 @@ def webhook_inbox(request: Request) -> Response:
 
     try:
         account_id: int = int(request.data["account[id]"])
-        entity_type = request.data["message[add][0][entity_type]"]
-        lead_id: int | None = int(request.data["message[add][0][entity_id]"]) if entity_type == "lead" else None
-        contact_id = request.data["message[add][0][contact_id]"]
+        contact_id = int(request.data["message[add][0][contact_id]"])
         origin = request.data["message[add][0][origin]"]
         chat_id: str = request.data["message[add][0][chat_id]"]
         talk_id: int = int(request.data["message[add][0][talk_id]"])
@@ -84,7 +82,6 @@ def webhook_inbox(request: Request) -> Response:
 
     message_handling.launch_handler(
         account_id=account_id,
-        lead_id=lead_id,
         contact_id=contact_id,
         origin=origin,
         chat_id=chat_id,

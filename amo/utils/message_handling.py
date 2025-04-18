@@ -4,14 +4,14 @@ import amo.models
 import amo.tasks
 from amo.utils import amo_chatbots
 from amo.utils import amo_chatbottasks
+from amo.utils import amo_leads
 from base import settings
 from utils.logging import TraceLogger
 
 
 def launch_handler(
     account_id: int,
-    lead_id: int | None,
-    contact_id: str,
+    contact_id: int,
     origin: str,
     chat_id: str,
     talk_id: int,
@@ -24,10 +24,19 @@ def launch_handler(
 
     tlogger = TraceLogger(trace_id)
 
+    account = amo.models.AmoAccount.objects.get(pk=account_id)
+
+    lead = amo_leads.get_open_lead_by_contact(account.domain, contact_id, tlogger=tlogger)
+    if lead is None:
+        tlogger.info(f"Stop handling. Not found open leads for contact_id = {contact_id}")
+        return
+
     tlogger.info((
         "New message:\n"
-        f"account_id: {account_id}\n"
-        f"lead_id: {lead_id}\n"
+        f"domain: {account.domain}\n"
+        f"lead_id: {lead.id}\n"
+        f"pipeline_id: {lead.pipeline_id}\n"
+        f"status_id: {lead.status_id}\n"
         f"contact_id: {contact_id}\n"
         f"origin: {origin}\n"
         f"chat_id: {chat_id}\n"
@@ -37,17 +46,13 @@ def launch_handler(
         f"text: {text}"
     ))
 
-    if lead_id is None:
-        tlogger.info("Stop handling. lead_id is null")
-        return
-
     amo.models.AmoTalkLeadLink.objects.get_or_create(
         account_id=account_id,
         talk_id=talk_id,
-        lead_id=lead_id,
+        lead_id=lead.id,
     )
 
-    chatbot = amo_chatbots.define_chatbot(account_id, lead_id, origin, tlogger=tlogger)
+    chatbot = amo_chatbots.define_chatbot(account, lead, origin, tlogger=tlogger)
 
     if chatbot is None:
         tlogger.info("Stop handling. Available chat bots wasn't found")
@@ -61,8 +66,8 @@ def launch_handler(
         message_id=message_id,
         defaults={
             "chatbot": chatbot,
-            "lead_id": lead_id,
-            "contact_id": contact_id,
+            "lead_id": str(lead.id),
+            "contact_id": str(contact_id),
             "talk_id": talk_id,
             "message_created_at": message_created_at,
             "text": text,

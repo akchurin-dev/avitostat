@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from enum import Enum
 from typing import Any
+from typing import NamedTuple
 
 from pydantic import BaseModel
 from pydantic import ConfigDict
@@ -145,7 +146,7 @@ class Lead(BaseModel):
     pipeline_id: int
     status_id: int
     custom_fields_values: list[CustomFieldValue] | None
-    contacts_ids: list[int]
+    contacts_ids: list[int] | None = None
 
 
 def get_lead(domain: str, lead_id: int | str, *, tlogger: TraceLogger) -> Lead:
@@ -170,18 +171,30 @@ def get_lead(domain: str, lead_id: int | str, *, tlogger: TraceLogger) -> Lead:
     return Lead.model_validate(data)
 
 
-class Contact(BaseModel):
-    id: int
-    name: str
-    first_name: str
-    last_name: str
-    custom_fields_values: list[CustomFieldValue] | None
+def all_leads(domain: str, *, tlogger: TraceLogger):
+    page = 0
+
+    while True:
+        leads_page = get_leads_page(domain, page, tlogger=tlogger)
+
+        for lead in leads_page.leads:
+            yield lead
+
+        if leads_page.next_href is None:
+            return
+
+        page += 1
 
 
-def get_contact(domain: str, contact_id: int | str, *, tlogger: TraceLogger) -> Contact:
-    """ https://www.amocrm.ru/developers/content/crm_platform/contacts-api#contact-detail """
+class LeadsPage(NamedTuple):
+    leads: list[Lead]
+    next_href: str | None
 
-    action = f"/api/v4/contacts/{contact_id}"
+
+def get_leads_page(domain: str, page: int = 0, limit: int = 250, *, tlogger: TraceLogger) -> LeadsPage:
+    """ https://www.amocrm.ru/developers/content/crm_platform/leads-api#leads-list """
+
+    action = "/api/v4/leads"
 
     response = _request_with_token(
         method="GET",
@@ -190,8 +203,53 @@ def get_contact(domain: str, contact_id: int | str, *, tlogger: TraceLogger) -> 
         tlogger=tlogger,
     )
     response.raise_for_status()
+    data= response.json()
 
-    return Contact.model_validate(response.json())
+    leads = [Lead.model_validate(lead) for lead in data["_embedded"]["leads"]]
+
+    next = data["_links"].get("next")
+    next_href = None
+    if next:
+        next_href = next.get("href")
+
+    return LeadsPage(leads, next_href)
+
+
+class Contact(BaseModel):
+    id: int
+    name: str
+    first_name: str
+    last_name: str
+    lead_ids: list[int] | None = None
+    custom_fields_values: list[CustomFieldValue] | None
+
+
+def get_contact(domain: str, contact_id: int | str, with_leads: bool = False, *, tlogger: TraceLogger) -> Contact:
+    """ https://www.amocrm.ru/developers/content/crm_platform/contacts-api#contact-detail """
+
+    action = f"/api/v4/contacts/{contact_id}"
+
+    params = None
+    if with_leads:
+        params = {
+            "with": EntityEnum.LEADS.value
+        }
+
+    response = _request_with_token(
+        method="GET",
+        domain=domain,
+        action=action,
+        params=params,
+        tlogger=tlogger,
+    )
+    response.raise_for_status()
+
+    contact_json = response.json()
+
+    if with_leads:
+        contact_json["lead_ids"] = [lead["id"] for lead in contact_json["_embedded"]["leads"]]
+
+    return Contact.model_validate(contact_json)
 
 
 class PipelineStatus(BaseModel):
