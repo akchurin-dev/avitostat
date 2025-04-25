@@ -60,6 +60,10 @@ DB_USER = os.getenv('DB_USER')
 DB_PASS = os.getenv('DB_PASS')
 DB_NAME = os.getenv('DB_NAME')
 
+REDIS_HOST = os.getenv('REDIS_HOST')
+REDIS_PORT = os.getenv('REDIS_PORT')
+REDIS_BASE_URL = f"redis://{REDIS_HOST}:{REDIS_PORT}"
+
 # SECURITY WARNING: don't run with debug turned on in production!
 ALLOWED_HOSTS = [
     "localhost", "127.0.0.1", "www.avitostata.ru", "avitostata.ru", "45.12.238.229",
@@ -214,19 +218,19 @@ CSRF_COOKIE_SECURE = True
 
 if ENVIRONMENT == 'PRODUCTION':
     TELEGRAM_BOT = {
-        'REDIS_URL': "redis://redis:6379/0",
+        'REDIS_URL': REDIS_BASE_URL + "/0",
         'TOKEN': TELEGRAM_BOT_TOKEN_PROD
     }
 else:
     TELEGRAM_BOT = {
-        'REDIS_URL': "redis://redis:6379/0",
+        'REDIS_URL': REDIS_BASE_URL + "/0",
         'TOKEN': TELEGRAM_BOT_TOKEN
     }
 
 # TODO CELERY settings
 # Добавляем настройки для Celery
-CELERY_BROKER_URL = 'redis://localhost:6379/0'
-CELERY_RESULT_BACKEND = 'redis://localhost:6379/1'
+CELERY_BROKER_URL = REDIS_BASE_URL + "/0"
+CELERY_RESULT_BACKEND = REDIS_BASE_URL + "/1"
 CELERY_ACCEPT_CONTENT = ['json']
 CELERY_TASK_SERIALIZER = 'json'
 CELERY_RESULT_SERIALIZER = 'json'

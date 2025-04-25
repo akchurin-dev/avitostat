@@ -4,11 +4,44 @@ from django.db.models import F
 from django.db.models import Q
 from django.contrib.auth.models import User
 from django.core.validators import MinValueValidator, MaxValueValidator
+from slugify import slugify
 
 from avito_account.models.models import AvitoAccount, moscow_time
 from base.settings import ENVIRONMENT
 from chat_bot.api.subscriptions import subscribe_to_messages, stop_subscribe_to_messages
 from utils import miscellaneous
+
+
+class CompanyBranch(models.Model):
+    account = models.ForeignKey(
+        verbose_name="Компания",
+        to=AvitoAccount,
+        on_delete=models.PROTECT,
+    )
+
+    location = models.CharField(
+        verbose_name="Населенный пункт",
+        max_length=255,
+    )
+
+    location_slug = models.CharField(
+        verbose_name="Код населенного пункта",
+        max_length=255,
+        db_index=True,
+    )
+
+    telegram_id = models.CharField(
+        verbose_name="telegram id",
+        max_length=31,
+    )
+
+    class Meta:
+        verbose_name = "Филиал"
+        verbose_name_plural = "Филиалы"
+
+    def save(self, *args, **kwargs):
+        self.location_slug = slugify(self.location, separator="_").upper()
+        super().save(*args, **kwargs)
 
 
 class AIChatBotBase(models.Model):
@@ -153,6 +186,7 @@ class AIResultContainer(models.Model):
 class ChatBotTask(AIResultContainer, ClientContactsContainer):
     # Core fields
     avito_account = models.ForeignKey(AvitoAccount, on_delete=models.CASCADE)
+    company_branch = models.ForeignKey(CompanyBranch, on_delete=models.SET_NULL, null=True, blank=True)
     is_incoming = models.BooleanField(default=True, verbose_name="Входящее сообщение")
     chat_id = models.CharField()
     message_id = models.CharField(primary_key=True, unique=True)

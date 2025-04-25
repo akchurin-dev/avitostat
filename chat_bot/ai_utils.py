@@ -1,3 +1,5 @@
+from enum import Enum
+
 from asgiref.sync import  async_to_sync
 import httpx
 from openai import OpenAI
@@ -5,7 +7,7 @@ from pydantic import BaseModel
 
 from avito_account.models.models import AvitoAccount
 from base import settings
-from chat_bot.models import AiChatBot
+from chat_bot.models import AiChatBot, CompanyBranch
 from messaging.api import get_chats_last_50_messages
 from utils.logging import TraceLogger
 
@@ -20,6 +22,7 @@ class ChatBotAnswerSchema(BaseModel):
     whatsapp: str | None
     telegram: str | None
     email: str | None
+    nearest_company_branch: Enum | None
 
 
 def contacts_data_prepare(data: ChatBotAnswerSchema) -> dict | None:
@@ -60,6 +63,7 @@ class AIAnswerContacts(BaseModel):
 
 class AIAnswerWithContacts(BaseModel):
     answer: str
+    nearest_company_branch: str | None
     contacts: AIAnswerContacts | None = None
     tokens_completion: int
     tokens_prompt: int
@@ -101,18 +105,41 @@ def ai_answer_with_contacts(ai_assistant: AiChatBot, chat: list, ):
         response = client.beta.chat.completions.parse(
             model=MODEL,
             messages=messages,
-            response_format=ChatBotAnswerSchema,
+            response_format=_get_schema(ai_assistant.avito_account),
             max_tokens=2000,
         )
         data = response.choices[0].message.parsed
         if data is not None:
             result['answer'] = data.answer
+
+            result['nearest_company_branch'] = None
+            if data.nearest_company_branch:
+                result['nearest_company_branch'] = data.nearest_company_branch.name
+
             result['contacts'] = contacts_data_prepare(data)
-            result['tokens_completion'] = response.usage.completion_tokens
-            result['tokens_prompt'] = response.usage.prompt_tokens
+
+            result['tokens_completion'] = None
+            result['tokens_prompt'] = None
+
+            if response.usage:
+                result['tokens_completion'] = response.usage.completion_tokens
+                result['tokens_prompt'] = response.usage.prompt_tokens
+
             return result
     except:
         raise
+
+
+def _get_schema(avito_account: AvitoAccount) -> type[ChatBotAnswerSchema]:
+    company_branches = CompanyBranch.objects.filter(account=avito_account)
+    locations = {cb.location_slug: cb.location for cb in company_branches}
+
+    LocationEnum = Enum("LocationEnum", locations)
+
+    class Schema(ChatBotAnswerSchema):
+        nearest_company_branch: LocationEnum | None
+
+    return Schema
 
 
 class ChatSummarySchema(BaseModel):

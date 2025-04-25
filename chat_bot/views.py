@@ -13,6 +13,7 @@ import pytz
 
 from avito_account.models.models import AvitoAccount
 from base.settings import ENVIRONMENT
+from chat_bot import ai_utils
 from chat_bot.api.core import AvitoMessengerSync
 from chat_bot.avito_aichatbottasks import get_object_id
 from chat_bot.tasks import BotStatisticsDailyReportClass, ChatBotSummaryReportClass, PdfReportBaseClass, \
@@ -36,8 +37,8 @@ class WebhookInboxViewClass(View):
         user_id: int
         text: str
         incoming_msg: bool
-        avito_account: AvitoAccount
-        chat_bot: AiChatBot
+        avito_account: AvitoAccount | None
+        chat_bot: AiChatBot | None
         is_time_to_work: bool
         bot_stopped_for_chat: bool
 
@@ -53,12 +54,19 @@ class WebhookInboxViewClass(View):
         incoming_mgs = author_id != user_id
 
         #Objects
-        avito_account = AvitoAccount.objects.get(id=user_id)
-        chat_bot = AiChatBot.objects.get(avito_account=avito_account)
+        avito_account = AvitoAccount.objects.filter(id=user_id).first()
+
+        chat_bot = None
+        if avito_account:
+            chat_bot = AiChatBot.objects.filter(avito_account=avito_account).first()
 
         # Service data
-        is_time_to_work = WebhookInboxViewClass.check_chat_bot_scheduler(chat_bot)
-        bot_stopped_for_chat = WebhookInboxViewClass.chat_shutdown_check(chat_id, chat_bot, tlogger=tlogger)
+        is_time_to_work = True
+        bot_stopped_for_chat = True
+
+        if chat_bot:
+            is_time_to_work = WebhookInboxViewClass.check_chat_bot_scheduler(chat_bot)
+            bot_stopped_for_chat = WebhookInboxViewClass.chat_shutdown_check(chat_id, chat_bot, tlogger=tlogger)
 
         return WebhookInboxViewClass.MessageData(
             chat_id=chat_id,
@@ -87,7 +95,7 @@ class WebhookInboxViewClass(View):
         return start <= now <= stop
 
     @staticmethod
-    def chat_shutdown_check(chat_id, chat_bot, *, tlogger: TraceLogger) -> bool:
+    def chat_shutdown_check(chat_id, chat_bot: AiChatBot, *, tlogger: TraceLogger) -> bool:
         chat_stopped = ChatBotTask.objects.filter(chat_id=chat_id, chat_shutdown_by_user=True,).exists()
         stopped = chat_stopped and chat_bot.shutdown_after_manager
         if stopped:
@@ -174,22 +182,14 @@ class WebhookInboxViewClass(View):
             tlogger.info(f"Stop handling. Message (id={message_id}) is not actual")
             return
 
-        ai_answer = AiAnswerAvitoClass.chat_contacts_checker_task(
-            avito_account_id=avito_account.pk,
-            chat=messages,
-            trace_id=tlogger.trace_id,
-        )
+        ai_answer = ai_utils.ai_answer_with_contacts_typed(chat_bot, messages)
         AiAnswerAvitoClass.task_contacts_save(message_id, ai_answer, is_incoming=False)
 
-        contacts = None
-        if ai_answer:
-            contacts = ai_answer.get("contacts")
-
-        if contacts:
-            tlogger.info(f"Contacts found - {contacts}")
+        if ai_answer.contacts:
+            tlogger.info(f"Contacts found - {ai_answer.contacts.model_dump()}")
             ChatBotSummaryReportClass.summary_sender_main_task(avito_account.pk, chat_id, trace_id=tlogger.trace_id)
         else:
-            tlogger.info(F"Contacts is empty, got {contacts}")
+            tlogger.info(F"Contacts is empty, got {ai_answer.model_dump()}")
 
         # Логика остановки бота если человек вмешался в разговор
         if chat_bot.shutdown_after_manager:
@@ -204,6 +204,15 @@ class WebhookInboxViewClass(View):
         tlogger = TraceLogger(trace_id)
         
         data = WebhookInboxViewClass.message_data(request_data, tlogger=tlogger)
+
+        if data.avito_account is None:
+            tlogger.info(f"Stop handling. AvitoAccount (id={data.user_id}) isn't found")
+            return
+
+        if data.chat_bot is None:
+            tlogger.info(f"Stop handling. Chatbot linked with AvitoAccount {data.avito_account} isn't found")
+            return
+
         if ENVIRONMENT != "PRODUCTION":
             async_to_sync(data.avito_account.update_refresh_token_async)()
 

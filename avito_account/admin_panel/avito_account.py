@@ -11,7 +11,7 @@ from avito_account.models.models import AnalyticSchema, WorkSchedule
 import logging
 
 from base import settings
-from chat_bot.models import AiChatBot
+from chat_bot.models import AiChatBot, CompanyBranch
 
 logger = logging.getLogger(__name__)
 
@@ -44,10 +44,16 @@ class WorkScheduleInline(admin.StackedInline):
     extra = 0
 
 
+class CompanyBranchInline(admin.TabularInline):
+    model = CompanyBranch
+    readonly_fields = ["location_slug"]
+    extra = 0
+
+
 class AvitoAccountAdmin(admin.ModelAdmin):
     list_display = ('name', 'telegram_id', 'phone', 'created_by')
     readonly_fields = ('id',)
-    inlines = [WorkScheduleInline, ExcludedItemInline, AiChatBotInline]
+    inlines = [WorkScheduleInline, ExcludedItemInline, AiChatBotInline, CompanyBranchInline]
     actions = [celery_pdf_month_for_api_report,
                run_txt_all_test_from_prod_report,
                run_pdf_all_test_from_prod_report,

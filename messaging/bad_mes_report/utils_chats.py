@@ -16,25 +16,23 @@ async def filter_chats_for_last_period(chats: list, period: str = "week") -> lis
     filtered_chats = []
     now = datetime.datetime.now()
 
-    if len(chats) > 0:
-        for chat in chats:
-            updated = datetime.datetime.fromtimestamp(chat.get('updated'))
-            timedelta = now - updated
+    period_to_days = {
+        "day": 1,
+        "week": 7,
+        "month": 30
+    }
 
-            if period == "day":
-                if timedelta.days <= 1:
-                    filtered_chats.append(chat)
+    max_timedelta_days = period_to_days[period]
 
-            if period == "week":
-                if 7 >= timedelta.days >= 0:
-                    filtered_chats.append(chat)
+    for chat in chats:
+        updated = datetime.datetime.fromtimestamp(chat.get('updated'))
+        timedelta = now - updated
 
-            if period == "month":
-                if 30 >= timedelta.days >= 0:
-                    filtered_chats.append(chat)
+        if timedelta.days <= max_timedelta_days:
+            filtered_chats.append(chat)
 
-        logger.warning(f"{len(filtered_chats)} chats loaded")
-        return filtered_chats
+    logger.warning(f"{len(filtered_chats)} chats loaded")
+    return filtered_chats
 
 
 def adding_manager_info_for_chats(chats):

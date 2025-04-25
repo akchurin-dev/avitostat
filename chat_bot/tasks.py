@@ -6,18 +6,19 @@ from aiogram import types
 from aiogram.types import InputMediaDocument
 from asgiref.sync import async_to_sync
 from celery import shared_task
-from django.db.models import Q
+from django.db.models import Q, QuerySet
 from django.utils import timezone
 from jinja2 import Template
 import pdfkit
+from pydantic import BaseModel
 from telegram_bot import bot
 
 from avito_account.models.models import AvitoAccount
 from base.celery import celery_logger
 from base.settings import ENVIRONMENT
-from chat_bot.ai_utils import ai_answer_with_contacts, avito_chat_summary_ai_generator
+from chat_bot.ai_utils import ai_answer_with_contacts_typed, avito_chat_summary_ai_generator, AIAnswerWithContacts
 from chat_bot.api.core import AvitoMessengerSync
-from chat_bot.models import AiChatBot, ChatBotTask
+from chat_bot.models import AiChatBot, ChatBotTask, CompanyBranch
 from messaging.api import get_chats, MessagingAPISync
 from messaging.bad_mes_report.utils_chats import filter_chats_for_last_period, \
     filter_chats_only_with_text, filter_by_bot_answered_chat_ids
@@ -27,38 +28,31 @@ from utils.logging import TraceLogger
 
 class AiAnswerAvitoClass:
     @staticmethod
-    def task_contacts_save(new_task_id: str, ai_answer: dict | None, is_incoming: bool):
+    def task_contacts_save(new_task_id: str, ai_answer: AIAnswerWithContacts, is_incoming: bool):
         #Core fields
-        new_task = ChatBotTask.objects.filter(message_id=new_task_id).last()
+        new_task = ChatBotTask.objects.get(message_id=new_task_id)
         new_task.is_incoming = is_incoming
 
-        if ai_answer:
-            new_task.answer_text = ai_answer.get("answer", "Не предусмотрено")
-            new_task.tokens_completion = ai_answer.get("tokens_completion") if ai_answer.get("tokens_completion") is not None else 0
-            new_task.tokens_prompt = ai_answer.get("tokens_prompt") if ai_answer.get("tokens_prompt") is not None else 0
+        new_task.answer_text = ai_answer.answer
 
-            #Contact fields
-            contacts = ai_answer.get("contacts")
-            if contacts is not None:
-                new_task.city = contacts.get("city", None)
-                new_task.address = contacts.get("address", None)
-                new_task.mobile = contacts.get("mobile", None)
-                new_task.whatsapp = contacts.get("whatsapp", None)
-                new_task.telegram = contacts.get("telegram", None)
-                new_task.email = contacts.get("email", None)
+        new_task.company_branch = None
+        if ai_answer.nearest_company_branch:
+            new_task.company_branch = CompanyBranch.objects.filter(
+                account = new_task.avito_account,
+                location_slug=ai_answer.nearest_company_branch,
+            ).first()
+
+        new_task.tokens_completion = ai_answer.tokens_completion
+        new_task.tokens_prompt = ai_answer.tokens_prompt
+
+        if ai_answer.contacts:
+            new_task.address = ai_answer.contacts.address
+            new_task.mobile = ai_answer.contacts.mobile
+            new_task.whatsapp = ai_answer.contacts.whatsapp
+            new_task.telegram = ai_answer.contacts.telegram
+            new_task.email = ai_answer.contacts.email
 
         new_task.save()
-
-    @staticmethod
-    @shared_task
-    def chat_contacts_checker_task(avito_account_id: int, chat: list[dict], *, trace_id: str | None = None) -> dict | None:
-        tlogger = TraceLogger(trace_id)
-        tlogger.info(f"chat_contacts_checker_task STARTED")
-        
-        ai_assistant = AiChatBot.objects.get(avito_account_id=avito_account_id)
-        ai_answer = ai_answer_with_contacts(ai_assistant, chat=chat)
-
-        return ai_answer
 
     @staticmethod
     @shared_task
@@ -99,23 +93,16 @@ class AiAnswerAvitoClass:
             tlogger.info(f"Stop handling. Message (id={message_id}) is not actual")
             return
 
-        ai_answer = ai_answer_with_contacts(chat_bot, messages[:])
+        ai_answer = ai_answer_with_contacts_typed(chat_bot, messages)
+        ai_answer.answer += "..."
 
-        if not ai_answer:
-            tlogger.warning(f"Stop handling. AI answer is empty, got {ai_answer}")
-            return
-
-        if ai_answer.get("answer"):
-            ai_answer["answer"] += "…"
-
-        AvitoMessengerSync.send_message_to_avito(avito_account, avito_account.pk, chat_id, ai_answer["answer"])
+        AvitoMessengerSync.send_message_to_avito(avito_account, avito_account.pk, chat_id, ai_answer.answer)
         tlogger.info("Answer was sent to avito successfully")
         AiAnswerAvitoClass.task_contacts_save(new_task_id, ai_answer, is_incoming=True)
         tlogger.info("AIChatBotTask was updated successfully")
 
-        contacts = ai_answer.get("contacts")
-        if contacts:
-            tlogger.info(f"Contacts was found: {contacts}")
+        if ai_answer.contacts:
+            tlogger.info(f"Contacts was found: {ai_answer.contacts.model_dump()}")
             ChatBotSummaryReportClass.summary_sender_main_task(avito_account_id, chat_id, trace_id=tlogger.trace_id)
         else:
             tlogger.info("Contacts not found")
@@ -194,7 +181,18 @@ class PdfReportBaseClass:
                 except Exception as e:
                     pass
 
+
 class BotStatisticsDailyReportClass(PdfReportBaseClass):
+    class Statistic(BaseModel):
+        avito_account_id: int
+        avito_account_name: str | None
+        total_chats_count: int
+        bot_chats_count: int
+        contacts_count: int
+        chats: list  # Список структур возвращаемых по запросу api.avito.com/chat/<chat_id>/messages
+        bot_answered_mes_ids: list[int]
+        chats_with_contacts_ids: list[str]
+
     @staticmethod
     @shared_task
     def statistics_sender_main_task():
@@ -206,60 +204,87 @@ class BotStatisticsDailyReportClass(PdfReportBaseClass):
             try:
                 chat_bot_is_active_flag = hasattr(avito_account, "ai_chat_bots") and avito_account.ai_chat_bots.is_active
                 need_report_flag = hasattr(avito_account, "ai_chat_bots") and avito_account.ai_chat_bots.statistics_daily_report
-                if chat_bot_is_active_flag and need_report_flag:
-                    celery_logger.warning("processing")
-                    celery_logger.info(f"need_report_flag - {need_report_flag}")
-                    if ENVIRONMENT == "DEVELOPMENT":
-                        async_to_sync(avito_account.update_refresh_token_async)()
-                    BotStatisticsDailyReportClass.statistics_sender_small_task.delay(avito_account.id)
-                else:
+
+                if not chat_bot_is_active_flag or not need_report_flag:
                     celery_logger.warning(f"skipped avito_account - {avito_account.name}")
                     celery_logger.info(f"chat_bot_is_active_flag - {chat_bot_is_active_flag}")
                     celery_logger.info(f"need_report_flag - {need_report_flag}")
+                    continue
+
+                celery_logger.warning("processing")
+
+                if ENVIRONMENT == "DEVELOPMENT":
+                    async_to_sync(avito_account.update_refresh_token_async)()
+
+                BotStatisticsDailyReportClass.statistics_for_avito_account(avito_account.pk)
             except Exception as error:
                 celery_logger.exception(f"statistics_sender_main_task error - {error}", exc_info=True)
 
     @staticmethod
-    @shared_task
-    def statistics_sender_small_task(avito_account_id):
-        avito_account = AvitoAccount.objects.get(id=avito_account_id)
-        statistics = BotStatisticsDailyReportClass.get_raw_data(avito_account)
-        # TEXT MESSAGE
-        if statistics is not None and statistics.get("bot_chats_count") > 0: #
-            BotStatisticsDailyReportClass.statistics_txt_sender(str(avito_account.id), statistics)
-            # HISTORY PDFs
-            BotStatisticsDailyReportClass.history_main_sender(avito_account, statistics)
-        else:
-            celery_logger.info(f"BotStatisticsDailyReportClass not have Bot_chats for {avito_account.name}, skipped")
+    def statistics_for_avito_account(account_id: int):
+        company_branches: list[CompanyBranch | None] = [None]
+        company_branches.extend(CompanyBranch.objects.filter(account_id=account_id))
+
+        for company_branch in company_branches:
+            BotStatisticsDailyReportClass.statistics_for_company_branch.delay(account_id, company_branch)
 
     @staticmethod
-    def history_main_sender(avito_account: AvitoAccount, statistics: dict):
-        chats_with_contacts_ids = statistics.get("chats_with_contacts_ids", [])
+    @shared_task
+    def statistics_for_company_branch(avito_account_id: int, company_branch: CompanyBranch | None):
+        avito_account = AvitoAccount.objects.get(id=avito_account_id)
+        statistics = BotStatisticsDailyReportClass.get_raw_data(avito_account, company_branch)
+
+        if not statistics or statistics.bot_chats_count == 0:
+            celery_logger.info(f"BotStatisticsDailyReportClass not have Bot_chats for {avito_account.name}, skipped")
+            return
+
+        telegram_id = avito_account.telegram_id
+
+        if company_branch:
+            telegram_id = company_branch.telegram_id
+
+        if telegram_id is None:
+            return
+
+        BotStatisticsDailyReportClass.statistics_txt_sender(telegram_id, statistics)
+        BotStatisticsDailyReportClass.history_main_sender(avito_account, telegram_id, statistics)
+
+    @staticmethod
+    def history_main_sender(avito_account: AvitoAccount, telegram_id: str, statistics: Statistic):
+        chats_with_contacts_ids = statistics.chats_with_contacts_ids
         need_history_closed_flag = hasattr(avito_account,"ai_chat_bots") and avito_account.ai_chat_bots.histories_closed
         need_history_open_flag = hasattr(avito_account,"ai_chat_bots") and avito_account.ai_chat_bots.histories_open
 
-        chats = statistics.get("chats", [])
+        chats = statistics.chats
         have_closed_chats = len(chats_with_contacts_ids) > 0
         have_open_chats = (len(chats) - len(chats_with_contacts_ids)) > 0
 
         if need_history_closed_flag or need_history_open_flag:
-            chats = statistics.get("chats") or None
+            chats = statistics.chats or None
 
             if chats and have_closed_chats and need_history_closed_flag:
                 PdfReportBaseClass.text_sender_to_tg(f"✅ <b>История закрытых переписок"
                                                      f" ({len(chats_with_contacts_ids)} шт) :</b>",
-                                                     avito_account.telegram_id)
+                                                     telegram_id)
                 for chat in chats:
                     if chat.get("id") in chats_with_contacts_ids:  # ДУМАЮ МОЖНО УБРАТЬ, НО НАДО ПРОВЕРЯТЬ
-                        ChatHistoryReportClass.history_pdf_sender_task(avito_account_id=avito_account.id, chat=chat)
+                        ChatHistoryReportClass.history_pdf_sender_task(
+                            avito_account_id=avito_account.pk,
+                            chat=chat,
+                            telegram_id=telegram_id,
+                        )
 
             if chats and have_open_chats and need_history_open_flag:
                 PdfReportBaseClass.text_sender_to_tg(f"❌ <b>История НЕ закрытых переписок"
                                                      f" ({len(chats) - len(chats_with_contacts_ids)} шт)  :</b>",
-                                                     avito_account.telegram_id)
+                                                     telegram_id)
                 for chat in chats:
                     if chat.get("id") not in chats_with_contacts_ids:
-                        ChatHistoryReportClass.history_pdf_sender_task(avito_account_id=avito_account.id, chat=chat)
+                        ChatHistoryReportClass.history_pdf_sender_task(
+                            avito_account_id=avito_account.pk,
+                            chat=chat,
+                            telegram_id=telegram_id,
+                        )
 
     @staticmethod
     def get_html(statistics):
@@ -271,15 +296,14 @@ class BotStatisticsDailyReportClass(PdfReportBaseClass):
         return template.render(avito_account_name=avito_account_name,start_date=date, statistics=statistics)
 
     @staticmethod
-    def statistics_txt_sender(avito_account_id: str, statistics: dict):
+    def statistics_txt_sender(telegram_id: str, statistics: Statistic):
         #STATISTICS
-        avito_account = AvitoAccount.objects.filter(id=avito_account_id).last()
         tomorrow = (datetime.datetime.now().date()-datetime.timedelta(days=1)).strftime("%d.%m.%Y")
 
-        avito_account_name = statistics.get("avito_account_name")
-        total_chats_count = statistics.get("total_chats_count")
-        bot_chats_count = statistics.get("bot_chats_count")
-        contacts_count = statistics.get("contacts_count")
+        avito_account_name = statistics.avito_account_name
+        total_chats_count = statistics.total_chats_count
+        bot_chats_count = statistics.bot_chats_count
+        contacts_count = statistics.contacts_count
 
         text = (
             f"📈 <b>Статистика переписок бота за {tomorrow}</b> 📅\n\n"
@@ -288,47 +312,52 @@ class BotStatisticsDailyReportClass(PdfReportBaseClass):
             f"🤖 <b>Чатов с ботом:</b> <code> {bot_chats_count}</code>\n"
             f"🎉 <b>Получено контактов:</b> <code> {contacts_count}</code>\n\n"
         )
-        BotStatisticsDailyReportClass.text_sender_to_tg(text, avito_account.telegram_id)
+        BotStatisticsDailyReportClass.text_sender_to_tg(text, telegram_id)
 
     @staticmethod
-    def get_raw_data(avito_account, period="day"):
-        #TODO после всех манипуляций оптимизировать запросы в БД
+    def get_raw_data(avito_account: AvitoAccount, company_branch: CompanyBranch | None, period="day") -> Statistic | None:
         chats = async_to_sync(get_chats)(avito_account, period=period)
-        if chats:
-            if ENVIRONMENT == "PRODUCTION":last_24_hours = timezone.now() - datetime.timedelta(days=1)
-            else: last_24_hours = timezone.now() - datetime.timedelta(days=1)
-            chat_bot_tasks = ChatBotTask.objects.filter(avito_account=avito_account,
-                                                       created_at__date=last_24_hours.date(),
-                                                       tokens_completion__gt=0)
-            if chat_bot_tasks.exists():
-                bot_answered_mes_ids = list(chat_bot_tasks.values_list("message_id", flat=True).distinct())
-                unique_bot_chat_ids = chat_bot_tasks.values_list("chat_id", flat=True).distinct()
-                tasks_with_contact = chat_bot_tasks.filter(
-                                                    Q(address__isnull=False) & ~Q(address="") |
-                                                    Q(mobile__isnull=False) & ~Q(mobile="") |
-                                                    Q(whatsapp__isnull=False) & ~Q(whatsapp="") |
-                                                    Q(telegram__isnull=False) & ~Q(telegram="") |
-                                                    Q(email__isnull=False) & ~Q(email="")
-                                                ).values("chat_id").distinct()
-                contacts_count = len(tasks_with_contact)
-                # Chats with messages getting
-                actual_chats = async_to_sync(filter_chats_for_last_period)(chats, period=period)
-                actual_chats_with_mes = async_to_sync(get_chats_last_50_messages)(avito_account, actual_chats)
-                only_with_text = filter_chats_only_with_text(actual_chats_with_mes)
-                bot_chats_with_messages = filter_by_bot_answered_chat_ids(only_with_text, unique_bot_chat_ids)
 
-                statistics = {
-                    "avito_account_id": avito_account.id,  # for pdf file naming
-                    "avito_account_name": avito_account.name,
-                    "total_chats_count": len(only_with_text),
-                    "bot_chats_count": len(bot_chats_with_messages),
-                    "contacts_count": contacts_count,
-                    "chats": bot_chats_with_messages,
+        if not chats:
+            return None
 
-                    "bot_answered_mes_ids": bot_answered_mes_ids,
-                    "chats_with_contacts_ids": tasks_with_contact.values_list("chat_id", flat=True),
-                }
-                return statistics
+        last_24_hours = timezone.now() - datetime.timedelta(days=1)
+        chat_bot_tasks = ChatBotTask.objects.filter(
+            avito_account=avito_account,
+            company_branch=company_branch,
+            created_at__date=last_24_hours.date(),
+            tokens_completion__gt=0,
+        )
+
+        if not chat_bot_tasks.exists():
+            return None
+
+        bot_answered_mes_ids = list(chat_bot_tasks.values_list("message_id", flat=True).distinct())
+        unique_bot_chat_ids = chat_bot_tasks.values_list("chat_id", flat=True).distinct()
+        tasks_with_contact = chat_bot_tasks.filter(
+            Q(address__isnull=False) & ~Q(address="") |
+            Q(mobile__isnull=False) & ~Q(mobile="") |
+            Q(whatsapp__isnull=False) & ~Q(whatsapp="") |
+            Q(telegram__isnull=False) & ~Q(telegram="") |
+            Q(email__isnull=False) & ~Q(email="")
+        ).values("chat_id").distinct()
+        contacts_count = len(tasks_with_contact)
+        # Chats with messages getting
+        actual_chats = async_to_sync(filter_chats_for_last_period)(chats, period=period)
+        actual_chats_with_mes = async_to_sync(get_chats_last_50_messages)(avito_account, actual_chats)
+        only_with_text = filter_chats_only_with_text(actual_chats_with_mes)
+        bot_chats_with_messages = filter_by_bot_answered_chat_ids(only_with_text, unique_bot_chat_ids)
+
+        return BotStatisticsDailyReportClass.Statistic(
+            avito_account_id=avito_account.pk,  # for pdf file naming
+            avito_account_name=avito_account.name,
+            total_chats_count=len(only_with_text),
+            bot_chats_count=len(bot_chats_with_messages),
+            contacts_count=contacts_count,
+            chats=bot_chats_with_messages,
+            bot_answered_mes_ids=bot_answered_mes_ids,
+            chats_with_contacts_ids=list(tasks_with_contact.values_list("chat_id", flat=True)),
+        )
 
     @staticmethod
     def statistics_pdf_sender_old_version(avito_account_id: str, statistics: dict):
@@ -349,23 +378,23 @@ class BotStatisticsDailyReportClass(PdfReportBaseClass):
 
 
 class ChatHistoryReportClass(PdfReportBaseClass):
-
     @staticmethod
     @shared_task
-    def history_pdf_sender_task(avito_account_id, chat, summary_html = None):
+    def history_pdf_sender_task(avito_account_id, chat, summary_html = None, telegram_id: str | None = None):
         """
             1) sometimes we don't have summary_html
         """
         ChatHistoryReportClass.add_from_bot_flag(chat)
         async_to_sync(chats_timestamp_to_datetime)({"chats": [chat]})
-        avito_account = AvitoAccount.objects.filter(id=avito_account_id).last()
+        avito_account = AvitoAccount.objects.get(id=avito_account_id)
         statistics = {"avito_account_name": avito_account.name, "avito_account_id": avito_account.id, }
         html_content = ChatHistoryReportClass.get_history_html(chat=chat,statistics=statistics,
                                                                summary_html=summary_html)
         report_name_prefix = f"history_{avito_account.name}"
         pdf_path = ChatBotSummaryReportClass.get_pdf(statistics, html_content, report_name_prefix)
         if pdf_path is not None:
-            ChatBotSummaryReportClass.file_sender_to_tg(pdf_path, avito_account.telegram_id)
+            telegram_id = telegram_id or avito_account.telegram_id
+            ChatBotSummaryReportClass.file_sender_to_tg(pdf_path, telegram_id)
 
     @staticmethod
     def get_history_html(chat, statistics, summary_html = None):
@@ -399,6 +428,7 @@ class ChatHistoryReportClass(PdfReportBaseClass):
             if message.get("id") in bot_answered_mes_ids:
                 set_from_bot_next = True  # Активируем флаг для следующей итерации
         return chat
+
 
 class ChatBotSummaryReportClass(PdfReportBaseClass):
     """
@@ -442,29 +472,34 @@ class ChatBotSummaryReportClass(PdfReportBaseClass):
         else:
             tlogger.info(f"Chat summary is empty, got {chat_summary}")
 
-
     @staticmethod
-    def summary_sender(avito_account, chat_summary, chat, all_tasks, *, tlogger: TraceLogger):
-        # TEXT MESSAGE
+    def summary_sender(avito_account, chat_summary, chat, all_tasks: QuerySet[ChatBotTask], *, tlogger: TraceLogger):
         summary_text = ChatBotSummaryReportClass.get_chat_summary_text(chat_summary, chat)
         tlogger.info(f"Summary report summary_text {summary_text}.")
+
+        telegram_id = avito_account.telegram_id
+        location = "Location not defined"
+
+        task_with_company_branch = all_tasks.filter(company_branch__isnull=False).last()
+        if task_with_company_branch:
+            assert task_with_company_branch.company_branch
+            telegram_id = task_with_company_branch.company_branch.telegram_id
+            location = task_with_company_branch.company_branch.location
+
         if summary_text and len(summary_text) > 20:  # 20 is random value)
-            tlogger.info(f"Send summary report to chat_id='{avito_account.telegram_id}'")
-            ChatBotSummaryReportClass.text_sender_to_tg(text=summary_text, telegram_id=avito_account.telegram_id)
+            tlogger.info(f"Send summary report to chat of '{location}' chat_id='{telegram_id}'")
+            ChatBotSummaryReportClass.text_sender_to_tg(text=summary_text, telegram_id=telegram_id)
             tlogger.info(f"Summary report was sent successfully")
         else:
             tlogger.info(f"Summary text is empty or not enought long")
 
-        # PDF FILE
         summary_html = ChatBotSummaryReportClass.get_chat_summary_html(chat_summary, chat)
-        ChatHistoryReportClass.history_pdf_sender_task.delay(avito_account.id, chat, summary_html)
+        ChatHistoryReportClass.history_pdf_sender_task.delay(avito_account.id, chat, summary_html, telegram_id)
 
         last_chat_bot_task = all_tasks.last()
         if last_chat_bot_task is not None:
-            # Flag adding for in future we can't be sanding summary_report twice
             last_chat_bot_task.summary_sanded = True
             last_chat_bot_task.save()
-
 
     @staticmethod
     def get_chat_summary_html(chat_summary, chat):
