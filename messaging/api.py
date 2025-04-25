@@ -12,6 +12,9 @@ from conversion.utils import dates_for_period_without_extra_reserve
 from utils.logging import TraceLogger
 
 
+MAX_MESSAGES_ON_DEBUG = 5
+
+
 # TODO ДОБАВИТЬ ПРОВЕРКУ НА ПРОСРОЧЕННОСТЬ и обновление токена
 # статистика по последним 100 чатам не отличается если даже все чаты вытаскивать имей ввиду, возможно
 # можно убрать цикл уайл и просто один запрос отправлять если будут сложности или будет медленно
@@ -33,7 +36,7 @@ async def timestamp_in_period(timestamp: int, period: str = "week") -> bool:
 
 
 async def get_chats(avito_account: AvitoAccount, period: str = "week", max_retries: int = 3) -> list:
-    url = f"https://api.avito.ru/messenger/v2/accounts/{avito_account.id}/chats"
+    url = f"https://api.avito.ru/messenger/v2/accounts/{avito_account.pk}/chats"
     headers = {
         'authorization': f"Bearer {avito_account.access_token}"
     }
@@ -47,7 +50,7 @@ async def get_chats(avito_account: AvitoAccount, period: str = "week", max_retri
     retries = 0
 
     async with httpx.AsyncClient() as client:
-        while params.get("offset") < 1000:
+        while params["offset"] < 1000:
             response = await client.get(url, headers=headers, params=params, timeout=180)
             if response.status_code == 200:
                 data = response.json()
@@ -95,7 +98,7 @@ async def get_chats_last_50_messages(avito_account: AvitoAccount, chats: list, *
         async with httpx.AsyncClient() as client:
             for chat in chats:
                 chat_id = chat.get("id")
-                url = f"https://api.avito.ru/messenger/v3/accounts/{avito_account.id}/chats/{chat_id}/messages/"
+                url = f"https://api.avito.ru/messenger/v3/accounts/{avito_account.pk}/chats/{chat_id}/messages/"
                 headers = {'authorization': f"Bearer {avito_account.access_token}"}
                 params = {"limit": 50, "offset": 0}
                 response = await client.get(url, headers=headers, params=params, timeout=300)
@@ -120,7 +123,7 @@ class MessagingAPISync:
             with httpx.Client() as client:
                 for chat in chats:
                     chat_id = chat.get("id")
-                    url = f"https://api.avito.ru/messenger/v3/accounts/{avito_account.id}/chats/{chat_id}/messages/"
+                    url = f"https://api.avito.ru/messenger/v3/accounts/{avito_account.pk}/chats/{chat_id}/messages/"
                     headers = {'authorization': f"Bearer {avito_account.access_token}"}
                     params = {"limit": 50, "offset": 0}
                     response = client.get(url, headers=headers, params=params, timeout=300)
@@ -137,7 +140,7 @@ class MessagingAPISync:
 
     @staticmethod
     def get_chat_by_id(avito_account: AvitoAccount, chat_id: str):
-        url = f"https://api.avito.ru/messenger/v2/accounts/{avito_account.id}/chats/{chat_id}"
+        url = f"https://api.avito.ru/messenger/v2/accounts/{avito_account.pk}/chats/{chat_id}"
         headers = {
             'authorization': f"Bearer {avito_account.access_token}"
         }
@@ -158,7 +161,7 @@ class MessagingAPISync:
     @staticmethod
     def get_chat_last_50_messages_by_chat_id(avito_account: AvitoAccount, chat_id: str, *, trace_id: str | None = None):
         tlogger = TraceLogger(trace_id)
-        url = f"https://api.avito.ru/messenger/v3/accounts/{avito_account.id}/chats/{chat_id}/messages/"
+        url = f"https://api.avito.ru/messenger/v3/accounts/{avito_account.pk}/chats/{chat_id}/messages/"
         headers = {'authorization': f"Bearer {avito_account.access_token}"}
         params = {"limit": 50, "offset": 0}
         response = requests.get(url, headers=headers, params=params)
@@ -176,7 +179,7 @@ async def get_calls_statistic_last_week(avito_account: AvitoAccount):
     date_from, date_to = await dates_for_period_without_extra_reserve(period="week", date_type="str")
 
     async with httpx.AsyncClient() as client:
-        url = f"https://api.avito.ru/core/v1/accounts/{avito_account.id}/calls/stats/"
+        url = f"https://api.avito.ru/core/v1/accounts/{avito_account.pk}/calls/stats/"
         headers = {'authorization': f"Bearer {avito_account.access_token}",
                    "Content-Type": "application/json", }
         params = {"dateFrom": f"{date_from}", "dateTo": f"{date_to}"}
@@ -191,6 +194,9 @@ async def get_calls_statistic_last_week(avito_account: AvitoAccount):
 
 
 def _filter_messages(messages: list) -> list:
+    if settings.ENVIRONMENT == "DEVELOPMENT":
+        return messages[-MAX_MESSAGES_ON_DEBUG:]
+
     if settings.ENVIRONMENT != "TESTING":
         return messages
 

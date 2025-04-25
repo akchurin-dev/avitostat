@@ -22,7 +22,6 @@ class ChatBotAnswerSchema(BaseModel):
     whatsapp: str | None
     telegram: str | None
     email: str | None
-    nearest_company_branch: Enum | None
 
 
 def contacts_data_prepare(data: ChatBotAnswerSchema) -> dict | None:
@@ -63,7 +62,7 @@ class AIAnswerContacts(BaseModel):
 
 class AIAnswerWithContacts(BaseModel):
     answer: str
-    nearest_company_branch: str | None
+    nearest_company_branch: str | None = None
     contacts: AIAnswerContacts | None = None
     tokens_completion: int
     tokens_prompt: int
@@ -108,30 +107,40 @@ def ai_answer_with_contacts(ai_assistant: AiChatBot, chat: list, ):
             response_format=_get_schema(ai_assistant.avito_account),
             max_tokens=2000,
         )
+
         data = response.choices[0].message.parsed
-        if data is not None:
-            result['answer'] = data.answer
+        if data is None:
+            return None
 
-            result['nearest_company_branch'] = None
-            if data.nearest_company_branch:
-                result['nearest_company_branch'] = data.nearest_company_branch.name
+        result['answer'] = data.answer
 
-            result['contacts'] = contacts_data_prepare(data)
+        result['nearest_company_branch'] = None
 
-            result['tokens_completion'] = None
-            result['tokens_prompt'] = None
+        data_dict = data.model_dump()
+        nearest_company_branch_enum: Enum | None = data_dict.get('nearest_company_branch')
+        if nearest_company_branch_enum:
+            result['nearest_company_branch'] = nearest_company_branch_enum.name
 
-            if response.usage:
-                result['tokens_completion'] = response.usage.completion_tokens
-                result['tokens_prompt'] = response.usage.prompt_tokens
+        result['contacts'] = contacts_data_prepare(data)
 
-            return result
+        result['tokens_completion'] = None
+        result['tokens_prompt'] = None
+
+        if response.usage:
+            result['tokens_completion'] = response.usage.completion_tokens
+            result['tokens_prompt'] = response.usage.prompt_tokens
+
+        return result
     except:
         raise
 
 
 def _get_schema(avito_account: AvitoAccount) -> type[ChatBotAnswerSchema]:
     company_branches = CompanyBranch.objects.filter(account=avito_account)
+
+    if len(company_branches) == 0:
+        return ChatBotAnswerSchema
+
     locations = {cb.location_slug: cb.location for cb in company_branches}
 
     LocationEnum = Enum("LocationEnum", locations)
@@ -219,11 +228,19 @@ def chat_summary_generator(chat):
         max_tokens=600,
     )
     data = response.choices[0].message.parsed
-    if data is not None:
-        result['paragraphs'] = chat_summary_data_prepare(data)
+    if data is None:
+        return None
+
+    result['paragraphs'] = chat_summary_data_prepare(data)
+
+    result['tokens_completion'] = 0
+    result['tokens_prompt'] = 0
+
+    if response.usage:
         result['tokens_completion'] = response.usage.completion_tokens
         result['tokens_prompt'] = response.usage.prompt_tokens
-        return result
+
+    return result
 
 
 def use_gpt_flag():

@@ -43,6 +43,9 @@ class CompanyBranch(models.Model):
         self.location_slug = slugify(self.location, separator="_").upper()
         super().save(*args, **kwargs)
 
+    def __str__(self):
+        return self.location
+
 
 class AIChatBotBase(models.Model):
     is_active = models.BooleanField(default=False, verbose_name="Активирован")

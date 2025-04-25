@@ -129,10 +129,9 @@ class PdfReportBaseClass:
     @staticmethod
     def file_sender_to_tg(pdf_path, telegram_id):
         if pdf_path:
-            chat_id = "-4221870448" if ENVIRONMENT == "DEVELOPMENT" else telegram_id
             try:
                 bot.send_raw(
-                    chat_id=chat_id,
+                    chat_id=telegram_id,
                     function="send_document",
                     document=types.FSInputFile(pdf_path))
             except Exception as e:
@@ -166,7 +165,6 @@ class PdfReportBaseClass:
     @staticmethod
     def text_sender_to_tg(text, telegram_id):
         if text:
-            # chat_id = "-4221870448" if ENVIRONMENT == "DEVELOPMENT" else telegram_id
             chat_id = telegram_id
             while text:
                 try:
@@ -190,52 +188,64 @@ class BotStatisticsDailyReportClass(PdfReportBaseClass):
         bot_chats_count: int
         contacts_count: int
         chats: list  # Список структур возвращаемых по запросу api.avito.com/chat/<chat_id>/messages
-        bot_answered_mes_ids: list[int]
+        bot_answered_mes_ids: list[str]
         chats_with_contacts_ids: list[str]
 
     @staticmethod
     @shared_task
     def statistics_sender_main_task():
+        tlogger = TraceLogger()
+
         avito_accounts = AvitoAccount.objects.all()
-        celery_logger.warning(f"statistics_sender_main_task STARTED for {len(avito_accounts)} accounts")
-        if ENVIRONMENT == "DEVELOPMENT":
-            avito_accounts = AvitoAccount.objects.filter(id=163634833)
+        tlogger.info(f"statistics_sender_main_task STARTED for {len(avito_accounts)} accounts")
+
         for avito_account in avito_accounts:
             try:
                 chat_bot_is_active_flag = hasattr(avito_account, "ai_chat_bots") and avito_account.ai_chat_bots.is_active
                 need_report_flag = hasattr(avito_account, "ai_chat_bots") and avito_account.ai_chat_bots.statistics_daily_report
 
                 if not chat_bot_is_active_flag or not need_report_flag:
-                    celery_logger.warning(f"skipped avito_account - {avito_account.name}")
-                    celery_logger.info(f"chat_bot_is_active_flag - {chat_bot_is_active_flag}")
-                    celery_logger.info(f"need_report_flag - {need_report_flag}")
+                    tlogger.info(f"skipped avito_account - {avito_account.name}")
+                    tlogger.info(f"chat_bot_is_active_flag - {chat_bot_is_active_flag}")
+                    tlogger.info(f"need_report_flag - {need_report_flag}")
                     continue
 
-                celery_logger.warning("processing")
+                tlogger.info("processing")
 
                 if ENVIRONMENT == "DEVELOPMENT":
                     async_to_sync(avito_account.update_refresh_token_async)()
 
-                BotStatisticsDailyReportClass.statistics_for_avito_account(avito_account.pk)
+                BotStatisticsDailyReportClass.statistics_for_avito_account(avito_account.pk, tlogger=tlogger)
             except Exception as error:
                 celery_logger.exception(f"statistics_sender_main_task error - {error}", exc_info=True)
 
     @staticmethod
-    def statistics_for_avito_account(account_id: int):
-        company_branches: list[CompanyBranch | None] = [None]
-        company_branches.extend(CompanyBranch.objects.filter(account_id=account_id))
+    def statistics_for_avito_account(account_id: int, *, tlogger: TraceLogger):
+        company_branches_id: list[int | None] = [None]
+        company_branches_id.extend(CompanyBranch.objects.filter(account_id=account_id).values_list("pk", flat=True))
 
-        for company_branch in company_branches:
-            BotStatisticsDailyReportClass.statistics_for_company_branch.delay(account_id, company_branch)
+        for company_branch_id in company_branches_id:
+            BotStatisticsDailyReportClass.statistics_for_company_branch.delay(account_id, company_branch_id, trace_id=tlogger.trace_id)
 
     @staticmethod
     @shared_task
-    def statistics_for_company_branch(avito_account_id: int, company_branch: CompanyBranch | None):
-        avito_account = AvitoAccount.objects.get(id=avito_account_id)
-        statistics = BotStatisticsDailyReportClass.get_raw_data(avito_account, company_branch)
+    def statistics_for_company_branch(avito_account_id: int, company_branch_id: int | None, *, trace_id: str):
+        tlogger = TraceLogger(trace_id)
 
-        if not statistics or statistics.bot_chats_count == 0:
-            celery_logger.info(f"BotStatisticsDailyReportClass not have Bot_chats for {avito_account.name}, skipped")
+        avito_account = AvitoAccount.objects.get(id=avito_account_id)
+
+        company_branch = None
+        if company_branch_id:
+            company_branch = CompanyBranch.objects.get(pk=company_branch_id)
+
+        statistics = BotStatisticsDailyReportClass.get_raw_data(avito_account, company_branch, tlogger=tlogger)
+
+        if not statistics:
+            tlogger.info(f"Stop handling {avito_account} ({company_branch}). Statistics is None")
+            return
+
+        if statistics.bot_chats_count == 0:
+            tlogger.info(f"BotStatisticsDailyReportClass not have Bot_chats for {avito_account.name}, skipped")
             return
 
         telegram_id = avito_account.telegram_id
@@ -244,6 +254,7 @@ class BotStatisticsDailyReportClass(PdfReportBaseClass):
             telegram_id = company_branch.telegram_id
 
         if telegram_id is None:
+            tlogger.info(f"Stop handling {avito_account} ({company_branch}). Telegram id is None")
             return
 
         BotStatisticsDailyReportClass.statistics_txt_sender(telegram_id, statistics)
@@ -315,10 +326,18 @@ class BotStatisticsDailyReportClass(PdfReportBaseClass):
         BotStatisticsDailyReportClass.text_sender_to_tg(text, telegram_id)
 
     @staticmethod
-    def get_raw_data(avito_account: AvitoAccount, company_branch: CompanyBranch | None, period="day") -> Statistic | None:
+    def get_raw_data(
+        avito_account: AvitoAccount,
+        company_branch: CompanyBranch | None,
+        period="day",
+        *,
+        tlogger: TraceLogger,
+    ) -> Statistic | None:
+
         chats = async_to_sync(get_chats)(avito_account, period=period)
 
         if not chats:
+            tlogger.info("Chats not found")
             return None
 
         last_24_hours = timezone.now() - datetime.timedelta(days=1)
@@ -330,6 +349,7 @@ class BotStatisticsDailyReportClass(PdfReportBaseClass):
         )
 
         if not chat_bot_tasks.exists():
+            tlogger.info("Tasks not found")
             return None
 
         bot_answered_mes_ids = list(chat_bot_tasks.values_list("message_id", flat=True).distinct())
