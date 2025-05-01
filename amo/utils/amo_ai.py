@@ -1,3 +1,9 @@
+import datetime
+import re
+from typing import Iterable
+
+from openai.types.responses import ResponseInputParam
+from openai.types.responses import ResponseTextConfigParam
 from pydantic import BaseModel
 
 import amo.models
@@ -7,6 +13,9 @@ from chat_bot.ai_utils import client
 from chat_bot.ai_utils import MODEL
 from chat_bot.ai_utils import use_gpt_flag
 from utils.logging import TraceLogger
+
+
+PHRASE_AUTHOR_REGEX = re.compile(r"^\s*\w+:\s*")
 
 
 class AIAnswerPayload(BaseModel):
@@ -34,7 +43,8 @@ def generate_answer(
     if not use_gpt_flag():
         return AIAnswer(payload=AIAnswerPayload(answer="mock answer"))
 
-    fillable_fields = list(amo.models.FillableField.objects.filter(chatbot=chatbot))
+    fillable_fields = amo.models.FillableField.objects.filter(chatbot=chatbot)
+
     lead = amo_api.get_lead(
         domain=account.domain,
         lead_id=lead_id,
@@ -46,18 +56,15 @@ def generate_answer(
         tlogger=tlogger,
     )
 
-    current_status = None
+    gpt_messages = _get_gpt_messages(
+        chatbot=chatbot,
+        messages=messages,
+        fillable_fields=fillable_fields,
+        available_pipeline_statuses=available_pipeline_statuses,
+        lead=lead,
+    )
 
-    for status in available_pipeline_statuses:
-        if status.id == lead.status_id:
-            current_status = status
-
-    if current_status is None:
-        raise Exception(f"Status (id={lead.status_id}) not found in pipeline (id={lead.pipeline_id})")
-
-    prompt = _get_prompt(chatbot, fillable_fields, available_pipeline_statuses, current_status)
-    dialog_str = _dialog_to_str(messages)
-    schema = _get_answer_schema(
+    text_format = _get_text_format(
         fields=fillable_fields,
         available_pipeline_statuses=available_pipeline_statuses,
         field_for_new_status=not chatbot.change_status_only_when_qualification,
@@ -65,33 +72,135 @@ def generate_answer(
 
     response = client.responses.create(
         model=MODEL,
-        input=[
-            {"role": "system", "content": prompt},
-            {"role": "user", "content": dialog_str},
-        ],
-        text={
-            "format": {
-                "type": "json_schema",
-                "name": "chat_answer",
-                "schema": schema,
-                "strict": True,
-            },
-        },
+        input=gpt_messages,
+        text=text_format,
         max_output_tokens=2000,
     )
 
-    return AIAnswer(
+    tokens_completion = tokens_prompt = 0
+
+    if response.usage:
+        tokens_completion = response.usage.output_tokens
+        tokens_prompt = response.usage.input_tokens
+
+    res = AIAnswer(
         payload=AIAnswerPayload.model_validate_json(response.output_text),
-        tokens_completion=0,  # TODO calculate tokens
-        tokens_prompt=0,  # TODO calculate tokens
+        tokens_completion=tokens_completion,
+        tokens_prompt=tokens_prompt,
+    )
+    res.payload.answer = _delete_phrase_author_if_exists(res.payload.answer, tlogger=tlogger)
+
+    return res
+
+
+def get_example_prompt(chatbot: amo.models.AmoChatBot) -> str:
+    messages = [
+        Message(
+            id="1",
+            incoming=True,
+            chat_id="1",
+            talk_id=1,
+            text="Привет, хочу купить велосипед",
+            created_at=datetime.datetime.now(),
+        ),
+        Message(
+            id="2",
+            incoming=False,
+            chat_id="1",
+            talk_id=1,
+            text="Здравствуйте! На какой возраст ищете?",
+            created_at=datetime.datetime.now(),
+        ),
+        Message(
+            id="3",
+            incoming=True,
+            chat_id="1",
+            talk_id=1,
+            text="На ребенка 13 лет",
+            created_at=datetime.datetime.now(),
+        ),
+    ]
+
+    fillable_fields = amo.models.FillableField.objects.filter(chatbot=chatbot)
+
+    available_pipeline_statuses = [
+        amo_api.PipelineStatus(
+            id=1,
+            name="Первичный контакт",
+            pipeline_id=1,
+            pipeline_name="Воронка",
+        ),
+        amo_api.PipelineStatus(
+            id=2,
+            name="Переговоры",
+            pipeline_id=1,
+            pipeline_name="Воронка",
+        ),
+        amo_api.PipelineStatus(
+            id=3,
+            name="Сделка успшно реализована",
+            pipeline_id=1,
+            pipeline_name="Воронка",
+        ),
+    ]
+
+    lead = amo_api.Lead(
+        id=1,
+        pipeline_id=1,
+        status_id=1,
+        custom_fields_values=None,
     )
 
+    gpt_messages = _get_gpt_messages(chatbot, messages, fillable_fields, available_pipeline_statuses, lead)
 
-def _get_answer_schema(
-    fields: list[amo.models.FillableField],
+    lines = []
+
+    for message in gpt_messages:
+        role = message.get("role")
+        text = message.get("content")
+
+        lines.append(f"{role}: {text}")
+
+    return "\n\n\n".join(lines)
+
+
+def _get_gpt_messages(
+    chatbot: amo.models.AmoChatBot,
+    messages: list[Message],
+    fillable_fields: Iterable[amo.models.FillableField],
+    available_pipeline_statuses: list[amo_api.PipelineStatus],
+    lead: amo_api.Lead,
+) -> ResponseInputParam:
+
+    current_status = None
+
+    for status in available_pipeline_statuses:
+        if status.id == lead.status_id:
+            current_status = status
+            break
+
+    if current_status is None:
+        raise Exception(f"Status (id={lead.status_id}) not found in pipeline (id={lead.pipeline_id})")
+
+    prompt = _get_prompt(chatbot, fillable_fields, available_pipeline_statuses, current_status)
+    dialog_str = _dialog_to_str(messages)
+
+    gpt_messages: ResponseInputParam = [
+        {"role": "system", "content": prompt},
+        {"role": "user", "content": dialog_str},
+    ]
+
+    if chatbot.duplicate_instructions:
+        gpt_messages.append({"role": "user", "content": chatbot.duplicate_instructions})
+
+    return gpt_messages
+
+
+def _get_text_format(
+    fields: Iterable[amo.models.FillableField],
     available_pipeline_statuses: list[amo_api.PipelineStatus],
     field_for_new_status: bool,
-) -> dict:
+) -> ResponseTextConfigParam:
 
     lead_fields = [field for field in fields if field.entity == amo.models.AmoEntity.LEAD.value]
     contact_fields = [field for field in fields if field.entity == amo.models.AmoEntity.CONTACT.value]
@@ -136,7 +245,31 @@ def _get_answer_schema(
         "additionalProperties": False,
     }
 
-    return schema
+    text_format: ResponseTextConfigParam = {
+        "format": {
+            "type": "json_schema",
+            "name": "chat_answer",
+            "schema": schema,
+            "strict": True,
+        },
+    }
+
+    return text_format
+
+
+def _delete_phrase_author_if_exists(message: str, *, tlogger: TraceLogger) -> str:
+    res = PHRASE_AUTHOR_REGEX.search(message)
+
+    if res is None:
+        tlogger.info(f"Prefix with phrase author isn't found in '{message}'")
+        return message
+
+    length = len(res.group(0))
+    new_message = message[length:]
+
+    tlogger.info(f"Found phrase author in '{message}', new variant is '{new_message}'")
+
+    return new_message
 
 
 def _dialog_to_str(dialog: list[Message]) -> str:
@@ -151,7 +284,7 @@ def _dialog_to_str(dialog: list[Message]) -> str:
 
 def _get_prompt(
     chatbot: amo.models.AmoChatBot,
-    fields: list[amo.models.FillableField],
+    fields: Iterable[amo.models.FillableField],
     available_pipeline_statuses: list[amo_api.PipelineStatus],
     current_status: amo_api.PipelineStatus,
 ) -> str:
@@ -194,7 +327,10 @@ def _add_chatbot_prompt(prompt: str, chatbot: amo.models.AmoChatBot) -> str:
         links_and_contacts_title,
     ]
 
-    new_text = "\n\n".join([title + "\n" + titles_and_descriptions[title] for title in titles_ordered])
+    new_text = "\n\n".join([title + "\n" + desc for title in titles_ordered if (desc := titles_and_descriptions[title])])
+
+    if not new_text:
+        return prompt
 
     if prompt:
         prompt += "\n\n"
@@ -208,6 +344,9 @@ def _add_pipelines_prompt(
     available_pipeline_statuses: list[amo_api.PipelineStatus],
     current_status: amo_api.PipelineStatus,
 ) -> str:
+
+    if not pipeline_status_update_rules:
+        return prompt
 
     new_articles = [
         "Определи нужно ли перевести сделку в новый статус по следующим правилам:",
@@ -224,7 +363,10 @@ def _add_pipelines_prompt(
     return prompt + new_text
 
 
-def _add_fields_prompt(prompt: str, fields: list[amo.models.FillableField]) -> str:
+def _add_fields_prompt(prompt: str, fields: Iterable[amo.models.FillableField]) -> str:
+    if len(list(fields)) == 0:
+        return prompt
+
     new_articles = ["Твоя задача узнать у клиента следующие данные"]
 
     for field in fields:

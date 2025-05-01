@@ -34,3 +34,7 @@ def syncronize_pipelines(domain: str, *, tlogger: TraceLogger) -> None:
         .exclude(amo_id__in=[status.id for status in statuses])
     )
     non_existing.delete()
+
+
+def status_opened(id: int) -> bool:
+    return id not in [142, 143]  # Статусы "Релизовано" (id = 142) и "Закрыто и не реализовано" (id = 143)

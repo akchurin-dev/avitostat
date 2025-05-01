@@ -118,7 +118,7 @@ class WebhookInboxViewClass(View):
         wait_sec = chat_bot.waiting_minutes * 60
 
         if ENVIRONMENT == "DEVELOPMENT":
-            wait_sec //= 2
+            wait_sec //= 60
 
         if ENVIRONMENT == "TESTING":
             wait_sec = 10
@@ -189,7 +189,7 @@ class WebhookInboxViewClass(View):
             tlogger.info(f"Contacts found - {ai_answer.contacts.model_dump()}")
             ChatBotSummaryReportClass.summary_sender_main_task(avito_account.pk, chat_id, trace_id=tlogger.trace_id)
         else:
-            tlogger.info(F"Contacts is empty, got {ai_answer.model_dump()}")
+            tlogger.info(f"Contacts is empty, got {ai_answer.model_dump()}")
 
         # Логика остановки бота если человек вмешался в разговор
         if chat_bot.shutdown_after_manager:

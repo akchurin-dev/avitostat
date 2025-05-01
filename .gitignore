@@ -11,3 +11,5 @@ db.sqlite3
 celerybeat-schedule
 .idea
 .vscode
+.mypy_cache
+.pytest_cache

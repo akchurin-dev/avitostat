@@ -37,20 +37,21 @@ def should_check_qualification(chatbot: amo.models.AmoChatBot, lead: amo_api.Lea
         tlogger.info("Don't check qualification. new_status_when_qualification is null")
         return False
 
-    pipeline_status_to_chatbot = amo.models.AmoPipelineStatusChatbotLink.objects.filter(
+    pipeline_statuses_to_chatbot = amo.models.AmoPipelineStatusChatbotLink.objects.filter(
         chatbot=chatbot,
         check_qualification=True,
-    ).first()
+    ).select_related("status")
 
-    if pipeline_status_to_chatbot is None:
+    if len(pipeline_statuses_to_chatbot) == 0:
         tlogger.info("Don't check qualification. Bot doesn't have status on which qulification is checked")
         return False
 
-    if pipeline_status_to_chatbot.status.amo_id != lead.status_id:
-        tlogger.info("Don't check qualification. Current status isn't qulification checking status")
-        return False
+    for pipeline_status_to_chatbot in pipeline_statuses_to_chatbot:
+        if pipeline_status_to_chatbot.status.amo_id == lead.status_id:
+            return True
 
-    return True
+    tlogger.info("Don't check qualification. Current status isn't qulification checking status")
+    return False
 
 
 def qualification_achieved(chatbot_id: int, lead: amo_api.Lead, contact: amo_api.Contact, *, tlogger: TraceLogger) -> bool:

@@ -10,7 +10,7 @@ from amo.utils import amo_leads
 from amo.utils import amo_messages
 from amo.utils import amo_pipelines
 from amo.utils import amo_reports
-from amo.utils import qulification
+from amo.utils import qualification
 from utils.logging import TraceLogger
 
 
@@ -154,7 +154,7 @@ def handle_ai_answer(ai_answer_serializable: dict, messages_serializable: list[d
         )
 
         assert task.chatbot is not None
-        status_changed_on_qualification = qulification.change_status_if_qualification(
+        status_changed_on_qualification = qualification.change_status_if_qualification(
             chatbot=task.chatbot,
             lead=lead,
             contact_id=int(task.contact_id),

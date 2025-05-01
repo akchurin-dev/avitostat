@@ -10,6 +10,7 @@ from rest_framework import status
 import amo.models
 import amo.serializers
 import amo.schemas
+from amo.utils import amo_ai
 from amo.utils import amo_accounts
 from amo.utils import message_handling
 from amo.utils import amo_pipelines
@@ -66,6 +67,12 @@ def webhook_inbox(request: Request) -> Response:
     try:
         account_id: int = int(request.data["account[id]"])
         contact_id = int(request.data["message[add][0][contact_id]"])
+        entity_type = request.data["message[add][0][entity_type]"]
+
+        lead_id = None
+        if entity_type == "lead":
+            lead_id = int(request.data["message[add][0][entity_id]"])
+
         origin = request.data["message[add][0][origin]"]
         chat_id: str = request.data["message[add][0][chat_id]"]
         talk_id: int = int(request.data["message[add][0][talk_id]"])
@@ -83,6 +90,7 @@ def webhook_inbox(request: Request) -> Response:
     message_handling.launch_handler(
         account_id=account_id,
         contact_id=contact_id,
+        lead_id=lead_id,
         origin=origin,
         chat_id=chat_id,
         talk_id=talk_id,
@@ -103,5 +111,14 @@ def syncronize_amo_account(request: Request, pk: int) -> Response:
 
     amo_pipelines.syncronize_pipelines(account.domain, tlogger=tlogger)
     amo_sources.scan_new_origins(account.amo_id, tlogger=tlogger)
+
+    return Response(status=status.HTTP_200_OK)
+
+
+@api_view(["PATCH"])
+def update_prompt_example(request: Request, pk: int) -> Response:
+    chatbot = amo.models.AmoChatBot.objects.get(pk=pk)
+    prompt = amo_ai.get_example_prompt(chatbot)
+    amo.models.AmoChatBot.objects.filter(pk=pk).update(prompt_example=prompt)
 
     return Response(status=status.HTTP_200_OK)

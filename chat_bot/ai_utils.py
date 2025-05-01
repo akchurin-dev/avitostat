@@ -1,13 +1,17 @@
+from __future__ import annotations
+
 from enum import Enum
 
 from asgiref.sync import  async_to_sync
 import httpx
 from openai import OpenAI
+from openai.types.chat.chat_completion_message_param import ChatCompletionMessageParam
 from pydantic import BaseModel
 
 from avito_account.models.models import AvitoAccount
 from base import settings
-from chat_bot.models import AiChatBot, CompanyBranch
+import chat_bot.models
+from messaging.api import ChatMessage
 from messaging.api import get_chats_last_50_messages
 from utils.logging import TraceLogger
 
@@ -39,16 +43,26 @@ def contacts_data_prepare(data: ChatBotAnswerSchema) -> dict | None:
     return result
 
 
-def format_chat_history(messages):
-    formatted_messages = []
+def format_chat_history(messages: list[ChatMessage]) -> list[ChatCompletionMessageParam]:
+    formatted_messages: list[ChatCompletionMessageParam] = []
     for msg in messages:
-        if msg.get('type') != 'text':
+        if msg["type"] != 'text':
             continue
-        message_text = msg['content']['text']
-        if msg['direction'] == 'in':
-            formatted_messages.append({"role": "user", "content": message_text})
-        elif msg['direction'] == 'out':
-            formatted_messages.append({"role": "assistant", "content": message_text})
+
+        assert msg["content"]["text"] is not None
+
+        if msg["direction"] == "in":
+            formatted_messages.append({
+                "role": "user",
+                "content": msg["content"]["text"],
+            })
+
+        if msg["direction"] == "out":
+            formatted_messages.append({
+                "role": "assistant",
+                "content": msg["content"]["text"],
+            })
+
     return formatted_messages
 
 
@@ -68,12 +82,17 @@ class AIAnswerWithContacts(BaseModel):
     tokens_prompt: int
 
 
-def ai_answer_with_contacts_typed(ai_assistant: AiChatBot, chat: list) -> AIAnswerWithContacts:
-    res = ai_answer_with_contacts(ai_assistant, chat)
+def ai_answer_with_contacts_typed(
+    ai_assistant: chat_bot.models.AiChatBot,
+    chat: list[ChatMessage],
+    client_location: str | None = None,
+) -> AIAnswerWithContacts:
+
+    res = ai_answer_with_contacts(ai_assistant, chat, client_location)
     return AIAnswerWithContacts.model_validate(res)
 
 
-def ai_answer_with_contacts(ai_assistant: AiChatBot, chat: list, ):
+def ai_answer_with_contacts(ai_assistant: chat_bot.models.AiChatBot, chat: list[ChatMessage], client_location: str | None):
     if not use_gpt_flag():
         return {
             'answer': "mock answer",
@@ -88,55 +107,111 @@ def ai_answer_with_contacts(ai_assistant: AiChatBot, chat: list, ):
             'tokens_prompt': 2,
         }
 
-    try:
-        result = {}
-        chat_history_formatted = format_chat_history(chat)
-        print(f"Последнее сообщение для ИИ ответа-{chat_history_formatted[-1]}")
-        prompt = (
-            f"Общая информация:{ai_assistant.total_info}"
-            f"Правила при общении:{ai_assistant.rules}"
-            f"Необходимо в ходе разговора наличие шагов:{ai_assistant.checkpoints}"
-            "Ответы давать только на русском языке"
-            "Контакты доставать как клиента так и менеджера если имеются в переписке"
-        )
-        messages = [{"role": "system", "content": prompt}, ]
-        messages.extend(chat_history_formatted)
-        response = client.beta.chat.completions.parse(
-            model=MODEL,
-            messages=messages,
-            response_format=_get_schema(ai_assistant.avito_account),
-            max_tokens=2000,
-        )
+    result = {}
 
-        data = response.choices[0].message.parsed
-        if data is None:
-            return None
+    response = client.beta.chat.completions.parse(
+        model=MODEL,
+        messages=_get_messages_for_gpt(ai_assistant, chat, client_location),
+        response_format=_get_schema(ai_assistant.avito_account),
+        max_tokens=2000,
+        timeout=30,
+    )
 
-        result['answer'] = data.answer
+    data = response.choices[0].message.parsed
+    if data is None:
+        return None
 
-        result['nearest_company_branch'] = None
+    result['answer'] = data.answer
+    result['nearest_company_branch'] = None
 
-        data_dict = data.model_dump()
-        nearest_company_branch_enum: Enum | None = data_dict.get('nearest_company_branch')
-        if nearest_company_branch_enum:
-            result['nearest_company_branch'] = nearest_company_branch_enum.name
+    data_dict = data.model_dump()
+    nearest_company_branch_enum: Enum | None = data_dict.get('nearest_company_branch')
+    if nearest_company_branch_enum:
+        result['nearest_company_branch'] = nearest_company_branch_enum.name
 
-        result['contacts'] = contacts_data_prepare(data)
+    result['contacts'] = contacts_data_prepare(data)
 
-        result['tokens_completion'] = None
-        result['tokens_prompt'] = None
+    result['tokens_completion'] = None
+    result['tokens_prompt'] = None
 
-        if response.usage:
-            result['tokens_completion'] = response.usage.completion_tokens
-            result['tokens_prompt'] = response.usage.prompt_tokens
+    if response.usage:
+        result['tokens_completion'] = response.usage.completion_tokens
+        result['tokens_prompt'] = response.usage.prompt_tokens
 
-        return result
-    except:
-        raise
+    return result
+
+
+def get_example_prompt(aichatbot: chat_bot.models.AiChatBot) -> str:
+    example_chat: list[ChatMessage] = [
+        {
+            "id": "1",
+            "author_id": 1,
+            "type": "text",
+            "direction": "in",
+            "content": {"text": "Здравствуйте, хочу купить велосипед"},
+        },
+        {
+            "id": "2",
+            "author_id": 2,
+            "type": "text",
+            "direction": "out",
+            "content": {"text": "Здравствуйте! Подскажите для какого возраста ищете?"},
+        },
+        {
+            "id": "3",
+            "author_id": 1,
+            "type": "text",
+            "direction": "in",
+            "content": {"text": "На ребенка 13 лет"},
+        },
+    ]
+
+    example_location = "Москва"
+
+    messages = _get_messages_for_gpt(
+        aichatbot=aichatbot,
+        chat=example_chat,
+        client_location=example_location,
+    )
+
+    lines = []
+
+    for message in messages:
+        role = message["role"].upper()
+        text = message.get("content")
+
+        lines.append(f"{role}: {text}")
+
+    return "\n\n".join(lines)
+
+
+def _get_messages_for_gpt(aichatbot: chat_bot.models.AiChatBot, chat: list[ChatMessage], client_location: str | None) -> list[ChatCompletionMessageParam]:
+    chat_history_formatted = format_chat_history(chat)
+    print(f"Последнее сообщение для ИИ ответа-{chat_history_formatted[-1]}")
+
+    prompt = "\n\n".join([
+        f"Общая информация:\n{aichatbot.total_info}",
+        f"Правила при общении:\n{aichatbot.rules}",
+        f"Необходимо в ходе разговора наличие шагов:\n{aichatbot.checkpoints}",
+        "Ответы давать только на русском языке",
+        "Контакты доставать как клиента так и менеджера если имеются в переписке",
+    ])
+
+    messages: list[ChatCompletionMessageParam] = [{"role": "system", "content": prompt}, ]
+
+    if client_location:
+        messages.append({
+            "role": "user",
+            "content": f"Город клиента системе - {client_location}. Если клиент не указал другой город, то используй его.",
+        })
+
+    messages.extend(chat_history_formatted)
+
+    return messages
 
 
 def _get_schema(avito_account: AvitoAccount) -> type[ChatBotAnswerSchema]:
-    company_branches = CompanyBranch.objects.filter(account=avito_account)
+    company_branches = chat_bot.models.CompanyBranch.objects.filter(account=avito_account)
 
     if len(company_branches) == 0:
         return ChatBotAnswerSchema

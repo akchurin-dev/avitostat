@@ -1,0 +1,30 @@
+{% extends "admin/change_form.html" %}
+
+{% block after_field_sets %}
+<input type="submit" value="Обновить пример промпта" id="update-prompt-example"></input>
+
+<script>
+    document.getElementById('update-prompt-example').addEventListener('click', function(e) {
+      e.preventDefault(); // Отменяем стандартное поведение формы
+      
+      fetch('/amo/update-prompt-example/{{ object_id }}', {
+        method: 'PATCH',
+        credentials: 'omit',
+      })
+      .then(response => {
+        if (response.ok) {
+            console.log('Успех');
+            location.reload();
+            // alert('Пример промпта обновлен!');
+        } else {
+            console.log('Неуспешный запрос:', response.contet);
+            alert('Неуспешный запрос!');
+        }
+      })
+      .catch((error) => {
+        console.error('Ошибка клиента:', error);
+        alert('Ошибка клиента!');
+      });
+    });
+    </script>
+{% endblock %}

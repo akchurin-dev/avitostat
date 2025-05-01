@@ -35,6 +35,7 @@ class ExcludedItemInline(admin.TabularInline):
 
 class AiChatBotInline(admin.StackedInline):
     model = AiChatBot
+    readonly_fields = ["prompt_example"]
     extra = 0
 
 

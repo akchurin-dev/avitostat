@@ -1,4 +1,5 @@
 from amo.utils import amo_api
+from amo.utils import amo_pipelines
 from utils.logging import TraceLogger
 
 
@@ -24,7 +25,7 @@ def get_open_lead_by_contact(domain: str, contact_id: int, *, tlogger: TraceLogg
     contact_leads = set(contact.lead_ids)
 
     for lead in amo_api.all_leads(domain, tlogger=tlogger):
-        if lead.status_id in [142, 143]:  # Статусы "Релизовано" (id = 142) и "Закрыто и не реализовано" (id = 143)
+        if not amo_pipelines.status_opened(lead.status_id):
             continue
 
         if lead.id in contact_leads:

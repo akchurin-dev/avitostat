@@ -2,9 +2,11 @@ import datetime
 
 import amo.models
 import amo.tasks
+from amo.utils import amo_api
 from amo.utils import amo_chatbots
 from amo.utils import amo_chatbottasks
 from amo.utils import amo_leads
+from amo.utils import amo_pipelines
 from base import settings
 from utils.logging import TraceLogger
 
@@ -12,6 +14,7 @@ from utils.logging import TraceLogger
 def launch_handler(
     account_id: int,
     contact_id: int,
+    lead_id: int | None,
     origin: str,
     chat_id: str,
     talk_id: int,
@@ -26,7 +29,14 @@ def launch_handler(
 
     account = amo.models.AmoAccount.objects.get(pk=account_id)
 
-    lead = amo_leads.get_open_lead_by_contact(account.domain, contact_id, tlogger=tlogger)
+    lead = None
+
+    if lead_id:
+        lead = amo_api.get_lead(account.domain, lead_id, tlogger=tlogger)
+
+    if lead is None or not amo_pipelines.status_opened(lead.status_id):
+        lead = amo_leads.get_open_lead_by_contact(account.domain, contact_id, tlogger=tlogger)
+
     if lead is None:
         tlogger.info(f"Stop handling. Not found open leads for contact_id = {contact_id}")
         return

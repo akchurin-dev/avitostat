@@ -197,6 +197,11 @@ class AmoChatBot(chat_bot.models.AIChatBotBase):
         blank=True,
     )
 
+    duplicate_instructions = models.TextField(
+        verbose_name="Важные команды еще раз",
+        blank=True,
+    )
+
     pipeline_status_update_rules = models.TextField(
         verbose_name="Правила обновления этапа воронки",
         blank=True,

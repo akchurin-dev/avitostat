@@ -2,13 +2,13 @@ from asgiref.sync import async_to_sync
 from django.db import models
 from django.db.models import F
 from django.db.models import Q
-from django.contrib.auth.models import User
 from django.core.validators import MinValueValidator, MaxValueValidator
 from slugify import slugify
 
 from avito_account.models.models import AvitoAccount, moscow_time
 from base.settings import ENVIRONMENT
 from chat_bot.api.subscriptions import subscribe_to_messages, stop_subscribe_to_messages
+from chat_bot.ai_utils import get_example_prompt
 from utils import miscellaneous
 
 
@@ -60,6 +60,11 @@ class AIChatBotBase(models.Model):
     work_time_from = models.TimeField("Начало работы МСК (Пн-Вс)")
     work_time_to = models.TimeField("Окончание работы МСК (Пн-Вс)")
 
+    prompt_example = models.TextField(
+        verbose_name="Пример промпта",
+        blank=True,
+    )
+
     class Meta:
         abstract = True
 
@@ -104,8 +109,9 @@ class AiChatBot(AIChatBotBase):
         verbose_name_plural = "ИИ чат боты"
 
     def save(self, *args, **kwargs):
-        previous = AiChatBot.objects.filter(pk=self.pk).last()
-        # Сначала сохраняем объект
+        self.prompt_example = get_example_prompt(aichatbot=self)
+
+        previous = AiChatBot.objects.get(pk=self.pk)
         super().save(*args, **kwargs)
 
         if ENVIRONMENT == "DEVELOPMENT":

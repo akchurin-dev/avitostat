@@ -1,5 +1,7 @@
 import datetime
 import json
+from typing import Literal
+from typing import TypedDict
 
 import httpx
 from httpx import HTTPStatusError
@@ -92,7 +94,24 @@ async def check_timestamp_in_period(timestamp: int, period: str = "week") -> boo
     return timestamp_in_period
 
 
-async def get_chats_last_50_messages(avito_account: AvitoAccount, chats: list, *, trace_id: str | None = None) -> list:
+class ChatMessageContent(TypedDict):
+    text: str | None
+
+
+class ChatMessage(TypedDict):
+    id: str
+    author_id: int
+    direction: Literal["in", "out"]
+    type: str
+    content: ChatMessageContent
+
+
+class Chat(TypedDict, total=False):
+    id: str
+    messages: list[ChatMessage]
+
+
+async def get_chats_last_50_messages(avito_account: AvitoAccount, chats: list[Chat], *, trace_id: str | None = None) -> list[Chat]:
     tlogger = TraceLogger(trace_id)
     if len(chats) > 0:
         async with httpx.AsyncClient() as client:
@@ -117,7 +136,7 @@ async def get_chats_last_50_messages(avito_account: AvitoAccount, chats: list, *
 import requests
 class MessagingAPISync:
     @staticmethod
-    def get_chats_last_50_messages(avito_account: AvitoAccount, chats: list, *, trace_id: str | None = None) -> list:
+    def get_chats_last_50_messages(avito_account: AvitoAccount, chats: list[Chat], *, trace_id: str | None = None) -> list[Chat]:
         tlogger = TraceLogger(trace_id)
         if len(chats) > 0:
             with httpx.Client() as client:
