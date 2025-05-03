@@ -10,9 +10,9 @@ from rest_framework import status
 import amo.models
 import amo.serializers
 import amo.schemas
+import amo.tasks
 from amo.utils import amo_ai
 from amo.utils import amo_accounts
-from amo.utils import message_handling
 from amo.utils import amo_pipelines
 from amo.utils import amo_sources
 from base import settings
@@ -64,30 +64,36 @@ def webhook_inbox(request: Request) -> Response:
     if not isinstance(request.data, dict):
         raise Exception()
 
+    tlogger.info(dict(request.data))
+
     try:
         account_id: int = int(request.data["account[id]"])
         contact_id = int(request.data["message[add][0][contact_id]"])
-        entity_type = request.data["message[add][0][entity_type]"]
-
-        lead_id = None
-        if entity_type == "lead":
-            lead_id = int(request.data["message[add][0][entity_id]"])
-
         origin = request.data["message[add][0][origin]"]
         chat_id: str = request.data["message[add][0][chat_id]"]
         talk_id: int = int(request.data["message[add][0][talk_id]"])
         message_id: str = request.data["message[add][0][id]"]
+        text: str = request.data["message[add][0][text]"]
         message_created_at: datetime.datetime = datetime.datetime.fromtimestamp(
             timestamp=int(request.data["message[add][0][created_at]"]),
             tz=datetime.timezone.utc,
         )
-        text: str = request.data["message[add][0][text]"]
+
+        entity_type: str | None = request.data.get("message[add][0][entity_type]")
+        lead_id: int | None = None
+        if entity_type == "lead":
+            lead_id = int(request.data["message[add][0][entity_id]"])
+
+        attachment_type: str | None = request.data.get("message[add][0][attachment][type]")
+        file_link: str | None = None
+        if attachment_type:
+            file_link = request.data.get("message[add][0][attachment][link]")
     except:
         tlogger.info("Error when parse request data, request data =")
-        tlogger.info(request.data)
+        tlogger.info(dict(request.data))
         raise
 
-    message_handling.launch_handler(
+    amo.tasks.launch_chatbottask(
         account_id=account_id,
         contact_id=contact_id,
         lead_id=lead_id,
@@ -97,7 +103,9 @@ def webhook_inbox(request: Request) -> Response:
         message_id=message_id,
         message_created_at=message_created_at,
         text=text,
-        trace_id=logging.new_trace_id(),
+        file_type=attachment_type,
+        file_link=file_link,
+        trace_id=tlogger.trace_id,
     )
 
     return Response(status=status.HTTP_200_OK)

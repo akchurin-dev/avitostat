@@ -4,11 +4,14 @@ from typing import Iterable
 
 from openai.types.responses import ResponseInputParam
 from openai.types.responses import ResponseTextConfigParam
+from openai.types.responses.easy_input_message_param import EasyInputMessageParam as GPTMessage
 from pydantic import BaseModel
 
 import amo.models
 from amo.utils import amo_api
 from amo.utils.amo_messages import Message
+from amo.utils.amo_messages import MessageTypeEnum
+from amo.utils.amo_transcriptions import TranscriptionsForMessages
 from chat_bot.ai_utils import client
 from chat_bot.ai_utils import MODEL
 from chat_bot.ai_utils import use_gpt_flag
@@ -34,6 +37,7 @@ class AIAnswer(BaseModel):
 def generate_answer(
     chatbot: amo.models.AmoChatBot,
     messages: list[Message],
+    transcriptions: TranscriptionsForMessages,
     account: amo.models.AmoAccount,
     lead_id: int | str,
     *,
@@ -59,6 +63,7 @@ def generate_answer(
     gpt_messages = _get_gpt_messages(
         chatbot=chatbot,
         messages=messages,
+        transcriptions=transcriptions,
         fillable_fields=fillable_fields,
         available_pipeline_statuses=available_pipeline_statuses,
         lead=lead,
@@ -100,7 +105,9 @@ def get_example_prompt(chatbot: amo.models.AmoChatBot) -> str:
             incoming=True,
             chat_id="1",
             talk_id=1,
+            type=MessageTypeEnum.TEXT,
             text="Привет, хочу купить велосипед",
+            file_url=None,
             created_at=datetime.datetime.now(),
         ),
         Message(
@@ -108,7 +115,9 @@ def get_example_prompt(chatbot: amo.models.AmoChatBot) -> str:
             incoming=False,
             chat_id="1",
             talk_id=1,
+            type=MessageTypeEnum.TEXT,
             text="Здравствуйте! На какой возраст ищете?",
+            file_url=None,
             created_at=datetime.datetime.now(),
         ),
         Message(
@@ -116,7 +125,9 @@ def get_example_prompt(chatbot: amo.models.AmoChatBot) -> str:
             incoming=True,
             chat_id="1",
             talk_id=1,
+            type=MessageTypeEnum.TEXT,
             text="На ребенка 13 лет",
+            file_url=None,
             created_at=datetime.datetime.now(),
         ),
     ]
@@ -151,7 +162,9 @@ def get_example_prompt(chatbot: amo.models.AmoChatBot) -> str:
         custom_fields_values=None,
     )
 
-    gpt_messages = _get_gpt_messages(chatbot, messages, fillable_fields, available_pipeline_statuses, lead)
+    transcriptions = TranscriptionsForMessages({})
+
+    gpt_messages = _get_gpt_messages(chatbot, messages, transcriptions, fillable_fields, available_pipeline_statuses, lead)
 
     lines = []
 
@@ -167,6 +180,7 @@ def get_example_prompt(chatbot: amo.models.AmoChatBot) -> str:
 def _get_gpt_messages(
     chatbot: amo.models.AmoChatBot,
     messages: list[Message],
+    transcriptions: TranscriptionsForMessages,
     fillable_fields: Iterable[amo.models.FillableField],
     available_pipeline_statuses: list[amo_api.PipelineStatus],
     lead: amo_api.Lead,
@@ -183,17 +197,47 @@ def _get_gpt_messages(
         raise Exception(f"Status (id={lead.status_id}) not found in pipeline (id={lead.pipeline_id})")
 
     prompt = _get_prompt(chatbot, fillable_fields, available_pipeline_statuses, current_status)
-    dialog_str = _dialog_to_str(messages)
 
-    gpt_messages: ResponseInputParam = [
-        {"role": "system", "content": prompt},
-        {"role": "user", "content": dialog_str},
-    ]
+    gpt_messages: ResponseInputParam = [{"role": "system", "content": prompt}]
 
     if chatbot.duplicate_instructions:
         gpt_messages.append({"role": "user", "content": chatbot.duplicate_instructions})
 
+    gpt_messages.extend([_amo_message_to_gpt_format(message, transcriptions) for message in messages])
+
     return gpt_messages
+
+
+def _amo_message_to_gpt_format(message: Message, transcriptions: TranscriptionsForMessages) -> GPTMessage:
+    role = "assistant"
+    if message.incoming:
+        role = "user"
+
+    if message.type == MessageTypeEnum.TEXT:
+        assert message.text
+        return {
+            "role": role,
+            "content": message.text,
+        }
+
+    if message.type == MessageTypeEnum.PICTURE:
+        assert message.file_url
+        return {
+            "role": role,
+            "content": [{
+                "type": "input_image",
+                "image_url": message.file_url,
+                "detail": "low",
+            }],
+        }
+
+    if message.type == MessageTypeEnum.VOICE:
+        return {
+            "role": role,
+            "content": transcriptions.get_transcription(message),
+        }
+
+    raise Exception(f"Unknown message type, got {message.type}")
 
 
 def _get_text_format(

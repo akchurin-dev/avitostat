@@ -5,6 +5,7 @@ from amo.utils import amo_api
 from amo.utils import amo_chatbottasks
 import chat_bot.models
 from chatbottasks import chatbottasks
+import transcriptions.models
 from utils import miscellaneous
 
 
@@ -405,6 +406,11 @@ class AmoTalkLeadLink(models.Model):
 
 
 class AmoChatBotTask(chat_bot.models.AIResultContainer, chatbottasks.Task):
+    class MessageType(models.TextChoices):
+        TEXT = "text"
+        VOICE = "voice"
+        PICTURE = "picture"
+
     account = models.ForeignKey(
         verbose_name="Amo-аккаунт",
         to=AmoAccount,
@@ -436,7 +442,7 @@ class AmoChatBotTask(chat_bot.models.AIResultContainer, chatbottasks.Task):
         db_index=True,
     )
 
-    # В рамках одного чата может быть много разговоров
+    # В рамках одной сделки может быть много разговоров
     talk_id = models.IntegerField(
         verbose_name="Идентификатор разговора",
         db_index=True,
@@ -452,8 +458,20 @@ class AmoChatBotTask(chat_bot.models.AIResultContainer, chatbottasks.Task):
         verbose_name="Когда создано сообщение",
     )
 
+    message_type = models.CharField(
+        verbose_name="Тип сообщения",
+        choices=MessageType.choices,
+        default=MessageType.TEXT.value,
+    )
+
     text = models.TextField(
         verbose_name="Текст сообщения",
+        blank=True,
+    )
+
+    file_link = models.TextField(
+        verbose_name="Прикрепленный файл",
+        blank=True,
     )
 
     sent_report = models.BooleanField(
@@ -473,3 +491,29 @@ class AmoChatBotTask(chat_bot.models.AIResultContainer, chatbottasks.Task):
             chat_id=self.chat_id,
         )
         super().save()
+
+
+class AmoTranscription(models.Model):
+    account = models.ForeignKey(
+        verbose_name="Амо-аккаунт",
+        to=AmoAccount,
+        on_delete=models.CASCADE,
+    )
+
+    chat_id = models.CharField(
+        verbose_name="Идентификатор чата",
+        max_length=255,
+        db_index=True,
+    )
+
+    message_id = models.CharField(
+        verbose_name="Идентификатор сообщения",
+        max_length=255,
+        db_index=True,
+    )
+
+    transcription = models.ForeignKey(
+        verbose_name="Транскрипция",
+        to=transcriptions.models.Transcription,
+        on_delete=models.CASCADE,
+    )

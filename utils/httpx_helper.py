@@ -46,7 +46,7 @@ def request(
     url: str,
     params: dict | None = None,
     data: dict | None = None,
-    json: dict | None = None,
+    json: dict | list | None = None,
     headers: dict | None = None,
     timeout_retries: int = 3,
     tlogger: TraceLogger | None = None,

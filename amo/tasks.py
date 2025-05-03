@@ -1,17 +1,140 @@
-import pprint
+import datetime
 
 from celery import shared_task
 
 import amo.models
 from amo.utils import amo_ai
 from amo.utils import amo_api
+from amo.utils import amo_chatbots
+from amo.utils import amo_chatbottasks
 from amo.utils import amo_entities
 from amo.utils import amo_leads
 from amo.utils import amo_messages
 from amo.utils import amo_pipelines
 from amo.utils import amo_reports
+from amo.utils import amo_transcriptions
 from amo.utils import qualification
+from base import settings
 from utils.logging import TraceLogger
+
+
+@shared_task
+def launch_chatbottask(
+    account_id: int,
+    contact_id: int,
+    lead_id: int | None,
+    origin: str,
+    chat_id: str,
+    talk_id: int,
+    message_id: str,
+    message_created_at: datetime.datetime,
+    text: str,
+    file_type: str | None,
+    file_link: str | None,
+    *,
+    trace_id: str,
+) -> None:
+
+    tlogger = TraceLogger(trace_id)
+
+    message_type = amo_messages.define_message_type(text, file_type)
+    if message_type is None:
+        tlogger.info({
+            "Title": "Stop handling. Unknown message type",
+            "message_text": text,
+            "attachment_type": file_type,
+        })
+        return
+
+    account = amo.models.AmoAccount.objects.get(pk=account_id)
+
+    lead = amo_leads.define_lead(
+        account=account,
+        contact_id=contact_id,
+        advised_lead_id=lead_id,
+        tlogger=tlogger,
+    )
+
+    tlogger.info((
+        "New message:\n"
+        f"domain: {account.domain}\n"
+        f"lead_id: {lead.id}\n"
+        f"pipeline_id: {lead.pipeline_id}\n"
+        f"status_id: {lead.status_id}\n"
+        f"contact_id: {contact_id}\n"
+        f"origin: {origin}\n"
+        f"chat_id: {chat_id}\n"
+        f"talk_id: {talk_id}\n"
+        f"message_id: {message_id}\n"
+        f"message_created_at: {message_created_at.isoformat()}\n"
+        f"text: {text}"
+    ))
+
+    amo.models.AmoTalkLeadLink.objects.get_or_create(
+        account_id=account_id,
+        talk_id=talk_id,
+        lead_id=lead.id,
+    )
+
+    chatbot = amo_chatbots.define_chatbot(account, lead, origin, tlogger=tlogger)
+
+    if chatbot is None:
+        tlogger.info("Stop handling. Available chat bots wasn't found")
+        return
+
+    tlogger.info(f"Selected chat bot is {chatbot}")
+
+    task, created = amo.models.AmoChatBotTask.objects.get_or_create(
+        account_id=account_id,
+        chat_id=chat_id,
+        message_id=message_id,
+        defaults={
+            "chatbot": chatbot,
+            "lead_id": str(lead.id),
+            "contact_id": str(contact_id),
+            "talk_id": talk_id,
+            "message_created_at": message_created_at,
+            "message_type": message_type.value,
+            "text": text,
+            "file_link": file_link or "",
+        },
+    )
+    if not created:
+        tlogger.info("Stop handling. Task exists already")
+        return
+
+    newer_tasks = amo.models.AmoChatBotTask.objects.filter(
+        message_created_at__gt=task.message_created_at,
+        object_id=amo_chatbottasks.get_object_id(
+            domain=task.account.domain,
+            chat_id=task.chat_id,
+        ),
+    )
+
+    if newer_tasks.exists():
+        tlogger.info("Stop handling. There is task with newer message")
+        task.cancel(tlogger)
+        return
+
+    ok = task.cancel_others(tlogger=tlogger)
+    if not ok:
+        tlogger.info("Stop handling. Task was canceled before it was started")
+        return
+
+    tlogger.info(f"Task ({task.pk}) created successfully")
+
+    wait_sec = chatbot.waiting_minutes * 60
+    wait_sec /= 60 # TODO only while amo is being tested
+
+    if settings.ENVIRONMENT == "DEVELOPMENT":
+        wait_sec = 5
+
+    if settings.ENVIRONMENT == "TESTING":
+        wait_sec = 5
+
+    tlogger.info(f"Wait for {wait_sec} seconds...")
+
+    prepare_message_handling_data.s(task_id=task.pk, trace_id=tlogger.trace_id).apply_async(countdown=wait_sec)
 
 
 @shared_task
@@ -58,7 +181,7 @@ def prepare_message_handling_data(*, task_id: int, trace_id: str):
             return
 
         generate_ai_answer.delay(
-            messages_serializable=[m.model_dump() for m in messages],
+            messages_serializable=[m.model_dump(mode="json") for m in messages],
             task_id=task_id,
             trace_id=trace_id,
         )
@@ -80,19 +203,22 @@ def generate_ai_answer(messages_serializable: list[dict], task_id: int, trace_id
             tlogger.info("Stop handling. Can't go to answer generation")
             return
 
+        transctiptions = amo_transcriptions.get_transcriptions_for_voice_messages(task.account, messages, tlogger=tlogger)
+
         ai_answer = amo_ai.generate_answer(
             chatbot=task.chatbot,
             messages=messages,
+            transcriptions=transctiptions,
             account=task.account,
             lead_id=task.lead_id,
             tlogger=tlogger,
         )
         ai_answer.payload.answer += "..."
 
-        tlogger.info(pprint.pformat({
+        tlogger.info({
             "Title": "AI answer",
             "ai_answer": ai_answer.model_dump(),
-        }))
+        })
 
         handle_ai_answer.delay(
             ai_answer_serializable=ai_answer.model_dump(),

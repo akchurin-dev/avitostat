@@ -1,4 +1,5 @@
 import datetime
+from enum import Enum
 from typing import NamedTuple
 
 from pydantic import BaseModel
@@ -8,18 +9,29 @@ from amo.utils import amo_api
 from utils.logging import TraceLogger
 
 
+class MessageTypeEnum(Enum):
+    PICTURE = amo.models.AmoChatBotTask.MessageType.PICTURE.value
+    TEXT = amo.models.AmoChatBotTask.MessageType.TEXT.value
+    VOICE = amo.models.AmoChatBotTask.MessageType.VOICE.value
+
+
 class Message(BaseModel):
     id: str
     incoming: bool
     chat_id: str
     talk_id: int
+    type: MessageTypeEnum
     text: str | None
+    file_url: str | None
     created_at: datetime.datetime
 
 
 class Talk(NamedTuple):
     messages: list[Message]
     opened: bool
+
+
+SUPPORTED_MESSAGE_TYPES = {mt.value for mt in MessageTypeEnum}
 
 
 def get_lead_chat(account_id: str, lead_id: str, tlogger: TraceLogger) -> Talk:
@@ -35,16 +47,34 @@ def get_lead_chat(account_id: str, lead_id: str, tlogger: TraceLogger) -> Talk:
     message_events = [e for e in events if e["type"] in [89, 90]]
     message_events = [e for e in message_events if e["data"]["dialog"]["id"] in lead_talks]
 
-    messages = [
-        Message(
-            id=e["data"]["id"],
-            incoming=e["type"] == 89,
-            chat_id=e["data"]["chat_id"],
-            talk_id=e["data"]["dialog"]["id"],
-            text=e["data"]["message"]["text"] if e["data"]["message"]["type"] == "text" else None,
-            created_at=e["data"]["created_at"],
-        ) for e in message_events
-    ]
+    messages: list[Message] = []
+
+    for event in message_events:
+        message_type = event["data"]["message"]["type"]
+
+        text = None
+        if message_type == MessageTypeEnum.TEXT.value:
+            text = event["data"]["message"]["text"]
+
+        file_link = None
+        if message_type in [MessageTypeEnum.PICTURE.value, MessageTypeEnum.VOICE.value]:
+            file_link = event["data"]["message"]["attachment"]["media"]
+
+        if text is None and file_link is None:
+            tlogger.info(f"Skip message event. Unknown type '{message_type}'")
+            continue
+
+        messages.append(Message(
+            id=event["data"]["id"],
+            incoming=event["type"] == 89,
+            chat_id=event["data"]["chat_id"],
+            talk_id=event["data"]["dialog"]["id"],
+            type=MessageTypeEnum(message_type),
+            text=text,
+            file_url=file_link,
+            created_at=event["data"]["created_at"],
+        ))
+
     messages.sort(key=lambda m: m.created_at)
     _print_chat(messages, tlogger=tlogger)
 
@@ -52,6 +82,16 @@ def get_lead_chat(account_id: str, lead_id: str, tlogger: TraceLogger) -> Talk:
         messages=messages,
         opened=message_events[0]["data"]["dialog"]["opened"],
     )
+
+
+def define_message_type(text: str, attachment_type: str | None) -> MessageTypeEnum | None:
+    if text:
+        return MessageTypeEnum.TEXT
+
+    if attachment_type in SUPPORTED_MESSAGE_TYPES:
+        return MessageTypeEnum(attachment_type)
+
+    return None
 
 
 def manager_interfere(account_id: str, lead_id: str, messages: list[Message]) -> bool:
@@ -83,6 +123,11 @@ def _print_chat(messages: list[Message], tlogger: TraceLogger) -> None:
 
     for msg in messages:
         line_prefix = "in" if msg.incoming else "out"
-        lines.append(f"{line_prefix} ({msg.id}): {msg.text}")
+
+        if msg.type == MessageTypeEnum.TEXT:
+            lines.append(f"{line_prefix} ({msg.id}): {msg.text}")
+            continue
+
+        lines.append(f"{line_prefix} ({msg.id}): {msg.type.value} - {msg.file_url}")
 
     tlogger.info("\n".join(lines))

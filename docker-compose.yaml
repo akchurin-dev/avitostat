@@ -42,6 +42,7 @@ services:
     env_file: ".env"
     volumes:
       - .:/avitostat
+      - .:/var/www/avitostat
 
   celery-worker:
     build:
@@ -54,6 +55,9 @@ services:
     networks:
       - custom
     env_file: ".env"
+    volumes:
+      - .:/avitostat
+      - .:/var/www/avitostat
 
   celery-beat:
     build:
@@ -66,6 +70,9 @@ services:
     networks:
       - custom
     env_file: ".env"
+    volumes:
+      - .:/avitostat
+      - .:/var/www/avitostat
 
 networks:
   custom:

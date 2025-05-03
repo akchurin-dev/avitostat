@@ -171,6 +171,32 @@ def get_lead(domain: str, lead_id: int | str, *, tlogger: TraceLogger) -> Lead:
     return Lead.model_validate(data)
 
 
+def create_lead(account: amo_models.AmoAccount, contact_id: int, *, tlogger: TraceLogger) -> int:
+    """ https://www.amocrm.ru/developers/content/crm_platform/leads-api#leads-add """
+
+    action = "/api/v4/leads"
+
+    data = [{
+        "_embedded": {
+            "contacts": [{
+                "id": contact_id,
+                "is_main": True,
+            }],
+        },
+    }]
+
+    response = _request_with_token(
+        method="POST",
+        domain=account.domain,
+        action=action,
+        json=data,
+        tlogger=tlogger,
+    )
+    response.raise_for_status()
+
+    return response.json()["_embedded"]["leads"][0]["id"]
+
+
 def all_leads(domain: str, *, tlogger: TraceLogger):
     page = 0
 
@@ -372,7 +398,7 @@ def _request_with_token(
     action: str,
     params: dict | None = None,
     data: dict | None = None,
-    json: dict | None = None,
+    json: dict | list | None = None,
     headers: dict | None = None,
     retry: bool = False,
     *,
