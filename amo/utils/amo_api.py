@@ -4,8 +4,8 @@ from enum import Enum
 from typing import Any
 from typing import NamedTuple
 
+import pydantic
 from pydantic import BaseModel
-from pydantic import ConfigDict
 
 from amo import models as amo_models
 from amo.utils import amo_tokens
@@ -132,7 +132,7 @@ class CustomFieldValue(BaseModel):
     class Value(BaseModel):
         value: Any
 
-        model_config = ConfigDict(extra="allow")
+        model_config = pydantic.ConfigDict(extra="allow")
 
     field_id: int
     field_name: str
@@ -388,8 +388,23 @@ def get_sources(account_id: int, *, tlogger: TraceLogger) -> list[Source]:
 
     response = _request_with_csrf("GET", account_id, action, tlogger=tlogger)
     response.raise_for_status()
+    data = response.json()
 
-    return [Source.model_validate(source) for source in response.json()["_embedded"]["sources"]]
+    sources: list[Source] = []
+
+    for s in data["_embedded"]["sources"]:
+        try:
+            sources.append(Source.model_validate_json(s))
+        except pydantic.ValidationError as e:
+            tlogger.info({
+                "title": "Invalid source",
+                "error": e,
+                "source": s,
+            })
+        except:
+            raise
+
+    return sources
 
 
 def _request_with_token(
