@@ -401,8 +401,6 @@ def get_sources(account_id: int, *, tlogger: TraceLogger) -> list[Source]:
                 "error": e,
                 "source": s,
             })
-        except:
-            raise
 
     return sources
 

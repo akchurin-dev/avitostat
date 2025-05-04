@@ -1,10 +1,12 @@
 import datetime
 import re
+import time
 from typing import Iterable
 
 from openai.types.responses import ResponseInputParam
 from openai.types.responses import ResponseTextConfigParam
 from openai.types.responses.easy_input_message_param import EasyInputMessageParam as GPTMessage
+import pydantic
 from pydantic import BaseModel
 
 import amo.models
@@ -18,6 +20,7 @@ from chat_bot.ai_utils import use_gpt_flag
 from utils.logging import TraceLogger
 
 
+AI_RETRIES = 3
 PHRASE_AUTHOR_REGEX = re.compile(r"^\s*\w+:\s*")
 
 
@@ -75,12 +78,28 @@ def generate_answer(
         field_for_new_status=not chatbot.change_status_only_when_qualification,
     )
 
-    response = client.responses.create(
-        model=MODEL,
-        input=gpt_messages,
-        text=text_format,
-        max_output_tokens=2000,
-    )
+    error = None
+
+    for _ in range(AI_RETRIES):
+        try:
+            response = client.responses.create(
+                model=MODEL,
+                input=gpt_messages,
+                text=text_format,
+                max_output_tokens=2000,
+            )
+
+            payload = AIAnswerPayload.model_validate_json(response.output_text)
+
+            break
+        except pydantic.ValidationError as e:
+            error = e
+            tlogger.info({
+                "title": "Invalid gpt response",
+                "error": e,
+            })
+    else:
+        raise error
 
     tokens_completion = tokens_prompt = 0
 
@@ -89,7 +108,7 @@ def generate_answer(
         tokens_prompt = response.usage.input_tokens
 
     res = AIAnswer(
-        payload=AIAnswerPayload.model_validate_json(response.output_text),
+        payload=payload,
         tokens_completion=tokens_completion,
         tokens_prompt=tokens_prompt,
     )
