@@ -93,7 +93,7 @@ def webhook_inbox(request: Request) -> Response:
         tlogger.info(dict(request.data))
         raise
 
-    amo.tasks.launch_chatbottask(
+    amo.tasks.launch_chatbottask.delay(
         account_id=account_id,
         contact_id=contact_id,
         lead_id=lead_id,
