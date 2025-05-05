@@ -100,6 +100,11 @@ class AiChatBot(AIChatBotBase):
         default="Взять номер телефона клиента для связи",
     )
 
+    read_only = models.BooleanField(
+        verbose_name="Только читает сообщения",
+        default=False,
+    )
+
     statistics_daily_report = models.BooleanField(default=True, verbose_name="Ежедневная статистика")
     histories_closed = models.BooleanField(default=False, verbose_name="История дожатых клиентов")
     histories_open = models.BooleanField(default=False, verbose_name="История НЕдожатых клиентов")
@@ -111,7 +116,7 @@ class AiChatBot(AIChatBotBase):
     def save(self, *args, **kwargs):
         self.prompt_example = get_example_prompt(aichatbot=self)
 
-        previous = AiChatBot.objects.get(pk=self.pk)
+        previous = AiChatBot.objects.filter(pk=self.pk).first()
         super().save(*args, **kwargs)
 
         if ENVIRONMENT == "DEVELOPMENT":

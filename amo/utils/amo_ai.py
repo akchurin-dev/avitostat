@@ -99,7 +99,8 @@ def generate_answer(
                 "error": e,
             })
     else:
-        raise error
+        if error:
+            raise error
 
     tokens_completion = tokens_prompt = 0
 

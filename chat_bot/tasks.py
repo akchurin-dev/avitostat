@@ -207,30 +207,35 @@ class BotStatisticsDailyReportClass(PdfReportBaseClass):
 
         for avito_account in avito_accounts:
             try:
-                aichatbot: AiChatBot | None = getattr(avito_account, "ai_chat_bots", None)
-
-                if aichatbot is None:
-                    tlogger.info(f"Skip daily report for {avito_account.name}. AiChatBot is None")
-                    continue
-
-                if not aichatbot.is_active:
-                    tlogger.info(f"Skip daily report for {avito_account.name}. Chat bot isn't active")
-                    continue
-
-                if not aichatbot.statistics_daily_report:
-                    tlogger.info(f"Skip daily report for {avito_account.name}. Daily reports are turned off")
-                    continue
-
                 if ENVIRONMENT == "DEVELOPMENT":
                     async_to_sync(avito_account.update_refresh_token_async)()
 
-                BotStatisticsDailyReportClass.statistics_for_avito_account(avito_account, tlogger=tlogger)
+                BotStatisticsDailyReportClass.statistics_for_avito_account.delay(avito_account.pk, tlogger=tlogger)
             except Exception as error:
                 tlogger.warning(f"Exception when start daily statistics for {avito_account.name}. Got '{error}'")
                 celery_logger.exception(f"statistics_sender_main_task error - {error}", exc_info=True)
 
     @staticmethod
-    def statistics_for_avito_account(account: AvitoAccount, *, tlogger: TraceLogger):
+    @shared_task
+    def statistics_for_avito_account(account_id: int, *, tlogger: TraceLogger | None = None):
+        if tlogger is None:
+            tlogger = TraceLogger()
+
+        account = AvitoAccount.objects.get(pk=account_id)
+        aichatbot = AiChatBot.objects.filter(account=account).first()
+
+        if aichatbot is None:
+            tlogger.info(f"Skip daily report for {account.name}. AiChatBot is None")
+            return
+
+        if not aichatbot.is_active:
+            tlogger.info(f"Skip daily report for {account.name}. Chat bot isn't active")
+            return
+
+        if not aichatbot.statistics_daily_report:
+            tlogger.info(f"Skip daily report for {account.name}. Daily reports are turned off")
+            return
+
         company_branches_id: list[int | None] = [None]
         company_branches_id.extend(CompanyBranch.objects.filter(account=account).values_list("pk", flat=True))
 

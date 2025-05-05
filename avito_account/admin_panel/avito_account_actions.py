@@ -1,7 +1,9 @@
 import logging
+import chat_bot.tasks
 from conversion.tasks import send_text_report_all_async_task
 from messaging.tasks import bad_messaging_week_report_async_task, \
     month_report_json_getting_async_task
+from utils.logging import TraceLogger
 
 logger = logging.getLogger(__name__)
 
@@ -107,3 +109,24 @@ def run_txt_all_test_from_prod_report(self, request, queryset):
 
 
 run_txt_all_test_from_prod_report.short_description = "ТЕКСТОВЫЙ ТЕСТ ВСЕМ отчет отправить"
+
+
+def run_daily_pdf_report(self, request, queryset):
+    tlogger = TraceLogger()
+
+    try:
+        tlogger.info(f"Run daily report for {len(queryset)} avito accounts")
+
+        for account in queryset:
+            chat_bot.tasks.BotStatisticsDailyReportClass.statistics_for_avito_account(account.pk, tlogger=tlogger)
+
+        self.message_user(request, f"Отправка отчета успешно начата")
+    except Exception as e:
+        tlogger.info({
+            "title": "error when start daily pdf statistics",
+            "error": e,
+        })
+        self.message_user(request, f"Отчет не удалось отправить. Ошибка серва - {e}", level='error')
+
+
+run_daily_pdf_report.short_description = "Ежедневный пдф отчет"

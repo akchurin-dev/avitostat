@@ -267,6 +267,10 @@ class WebhookInboxViewClass(View):
             tlogger.info("Stop handling. Bot stopped for chat")
             return
 
+        if data.chat_bot.read_only:
+            tlogger.info("Stop handling. Bot configured to read only")
+            return
+
         AvitoMessengerSync.read_chat(data.avito_account, data.user_id, data.chat_id)
         WebhookInboxViewClass.incoming_messages_handler(
             new_task=new_task,
