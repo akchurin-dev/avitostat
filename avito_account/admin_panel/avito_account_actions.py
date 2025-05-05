@@ -120,7 +120,7 @@ def run_daily_pdf_report(self, request, queryset):
         for account in queryset:
             chat_bot.tasks.BotStatisticsDailyReportClass.statistics_for_avito_account(account.pk, tlogger=tlogger)
 
-        self.message_user(request, f"Отправка отчета успешно начата")
+        self.message_user(request, f"Отправка отчета успешно начата", level='success')
     except Exception as e:
         tlogger.info({
             "title": "error when start daily pdf statistics",
