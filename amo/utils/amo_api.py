@@ -222,16 +222,24 @@ def get_leads_page(domain: str, page: int = 0, limit: int = 250, *, tlogger: Tra
 
     action = "/api/v4/leads"
 
+    params = {
+        "page": page,
+        "limit": limit,
+    }
+
     response = _request_with_token(
         method="GET",
         domain=domain,
         action=action,
+        params=params,
         tlogger=tlogger,
     )
     response.raise_for_status()
     data= response.json()
 
     leads = [Lead.model_validate(lead) for lead in data["_embedded"]["leads"]]
+
+    tlogger.info(f"Got {len(leads)} leads (page={page}, limit={limit})")
 
     next = data["_links"].get("next")
     next_href = None
