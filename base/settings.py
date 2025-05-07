@@ -110,6 +110,7 @@ INSTALLED_APPS = [
     'amo',
     'chatbottasks',
     'transcriptions',
+    'ai_requests',
 ]
 
 if DEBUG:

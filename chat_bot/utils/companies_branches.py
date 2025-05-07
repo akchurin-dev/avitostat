@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from slugify import slugify
 
 from avito_account.models.models import AvitoAccount
