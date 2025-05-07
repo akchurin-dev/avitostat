@@ -38,7 +38,7 @@ def get_open_lead_by_contact(domain: str, contact_id: int, *, tlogger: TraceLogg
     return None
 
 
-def define_lead(account: amo.models.AmoAccount, contact_id: int, advised_lead_id: int | None, *, tlogger: TraceLogger) -> amo_api.Lead:
+def define_lead(account: amo.models.AmoAccount, contact_id: int, advised_lead_id: int | None, *, tlogger: TraceLogger) -> amo_api.Lead | None:
     lead = None
 
     if advised_lead_id:
@@ -49,9 +49,9 @@ def define_lead(account: amo.models.AmoAccount, contact_id: int, advised_lead_id
         tlogger.info(f"Lead wasn't advised or advised lead is closed")
         lead = get_open_lead_by_contact(account.domain, contact_id, tlogger=tlogger)
 
-    if lead is None:
-        lead_id = amo_api.create_lead(account, contact_id, tlogger=tlogger)
-        lead = amo_api.get_lead(account.domain, lead_id, tlogger=tlogger)
-        tlogger.info(f"Didn't find opened leads. New lead (id={lead_id}) was created")
+    # if lead is None:
+    #     lead_id = amo_api.create_lead(account, contact_id, tlogger=tlogger)
+    #     lead = amo_api.get_lead(account.domain, lead_id, tlogger=tlogger)
+    #     tlogger.info(f"Didn't find opened leads. New lead (id={lead_id}) was created")
 
     return lead
