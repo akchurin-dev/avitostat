@@ -392,7 +392,10 @@ def get_sources(account_id: int, *, tlogger: TraceLogger) -> list[Source]:
 
     for s in data["_embedded"]["sources"]:
         try:
-            sources.append(Source.model_validate(s))
+            source = Source.model_validate(s)
+
+            if source.origin.strip():
+                sources.append(source)
         except pydantic.ValidationError as e:
             tlogger.info({
                 "title": "Invalid source",
