@@ -55,6 +55,10 @@ def launch_chatbottask(
         tlogger=tlogger,
     )
 
+    if lead is None:
+        tlogger.info(f"Stop handling. Open lead for contact not found")
+        return
+
     tlogger.info((
         "New message:\n"
         f"domain: {account.domain}\n"
