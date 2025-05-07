@@ -13,6 +13,7 @@ from amo.utils import amo_messages
 from amo.utils import amo_pipelines
 from amo.utils import amo_reports
 from amo.utils import amo_transcriptions
+from amo.utils import chatbot_lead_pair_defining
 from amo.utils import qualification
 from base import settings
 from utils.logging import TraceLogger
@@ -48,16 +49,23 @@ def launch_chatbottask(
 
     account = amo.models.AmoAccount.objects.get(pk=account_id)
 
-    lead = amo_leads.define_lead(
+    chatbot_lead_pair = chatbot_lead_pair_defining.define_chatbot_and_lead(
         account=account,
         contact_id=contact_id,
         advised_lead_id=lead_id,
+        origin=origin,
         tlogger=tlogger,
     )
 
-    if lead is None:
-        tlogger.info(f"Stop handling. Open lead for contact not found")
+    if chatbot_lead_pair is None:
+        tlogger.info("Stop handling. Chatbot and lead aren't defined")
         return
+
+    chatbot = chatbot_lead_pair.chatbot
+    lead = chatbot_lead_pair.lead
+
+    tlogger.info(f"Selected chat bot is '{chatbot}'")
+    tlogger.info(f"Selected lead id={lead.id}")
 
     tlogger.info((
         "New message:\n"
@@ -79,14 +87,6 @@ def launch_chatbottask(
         talk_id=talk_id,
         lead_id=lead.id,
     )
-
-    chatbot = amo_chatbots.define_chatbot(account, lead, origin, tlogger=tlogger)
-
-    if chatbot is None:
-        tlogger.info("Stop handling. Available chat bots wasn't found")
-        return
-
-    tlogger.info(f"Selected chat bot is {chatbot}")
 
     task, created = amo.models.AmoChatBotTask.objects.get_or_create(
         account_id=account_id,

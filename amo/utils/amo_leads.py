@@ -19,39 +19,35 @@ def change_lead_status(domain: str, lead_id: int | str, status_id: int | str, *,
     tlogger.info(f"Lead (id={lead_id}) status was updated to status (id={status_id})")
 
 
-def get_open_lead_by_contact(domain: str, contact_id: int, *, tlogger: TraceLogger) -> amo_api.Lead | None:
-    contact = amo_api.get_contact(domain, contact_id, with_leads=True, tlogger=tlogger)
+def get_open_leads_by_contact(
+    account: amo.models.AmoAccount,
+    contact_id: int,
+    advised_lead_id: int | None = None,
+    *,
+    tlogger: TraceLogger,
+) -> list[amo_api.Lead]:
+
+    contact = amo_api.get_contact(account.domain, contact_id, with_leads=True, tlogger=tlogger)
 
     if contact.lead_ids is None:
-        return None
+        return []
 
     tlogger.info(f"Contact id={contact_id} linked with leads: {contact.lead_ids}")
 
+    open_leads: list[amo_api.Lead] = []
+
     for lead_id in contact.lead_ids:
-        lead = amo_api.get_lead(domain, lead_id, tlogger=tlogger)
+        lead = amo_api.get_lead(account.domain, lead_id, tlogger=tlogger)
 
         if amo_pipelines.status_opened(lead.status_id):
-            tlogger.info(f"Found opened lead id={lead_id}")
-            return lead
-
-    tlogger.info("All contact's leads are closed")
-    return None
-
-
-def define_lead(account: amo.models.AmoAccount, contact_id: int, advised_lead_id: int | None, *, tlogger: TraceLogger) -> amo_api.Lead | None:
-    lead = None
+            open_leads.append(lead)
 
     if advised_lead_id:
-        tlogger.info(f"Got advised lead {advised_lead_id}")
-        lead = amo_api.get_lead(account.domain, advised_lead_id, tlogger=tlogger)
+        advised_lead = amo_api.get_lead(account.domain, advised_lead_id, tlogger=tlogger)
 
-    if lead is None or not amo_pipelines.status_opened(lead.status_id):
-        tlogger.info(f"Lead wasn't advised or advised lead is closed")
-        lead = get_open_lead_by_contact(account.domain, contact_id, tlogger=tlogger)
+        if amo_pipelines.status_opened(advised_lead.status_id):
+            open_leads.append(advised_lead)
 
-    # if lead is None:
-    #     lead_id = amo_api.create_lead(account, contact_id, tlogger=tlogger)
-    #     lead = amo_api.get_lead(account.domain, lead_id, tlogger=tlogger)
-    #     tlogger.info(f"Didn't find opened leads. New lead (id={lead_id}) was created")
+    tlogger.info(f"Open leads: {[lead.id for lead in open_leads]}")
 
-    return lead
+    return open_leads

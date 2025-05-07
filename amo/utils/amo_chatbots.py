@@ -5,56 +5,68 @@ from amo.utils import amo_api
 from utils.logging import TraceLogger
 
 
-def define_chatbot(
+def get_possible_chatbots(
     account: amo.models.AmoAccount,
-    lead: amo_api.Lead,
+    possible_leads: list[amo_api.Lead],
     origin: str,
     *,
     tlogger: TraceLogger,
-) -> amo.models.AmoChatBot | None:
+) -> list[amo.models.AmoChatBot]:
 
     chatbots = amo.models.AmoChatBot.get_available_chatbots()
-    chatbot = get_by_pipeline_status(chatbots, account, lead, tlogger=tlogger)
+    chatbots = filter_by_pipelines_statuses(chatbots, account, possible_leads, tlogger=tlogger)
+    chatbots = filter_by_origin(chatbots, origin, tlogger=tlogger)
 
-    if chatbot is None:
+    chatbots_list = list(chatbots)
+
+    if len(chatbots_list) == 0:
         tlogger.info("Chatbot not found")
-        return None
 
-    if not origin_handled_by_chatbot(chatbot, origin):
-        tlogger.info(f"Chatbot '{chatbot}' doesn't handle origin '{origin}'")
-        return None
-
-    return chatbot
+    return chatbots_list
 
 
-def get_by_pipeline_status(
+def filter_by_pipelines_statuses(
     chatbots: QuerySet,
     account: amo.models.AmoAccount,
-    lead: amo_api.Lead,
+    leads: list[amo_api.Lead],
     *,
     tlogger: TraceLogger,
-) -> amo.models.AmoChatBot | None:
+) -> QuerySet[amo.models.AmoChatBot]:
 
-    status_bot_link = amo.models.AmoPipelineStatusChatbotLink.objects.filter(
+    statuses_ids = [lead.status_id for lead in leads]
+
+    status_bot_links = amo.models.AmoPipelineStatusChatbotLink.objects.filter(
         status__account=account,
-        status__amo_id=lead.status_id,
-    ).first()
+        status__amo_id__in=statuses_ids,
+    )
 
-    chatbot = None
-    if status_bot_link:
-        chatbot = status_bot_link.chatbot
+    chatbots_ids = [status_bot_link.chatbot.pk for status_bot_link in status_bot_links]
 
-    if chatbot is None:
-        status = amo.models.AmoPipelineStatus.objects.get(
+    if len(chatbots_ids) == 0:
+        statuses_names = amo.models.AmoPipelineStatus.objects.filter(
             account=account,
-            pipeline_id=lead.pipeline_id,
-            amo_id=lead.status_id,
-        )
-        tlogger.info(f"Pipeline status '{status.name}' is not linked with chat bot")
-        return None
+            amo_id__in=statuses_ids,
+        ).values_list("name", flat=True)
+        tlogger.info(f"Active Chatbot not found for pipelines statuses {statuses_names}")
 
-    return chatbots.filter(pk=chatbot.pk).first()
+    return chatbots.filter(pk__in=chatbots_ids)
 
 
-def origin_handled_by_chatbot(chatbot: amo.models.AmoChatBot, origin: str) -> bool:
-    return amo.models.AmoChatbotOriginLink.objects.filter(chatbot=chatbot, origin__code=origin).exists()
+def filter_by_origin(
+    chatbots: QuerySet[amo.models.AmoChatBot],
+    origin: str,
+    *,
+    tlogger: TraceLogger,
+) -> QuerySet[amo.models.AmoChatBot]:
+
+    origin_bot_links = amo.models.AmoChatbotOriginLink.objects.filter(
+        chatbot__in=chatbots,
+        origin__code=origin,
+    )
+
+    chatbots_ids = [origin_bot_link.chatbot.pk for origin_bot_link in origin_bot_links]
+
+    if len(chatbots_ids) == 0:
+        tlogger.info(f"Chatbots for origin '{origin}' aren't found")
+
+    return chatbots.filter(pk__in=chatbots_ids)
