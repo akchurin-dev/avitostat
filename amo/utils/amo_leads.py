@@ -22,16 +22,19 @@ def change_lead_status(domain: str, lead_id: int | str, status_id: int | str, *,
 def get_open_lead_by_contact(domain: str, contact_id: int, *, tlogger: TraceLogger) -> amo_api.Lead | None:
     contact = amo_api.get_contact(domain, contact_id, with_leads=True, tlogger=tlogger)
 
-    assert contact.lead_ids is not None
-    contact_leads = set(contact.lead_ids)
+    if contact.lead_ids is None:
+        return None
 
-    for lead in amo_api.all_leads(domain, tlogger=tlogger):
-        if not amo_pipelines.status_opened(lead.status_id):
-            continue
+    tlogger.info(f"Contact id={contact_id} linked with leads: {contact.lead_ids}")
 
-        if lead.id in contact_leads:
+    for lead_id in contact.lead_ids:
+        lead = amo_api.get_lead(domain, lead_id, tlogger=tlogger)
+
+        if amo_pipelines.status_opened(lead.status_id):
+            tlogger.info(f"Found opened lead id={lead_id}")
             return lead
 
+    tlogger.info("All contact's leads are closed")
     return None
 
 
@@ -39,12 +42,12 @@ def define_lead(account: amo.models.AmoAccount, contact_id: int, advised_lead_id
     lead = None
 
     if advised_lead_id:
-        lead = amo_api.get_lead(account.domain, advised_lead_id, tlogger=tlogger)
         tlogger.info(f"Got advised lead {advised_lead_id}")
+        lead = amo_api.get_lead(account.domain, advised_lead_id, tlogger=tlogger)
 
     if lead is None or not amo_pipelines.status_opened(lead.status_id):
-        lead = get_open_lead_by_contact(account.domain, contact_id, tlogger=tlogger)
         tlogger.info(f"Lead wasn't advised or advised lead is closed")
+        lead = get_open_lead_by_contact(account.domain, contact_id, tlogger=tlogger)
 
     if lead is None:
         lead_id = amo_api.create_lead(account, contact_id, tlogger=tlogger)
