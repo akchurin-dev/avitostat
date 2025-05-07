@@ -20,6 +20,7 @@ from chat_bot.tasks import BotStatisticsDailyReportClass, ChatBotSummaryReportCl
     AiAnswerAvitoClass
 from chat_bot.api.subscriptions import subscribe_to_messages, stop_subscribe_to_messages, check_subscriptions
 from chat_bot.models import AiChatBot, ChatBotTask
+from chat_bot.utils import companies_branches
 from messaging.api import MessagingAPISync
 from utils.logging import new_trace_id, TraceLogger
 
@@ -182,14 +183,21 @@ class WebhookInboxViewClass(View):
             tlogger.info(f"Stop handling. Message (id={message_id}) is not actual")
             return
 
-        ai_answer = ai_utils.ai_answer_with_contacts_typed(chat_bot, messages)
-        AiAnswerAvitoClass.task_contacts_save(message_id, ai_answer, is_incoming=False)
+        company_branch = companies_branches.define_company_branch(avito_account, chat_id)
 
-        if ai_answer.contacts:
+        ai_answer = ai_utils.ai_answer_with_contacts_typed(chat_bot, messages, ask_location=company_branch is None)
+        AiAnswerAvitoClass.task_contacts_save(message_id, ai_answer, is_incoming=False, company_branch=company_branch)
+
+        if chat_bot.send_new_contact_report and ai_answer.contacts:
             tlogger.info(f"Contacts found - {ai_answer.contacts.model_dump()}")
+            tlogger.info("Send report")
             ChatBotSummaryReportClass.summary_sender_main_task(avito_account.pk, chat_id, trace_id=tlogger.trace_id)
         else:
-            tlogger.info(f"Contacts is empty, got {ai_answer.model_dump()}")
+            tlogger.info({
+                "title": "Don't send contacts",
+                "chatbot.send_new_contact_report": chat_bot.send_new_contact_report,
+                "contacts": ai_answer.contacts.model_dump() if ai_answer.contacts else None,
+            })
 
         # Логика остановки бота если человек вмешался в разговор
         if chat_bot.shutdown_after_manager:

@@ -9,6 +9,7 @@ from openai.types.responses.easy_input_message_param import EasyInputMessagePara
 import pydantic
 from pydantic import BaseModel
 
+from ai_requests import ai_requests
 import amo.models
 from amo.utils import amo_api
 from amo.utils.amo_messages import Message
@@ -88,6 +89,7 @@ def generate_answer(
                 text=text_format,
                 max_output_tokens=2000,
             )
+            ai_requests.create_from_response(response, tlogger=tlogger)
 
             payload = AIAnswerPayload.model_validate_json(response.output_text)
 

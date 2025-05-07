@@ -315,6 +315,7 @@ class AmoOrigin(models.Model):
     code = models.CharField(
         verbose_name="Код",
         max_length=64,
+        db_index=True,
     )
 
     class Meta:

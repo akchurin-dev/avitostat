@@ -1,11 +1,15 @@
 import asyncio
-import openai
+import json
+
 from asgiref.sync import sync_to_async
+import openai
 from openai import AsyncOpenAI
 from pydantic import BaseModel
-import json
+
+from ai_requests import ai_requests
 from avito_account.models.models import AvitoAccount, Criterion
 from base import settings
+from utils.logging import TraceLogger
 
 MODEL = "gpt-4o-2024-08-06"
 client = AsyncOpenAI(api_key=settings.OPENAI_SECRET_KEY)
@@ -89,6 +93,8 @@ async def analyze_chat(chat):
         ],
         temperature=1.0
     )
+    ai_requests.create_from_chat_completion(completion, tlogger=TraceLogger())
+
     chat["analyze"] = completion.choices[0].message.content
     chat["tokens_total_analyze"] = {
         "prompt_tokens": completion.usage.prompt_tokens,
@@ -156,6 +162,7 @@ async def analyze_by_criteria_chat(chat: list, test_from_prod: bool, avito_accou
         temperature=1.0,
         tools=[openai.pydantic_function_tool(CriterionAnalyzeSchema)]
     )
+    ai_requests.create_from_chat_completion(response, tlogger=TraceLogger())
     raw_result = [x.function.arguments for x in response.choices[0].message.tool_calls]
 
     # Converting raw_result do usable DICT

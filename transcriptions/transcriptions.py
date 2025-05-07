@@ -3,6 +3,7 @@ import io
 import httpx
 import openai
 
+from ai_requests import ai_requests
 from base import settings
 from transcriptions.models import Transcription
 from utils.logging import TraceLogger
@@ -17,7 +18,7 @@ def create_transcription(audio_url: str, format: str, *, tlogger: TraceLogger) -
     audio = download_audio(audio_url)
     audio_io = io.BytesIO(audio)
     audio_io.name = "speech." + format
-    text = audio_to_transcription(audio_io)
+    text = audio_to_transcription(audio_io, tlogger=tlogger)
 
     transcription = Transcription(text=text)
     transcription.save()
@@ -27,8 +28,12 @@ def create_transcription(audio_url: str, format: str, *, tlogger: TraceLogger) -
     return transcription
 
 
-def audio_to_transcription(audio: io.BytesIO) -> str:
-    return client.audio.transcriptions.create(model=MODEL, file=audio).text
+def audio_to_transcription(audio: io.BytesIO, *, tlogger: TraceLogger) -> str:
+    transcription = client.audio.transcriptions.create(model=MODEL, file=audio)
+
+    ai_requests.create(MODEL, 0, 0, tlogger=tlogger)
+
+    return transcription.text
 
 
 def download_audio(url) -> bytes:

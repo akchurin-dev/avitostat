@@ -378,8 +378,6 @@ def get_fields(domain: str, entity: EntityEnum, *, tlogger: TraceLogger) -> list
 
 class Source(BaseModel):
     id: int
-    pipeline_id: int
-    origin_id: str
     origin: str
 
 

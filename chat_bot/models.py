@@ -9,6 +9,7 @@ from avito_account.models.models import AvitoAccount, moscow_time
 from base.settings import ENVIRONMENT
 from chat_bot.api.subscriptions import subscribe_to_messages, stop_subscribe_to_messages
 from chat_bot.ai_utils import get_example_prompt
+from chat_bot.utils import companies_branches
 from utils import miscellaneous
 
 
@@ -40,7 +41,7 @@ class CompanyBranch(models.Model):
         verbose_name_plural = "Филиалы"
 
     def save(self, *args, **kwargs):
-        self.location_slug = slugify(self.location, separator="_").upper()
+        self.location_slug = companies_branches.get_location_code(self.location)
         super().save(*args, **kwargs)
 
     def __str__(self):
@@ -103,6 +104,10 @@ class AiChatBot(AIChatBotBase):
     read_only = models.BooleanField(
         verbose_name="Только читает сообщения",
         default=False,
+    )
+    send_new_contact_report = models.BooleanField(
+        verbose_name="Отправлять отчет о новом контакте",
+        default=True,
     )
 
     statistics_daily_report = models.BooleanField(default=True, verbose_name="Ежедневная статистика")

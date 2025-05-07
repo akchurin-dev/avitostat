@@ -19,6 +19,7 @@ from base.settings import ENVIRONMENT
 from chat_bot.ai_utils import ai_answer_with_contacts_typed, avito_chat_summary_ai_generator, AIAnswerWithContacts
 from chat_bot.api.core import AvitoMessengerSync
 from chat_bot.models import AiChatBot, ChatBotTask, CompanyBranch
+from chat_bot.utils import companies_branches
 from messaging.api import get_chats, MessagingAPISync
 from messaging.bad_mes_report.utils_chats import filter_chats_for_last_period, \
     filter_chats_only_with_text, filter_by_bot_answered_chat_ids
@@ -28,7 +29,7 @@ from utils.logging import TraceLogger
 
 class AiAnswerAvitoClass:
     @staticmethod
-    def task_contacts_save(new_task_id: str, ai_answer: AIAnswerWithContacts, is_incoming: bool):
+    def task_contacts_save(new_task_id: str, ai_answer: AIAnswerWithContacts, is_incoming: bool, company_branch: CompanyBranch | None):
         #Core fields
         new_task = ChatBotTask.objects.get(message_id=new_task_id)
         new_task.is_incoming = is_incoming
@@ -36,7 +37,11 @@ class AiAnswerAvitoClass:
         new_task.answer_text = ai_answer.answer
 
         new_task.company_branch = None
-        if ai_answer.nearest_company_branch:
+
+        if company_branch:
+            new_task.company_branch = company_branch
+
+        if new_task.company_branch is None and ai_answer.nearest_company_branch:
             new_task.company_branch = CompanyBranch.objects.filter(
                 account = new_task.avito_account,
                 location_slug=ai_answer.nearest_company_branch,
@@ -94,24 +99,27 @@ class AiAnswerAvitoClass:
         if last_message_id != message_id:
             tlogger.info(f"Stop handling. Message (id={message_id}) is not actual")
             return
+        
+        company_branch = companies_branches.define_company_branch(avito_account, chat_id)
 
-        chat = MessagingAPISync.get_chat_by_id(avito_account, chat_id)
-        location = chat["context"]["value"].get("location", {}).get("title")
-        tlogger.info(f"Location is {location}")
-
-        ai_answer = ai_answer_with_contacts_typed(chat_bot, messages, location)
+        ai_answer = ai_answer_with_contacts_typed(chat_bot, messages, ask_location=company_branch is None)
         ai_answer.answer += "..."
 
         AvitoMessengerSync.send_message_to_avito(avito_account, avito_account.pk, chat_id, ai_answer.answer)
         tlogger.info("Answer was sent to avito successfully")
-        AiAnswerAvitoClass.task_contacts_save(new_task_id, ai_answer, is_incoming=True)
+        AiAnswerAvitoClass.task_contacts_save(new_task_id, ai_answer, is_incoming=True, company_branch=company_branch)
         tlogger.info("AIChatBotTask was updated successfully")
 
-        if ai_answer.contacts:
+        if chat_bot.send_new_contact_report and ai_answer.contacts:
             tlogger.info(f"Contacts was found: {ai_answer.contacts.model_dump()}")
+            tlogger.info("Send report")
             ChatBotSummaryReportClass.summary_sender_main_task(avito_account_id, chat_id, trace_id=tlogger.trace_id)
         else:
-            tlogger.info("Contacts not found")
+            tlogger.info({
+                "title": "Don't send contacts report",
+                "chatbot.send_new_contact_report": chat_bot.send_new_contact_report,
+                "contacts": ai_answer.contacts.model_dump() if ai_answer.contacts else None,
+            })
 
 
 class PdfReportBaseClass:
