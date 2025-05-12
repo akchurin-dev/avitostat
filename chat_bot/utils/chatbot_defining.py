@@ -76,7 +76,7 @@ def _get_ai_response_format(chatbots: Iterable[chat_bot.models.AiChatBot]) -> Re
     return {
         "format": {
             "type": "json_schema",
-            "name": "AI defining",
+            "name": "ai_defining",
             "schema": {
                 "type": "string",
                 "description": "Name of suitable ai-agent",
