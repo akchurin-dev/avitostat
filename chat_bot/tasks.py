@@ -119,7 +119,12 @@ class AiAnswerAvitoClass:
             tlogger.info("Stop handling. Bot stopped for chat")
             return
 
-        ai_answer = ai_answer_with_contacts_typed(chatbot, chat["messages"], ask_location=company_branch is None)
+        ai_answer = ai_answer_with_contacts_typed(
+            ai_assistant=chatbot,
+            chat=chat["messages"],
+            ask_location=company_branch is None,
+            tlogger=tlogger,
+        )
         ai_answer.answer += "..."
 
         AvitoMessengerSync.send_message_to_avito(avito_account, avito_account.pk, chat_id, ai_answer.answer)

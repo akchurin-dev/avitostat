@@ -87,6 +87,8 @@ def ai_answer_with_contacts_typed(
     ai_assistant: chat_bot.models.AiChatBot,
     chat: list[ChatMessage],
     ask_location: bool,
+    *,
+    tlogger: TraceLogger,
 ) -> AIAnswerWithContacts:
 
     if not use_gpt_flag():
@@ -103,6 +105,8 @@ def ai_answer_with_contacts_typed(
             'tokens_prompt': 2,
         })
 
+    assert ai_assistant.account
+
     result = {}
 
     response = client.beta.chat.completions.parse(
@@ -112,7 +116,7 @@ def ai_answer_with_contacts_typed(
         max_tokens=2000,
         timeout=30,
     )
-    ai_requests.create_from_chat_completion(response, tlogger=TraceLogger())
+    ai_requests.create_from_chat_completion(response, tlogger=tlogger)
 
     data = response.choices[0].message.parsed
     if data is None:

@@ -146,7 +146,12 @@ class WebhookInboxViewClass(View):
             tlogger.info("Stop handling. AIChatBot inactive")
             return
 
-        ai_answer = ai_utils.ai_answer_with_contacts_typed(chatbot, chat["messages"], ask_location=company_branch is None)
+        ai_answer = ai_utils.ai_answer_with_contacts_typed(
+            ai_assistant=chatbot,
+            chat=chat["messages"],
+            ask_location=company_branch is None,
+            tlogger=tlogger,
+        )
         AiAnswerAvitoClass.task_contacts_save(message_id, ai_answer, is_incoming=False, company_branch=company_branch)
 
         if chatbot.send_new_contact_report and ai_answer.contacts:
