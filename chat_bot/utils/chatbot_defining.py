@@ -1,7 +1,9 @@
 from typing import Iterable
+import json
 
 from openai.types.responses.response_text_config_param import ResponseTextConfigParam
 
+from ai_requests import ai_requests
 import chat_bot.ai_utils
 import chat_bot.models
 import messaging.api
@@ -36,8 +38,9 @@ def define_chatbot(
         input=[{"role": "user", "content": prompt}],
         text=response_format,
     )
+    ai_requests.create_from_response(response, tlogger=tlogger)
 
-    chatbot_name = response.output_text
+    chatbot_name = json.loads(response.output_text)["ai_agent_name"]
     tlogger.info(f"Suitable chatbot name is '{chatbot_name}'")
 
     return available_chatbots.get(name=chatbot_name)
@@ -78,9 +81,17 @@ def _get_ai_response_format(chatbots: Iterable[chat_bot.models.AiChatBot]) -> Re
             "type": "json_schema",
             "name": "ai_defining",
             "schema": {
-                "type": "string",
-                "description": "Name of suitable ai-agent",
-                "enum": [chatbot.name for chatbot in chatbots],
+                "type": "object",
+                "properties": {
+                    "ai_agent_name": {
+                        "type": "string",
+                        "description": "Name of suitable ai-agent",
+                        "enum": [chatbot.name for chatbot in chatbots],
+                    },
+                },
+                "required": ["ai_agent_name"],
+                "additionalProperties": False,
             },
+            "strict": True,
         },
     }
