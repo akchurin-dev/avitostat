@@ -58,13 +58,6 @@ class AIChatBotBase(models.Model):
 
     is_active = models.BooleanField(default=False, verbose_name="Активирован")
 
-    # TODO delete field
-    waiting_minutes = models.PositiveSmallIntegerField(
-        validators=[MinValueValidator(1), MaxValueValidator(60)],
-        verbose_name="Ожидание ответа от менеджера(минуты)",
-        help_text="Укажите количество минут от 1 до 120"
-    )
-
     waiting_seconds = models.PositiveSmallIntegerField(
         verbose_name="Ожидание ответа от менеджера (секунды)",
         default=30,
@@ -103,14 +96,6 @@ class AIChatBotBase(models.Model):
 
 
 class AiChatBot(AIChatBotBase):
-    # TODO delete field
-    avito_account = models.OneToOneField(
-        AvitoAccount,
-        on_delete=models.CASCADE,
-        related_name='ai_chat_bots',
-        verbose_name="ИИ чат бот"
-    )
-
     account = models.ForeignKey(
         verbose_name="Авито-аккаунт",
         to=AvitoAccount,
