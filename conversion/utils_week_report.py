@@ -109,7 +109,7 @@ async def get_total_metrics(items_with_metrics, items: list, statistics: dict):
 
 
 async def get_chat_bot_statistics(avito_account: AvitoAccount, date_from, date_to) -> dict | None:
-    ai_chat_bot = await sync_to_async(AiChatBot.objects.filter(avito_account=avito_account, is_active=True).last)()
+    ai_chat_bot = await sync_to_async(AiChatBot.objects.filter(account=avito_account, is_active=True).last)()
 
     if ai_chat_bot is not None:
         # Локализуем даты

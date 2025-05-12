@@ -246,7 +246,7 @@ class BotStatisticsDailyReportClass(PdfReportBaseClass):
         tlogger = TraceLogger(trace_id)
 
         account = AvitoAccount.objects.get(pk=account_id)
-        aichatbot = AiChatBot.objects.filter(avito_account=account).first()
+        aichatbot = AiChatBot.objects.filter(account=account).first()
 
         if aichatbot is None:
             tlogger.info(f"Skip daily report for {account.name}. AiChatBot is None")

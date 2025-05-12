@@ -71,7 +71,7 @@ class WebhookInboxViewClass(View):
     ) -> None:
 
         wait_sec = 0
-        chatbot = AiChatBot.objects.filter(account=avito_account, waiting_minutes__gt=0).first()
+        chatbot = AiChatBot.objects.filter(account=avito_account, waiting_seconds__gt=0).first()
 
         if chatbot:
             wait_sec = chatbot.waiting_seconds
