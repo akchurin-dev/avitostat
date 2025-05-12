@@ -19,6 +19,8 @@ from base.settings import ENVIRONMENT
 from chat_bot.ai_utils import ai_answer_with_contacts_typed, avito_chat_summary_ai_generator, AIAnswerWithContacts
 from chat_bot.api.core import AvitoMessengerSync
 from chat_bot.models import AiChatBot, ChatBotTask, CompanyBranch
+from chat_bot.utils import avito_chatbots
+from chat_bot.utils import chatbot_defining
 from chat_bot.utils import companies_branches
 from messaging.api import get_chats, MessagingAPISync
 from messaging.bad_mes_report.utils_chats import filter_chats_for_last_period, \
@@ -65,7 +67,6 @@ class AiAnswerAvitoClass:
         avito_account_id: int,
         chat_id: str,
         message_id: str,
-        chat_bot_id: int,
         new_task_id: str,
         *,
         trace_id: str,
@@ -75,22 +76,21 @@ class AiAnswerAvitoClass:
         tlogger.info(f"ai_answer_sender STARTED")
 
         avito_account = AvitoAccount.objects.get(pk=avito_account_id)
-        chat_bot = AiChatBot.objects.get(pk=chat_bot_id)
 
-        messages = MessagingAPISync.get_chats_last_50_messages(
+        chat = MessagingAPISync.get_chat_last_50_messages_by_chat_id(
             avito_account=avito_account,
-            chats=[{"id": chat_id}],
+            chat_id=chat_id,
             trace_id=tlogger.trace_id,
-        )[0].get("messages")
-        assert messages is not None
+        )
+        assert "messages" in chat
 
         # ответ генерируем только если менеджер всё ещё не ответил
-        last_message_type = messages[-1]["type"]
-        last_message_id = messages[-1]["id"]
+        last_message_type = chat["messages"][-1]["type"]
+        last_message_id = chat["messages"][-1]["id"]
 
         if last_message_type == "system":  # тк при номере последним становится уже сообщение с предупреждением
-            last_message_type = messages[-2]["type"]
-            last_message_id = messages[-2]["id"]
+            last_message_type = chat["messages"][-2]["type"]
+            last_message_id = chat["messages"][-2]["id"]
 
         if last_message_type != "text":
             tlogger.info(f"Stop handling. Unsupported message type, got {last_message_type}")
@@ -101,8 +101,25 @@ class AiAnswerAvitoClass:
             return
         
         company_branch = companies_branches.define_company_branch(avito_account, chat_id)
+        chatbot = chatbot_defining.define_chatbot(avito_account, chat, tlogger=tlogger)
 
-        ai_answer = ai_answer_with_contacts_typed(chat_bot, messages, ask_location=company_branch is None)
+        if chatbot is None:
+            tlogger.info("Stop handling. Chatbot not defined")
+            return
+
+        if chatbot.read_only:
+            tlogger.info("Stop handling. Bot configured to read only")
+            return
+
+        if not avito_chatbots.check_chatbot_worktime_now(chatbot):
+            tlogger.info("Stop handling. AIChatBot out of work time")
+            return
+
+        if avito_chatbots.check_chatbot_shutdown_for_chat(chat_id, chatbot, tlogger=tlogger):
+            tlogger.info("Stop handling. Bot stopped for chat")
+            return
+
+        ai_answer = ai_answer_with_contacts_typed(chatbot, chat["messages"], ask_location=company_branch is None)
         ai_answer.answer += "..."
 
         AvitoMessengerSync.send_message_to_avito(avito_account, avito_account.pk, chat_id, ai_answer.answer)
@@ -110,14 +127,14 @@ class AiAnswerAvitoClass:
         AiAnswerAvitoClass.task_contacts_save(new_task_id, ai_answer, is_incoming=True, company_branch=company_branch)
         tlogger.info("AIChatBotTask was updated successfully")
 
-        if chat_bot.send_new_contact_report and ai_answer.contacts:
+        if chatbot.send_new_contact_report and ai_answer.contacts:
             tlogger.info(f"Contacts was found: {ai_answer.contacts.model_dump()}")
             tlogger.info("Send report")
             ChatBotSummaryReportClass.summary_sender_main_task(avito_account_id, chat_id, trace_id=tlogger.trace_id)
         else:
             tlogger.info({
                 "title": "Don't send contacts report",
-                "chatbot.send_new_contact_report": chat_bot.send_new_contact_report,
+                "chatbot.send_new_contact_report": chatbot.send_new_contact_report,
                 "contacts": ai_answer.contacts.model_dump() if ai_answer.contacts else None,
             })
 
@@ -218,16 +235,15 @@ class BotStatisticsDailyReportClass(PdfReportBaseClass):
                 if ENVIRONMENT == "DEVELOPMENT":
                     async_to_sync(avito_account.update_refresh_token_async)()
 
-                BotStatisticsDailyReportClass.statistics_for_avito_account.delay(avito_account.pk, tlogger=tlogger)
+                BotStatisticsDailyReportClass.statistics_for_avito_account.delay(avito_account.pk, trace_id=tlogger.trace_id)
             except Exception as error:
                 tlogger.warning(f"Exception when start daily statistics for {avito_account.name}. Got '{error}'")
                 celery_logger.exception(f"statistics_sender_main_task error - {error}", exc_info=True)
 
     @staticmethod
     @shared_task
-    def statistics_for_avito_account(account_id: int, *, tlogger: TraceLogger | None = None):
-        if tlogger is None:
-            tlogger = TraceLogger()
+    def statistics_for_avito_account(account_id: int, *, trace_id: str | None = None):
+        tlogger = TraceLogger(trace_id)
 
         account = AvitoAccount.objects.get(pk=account_id)
         aichatbot = AiChatBot.objects.filter(avito_account=account).first()
@@ -515,7 +531,8 @@ class ChatBotSummaryReportClass(PdfReportBaseClass):
             return
 
         chat = MessagingAPISync.get_chat_by_id(avito_account, chat_id)
-        messages = MessagingAPISync.get_chat_last_50_messages_by_chat_id(avito_account, chat_id)
+        messages = MessagingAPISync.get_chat_last_50_messages_by_chat_id(avito_account, chat_id).get("messages")
+        assert messages
         chat["messages"] = messages
 
         if messages is None or len(messages) == 0:

@@ -127,18 +127,9 @@ def launch_chatbottask(
 
     tlogger.info(f"Task ({task.pk}) created successfully")
 
-    wait_sec = chatbot.waiting_minutes * 60
-    wait_sec /= 60 # TODO only while amo is being tested
+    tlogger.info(f"Wait for {chatbot.waiting_seconds} seconds...")
 
-    if settings.ENVIRONMENT == "DEVELOPMENT":
-        wait_sec = 5
-
-    if settings.ENVIRONMENT == "TESTING":
-        wait_sec = 5
-
-    tlogger.info(f"Wait for {wait_sec} seconds...")
-
-    prepare_message_handling_data.s(task_id=task.pk, trace_id=tlogger.trace_id).apply_async(countdown=wait_sec)
+    prepare_message_handling_data.s(task_id=task.pk, trace_id=tlogger.trace_id).apply_async(countdown=chatbot.waiting_seconds)
 
 
 @shared_task

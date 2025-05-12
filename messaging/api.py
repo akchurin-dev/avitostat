@@ -178,19 +178,27 @@ class MessagingAPISync:
 
 
     @staticmethod
-    def get_chat_last_50_messages_by_chat_id(avito_account: AvitoAccount, chat_id: str, *, trace_id: str | None = None):
+    def get_chat_last_50_messages_by_chat_id(avito_account: AvitoAccount, chat_id: str, *, trace_id: str | None = None) -> Chat:
         tlogger = TraceLogger(trace_id)
+
         url = f"https://api.avito.ru/messenger/v3/accounts/{avito_account.pk}/chats/{chat_id}/messages/"
+
         headers = {'authorization': f"Bearer {avito_account.access_token}"}
         params = {"limit": 50, "offset": 0}
+
         response = requests.get(url, headers=headers, params=params)
-        if response.status_code == 200:
-            messages = response.json().get("messages")[::-1]
-            messages = _filter_messages(messages)
-            _print_chat(messages, tlogger=tlogger)
-            return messages
-        else:
+
+        if response.status_code != 200:
             raise HTTPException(status_code=response.status_code, detail=response.text)
+
+        messages = response.json().get("messages")[::-1]
+        messages = _filter_messages(messages)
+        _print_chat(messages, tlogger=tlogger)
+
+        return {
+            "id": chat_id,
+            "messages": messages,
+        }
 
 
 async def get_calls_statistic_last_week(avito_account: AvitoAccount):

@@ -35,6 +35,7 @@ class ExcludedItemInline(admin.TabularInline):
 
 class AiChatBotInline(admin.StackedInline):
     model = AiChatBot
+    fk_name = "account"
     readonly_fields = ["prompt_example"]
     extra = 0
 
@@ -98,13 +99,13 @@ class AvitoAccountAdmin(admin.ModelAdmin):
 
     def formfield_for_foreignkey(self, db_field, request, **kwargs):  #  Фильтрует выпадающие связанные списки
         if db_field.name == "analytic_schema":
-            if not request.user.is_superuser:
+            if request and not request.user.is_superuser:
                 kwargs["queryset"] = AnalyticSchema.objects.filter(created_by=request.user)
         return super().formfield_for_foreignkey(db_field, request, **kwargs)
 
     def add_view(self, request, form_url="", extra_context=None):
         state = {
-            "created_by_id": request.user.id,
+            "created_by_id": request.user.pk,
         }
         return redirect(f"https://www.avito.ru/oauth?response_type=code&client_id={settings.AVITO_CLIENT_ID}&scope=messenger"
                         ":read,messenger:write,user_balance:read,user_operations:read,user:read,autoload:reports,"

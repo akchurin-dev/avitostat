@@ -49,12 +49,26 @@ class CompanyBranch(models.Model):
 
 
 class AIChatBotBase(models.Model):
+    name = models.CharField(
+        verbose_name="Название",
+        max_length=255,
+        db_index=True,
+        default="Безымянный ИИ",
+    )
+
     is_active = models.BooleanField(default=False, verbose_name="Активирован")
 
+    # TODO delete field
     waiting_minutes = models.PositiveSmallIntegerField(
         validators=[MinValueValidator(1), MaxValueValidator(60)],
         verbose_name="Ожидание ответа от менеджера(минуты)",
         help_text="Укажите количество минут от 1 до 120"
+    )
+
+    waiting_seconds = models.PositiveSmallIntegerField(
+        verbose_name="Ожидание ответа от менеджера (секунды)",
+        default=30,
+        validators=[MinValueValidator(0)],
     )
     shutdown_after_manager = models.BooleanField(default=False, verbose_name="Выключаться после менеджера")
 
@@ -84,8 +98,12 @@ class AIChatBotBase(models.Model):
             is_active=True,
         )
 
+    def __str__(self):
+        return f"{self.name} ({self.pk})"
+
 
 class AiChatBot(AIChatBotBase):
+    # TODO delete field
     avito_account = models.OneToOneField(
         AvitoAccount,
         on_delete=models.CASCADE,
@@ -93,12 +111,25 @@ class AiChatBot(AIChatBotBase):
         verbose_name="ИИ чат бот"
     )
 
-    total_info = models.TextField(verbose_name="Общая информация")
-    rules = models.TextField(verbose_name="Правила при общении")
-    checkpoints = models.TextField(verbose_name="Шаги при общении")
+    account = models.ForeignKey(
+        verbose_name="Авито-аккаунт",
+        to=AvitoAccount,
+        on_delete=models.CASCADE,
+        null=True,
+    )
+
+    description = models.TextField(
+        verbose_name="Для каких тем используется",
+        blank=True,
+    )
+
+    total_info = models.TextField(verbose_name="Общая информация", blank=True)
+    rules = models.TextField(verbose_name="Правила при общении", blank=True)
+    checkpoints = models.TextField(verbose_name="Шаги при общении", blank=True)
     target_action = models.TextField(
         verbose_name="Целевое действие",
         default="Взять номер телефона клиента для связи",
+        blank=True,
     )
 
     read_only = models.BooleanField(
@@ -124,22 +155,26 @@ class AiChatBot(AIChatBotBase):
         previous = AiChatBot.objects.filter(pk=self.pk).first()
         super().save(*args, **kwargs)
 
+        if self.account is None:
+            return
+
         if ENVIRONMENT == "DEVELOPMENT":
-            async_to_sync(self.avito_account.update_refresh_token_async)()
+            async_to_sync(self.account.update_refresh_token_async)()
 
         if previous is None:  # Если изначально вообще небыло инстанса
             if self.is_active:
-                async_to_sync(subscribe_to_messages)(self.avito_account)
+                async_to_sync(subscribe_to_messages)(self.account)
         else:
             if previous.is_active != self.is_active:
                 if self.is_active:
-                    async_to_sync(subscribe_to_messages)(self.avito_account)
+                    async_to_sync(subscribe_to_messages)(self.account)
                 else:
-                    async_to_sync(stop_subscribe_to_messages)(self.avito_account)
+                    async_to_sync(stop_subscribe_to_messages)(self.account)
 
     def delete(self, using=None, keep_parents=False):
-        if self.is_active:
-            async_to_sync(stop_subscribe_to_messages)(self.avito_account)
+        if self.account and self.is_active:
+            async_to_sync(stop_subscribe_to_messages)(self.account)
+
         super().delete()
 
 

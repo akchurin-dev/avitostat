@@ -149,12 +149,6 @@ class AmoChatBot(chat_bot.models.AIChatBotBase):
         on_delete=models.CASCADE,
     )
 
-    name = models.CharField(
-        verbose_name="Имя бота",
-        max_length=255,
-        blank=True,
-    )
-
     change_status_only_when_qualification = models.BooleanField(
         verbose_name="Менять статус только при достижении квалификации",
         default=True,

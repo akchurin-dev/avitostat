@@ -108,7 +108,7 @@ def ai_answer_with_contacts_typed(
     response = client.beta.chat.completions.parse(
         model=MODEL,
         messages=_get_messages_for_gpt(ai_assistant, chat),
-        response_format=_get_schema(ai_assistant.avito_account, ask_location),
+        response_format=_get_schema(ai_assistant.account, ask_location),
         max_tokens=2000,
         timeout=30,
     )
