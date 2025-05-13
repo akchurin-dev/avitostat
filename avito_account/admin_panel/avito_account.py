@@ -11,7 +11,8 @@ from avito_account.models.models import AnalyticSchema, WorkSchedule
 import logging
 
 from base import settings
-from chat_bot.models import AiChatBot, CompanyBranch
+from chat_bot.models import CompanyBranch
+
 
 logger = logging.getLogger(__name__)
 
@@ -33,13 +34,6 @@ class ExcludedItemInline(admin.TabularInline):
     verbose_name_plural = "Объявления исключённые "
 
 
-class AiChatBotInline(admin.StackedInline):
-    model = AiChatBot
-    fk_name = "account"
-    readonly_fields = ["prompt_example"]
-    extra = 0
-
-
 class WorkScheduleInline(admin.StackedInline):
     model = WorkSchedule
     can_delete = False
@@ -55,7 +49,7 @@ class CompanyBranchInline(admin.TabularInline):
 class AvitoAccountAdmin(admin.ModelAdmin):
     list_display = ('name', 'telegram_id', 'phone', 'created_by')
     readonly_fields = ('id',)
-    inlines = [WorkScheduleInline, ExcludedItemInline, AiChatBotInline, CompanyBranchInline]
+    inlines = [WorkScheduleInline, ExcludedItemInline, CompanyBranchInline]
     actions = [
         celery_pdf_month_for_api_report,
         run_txt_all_test_from_prod_report,

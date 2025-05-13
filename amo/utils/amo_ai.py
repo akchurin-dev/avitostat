@@ -123,85 +123,6 @@ def generate_answer(
     return res
 
 
-def get_example_prompt(chatbot: amo.models.AmoChatBot) -> str:
-    messages = [
-        Message(
-            id="1",
-            incoming=True,
-            chat_id="1",
-            talk_id=1,
-            type=MessageTypeEnum.TEXT,
-            text="Привет, хочу купить велосипед",
-            file_url=None,
-            created_at=datetime.datetime.now(),
-        ),
-        Message(
-            id="2",
-            incoming=False,
-            chat_id="1",
-            talk_id=1,
-            type=MessageTypeEnum.TEXT,
-            text="Здравствуйте! На какой возраст ищете?",
-            file_url=None,
-            created_at=datetime.datetime.now(),
-        ),
-        Message(
-            id="3",
-            incoming=True,
-            chat_id="1",
-            talk_id=1,
-            type=MessageTypeEnum.TEXT,
-            text="На ребенка 13 лет",
-            file_url=None,
-            created_at=datetime.datetime.now(),
-        ),
-    ]
-
-    fillable_fields = amo.models.FillableField.objects.filter(chatbot=chatbot)
-
-    available_pipeline_statuses = [
-        amo_api.PipelineStatus(
-            id=1,
-            name="Первичный контакт",
-            pipeline_id=1,
-            pipeline_name="Воронка",
-        ),
-        amo_api.PipelineStatus(
-            id=2,
-            name="Переговоры",
-            pipeline_id=1,
-            pipeline_name="Воронка",
-        ),
-        amo_api.PipelineStatus(
-            id=3,
-            name="Сделка успшно реализована",
-            pipeline_id=1,
-            pipeline_name="Воронка",
-        ),
-    ]
-
-    lead = amo_api.Lead(
-        id=1,
-        pipeline_id=1,
-        status_id=1,
-        custom_fields_values=None,
-    )
-
-    transcriptions = TranscriptionsForMessages({})
-
-    gpt_messages = _get_gpt_messages(chatbot, messages, transcriptions, fillable_fields, available_pipeline_statuses, lead)
-
-    lines = []
-
-    for message in gpt_messages:
-        role = message.get("role")
-        text = message.get("content")
-
-        lines.append(f"{role}: {text}")
-
-    return "\n\n\n".join(lines)
-
-
 def _get_gpt_messages(
     chatbot: amo.models.AmoChatBot,
     messages: list[Message],
@@ -288,7 +209,7 @@ def _get_text_format(
         tlogger=tlogger,
     )
 
-    properties = {
+    properties: dict = {
         "answer": {"type": "string"},
     }
 

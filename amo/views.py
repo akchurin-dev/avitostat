@@ -11,7 +11,6 @@ import amo.models
 import amo.serializers
 import amo.schemas
 import amo.tasks
-from amo.utils import amo_ai
 from amo.utils import amo_accounts
 from amo.utils import amo_pipelines
 from amo.utils import amo_sources
@@ -119,14 +118,5 @@ def syncronize_amo_account(request: Request, pk: int) -> Response:
 
     amo_pipelines.syncronize_pipelines(account.domain, tlogger=tlogger)
     amo_sources.scan_new_origins(account.amo_id, tlogger=tlogger)
-
-    return Response(status=status.HTTP_200_OK)
-
-
-@api_view(["PATCH"])
-def update_prompt_example(request: Request, pk: int) -> Response:
-    chatbot = amo.models.AmoChatBot.objects.get(pk=pk)
-    prompt = amo_ai.get_example_prompt(chatbot)
-    amo.models.AmoChatBot.objects.filter(pk=pk).update(prompt_example=prompt)
 
     return Response(status=status.HTTP_200_OK)

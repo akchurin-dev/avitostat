@@ -14,6 +14,7 @@ from base import settings
 import chat_bot.models
 from messaging.api import ChatMessage
 from messaging.api import get_chats_last_50_messages
+from prompts import prompts
 from utils.logging import TraceLogger
 
 MODEL = "gpt-4o-2024-08-06"
@@ -50,18 +51,19 @@ def format_chat_history(messages: list[ChatMessage]) -> list[ChatCompletionMessa
         if msg["type"] != 'text':
             continue
 
-        assert msg["content"]["text"] is not None
+        text = msg["content"].get("text")
+        assert text is not None
 
         if msg["direction"] == "in":
             formatted_messages.append({
                 "role": "user",
-                "content": msg["content"]["text"],
+                "content": text,
             })
 
         if msg["direction"] == "out":
             formatted_messages.append({
                 "role": "assistant",
-                "content": msg["content"]["text"],
+                "content": text,
             })
 
     return formatted_messages
@@ -111,7 +113,7 @@ def ai_answer_with_contacts_typed(
 
     response = client.beta.chat.completions.parse(
         model=MODEL,
-        messages=_get_messages_for_gpt(ai_assistant, chat),
+        messages=_get_messages_for_gpt(ai_assistant, chat, tlogger=tlogger),
         response_format=_get_schema(ai_assistant.account, ask_location),
         max_tokens=2000,
         timeout=30,
@@ -142,64 +144,58 @@ def ai_answer_with_contacts_typed(
     return AIAnswerWithContacts.model_validate(result)
 
 
-def get_example_prompt(aichatbot: chat_bot.models.AiChatBot) -> str:
-    example_chat: list[ChatMessage] = [
-        {
-            "id": "1",
-            "author_id": 1,
-            "type": "text",
-            "direction": "in",
-            "content": {"text": "Здравствуйте, хочу купить велосипед"},
-        },
-        {
-            "id": "2",
-            "author_id": 2,
-            "type": "text",
-            "direction": "out",
-            "content": {"text": "Здравствуйте! Подскажите для какого возраста ищете?"},
-        },
-        {
-            "id": "3",
-            "author_id": 1,
-            "type": "text",
-            "direction": "in",
-            "content": {"text": "На ребенка 13 лет"},
-        },
-    ]
+def _get_messages_for_gpt(
+    aichatbot: chat_bot.models.AiChatBot,
+    chat: list[ChatMessage],
+    *,
+    tlogger: TraceLogger,
+) -> list[ChatCompletionMessageParam]:
 
-    messages = _get_messages_for_gpt(
-        aichatbot=aichatbot,
-        chat=example_chat,
-    )
-
-    lines = []
-
-    for message in messages:
-        role = message["role"].upper()
-        text = message.get("content")
-
-        lines.append(f"{role}: {text}")
-
-    return "\n\n".join(lines)
-
-
-def _get_messages_for_gpt(aichatbot: chat_bot.models.AiChatBot, chat: list[ChatMessage]) -> list[ChatCompletionMessageParam]:
     chat_history_formatted = format_chat_history(chat)
-    print(f"Последнее сообщение для ИИ ответа-{chat_history_formatted[-1]}")
+    tlogger.info(f"Последнее сообщение для ИИ ответа-{chat_history_formatted[-1]}")
 
-    prompt = "\n\n".join([
-        f"Общая информация:\n{aichatbot.total_info}",
-        f"Правила при общении:\n{aichatbot.rules}",
-        f"Необходимо в ходе разговора наличие шагов:\n{aichatbot.checkpoints}",
+    prompt_base = _get_system_message(aichatbot, chat, tlogger=tlogger)
+
+    lines: list[str] = []
+
+    if prompt_base:
+        lines.append(prompt_base)
+
+    lines.extend([
         "Ответы давать только на русском языке",
         "Контакты доставать как клиента так и менеджера если имеются в переписке",
     ])
 
-    messages: list[ChatCompletionMessageParam] = [{"role": "system", "content": prompt}, ]
+    prompt = "\n\n".join(lines)
 
+    messages: list[ChatCompletionMessageParam] = [{"role": "system", "content": prompt}, ]
     messages.extend(chat_history_formatted)
 
     return messages
+
+
+def _get_system_message(chatbot: chat_bot.models.AiChatBot, chat: list[ChatMessage], *, tlogger: TraceLogger) -> str | None:
+    chat_str = _chat_to_str(chat)
+    prompts_qs = chat_bot.models.AvitoPrompt.objects.filter(chatbot=chatbot)
+
+    return prompts.define_prompt(prompts_qs, chat_str, tlogger=tlogger)
+
+
+def _chat_to_str(chat: list[ChatMessage]) -> str:
+    replicas: list[str] = []
+
+    for message in chat:
+        role = "Manager"
+        if message["direction"] == "in":
+            role = "Client"
+
+        text = message["content"].get("text")
+        if text is None:
+            text = "Not text format"
+
+        replicas.append(role + ": " + text)
+
+    return "\n".join(replicas)
 
 
 def _get_schema(avito_account: AvitoAccount, ask_location: bool) -> type[ChatBotAnswerSchema]:

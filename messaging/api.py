@@ -94,7 +94,7 @@ async def check_timestamp_in_period(timestamp: int, period: str = "week") -> boo
     return timestamp_in_period
 
 
-class ChatMessageContent(TypedDict):
+class ChatMessageContent(TypedDict, total=False):
     text: str | None
 
 

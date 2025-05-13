@@ -19,8 +19,6 @@ from base.settings import ENVIRONMENT
 from chat_bot.ai_utils import ai_answer_with_contacts_typed, avito_chat_summary_ai_generator, AIAnswerWithContacts
 from chat_bot.api.core import AvitoMessengerSync
 from chat_bot.models import AiChatBot, ChatBotTask, CompanyBranch
-from chat_bot.utils import avito_chatbots
-from chat_bot.utils import chatbot_defining
 from chat_bot.utils import companies_branches
 from messaging.api import get_chats, MessagingAPISync
 from messaging.bad_mes_report.utils_chats import filter_chats_for_last_period, \
@@ -65,6 +63,7 @@ class AiAnswerAvitoClass:
     @shared_task
     def ai_answer_sender_task(
         avito_account_id: int,
+        chatbot_id: int,
         chat_id: str,
         message_id: str,
         new_task_id: str,
@@ -76,6 +75,7 @@ class AiAnswerAvitoClass:
         tlogger.info(f"ai_answer_sender STARTED")
 
         avito_account = AvitoAccount.objects.get(pk=avito_account_id)
+        chatbot = AiChatBot.objects.get(pk=chatbot_id)
 
         chat = MessagingAPISync.get_chat_last_50_messages_by_chat_id(
             avito_account=avito_account,
@@ -101,23 +101,6 @@ class AiAnswerAvitoClass:
             return
         
         company_branch = companies_branches.define_company_branch(avito_account, chat_id)
-        chatbot = chatbot_defining.define_chatbot(avito_account, chat, tlogger=tlogger)
-
-        if chatbot is None:
-            tlogger.info("Stop handling. Chatbot not defined")
-            return
-
-        if chatbot.read_only:
-            tlogger.info("Stop handling. Bot configured to read only")
-            return
-
-        if not avito_chatbots.check_chatbot_worktime_now(chatbot):
-            tlogger.info("Stop handling. AIChatBot out of work time")
-            return
-
-        if avito_chatbots.check_chatbot_shutdown_for_chat(chat_id, chatbot, tlogger=tlogger):
-            tlogger.info("Stop handling. Bot stopped for chat")
-            return
 
         ai_answer = ai_answer_with_contacts_typed(
             ai_assistant=chatbot,

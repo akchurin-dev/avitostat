@@ -2,14 +2,13 @@ from asgiref.sync import async_to_sync
 from django.db import models
 from django.db.models import F
 from django.db.models import Q
-from django.core.validators import MinValueValidator, MaxValueValidator
-from slugify import slugify
+from django.core.validators import MinValueValidator
 
-from avito_account.models.models import AvitoAccount, moscow_time
+from avito_account.models.models import AvitoAccount
 from base.settings import ENVIRONMENT
 from chat_bot.api.subscriptions import subscribe_to_messages, stop_subscribe_to_messages
-from chat_bot.ai_utils import get_example_prompt
 from chat_bot.utils import companies_branches
+from prompts import prompts
 from utils import miscellaneous
 
 
@@ -68,11 +67,6 @@ class AIChatBotBase(models.Model):
     work_time_from = models.TimeField("Начало работы МСК (Пн-Вс)")
     work_time_to = models.TimeField("Окончание работы МСК (Пн-Вс)")
 
-    prompt_example = models.TextField(
-        verbose_name="Пример промпта",
-        blank=True,
-    )
-
     class Meta:
         abstract = True
 
@@ -96,11 +90,10 @@ class AIChatBotBase(models.Model):
 
 
 class AiChatBot(AIChatBotBase):
-    account = models.ForeignKey(
+    account = models.OneToOneField(
         verbose_name="Авито-аккаунт",
         to=AvitoAccount,
         on_delete=models.CASCADE,
-        null=True,
     )
 
     description = models.TextField(
@@ -135,8 +128,6 @@ class AiChatBot(AIChatBotBase):
         verbose_name_plural = "ИИ чат боты"
 
     def save(self, *args, **kwargs):
-        self.prompt_example = get_example_prompt(aichatbot=self)
-
         previous = AiChatBot.objects.filter(pk=self.pk).first()
         super().save(*args, **kwargs)
 
@@ -161,6 +152,20 @@ class AiChatBot(AIChatBotBase):
             async_to_sync(stop_subscribe_to_messages)(self.account)
 
         super().delete()
+
+
+class AvitoPrompt(prompts.PromptBase):
+    chatbot = models.ForeignKey(
+        verbose_name="Чат-бот",
+        to=AiChatBot,
+        on_delete=models.CASCADE,
+    )
+
+    class Meta:
+        verbose_name = "Промпт"
+        verbose_name_plural = "Промпты"
+
+        unique_together = ["chatbot", "title"]
 
 
 class ClientContactsContainer(models.Model):

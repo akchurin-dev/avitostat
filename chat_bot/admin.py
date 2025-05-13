@@ -1,13 +1,15 @@
 from rangefilter.filters import DateRangeFilterBuilder
 
-from chat_bot.filters import ChatIDFilter, ContactFilter
-from chat_bot.models import ChatBotTask
-from django.db.models import Sum, F, ExpressionWrapper, FloatField
 from django.contrib import admin
+from django.db.models import Sum, F, ExpressionWrapper, FloatField
 from django.template.response import TemplateResponse
+
 from avito_account.admin_panel.filters import ContragentFilter
+from chat_bot.filters import ChatIDFilter, ContactFilter
+import chat_bot.models
 
 
+@admin.register(chat_bot.models.ChatBotTask)
 class ChatBotTaskAdmin(admin.ModelAdmin):
     list_filter = (ContragentFilter, 'avito_account', ChatIDFilter, ("created_at", DateRangeFilterBuilder()), ContactFilter)
     search_fields = ("chat_id", "message_id", "answer_text", "text")
@@ -40,6 +42,7 @@ class ChatBotTaskAdmin(admin.ModelAdmin):
 
     def changelist_view(self, request, extra_context=None):
         response = super().changelist_view(request, extra_context=extra_context)
+        assert response.context_data
 
         # Убедимся, что response — это TemplateResponse
         if isinstance(response, TemplateResponse) and 'cl' in response.context_data:
@@ -59,4 +62,12 @@ class ChatBotTaskAdmin(admin.ModelAdmin):
         return response
 
 
-admin.site.register(ChatBotTask, ChatBotTaskAdmin)
+class ChatBotPromptInline(admin.TabularInline):
+    model = chat_bot.models.AvitoPrompt
+    extra = True
+
+
+@admin.register(chat_bot.models.AiChatBot)
+class AiChatBotAdmin(admin.ModelAdmin):
+    list_display = ["id", "name", "account"]
+    inlines = [ChatBotPromptInline]

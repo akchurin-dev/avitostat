@@ -83,7 +83,6 @@ class AmoOriginInline(admin.TabularInline):
 @admin.register(amo.models.AmoChatBot)
 class AmoChatBotAdmin(admin.ModelAdmin):
     list_display = ["name", "account"]
-    readonly_fields = ["prompt_example"]
     inlines = [FillableFieldInline, AmoPipelineStatusInline, AmoOriginInline]
 
     def get_queryset(self, request: HttpRequest) -> QuerySet:
