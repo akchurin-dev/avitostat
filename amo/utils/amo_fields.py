@@ -2,9 +2,22 @@ from amo.utils import amo_api
 from utils.logging import TraceLogger
 
 
+ENUM_TYPES = {
+    "multiselect",
+    "select",
+}
+
+TEXT_TYPES = {
+    "streetaddress",
+    "text",
+    "textarea",
+    "url",
+}
+
+
 def find_text_field(name: str, fields: list[amo_api.Field]) -> amo_api.Field | None:
     for field in fields:
-        if field.name == name and field.type == "text":
+        if field.name == name and (field.type in TEXT_TYPES or field.type in ENUM_TYPES):
             return field
 
     return None

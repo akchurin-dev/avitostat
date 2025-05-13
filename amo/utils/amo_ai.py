@@ -12,6 +12,7 @@ from pydantic import BaseModel
 from ai_requests import ai_requests
 import amo.models
 from amo.utils import amo_api
+from amo.utils import amo_fields
 from amo.utils.amo_messages import Message
 from amo.utils.amo_messages import MessageTypeEnum
 from amo.utils.amo_transcriptions import TranscriptionsForMessages
@@ -74,9 +75,11 @@ def generate_answer(
     )
 
     text_format = _get_text_format(
+        account=account,
         fields=fillable_fields,
         available_pipeline_statuses=available_pipeline_statuses,
         field_for_new_status=not chatbot.change_status_only_when_qualification,
+        tlogger=tlogger,
     )
 
     error = None
@@ -263,39 +266,37 @@ def _amo_message_to_gpt_format(message: Message, transcriptions: TranscriptionsF
 
 
 def _get_text_format(
+    account: amo.models.AmoAccount,
     fields: Iterable[amo.models.FillableField],
     available_pipeline_statuses: list[amo_api.PipelineStatus],
     field_for_new_status: bool,
+    *,
+    tlogger: TraceLogger,
 ) -> ResponseTextConfigParam:
 
-    lead_fields = [field for field in fields if field.entity == amo.models.AmoEntity.LEAD.value]
-    contact_fields = [field for field in fields if field.entity == amo.models.AmoEntity.CONTACT.value]
+    contacts_schema = _get_fillable_entity_schema(
+        account=account,
+        fields=fields,
+        entity=amo_api.EntityEnum.CONTACTS,
+        tlogger=tlogger,
+    )
+
+    lead_schema = _get_fillable_entity_schema(
+        account=account,
+        fields=fields,
+        entity=amo_api.EntityEnum.LEADS,
+        tlogger=tlogger,
+    )
 
     properties = {
         "answer": {"type": "string"},
-        "contacts": {
-            "type": ["object", "null"],
-            "properties": {
-                field.name: {
-                    "type": ["string", "null"],
-                    "description": field.description,
-                } for field in contact_fields
-            },
-            "required": [field.name for field in contact_fields],
-            "additionalProperties": False,
-        },
-        "lead_info": {
-            "type": ["object", "null"],
-            "properties": {
-                field.name: {
-                    "type": ["string", "null"],
-                    "description": field.description,
-                } for field in lead_fields
-            },
-            "required": [field.name for field in lead_fields],
-            "additionalProperties": False,
-        },
     }
+
+    if contacts_schema:
+        properties["contacts"] = contacts_schema
+
+    if lead_schema:
+        properties["lead_info"] = lead_schema
 
     if field_for_new_status:
         properties["new_status"] = {
@@ -321,6 +322,63 @@ def _get_text_format(
     }
 
     return text_format
+
+
+def _get_fillable_entity_schema(
+    account: amo.models.AmoAccount,
+    fields: Iterable[amo.models.FillableField],
+    entity: amo_api.EntityEnum,
+    *,
+    tlogger: TraceLogger,
+) -> dict | None:
+
+    all_fields = amo_api.get_fields(
+        domain=account.domain,
+        entity=entity,
+        tlogger=tlogger,
+    )
+
+    fillable_fields: list[tuple[amo_api.Field, amo.models.FillableField]] = []
+
+    for field in fields:
+        if entity == amo_api.EntityEnum.LEADS and field.entity != amo.models.AmoEntity.LEAD.value:
+            continue
+
+        if entity == amo_api.EntityEnum.CONTACTS and field.entity != amo.models.AmoEntity.CONTACT.value:
+            continue
+
+        amo_field = amo_fields.find_text_field(field.name, all_fields)
+
+        if amo_field:
+            fillable_fields.append((amo_field, field))
+
+    if len(fillable_fields) == 0:
+        return None
+
+    properties = {
+        amo_field.name: _get_field_schema(amo_field, fillable_field.description)
+            for amo_field, fillable_field in fillable_fields
+    }
+
+    return {
+        "type": ["object", "null"],
+        "properties": properties,
+        "required": list(properties.keys()),
+        "additionalProperties": False,
+    }
+
+
+def _get_field_schema(field: amo_api.Field, description: str) -> dict:
+    schema = {
+        "type": ["string", "null"],
+        "description": description,
+    }
+
+    if field.type in amo_fields.ENUM_TYPES:
+        assert field.enums is not None
+        schema["enum"] = [field_enum.value for field_enum in field.enums]
+
+    return schema
 
 
 def _delete_phrase_author_if_exists(message: str, *, tlogger: TraceLogger) -> str:

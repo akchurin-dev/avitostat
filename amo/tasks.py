@@ -208,7 +208,7 @@ def generate_ai_answer(messages_serializable: list[dict], task_id: int, trace_id
             lead_id=task.lead_id,
             tlogger=tlogger,
         )
-        ai_answer.payload.answer += "..."
+        ai_answer.payload.answer = task.chatbot.message_prefix + ai_answer.payload.answer + task.chatbot.message_postfix
 
         tlogger.info({
             "Title": "AI answer",

@@ -339,11 +339,18 @@ def get_pipeline_statuses(domain: str, pipeline_id: int | str, *, tlogger: Trace
     return statuses
 
 
+class FieldEnum(BaseModel):
+    id: int
+    sort: int
+    value: str
+
+
 class Field(BaseModel):
     id: int
     name: str
-    code: str | None
     type: str
+    code: str | None = None
+    enums: list[FieldEnum] | None = None
 
 
 def create_text_field(domain: str, entity: EntityEnum, name: str, *, tlogger: TraceLogger) -> Field:

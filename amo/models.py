@@ -202,6 +202,17 @@ class AmoChatBot(chat_bot.models.AIChatBotBase):
         blank=True,
     )
 
+    message_prefix = models.TextField(
+        verbose_name="Префикс сгенерированного сообщения",
+        blank=True,
+    )
+
+    message_postfix = models.TextField(
+        verbose_name="Постфикс сгенерированного сообщения",
+        default="...",
+        blank=True,
+    )
+
     work_on_mon = models.BooleanField("Работает в пн", default=True)
     work_on_tue = models.BooleanField("Работает во вт", default=True)
     work_on_wed = models.BooleanField("Работает в ср", default=True)
