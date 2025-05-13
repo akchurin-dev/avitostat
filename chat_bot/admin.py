@@ -64,10 +64,10 @@ class ChatBotTaskAdmin(admin.ModelAdmin):
 
 class ChatBotPromptInline(admin.TabularInline):
     model = chat_bot.models.AvitoPrompt
-    extra = True
+    extra = 0
 
 
 @admin.register(chat_bot.models.AiChatBot)
 class AiChatBotAdmin(admin.ModelAdmin):
-    list_display = ["id", "name", "account"]
+    list_display = ["id", "account"]
     inlines = [ChatBotPromptInline]

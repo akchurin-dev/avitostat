@@ -96,20 +96,6 @@ class AiChatBot(AIChatBotBase):
         on_delete=models.CASCADE,
     )
 
-    description = models.TextField(
-        verbose_name="Для каких тем используется",
-        blank=True,
-    )
-
-    total_info = models.TextField(verbose_name="Общая информация", blank=True)
-    rules = models.TextField(verbose_name="Правила при общении", blank=True)
-    checkpoints = models.TextField(verbose_name="Шаги при общении", blank=True)
-    target_action = models.TextField(
-        verbose_name="Целевое действие",
-        default="Взять номер телефона клиента для связи",
-        blank=True,
-    )
-
     read_only = models.BooleanField(
         verbose_name="Только читает сообщения",
         default=False,
