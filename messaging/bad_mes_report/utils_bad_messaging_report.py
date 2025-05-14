@@ -1,99 +1,116 @@
+from datetime import datetime
+from datetime import time
+from datetime import timedelta
 import json
+from typing import NamedTuple
+
+from jinja2 import Template
+from pathlib import Path
 import pdfkit
 import sentry_sdk
+
 from avito_account.models.models import AvitoAccount
 from base import settings
 from base.exceptions import HTTPException
-from jinja2 import Template
-from asgiref.sync import sync_to_async
-from pathlib import Path
-from datetime import timedelta
 from conversion.utils_week_report import get_text_statistics_report
-from messaging.bad_mes_report.statistics.statistics_by_criteria_utils import \
-    get_stat_by_criteria_splitted_by_managers
-from messaging.bad_mes_report.statistics.total_statistics_utils import get_statistics_total, \
-    get_stat_total_splitted_by_managers
+from messaging.bad_mes_report.statistics.statistics_by_criteria_utils import get_stat_by_criteria_splitted_by_managers
+from messaging.bad_mes_report.statistics.total_statistics_utils import get_statistics_total, get_stat_total_splitted_by_managers
 from messaging.bad_mes_report.utils_chats import get_ready_chats
 from messaging.bad_mes_report.utils_open_ai import messaging_total_analyze, analyze_by_criteria
 from messaging.models import ReportMonth
 from messaging.utils_duration import get_calls_count_unique_numbers_last_week
-from datetime import datetime, time
+from utils.logging import TraceLogger
 
 
-async def get_messaging_report_data(test_from_prod: bool, avito_account_id,
-                                    for_api: bool = False, period: str = "week", ):
+class MessaginReport(NamedTuple):
+    pdf_path: Path
+    tokens: dict | None
+
+
+async def get_messaging_report_data(
+    test_from_prod: bool,
+    avito_account_id: int,
+    for_api: bool = False,
+    period: str = "week",
+    *,
+    tlogger: TraceLogger,
+) -> MessaginReport | None:
     if period not in ["week", "month"]:
         raise ValueError("period must be either 'week' or 'month'")
 
-    avito_account = await sync_to_async(AvitoAccount.objects.filter(id=avito_account_id).last)()
-    if avito_account:
-        analyze_all_chats = {"avito_account_name": avito_account.name, "avito_account_id": avito_account.id, }
-        try:
-            ready_chats, chats_without_filtering = await get_ready_chats(avito_account, period=period)
-            # ready_chats = ready_chats[-3:] # TODO IF not have problems on PROD delete this line
-            # PROCESSING WITH FILTERED CHATS
-            if len(ready_chats) < 2:
-                raise HTTPException(status_code=404, detail="Нет чатов для анализа, или их менее двух")
-                # return False
-            else:
-                analyze_all_chats["chats_for_analyze"] = len(ready_chats)
-                analyze_all_chats["chats_without_filtering_count"] = len(chats_without_filtering)
-                await add_start_end_dates(analyze_all_chats=analyze_all_chats, period=period, )
+    avito_account = await AvitoAccount.objects.filter(id=avito_account_id).afirst()
 
-            # Checking count of messages for analytics
-            if settings.ENVIRONMENT == 'DEVELOPMENT' or test_from_prod:
-                ready_chats = ready_chats  # For economy then testing
-
-            #  Total statistics
-            statistics_total = await get_statistics_total(ready_chats)
-            if statistics_total:
-                analyze_all_chats["statistics_total"] = statistics_total
-
-            statistics_new = await get_text_statistics_report(avito_account=avito_account, period=period)
-            calls_unique_users = await get_calls_count_unique_numbers_last_week(avito_account)
-            if statistics_new:
-                analyze_all_chats["contacts"] = {
-                    "total": (len(chats_without_filtering) + calls_unique_users) or 0,
-                    "chats_without_filtering_count": len(chats_without_filtering) or 0,
-                    "chats_at_scheduler_time": len(ready_chats) or 0,
-                    "calls_unique_users": calls_unique_users or 0,
-                    "contacts_requested": statistics_new.get("total_metrics").get("total_contacts_count"),
-                    "total_favorites_count": statistics_new.get("total_metrics").get("total_favorites_count"),
-                    "total_conversion_count": statistics_new.get("total_metrics").get("total_conversion_count"),
-                }
-
-            stat_splitted_by_managers = await get_stat_total_splitted_by_managers(ready_chats)
-            if stat_splitted_by_managers:
-                analyze_all_chats["statistics_by_managers"] = stat_splitted_by_managers
-
-            analyze_messaging = await messaging_total_analyze(ready_chats, period)
-            if analyze_messaging:
-                analyze_all_chats["chats"] = analyze_messaging
-
-            analyze_by_criteria_raw_res = await analyze_by_criteria(ready_chats, test_from_prod, avito_account)
-            if analyze_by_criteria_raw_res:
-                analyze_by_crit_split_by_man = await get_stat_by_criteria_splitted_by_managers(ready_chats)
-                analyze_all_chats["analyze_by_criteria"] = analyze_by_crit_split_by_man
-
-        except Exception as send_error:
-            sentry_sdk.capture_exception(send_error)
-            print(send_error)
-            raise send_error
-
-        # tokens counting
-        tokens = None
-        if analyze_by_criteria_raw_res:
-            tokens = await get_tokens_information(analyze_by_criteria_raw_res)
-
-        if analyze_all_chats:
-            analyze_all_chats = await chats_timestamp_to_datetime(analyze_all_chats)
-
-        if for_api and analyze_all_chats:  # Этот блок кода чтобы облегчить жэсонины
-            await api_report_data_generation(analyze_all_chats, avito_account)
-        else:
-            return await get_pdf_report(avito_account_id, analyze_all_chats), tokens
-    else:
+    if avito_account is None:
         raise HTTPException(status_code=404, detail="error: Аккаунт Avito не найден")
+
+    analyze_all_chats = {
+        "avito_account_name": avito_account.name,
+        "avito_account_id": avito_account.pk,
+    }
+
+    try:
+        chats_filtered_by_excluded_sellings, all_chats = await get_ready_chats(avito_account, period=period)
+
+        if len(chats_filtered_by_excluded_sellings) == 0:
+            raise HTTPException(status_code=404, detail="Нет чатов для анализа")
+
+        tlogger.info(f"Found {len(all_chats)} chats")
+        tlogger.info(f"Found {len(chats_filtered_by_excluded_sellings)} chats filtered by excluded sellings")
+
+        analyze_all_chats["chats_for_analyze"] = len(chats_filtered_by_excluded_sellings)
+        analyze_all_chats["chats_without_filtering_count"] = len(all_chats)
+        await add_start_end_dates(analyze_all_chats, period)
+
+        #  Total statistics
+        statistics_total = await get_statistics_total(chats_filtered_by_excluded_sellings)
+        if statistics_total:
+            analyze_all_chats["statistics_total"] = statistics_total
+
+        statistics_new = await get_text_statistics_report(avito_account=avito_account, period=period)
+        calls_unique_users = await get_calls_count_unique_numbers_last_week(avito_account)
+        if statistics_new:
+            analyze_all_chats["contacts"] = {
+                "total": (len(all_chats) + calls_unique_users) or 0,
+                "chats_without_filtering_count": len(all_chats) or 0,
+                "chats_at_scheduler_time": len(all_chats) or 0,
+                "calls_unique_users": calls_unique_users or 0,
+                "contacts_requested": statistics_new["total_metrics"].get("total_contacts_count"),
+                "total_favorites_count": statistics_new["total_metrics"].get("total_favorites_count"),
+                "total_conversion_count": statistics_new["total_metrics"].get("total_conversion_count"),
+            }
+
+        stat_splitted_by_managers = await get_stat_total_splitted_by_managers(chats_filtered_by_excluded_sellings)
+        if stat_splitted_by_managers:
+            analyze_all_chats["statistics_by_managers"] = stat_splitted_by_managers
+
+        analyze_messaging = await messaging_total_analyze(chats_filtered_by_excluded_sellings, period)
+        if analyze_messaging:
+            analyze_all_chats["chats"] = analyze_messaging
+
+        analyze_by_criteria_raw_res = await analyze_by_criteria(chats_filtered_by_excluded_sellings, test_from_prod, avito_account)
+        if analyze_by_criteria_raw_res:
+            analyze_by_crit_split_by_man = await get_stat_by_criteria_splitted_by_managers(chats_filtered_by_excluded_sellings)
+            analyze_all_chats["analyze_by_criteria"] = analyze_by_crit_split_by_man
+
+    except Exception as e:
+        sentry_sdk.capture_exception(e)
+        tlogger.info(e)
+        raise e
+
+    tokens = None
+    if analyze_by_criteria_raw_res:
+        tokens = await get_tokens_information(analyze_by_criteria_raw_res)
+
+    if analyze_all_chats:
+        analyze_all_chats = await chats_timestamp_to_datetime(analyze_all_chats)
+
+    if for_api and analyze_all_chats:  # Этот блок кода чтобы облегчить жэсонины
+        await api_report_data_generation(analyze_all_chats, avito_account)
+        return None
+
+    pdf_path = await get_pdf_report(avito_account_id, analyze_all_chats)
+
+    return MessaginReport(pdf_path, tokens)
 
 
 async def api_report_data_generation(analyze_all_chats: dict, avito_account: AvitoAccount) -> None:

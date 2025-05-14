@@ -17,9 +17,29 @@ from utils.logging import TraceLogger
 MAX_MESSAGES_ON_DEBUG = 5
 
 
-# TODO ДОБАВИТЬ ПРОВЕРКУ НА ПРОСРОЧЕННОСТЬ и обновление токена
-# статистика по последним 100 чатам не отличается если даже все чаты вытаскивать имей ввиду, возможно
-# можно убрать цикл уайл и просто один запрос отправлять если будут сложности или будет медленно
+class ChatMessageContent(TypedDict, total=False):
+    text: str | None
+
+
+class ChatMessage(TypedDict):
+    id: str
+    author_id: int
+    direction: Literal["in", "out"]
+    type: str
+    content: ChatMessageContent
+
+
+class ChatContext(TypedDict):
+    value: dict[Literal["id"], int]
+
+
+class Chat(TypedDict, total=False):
+    id: str
+    created: int
+    updated: int
+    context: ChatContext
+    messages: list[ChatMessage]
+
 
 async def timestamp_in_period(timestamp: int, period: str = "week") -> bool:
     start = datetime.datetime.fromtimestamp(timestamp)
@@ -37,8 +57,9 @@ async def timestamp_in_period(timestamp: int, period: str = "week") -> bool:
     return False
 
 
-async def get_chats(avito_account: AvitoAccount, period: str = "week", max_retries: int = 3) -> list:
+async def get_chats(avito_account: AvitoAccount, period: str = "week", max_retries: int = 3) -> list[Chat]:
     url = f"https://api.avito.ru/messenger/v2/accounts/{avito_account.pk}/chats"
+
     headers = {
         'authorization': f"Bearer {avito_account.access_token}"
     }
@@ -48,21 +69,15 @@ async def get_chats(avito_account: AvitoAccount, period: str = "week", max_retri
         "limit": 50,
         "offset": 0,
     }
-    chats = []
+
+    chats: list[Chat] = []
     retries = 0
 
     async with httpx.AsyncClient() as client:
         while params["offset"] < 1000:
             response = await client.get(url, headers=headers, params=params, timeout=180)
-            if response.status_code == 200:
-                data = response.json()
-                chats.extend(data.get("chats", []))
-                has_more = data.get("meta", {}).get("has_more", False)
-                last_chat_in_period = await timestamp_in_period(timestamp=chats[-1].get("updated"), period=period)
-                if not has_more or not last_chat_in_period:
-                    break
-                params["offset"] += 50
-            elif response.status_code == 403:
+
+            if response.status_code == 403:
                 retries += 1
                 if retries > max_retries:
                     logger.error((
@@ -71,10 +86,24 @@ async def get_chats(avito_account: AvitoAccount, period: str = "week", max_retri
                     ))
                     raise HTTPStatusError("Превышено максимальное количество попыток обновления токена",
                                           request=response.request, response=response)
-                print(
-                    f"Attempt {retries}: {response.status_code}, {response.text}")  # Удалить если нет необходимости в коде, была нужда когда разбирался в ошибкой 403 бесконечно
-            else:
-                raise HTTPException(status_code=response.status_code, detail=response.text)
+                print(f"Attempt {retries}: {response.status_code}, {response.text}")  # Удалить если нет необходимости в коде, была нужда когда разбирался в ошибкой 403 бесконечно
+
+            response.raise_for_status()
+
+            data: dict = response.json()
+            chats.extend(data.get("chats", []))
+
+            has_more = data.get("meta", {}).get("has_more", False)
+
+            last_chat_timestamp = chats[-1].get("updated")
+            assert last_chat_timestamp
+            last_chat_in_period = await timestamp_in_period(last_chat_timestamp, period)
+
+            if not has_more or not last_chat_in_period:
+                break
+
+            params["offset"] += 50
+
     return chats
 
 
@@ -92,23 +121,6 @@ async def check_timestamp_in_period(timestamp: int, period: str = "week") -> boo
         if 30 >= timedelta.days >= 0:
             timestamp_in_period = True
     return timestamp_in_period
-
-
-class ChatMessageContent(TypedDict, total=False):
-    text: str | None
-
-
-class ChatMessage(TypedDict):
-    id: str
-    author_id: int
-    direction: Literal["in", "out"]
-    type: str
-    content: ChatMessageContent
-
-
-class Chat(TypedDict, total=False):
-    id: str
-    messages: list[ChatMessage]
 
 
 async def get_chats_last_50_messages(avito_account: AvitoAccount, chats: list[Chat], *, trace_id: str | None = None) -> list[Chat]:

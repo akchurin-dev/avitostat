@@ -1,21 +1,53 @@
-from asgiref.sync import sync_to_async
+from django.db.models import F
 
-from avito_account.models.models import AvitoAccount
+from avito_account.models.models import User
 from base.exceptions import HTTPException
 from payments.models import UserProfile
+from utils.atomic_async import aatomic
 
 
-# TODO может стоит перенести в модель профиля?
-
-async def waste_of_balance(avito_account: AvitoAccount, balance_decrease: int):
-    user_profile = await sync_to_async(UserProfile.objects.get)(user_id=avito_account.created_by_id)
-    user_profile.balance -= balance_decrease
-    await user_profile.asave()
+REPORT_DEFAULT_COST = 500
 
 
-@sync_to_async
-def check_balance(avito_account):
-    balance = avito_account.created_by.userprofile.balance
-    if balance < 500:
-        print(f"Недостаточно денег - ({balance})")
-        raise HTTPException(status_code=400, detail=f"Недостаточно денег - ({balance})")
+@aatomic()
+async def waste_of_balance(user: User, balance_decrease: float) -> None:
+    user_profile_qs = UserProfile.objects.filter(user=user)
+    user_profile_qs.select_for_update(no_key=True)
+
+    user_profile = await user_profile_qs.aget()
+
+    if user_profile.balance < balance_decrease:
+        raise_not_enought_money_exception(
+            user=user,
+            current_amount=user_profile.balance,
+            required_amount=balance_decrease,
+        )
+
+    await user_profile_qs.aupdate(balance=F("balance") - balance_decrease)
+
+
+async def check_balance_enought(
+    user: User,
+    required_amount: float = REPORT_DEFAULT_COST,
+    *,
+    raise_exception: bool = True,
+) -> bool:
+
+    user_profile = await UserProfile.objects.aget(user=user)
+    enought = user_profile.balance >= required_amount
+
+    if not enought and raise_exception:
+        raise_not_enought_money_exception(
+            user=user,
+            current_amount=user_profile.balance,
+            required_amount=REPORT_DEFAULT_COST,
+        )
+
+    return enought
+
+
+def raise_not_enought_money_exception(user: User, current_amount: float, required_amount: float) -> None:
+    raise HTTPException(
+        status_code=400,
+        detail=f"User '{user.username}' doesn't have enought money. Current balance {current_amount} but requred {required_amount}",
+    )

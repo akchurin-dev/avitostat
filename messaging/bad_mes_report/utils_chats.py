@@ -1,18 +1,36 @@
-import time
-from typing import Tuple, List, Any
+import datetime
+import logging
 
 import pytz
-from asgiref.sync import sync_to_async
 import re
 
 from avito_account.models.excluded_items import ExcludedItem
 from avito_account.models.models import AvitoAccount, WorkSchedule
-from messaging.api import get_chats, get_chats_last_50_messages
-import datetime
-import logging
+import messaging.api
+
+
 logger = logging.getLogger(__name__)
 
-async def filter_chats_for_last_period(chats: list, period: str = "week") -> list:
+manager_pattern = re.compile(r'^([А-ЯЁ][а-яё]+(?:\s[А-ЯЁ][а-яё]+){1,2}):\s*\n')
+
+
+class ChatWithManagerName(messaging.api.Chat):
+    manager_name: str | None
+
+
+async def get_ready_chats(avito_account: AvitoAccount, period: str = "week") -> tuple[list, list]:
+    chats = await messaging.api.get_chats(avito_account, period=period)
+    chats = await filter_chats_for_last_period(chats, period)
+    chats = await messaging.api.get_chats_last_50_messages(avito_account, chats)
+    chats_with_manager = adding_manager_info_for_chats(chats)
+    chats_with_manager = filter_chats_only_with_text(chats_with_manager)
+    chats_with_manager = await schedule_filter_chats(chats_with_manager, avito_account)
+    chats_without_excluded_sellings = await excluded_items_filter_chats(chats_with_manager, avito_account)
+
+    return chats_without_excluded_sellings, chats_with_manager
+
+
+async def filter_chats_for_last_period(chats: list[messaging.api.Chat], period: str = "week") -> list:
     filtered_chats = []
     now = datetime.datetime.now()
 
@@ -25,40 +43,61 @@ async def filter_chats_for_last_period(chats: list, period: str = "week") -> lis
     max_timedelta_days = period_to_days[period]
 
     for chat in chats:
-        updated = datetime.datetime.fromtimestamp(chat.get('updated'))
+        chat_timestamp = chat.get('updated')
+        assert chat_timestamp
+        updated = datetime.datetime.fromtimestamp(chat_timestamp)
         timedelta = now - updated
 
         if timedelta.days <= max_timedelta_days:
             filtered_chats.append(chat)
 
     logger.warning(f"{len(filtered_chats)} chats loaded")
+
     return filtered_chats
 
 
-def adding_manager_info_for_chats(chats):
-    manager_pattern = re.compile(r'^([А-ЯЁ][а-яё]+(?:\s[А-ЯЁ][а-яё]+){1,2}):\s*\n')
+def adding_manager_info_for_chats(chats: list[messaging.api.Chat]) -> list[ChatWithManagerName]:
+    new_chats: list[ChatWithManagerName] = []
 
     for chat in chats:
-        chat['manager_name'] = None
-        for message in chat.get('messages'):
-            if message.get("direction") == 'out':
-                text_content = message.get("content", {}).get("text", "")
-                match = manager_pattern.match(text_content)
-                if match:
-                    manager_name = match.group(1)
-                    chat['manager_name'] = manager_name
-                    break
-    sorted_chats = sorted(chats, key=lambda x: (x['manager_name'] is None, x['manager_name']))
-    return sorted_chats
+        new_chat: ChatWithManagerName = {'manager_name': None, **chat}
+        new_chats.append(new_chat)
+
+        for message in new_chat.get('messages', []):
+            if message["direction"] != 'out':
+                continue
+
+            text_content = message["content"].get("text")
+            if text_content is None:
+                text_content = ""
+
+            match = manager_pattern.match(text_content)
+
+            if match:
+                manager_name = match.group(1)
+                new_chat['manager_name'] = manager_name
+                break
+
+    new_chats.sort(key=lambda x: (x['manager_name'] is None, x['manager_name']))
+
+    return new_chats
 
 
-def filter_chats_only_with_text(chats):
-    filtered_chats = []
+def filter_chats_only_with_text(chats: list[ChatWithManagerName]) -> list[ChatWithManagerName]:
+    filtered_chats: list[ChatWithManagerName] = []
+
     for chat in chats:
-        if chat.get("messages")[0].get("direction") == 'out':  # Skip all chats initialized from Manager
+        messages = chat.get("messages", [])
+
+        if len(messages) == 0:
             continue
-        if any(message.get("type") == "text" for message in chat.get("messages", [])):
+
+        if messages[0]["direction"] == 'out':  # Skip chats started by manager
+            continue
+
+        if any(msg["type"] == "text" for msg in messages):
             filtered_chats.append(chat)
+
     return filtered_chats
 
 
@@ -70,82 +109,59 @@ def filter_by_bot_answered_chat_ids(chats, current_ids):
     return filtered_chats
 
 
-async def schedule_filter_chats(filtered_chats_only_with_text: list, avito_account: AvitoAccount):
-    filtered_chats = []
-    schedule = await sync_to_async(WorkSchedule.objects.filter(avito_account_id=avito_account.id).last)()
+async def schedule_filter_chats(chats: list[ChatWithManagerName], avito_account: AvitoAccount) -> list[ChatWithManagerName]:
+    filtered_chats: list[ChatWithManagerName] = []
+
+    schedule = await WorkSchedule.objects.filter(avito_account=avito_account).alast()
     if schedule is None:
-        schedule = await sync_to_async(WorkSchedule.objects.filter(id=1).last)()
+        schedule = await WorkSchedule.objects.aget(id=1)
 
-    for chat in filtered_chats_only_with_text:
+    for chat in chats:
         timestamp = chat.get('created')
-        # Московский часовой пояс
+        assert timestamp
         moscow_tz = pytz.timezone('Europe/Moscow')
+        datetime_tz = datetime.datetime.fromtimestamp(timestamp, tz=moscow_tz)
 
-        # Преобразование timestamp в datetime с учётом московского часового пояса
-        dt_object = datetime.datetime.fromtimestamp(timestamp, tz=moscow_tz)
+        weekday = datetime_tz.weekday()
+        start_time = end_time = None
 
-        # Предположим, у нас есть объект расписания, который мы получили из базы данных
-        work_schedule = schedule
-
-        # Определяем день недели (0 - Понедельник, 6 - Воскресенье)
-        weekday = dt_object.weekday()
-
-        # Проверяем рабочие часы в зависимости от дня недели
         if weekday < 5:  # Понедельник-Пятница
-            start_time = work_schedule.weekday_start
-            end_time = work_schedule.weekday_end
-        elif weekday == 5:  # Суббота
-            if work_schedule.saturday_is_day_off:
-                # print("Суббота - выходной.")
-                continue
-            else:
-                start_time = work_schedule.saturday_start
-                end_time = work_schedule.saturday_end
-        elif weekday == 6:  # Воскресенье
-            if work_schedule.sunday_is_day_off:
-                # print("Воскресенье - выходной.")
-                continue
-            else:
-                start_time = work_schedule.sunday_start
-                end_time = work_schedule.sunday_end
+            start_time = schedule.weekday_start
+            end_time = schedule.weekday_end
 
-        # Если день рабочий, сравниваем время
-        if 'start_time' in locals() and 'end_time' in locals():
-            # Преобразуем время начала и окончания работы в объекты datetime с учётом часового пояса
-            start_dt = moscow_tz.localize(datetime.datetime.combine(dt_object.date(), start_time))
-            end_dt = moscow_tz.localize(datetime.datetime.combine(dt_object.date(), end_time))
+        if weekday == 5 and schedule.saturday_is_day_off:  # Суббота
+            start_time = schedule.saturday_start
+            end_time = schedule.saturday_end
 
-            if start_dt <= dt_object <= end_dt:
-                # print(f"Время в рамках рабочего времени.{dt_object.time(), dt_object.weekday()}")
-                filtered_chats.append(chat)
-            # else:
-            #     print(f"Время вне рабочего времени.{dt_object.time(), dt_object.weekday()}")
+        if weekday == 6 and schedule.sunday_is_day_off:  # Воскресенье
+            start_time = schedule.sunday_start
+            end_time = schedule.sunday_end
+
+        if start_time is None or end_time is None:
+            continue
+
+        start_dt = moscow_tz.localize(datetime.datetime.combine(datetime_tz.date(), start_time))
+        end_dt = moscow_tz.localize(datetime.datetime.combine(datetime_tz.date(), end_time))
+
+        if start_dt <= datetime_tz <= end_dt:
+            filtered_chats.append(chat)
 
     return filtered_chats
 
 
-async def get_ready_chats(avito_account: AvitoAccount, period: str = "week") -> tuple[list[Any], list] | list[Any]:
-    chats = await get_chats(avito_account, period=period)
-    if chats:
-        # Chats with messages getting
-        actual_chats = await filter_chats_for_last_period(chats, period)
-        actual_chats_with_mes = await get_chats_last_50_messages(avito_account, actual_chats)
-        #  Filtering and processing before using
-        comp_mes_with_man = adding_manager_info_for_chats(actual_chats_with_mes)
-        fil_chats_only_with_text = filter_chats_only_with_text(comp_mes_with_man)
-        fil_chats_by_sched = await schedule_filter_chats(fil_chats_only_with_text, avito_account)
-        fil_by_excluded_items = await excluded_items_filter_chats(fil_chats_by_sched, avito_account)
-        print(f"{len(fil_by_excluded_items)} chats after filtering")
-        return fil_by_excluded_items, fil_chats_only_with_text
-    else:
-        return []
+async def excluded_items_filter_chats(
+    fil_chats_by_sched: list[ChatWithManagerName],
+    avito_account: AvitoAccount,
+) -> list[ChatWithManagerName]:
 
+    filtered_chats: list[ChatWithManagerName] = []
+    excluded_ids = {ei.id async for ei in ExcludedItem.objects.filter(avito_account_id=avito_account.pk)}
 
-async def excluded_items_filter_chats(fil_chats_by_sched, avito_account):
-    filtered_chats = []
-    excluded_items = await sync_to_async(list)(ExcludedItem.objects.filter(avito_account_id=avito_account.id))
-    excluded_ids = [item.id for item in excluded_items]
     for chat in fil_chats_by_sched:
-        if chat.get("context").get("value").get("id") not in excluded_ids:
+        context = chat.get("context")
+        assert context
+
+        if context["value"]["id"] not in excluded_ids:
             filtered_chats.append(chat)
+
     return filtered_chats

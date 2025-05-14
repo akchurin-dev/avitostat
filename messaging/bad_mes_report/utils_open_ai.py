@@ -93,13 +93,21 @@ async def analyze_chat(chat):
         ],
         temperature=1.0
     )
-    ai_requests.create_from_chat_completion(completion, tlogger=TraceLogger())
+    await sync_to_async(ai_requests.create_from_chat_completion)(completion, tlogger=TraceLogger())
 
     chat["analyze"] = completion.choices[0].message.content
+
     chat["tokens_total_analyze"] = {
-        "prompt_tokens": completion.usage.prompt_tokens,
-        "completion_tokens": completion.usage.completion_tokens
+        "prompt_tokens": -99,
+        "completion_tokens": -99,
     }
+
+    if completion.usage:
+        chat["tokens_total_analyze"] = {
+            "prompt_tokens": completion.usage.prompt_tokens,
+            "completion_tokens": completion.usage.completion_tokens
+        }
+
     return chat
 
 
@@ -127,19 +135,22 @@ class CriterionAnalyzeSchema(BaseModel):
     criterion: str
 
 
-async def analyze_by_criteria_chat(chat: list, test_from_prod: bool, avito_account: AvitoAccount):
-    if avito_account.analytic_schema_id:
-        criteria = await sync_to_async(list)(Criterion.objects.filter(schema_id=avito_account.analytic_schema_id))
-    else:
-        criteria = await sync_to_async(list)(Criterion.objects.filter(schema_id=1))
-    if not criteria:  # Проверяем, есть ли критерии
+async def analyze_by_criteria_chat(chat: dict, test_from_prod: bool, avito_account: AvitoAccount):
+    criteria = None
+    analytic_schema_id = getattr(avito_account, "analytic_schema_id")
+
+    if analytic_schema_id:
+        criteria = await sync_to_async(list)(Criterion.objects.filter(schema_id=analytic_schema_id))
+
+    if not criteria:
         criteria = await sync_to_async(list)(Criterion.objects.filter(schema_id=1))
 
-    criteria_dict = {criterion.id: criterion.name for criterion in criteria}
-    chat_text = "\n".join(
-        [message.get('direction') + ": " + message.get('content').get("text") for message in
-         chat.get('messages') if
-         message.get('type', None) == 'text'])
+    criteria_dict = {criterion.pk: criterion.name for criterion in criteria}
+    chat_text = "\n".join([
+        message['direction'] + ": " + message['content'].get("text") 
+            for message in chat.get('messages', [])
+                if message['type'] == 'text'
+    ])
 
     prompt = (
             f"Here is a conversation between a call center operator and a client: {chat_text}"
@@ -162,8 +173,9 @@ async def analyze_by_criteria_chat(chat: list, test_from_prod: bool, avito_accou
         temperature=1.0,
         tools=[openai.pydantic_function_tool(CriterionAnalyzeSchema)]
     )
-    ai_requests.create_from_chat_completion(response, tlogger=TraceLogger())
-    raw_result = [x.function.arguments for x in response.choices[0].message.tool_calls]
+    await sync_to_async(ai_requests.create_from_chat_completion)(response, tlogger=TraceLogger())
+    tool_calls = response.choices[0].message.tool_calls or []
+    raw_result = [x.function.arguments for x in tool_calls]
 
     # Converting raw_result do usable DICT
     result = {}
@@ -176,15 +188,26 @@ async def analyze_by_criteria_chat(chat: list, test_from_prod: bool, avito_accou
         }
 
     chat["analyze_by_criteria"] = result
+
     chat["tokens_by_criteria_analyze"] = {
-        "prompt_tokens": response.usage.prompt_tokens,
-        "completion_tokens": response.usage.completion_tokens
+        "prompt_tokens": -99,
+        "completion_tokens": -99,
     }
+
+    if response.usage:
+        chat["tokens_by_criteria_analyze"] = {
+            "prompt_tokens": response.usage.prompt_tokens,
+            "completion_tokens": response.usage.completion_tokens
+        }
+
     return chat
 
 
-async def analyze_by_criteria(chats_with_compared_messages: list, test_from_prod: bool,
-                              avito_account: AvitoAccount):
+async def analyze_by_criteria(
+    chats_with_compared_messages: list,
+    test_from_prod: bool,
+    avito_account: AvitoAccount,
+):
     tasks = []
 
     for chat in chats_with_compared_messages:

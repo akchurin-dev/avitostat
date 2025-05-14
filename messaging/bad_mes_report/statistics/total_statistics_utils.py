@@ -77,14 +77,14 @@ def get_color_first_touches_average(rounded_average: int,
     return color
 
 
-def get_color_second_touches_average(rounded_average: int,
-                                     color: str = '#C04D3D') -> str:  # default color - red
-    if rounded_average >= 420:
-        color = '#C04D3D'  # red
+def get_color_second_touches_average(rounded_average: float) -> str:
+    if 1 <= rounded_average < 240:
+        color = '#73C356'  # green
     elif 240 <= rounded_average < 420:
         color = '#E4A03B'  # yellow
-    elif 1 <= rounded_average < 240:
-        color = '#73C356'  # green
+    else:
+        color = '#C04D3D'  # red
+
     return color
 
 
@@ -161,7 +161,7 @@ async def get_statistics_total(filtered_chats_only_with_text: list):
         color = get_color_second_touches_average(average_duration)
         statistics["second_touches_duration_average"] = {
             "value": average_duration_formatted,
-            "color": color
+            "color": color,
         }
     elif total_sum == 0:  # Если небыло второго касания вообще -
         statistics["second_touches_duration_average"] = {

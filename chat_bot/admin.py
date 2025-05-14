@@ -1,3 +1,5 @@
+from django.db.models.query import QuerySet
+from django.http import HttpRequest
 from rangefilter.filters import DateRangeFilterBuilder
 
 from django.contrib import admin
@@ -70,4 +72,13 @@ class ChatBotPromptInline(admin.TabularInline):
 @admin.register(chat_bot.models.AiChatBot)
 class AiChatBotAdmin(admin.ModelAdmin):
     list_display = ["id", "account"]
+    list_display_links = ["id", "account"]
     inlines = [ChatBotPromptInline]
+
+    def get_queryset(self, request: HttpRequest) -> QuerySet[chat_bot.models.AiChatBot]:
+        qs: QuerySet[chat_bot.models.AiChatBot] = super().get_queryset(request)
+
+        if not request.user.is_superuser:
+            qs = qs.filter(account__created_by=request.user)
+
+        return qs

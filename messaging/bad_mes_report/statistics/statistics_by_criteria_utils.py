@@ -36,25 +36,28 @@ async def get_color_description(result: dict, color="#C14D3D", text="плохо"
 
 async def get_statistics_by_criteria(actual_chats_with_messages: list):
     results = {}
+
     for chat in actual_chats_with_messages:
         analyze_by_criteria = chat.get("analyze_by_criteria", None)
-        # Initialize counters
-        if analyze_by_criteria is not None:
-            if len(results) == 0:
-                for key, value in analyze_by_criteria.items():
-                    results[key] = {
-                        "positive_chats": 0,
-                        "total_chats": len(actual_chats_with_messages),
-                        "criterion_name": value.get("criterion"),
-                        "criterion_id": key,
-                    }
-            # # Feel positive criteria counter
-            for k, v in analyze_by_criteria.items():
-                if v.get("meets_criterion"):
-                    results[k]["positive_chats"] += 1
 
-            for result in results.values():
-                result["description"] = await get_color_description(result)
+        if analyze_by_criteria is None:
+            continue
+
+        if len(results) == 0:
+            for key, value in analyze_by_criteria.items():
+                results[key] = {
+                    "positive_chats": 0,
+                    "total_chats": len(actual_chats_with_messages),
+                    "criterion_name": value.get("criterion"),
+                    "criterion_id": key,
+                }
+
+        for k, v in analyze_by_criteria.items():
+            if k in results and v.get("meets_criterion"):
+                results[k]["positive_chats"] += 1
+
+        for result in results.values():
+            result["description"] = await get_color_description(result)
 
     result_converted_to_list = list(results.values())
     return result_converted_to_list

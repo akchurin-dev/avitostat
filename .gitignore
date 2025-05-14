@@ -13,3 +13,4 @@ celerybeat-schedule
 .vscode
 .mypy_cache
 .pytest_cache
+wkhtmltopdf
