@@ -77,7 +77,7 @@ async def send_text_report_all_async(
 
 @shared_task
 def send_report_for_account(account_id: int, campaign_id: int, auto_generated: bool, test_from_prod: bool):
-    account = AvitoAccount.objects.get(pk=account_id)
+    account = AvitoAccount.objects.filter(pk=account_id).select_related("created_by").get()
 
     async def f():
         tlogger = TraceLogger()
