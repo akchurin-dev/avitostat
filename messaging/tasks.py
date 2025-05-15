@@ -214,6 +214,7 @@ def db_backup_auto_creator_task():
     db_user = settings.DB_USER
     db_name = settings.DB_NAME
     db_password = settings.DB_PASS
+    assert db_password is not None
     backup_dir = '/var/backups/db_backups'
     backup_filename = f"local_db_dump_{datetime.now().strftime('%Y-%m-%d')}.sql"
 
