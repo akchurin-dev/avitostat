@@ -1,10 +1,10 @@
-from messaging.models import ReportMonth
-from messaging.tasks import bad_messaging_report_by_period, bad_messaging_week_report_async_task, \
-    get_messaging_report_data_async_task
-import json
-from datetime import datetime, time
+from datetime import datetime
+
 from django.http import JsonResponse, HttpResponse
 from django.views import View
+
+from messaging.models import ReportMonth
+from messaging.tasks import bad_messaging_week_report_async_task
 
 
 class BadMessagingWeekReportAllView(View):

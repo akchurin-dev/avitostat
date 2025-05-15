@@ -75,9 +75,9 @@ async def handle_avito_account_have_not_active_items_for_period(telegram_chat_id
 
 async def get_chat_bot_text(week_report_data: dict) -> str:
     if week_report_data.get("chat_bot") is not None:
-        chat_bot_chats_count = week_report_data.get("chat_bot").get("chats_count", 0)
-        chat_bot_messages_count = week_report_data.get("chat_bot").get("messages_count", 0)
-        chat_bot_contacts_count = week_report_data.get("chat_bot").get("contacts_count", 0)
+        chat_bot_chats_count = week_report_data["chat_bot"].get("chats_count", 0)
+        chat_bot_messages_count = week_report_data["chat_bot"].get("messages_count", 0)
+        chat_bot_contacts_count = week_report_data["chat_bot"].get("contacts_count", 0)
 
         chat_bot_text = (
             f"\n<><><><><><><><><><><><><><><><><><>\n"
@@ -157,8 +157,8 @@ async def generate_duration_report_text(duration_report_data):
 
 
 async def get_week_report_text(avito_account: AvitoAccount):
-    avito_id = avito_account.id
-    telegram_chat_id = avito_account.telegram_id
+    assert avito_account.telegram_id
+    avito_id = avito_account.pk
 
     try:
         if settings.ENVIRONMENT == 'DEVELOPMENT':
@@ -170,10 +170,10 @@ async def get_week_report_text(avito_account: AvitoAccount):
 
         week_report_data = await get_week_report_by_avito_id(avito_id=avito_id)
         if week_report_data.get("error") == "Avito account not found":
-            await handle_avito_account_not_found(telegram_chat_id, bot)
+            await handle_avito_account_not_found(avito_account.telegram_id, bot)
             return
         elif week_report_data.get("error") == "Avito account does not have active items in period":
-            await handle_avito_account_have_not_active_items_for_period(telegram_chat_id, bot)
+            await handle_avito_account_have_not_active_items_for_period(avito_account.telegram_id, bot)
             return
 
         report_text = await generate_week_report_text(week_report_data)
