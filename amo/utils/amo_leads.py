@@ -39,13 +39,16 @@ def get_open_leads_by_contact(
     for lead_id in contact.lead_ids:
         lead = amo_api.get_lead(account.domain, lead_id, tlogger=tlogger)
 
+        if lead.status_id is None:
+            continue
+
         if amo_pipelines.status_opened(lead.status_id):
             open_leads.append(lead)
 
     if advised_lead_id:
         advised_lead = amo_api.get_lead(account.domain, advised_lead_id, tlogger=tlogger)
 
-        if amo_pipelines.status_opened(advised_lead.status_id):
+        if advised_lead.status_id is not None and amo_pipelines.status_opened(advised_lead.status_id):
             open_leads.append(advised_lead)
 
     tlogger.info(f"Open leads: {[lead.id for lead in open_leads]}")
