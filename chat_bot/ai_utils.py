@@ -6,6 +6,7 @@ from asgiref.sync import  async_to_sync
 import httpx
 from openai import OpenAI
 from openai.types.chat.chat_completion_message_param import ChatCompletionMessageParam
+from openai.types.chat_model import ChatModel
 from pydantic import BaseModel
 
 from ai_requests import ai_requests
@@ -17,7 +18,9 @@ from messaging.api import get_chats_last_50_messages
 from prompts import prompts
 from utils.logging import TraceLogger
 
-MODEL = "gpt-4o-2024-08-06"
+
+MODEL: ChatModel = "gpt-4o-mini-2024-07-18"
+
 client = OpenAI(api_key=settings.OPENAI_SECRET_KEY)
 
 
