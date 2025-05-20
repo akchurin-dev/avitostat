@@ -5,6 +5,7 @@ from enum import Enum
 from asgiref.sync import  async_to_sync
 import httpx
 from openai import OpenAI
+from openai.types.chat.parsed_chat_completion import ParsedChatCompletion
 from openai.types.chat.chat_completion_message_param import ChatCompletionMessageParam
 from openai.types.chat_model import ChatModel
 from pydantic import BaseModel
@@ -13,19 +14,18 @@ from ai_requests import ai_requests
 from avito_account.models.models import AvitoAccount
 from base import settings
 import chat_bot.models
-from messaging.api import ChatMessage
-from messaging.api import get_chats_last_50_messages
+import messaging.api
 from prompts import prompts
 from utils.logging import TraceLogger
 
 
 MODEL: ChatModel = "gpt-4o-mini-2024-07-18"
+COMPANY_BRANCH_KEy = "nearest_company_branch"
 
 client = OpenAI(api_key=settings.OPENAI_SECRET_KEY)
 
 
-class ChatBotAnswerSchema(BaseModel):
-    answer: str
+class ClientContactsSchema(BaseModel):
     address: str | None
     mobile: str | None
     whatsapp: str | None
@@ -33,7 +33,11 @@ class ChatBotAnswerSchema(BaseModel):
     email: str | None
 
 
-def contacts_data_prepare(data: ChatBotAnswerSchema) -> dict | None:
+class ChatBotAnswerSchema(ClientContactsSchema):
+    answer: str
+
+
+def contacts_data_prepare(data: ClientContactsSchema) -> dict | None:
     contacts = {key: value for key, value in {
         "address": data.address,
         "mobile": data.mobile,
@@ -41,16 +45,17 @@ def contacts_data_prepare(data: ChatBotAnswerSchema) -> dict | None:
         "telegram": data.telegram,
         "email": data.email,
     }.items() if value is not None}
-    if not contacts:
-        result = None
-    else:
-        result = contacts
-    return result
+
+    if len(contacts) == 0:
+        return None
+
+    return contacts
 
 
-def format_chat_history(messages: list[ChatMessage]) -> list[ChatCompletionMessageParam]:
+def format_chat_history(chat: messaging.api.Chat) -> list[ChatCompletionMessageParam]:
     formatted_messages: list[ChatCompletionMessageParam] = []
-    for msg in messages:
+
+    for msg in chat.get("messages", []):
         if msg["type"] != 'text':
             continue
 
@@ -88,9 +93,9 @@ class AIAnswerWithContacts(BaseModel):
     tokens_prompt: int
 
 
-def ai_answer_with_contacts_typed(
+def generate_answer_and_parse_contacts(
     ai_assistant: chat_bot.models.AiChatBot,
-    chat: list[ChatMessage],
+    chat: messaging.api.Chat,
     ask_location: bool,
     *,
     tlogger: TraceLogger,
@@ -112,82 +117,121 @@ def ai_answer_with_contacts_typed(
 
     assert ai_assistant.account
 
-    result = {}
-
     response = client.beta.chat.completions.parse(
         model=MODEL,
-        messages=_get_messages_for_gpt(ai_assistant, chat, tlogger=tlogger),
-        response_format=_get_schema(ai_assistant.account, ask_location),
+        messages=_get_messages_for_gpt(ai_assistant, chat, extract_contacts_only=False, tlogger=tlogger),
+        response_format=_get_schema(ai_assistant.account, ask_location, ChatBotAnswerSchema),
         max_tokens=2000,
         timeout=30,
     )
     ai_requests.create_from_chat_completion(response, tlogger=tlogger)
 
-    data = response.choices[0].message.parsed
-    if data is None:
-        raise Exception("GPT response is None")
+    return parse_response(response)
 
-    result['answer'] = data.answer
-    result['nearest_company_branch'] = None
+
+def parse_contacts(
+    chatbot: chat_bot.models.AiChatBot,
+    chat: messaging.api.Chat,
+    ask_location: bool,
+    *,
+    tlogger: TraceLogger,
+) -> AIAnswerWithContacts:
+
+    if not use_gpt_flag():
+        return AIAnswerWithContacts.model_validate({})
+
+    response = client.beta.chat.completions.parse(
+        model=MODEL,
+        messages=_get_messages_for_gpt(chatbot, chat, extract_contacts_only=True, tlogger=tlogger),
+        response_format=_get_schema(chatbot.account, ask_location, ClientContactsSchema),
+    )
+    ai_requests.create_from_chat_completion(response, tlogger=tlogger)
+
+    return parse_response(response)
+
+
+def parse_response(response: ParsedChatCompletion) -> AIAnswerWithContacts:
+    data = response.choices[0].message.parsed
+
+    if data is None:
+        raise_gpt_response_is_none()
+
+    assert data is not None
+
+    result = {
+        "answer": "",
+        COMPANY_BRANCH_KEy: None,
+        "contacts": contacts_data_prepare(data),
+    }
 
     data_dict = data.model_dump()
-    nearest_company_branch_enum: Enum | None = data_dict.get('nearest_company_branch')
-    if nearest_company_branch_enum:
-        result['nearest_company_branch'] = nearest_company_branch_enum.name
 
-    result['contacts'] = contacts_data_prepare(data)
+    result["answer"] = data_dict.get("answer", "")
 
-    result['tokens_completion'] = None
-    result['tokens_prompt'] = None
+    nearest_compant_branch_enum: Enum | None = data_dict.get(COMPANY_BRANCH_KEy)
+    if nearest_compant_branch_enum:
+        result[COMPANY_BRANCH_KEy] = nearest_compant_branch_enum.name
+
+    result["tokens_completion"] = 0
+    result["tokens_prompt"] = 0
 
     if response.usage:
-        result['tokens_completion'] = response.usage.completion_tokens
-        result['tokens_prompt'] = response.usage.prompt_tokens
+        result["tokens_completion"] = response.usage.completion_tokens
+        result["tokens_prompt"] = response.usage.prompt_tokens
 
     return AIAnswerWithContacts.model_validate(result)
 
 
 def _get_messages_for_gpt(
     aichatbot: chat_bot.models.AiChatBot,
-    chat: list[ChatMessage],
+    chat: messaging.api.Chat,
+    extract_contacts_only: bool,
     *,
     tlogger: TraceLogger,
 ) -> list[ChatCompletionMessageParam]:
 
-    chat_history_formatted = format_chat_history(chat)
-    tlogger.info(f"Последнее сообщение для ИИ ответа-{chat_history_formatted[-1]}")
-
-    prompt_base = _get_system_message(aichatbot, chat, tlogger=tlogger)
-
-    lines: list[str] = []
-
-    if prompt_base:
-        lines.append(prompt_base)
-
-    lines.extend([
-        "Ответы давать только на русском языке",
-        "Контакты доставать как клиента так и менеджера если имеются в переписке",
-    ])
-
-    prompt = "\n\n".join(lines)
+    prompt = _get_system_message(aichatbot, chat, extract_contacts_only, tlogger=tlogger)
 
     messages: list[ChatCompletionMessageParam] = [{"role": "system", "content": prompt}, ]
+
+    chat_history_formatted = format_chat_history(chat)
+    tlogger.info(f"Последнее сообщение для ИИ ответа-{chat_history_formatted[-1]}")
     messages.extend(chat_history_formatted)
 
     return messages
 
 
-def _get_system_message(chatbot: chat_bot.models.AiChatBot, chat: list[ChatMessage], *, tlogger: TraceLogger) -> str | None:
+def _get_system_message(
+    chatbot: chat_bot.models.AiChatBot,
+    chat: messaging.api.Chat,
+    extract_contacts_only: bool,
+    *,
+    tlogger: TraceLogger,
+) -> str:
+
+    lines: list[str] = [
+        "Контакты доставать как клиента так и менеджера если имеются в переписке",
+    ]
+
+    if extract_contacts_only:
+        return lines[0]
+
     chat_str = _chat_to_str(chat)
     prompts_qs = chat_bot.models.AvitoPrompt.objects.filter(chatbot=chatbot)
+    prompt_base = prompts.define_prompt(prompts_qs, chat_str, tlogger=tlogger)
 
-    return prompts.define_prompt(prompts_qs, chat_str, tlogger=tlogger)
+    if prompt_base:
+        lines.append(prompt_base)
+
+    lines.append("Ответы давать только на русском языке")
+
+    return "\n\n".join(lines)
 
 
-def _chat_to_str(chat: list[ChatMessage]) -> str:
+def _chat_to_str(chat: messaging.api.Chat) -> str:
     replicas: list[str] = []
 
-    for message in chat:
+    for message in chat.get("messages", []):
         role = "Manager"
         if message["direction"] == "in":
             role = "Client"
@@ -201,20 +245,20 @@ def _chat_to_str(chat: list[ChatMessage]) -> str:
     return "\n".join(replicas)
 
 
-def _get_schema(avito_account: AvitoAccount, ask_location: bool) -> type[ChatBotAnswerSchema]:
+def _get_schema(avito_account: AvitoAccount, ask_location: bool, base_schema) -> type:
     if not ask_location:
-        return ChatBotAnswerSchema
+        return base_schema
 
     company_branches = chat_bot.models.CompanyBranch.objects.filter(account=avito_account)
 
     if len(company_branches) == 0:
-        return ChatBotAnswerSchema
+        return base_schema
 
     locations = {cb.location_slug: cb.location for cb in company_branches}
 
     LocationEnum = Enum("LocationEnum", locations)
 
-    class Schema(ChatBotAnswerSchema):
+    class Schema(base_schema):
         nearest_company_branch: LocationEnum | None
 
     return Schema
@@ -241,8 +285,16 @@ def chat_summary_data_prepare(data: ChatSummarySchema) -> dict | None:
 
 
 def avito_chat_summary_ai_generator(avito_account: AvitoAccount, chat_id: str, *, tlogger: TraceLogger):
-    chat = async_to_sync(get_chats_last_50_messages)(avito_account, chats=[{"id": chat_id}], trace_id=tlogger.trace_id)
-    return chat_summary_generator(chat)
+    chat = messaging.api.MessagingAPISync.get_chat_last_50_messages_by_chat_id(
+        avito_account=avito_account,
+        chat_id=chat_id,
+        trace_id=tlogger.trace_id,
+    )
+
+    messages = chat.get("messages")
+    assert messages
+
+    return generate_chat_summary(messages)
 
 
 class ChatSummaryParagraphs(BaseModel):
@@ -257,14 +309,9 @@ class ChatSummary(BaseModel):
     tokens_prompt: int
 
 
-def chat_summary_generator_typed(chat) -> ChatSummary:
-    summary = chat_summary_generator(chat)
-    return ChatSummary.model_validate(summary)
-
-
-def chat_summary_generator(chat):
+def generate_chat_summary(chat: list) -> ChatSummary:
     if not use_gpt_flag():
-        return {
+        return ChatSummary.model_validate({
             'paragraphs': {
                 "paragraph1": "paragraph1",
                 "paragraph2": "paragraph2",
@@ -272,7 +319,7 @@ def chat_summary_generator(chat):
             },
             'tokens_completion': 1,
             'tokens_prompt': 2,
-        }
+        })
 
     result = {}
 
@@ -300,7 +347,9 @@ def chat_summary_generator(chat):
 
     data = response.choices[0].message.parsed
     if data is None:
-        return None
+        raise_gpt_response_is_none()
+
+    assert data is not None
 
     result['paragraphs'] = chat_summary_data_prepare(data)
 
@@ -311,7 +360,7 @@ def chat_summary_generator(chat):
         result['tokens_completion'] = response.usage.completion_tokens
         result['tokens_prompt'] = response.usage.prompt_tokens
 
-    return result
+    return ChatSummary.model_validate(result)
 
 
 def use_gpt_flag():
@@ -324,3 +373,7 @@ def use_gpt_flag():
     response.raise_for_status()
 
     return response.text == "True"
+
+
+def raise_gpt_response_is_none():
+    raise Exception("GPT response is None")

@@ -20,6 +20,7 @@ from messaging.bad_mes_report.utils_open_ai import messaging_total_analyze, anal
 from messaging.models import ReportMonth
 from messaging.utils_duration import get_calls_count_unique_numbers_last_week
 from utils.logging import TraceLogger
+from utils.miscellaneous import get_tz
 
 
 class MessaginReport(NamedTuple):
@@ -152,15 +153,19 @@ async def add_start_end_dates(analyze_all_chats, period: str) -> dict:
 
 async def chats_timestamp_to_datetime(analyze_all_chats):
     try:
+        msk_tz = get_tz(utc_offset_hours=3)
+
         for chat in analyze_all_chats.get("chats"):
             timestamp = chat.get("updated")
-            chat["updated_date"] = datetime.fromtimestamp(timestamp).strftime('%d.%m.%Y')
+            chat["updated_date"] = datetime.fromtimestamp(timestamp, msk_tz).strftime('%d.%m.%Y')
+
             for message in chat.get("messages"):
                 timestamp = message.get("created")
-                message["created_time"] = datetime.fromtimestamp(timestamp).time()
+                message["created_time"] = datetime.fromtimestamp(timestamp, msk_tz).time()
+
         return analyze_all_chats
-    except Exception:
-        raise Exception
+    except:
+        raise
 
 
 async def get_pdf_report(avito_account_id, analyze_all_chats):

@@ -44,10 +44,9 @@ class ChatBotTaskAdmin(admin.ModelAdmin):
 
     def changelist_view(self, request, extra_context=None):
         response = super().changelist_view(request, extra_context=extra_context)
-        assert response.context_data
 
         # Убедимся, что response — это TemplateResponse
-        if isinstance(response, TemplateResponse) and 'cl' in response.context_data:
+        if isinstance(response, TemplateResponse) and response.context_data and 'cl' in response.context_data:
             # Получаем отфильтрованный queryset
             qs = response.context_data['cl'].queryset
 

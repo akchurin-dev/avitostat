@@ -18,7 +18,7 @@ def send_report(
 ) -> None:
 
     messages_legacy_format = amo_messages.to_legacy_format(messages)
-    ai_report = ai_utils.chat_summary_generator_typed(messages_legacy_format)
+    ai_report = ai_utils.generate_chat_summary(messages_legacy_format)
 
     lead = amo_api.get_lead(
         domain=account.domain,

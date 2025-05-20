@@ -112,10 +112,6 @@ class WebhookInboxViewClass(View):
             )
             return
 
-        if chatbot.read_only:
-            tlogger.info("Stop handling. Chatbot configured as readonly")
-            return
-
         if not avito_chatbots.check_chatbot_worktime_now(chatbot):
             tlogger.info(f"Stop handling. It isn't worktime for chatbot '{chatbot.name}'")
             return
@@ -208,9 +204,9 @@ class WebhookInboxViewClass(View):
 
         company_branch = companies_branches.define_company_branch(avito_account, chat_id)
 
-        ai_answer = ai_utils.ai_answer_with_contacts_typed(
-            ai_assistant=chatbot,
-            chat=chat["messages"],
+        ai_answer = ai_utils.parse_contacts(
+            chatbot=chatbot,
+            chat=chat,
             ask_location=company_branch is None,
             tlogger=tlogger,
         )

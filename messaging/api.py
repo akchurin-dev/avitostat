@@ -29,8 +29,14 @@ class ChatMessage(TypedDict):
     content: ChatMessageContent
 
 
+class ChatContextValue(TypedDict, total=False):
+    id: int
+    title: str
+    location: dict[Literal["title"], str]
+
+
 class ChatContext(TypedDict):
-    value: dict[Literal["id"], int]
+    value: ChatContextValue
 
 
 class Chat(TypedDict, total=False):
@@ -170,7 +176,7 @@ class MessagingAPISync:
         return chats
 
     @staticmethod
-    def get_chat_by_id(avito_account: AvitoAccount, chat_id: str):
+    def get_chat_by_id(avito_account: AvitoAccount, chat_id: str) -> Chat:
         url = f"https://api.avito.ru/messenger/v2/accounts/{avito_account.pk}/chats/{chat_id}"
         headers = {
             'authorization': f"Bearer {avito_account.access_token}"
@@ -180,13 +186,11 @@ class MessagingAPISync:
             "limit": 1,
             "offset": 0,
         }
-        response = requests.get(url, headers=headers, params=params, timeout=180)
 
-        if response.status_code == 200:
-            chat = response.json()
-            return chat
-        else:
-            raise HTTPException(status_code=response.status_code, detail=response.text)
+        response = requests.get(url, headers=headers, params=params, timeout=180)
+        response.raise_for_status()
+
+        return response.json()
 
 
     @staticmethod

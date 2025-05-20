@@ -6,6 +6,7 @@
 /venv
 /static
 /staticfiles
+chat_bot/pdfs/
 messaging/bad_mes_report/PDFs/
 db.sqlite3
 celerybeat-schedule

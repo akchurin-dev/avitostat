@@ -3,20 +3,27 @@ import re
 
 
 def datetime_now_with_tz(utc_offset_hours: int) -> datetime.datetime:
-    msk_tz = datetime.timezone(datetime.timedelta(hours=utc_offset_hours))
-    msk_time_now = datetime.datetime.now(msk_tz)
-
-    return msk_time_now
+    utc_time_now = datetime.datetime.now(datetime.UTC)
+    return datetime_from_utc_to_tz(utc_time_now, utc_offset_hours)
 
 
-PHONE_NUMBER_PATTERN = re.compile(r"\d+\s*\(?(\s*\d){3,}\s*\)?\s*-?(\s*\d){3,}\s*-?(\s*\d){2,}\s*-?(\s*\d){2,}")
+def datetime_from_utc_to_tz(dt: datetime.datetime, utc_offset_hours: int) -> datetime.datetime:
+    tz = get_tz(utc_offset_hours)    
+    return dt.astimezone(tz)
 
 
-def find_phone_number_in_chat(messages: list[str]) -> list[str]:
+def get_tz(utc_offset_hours: int) -> datetime.timezone:
+    return datetime.timezone(datetime.timedelta(hours=utc_offset_hours))
+
+
+PHONE_NUMBER_PATTERN = re.compile(r"^(\d*\D+)*\+?\s*\d?\s*\(?(\s*\d){3}\s*\)?\s*-?(\s*\d){3}(\s*-?(\s*\d){2}){2}(\D+\d*)*$")
+
+
+def find_phone_numbers_in_chat(messages: list[str]) -> list[str]:
     matches: list[str] = []
 
     for msg in messages:
-        match = PHONE_NUMBER_PATTERN.match(msg)
+        match = PHONE_NUMBER_PATTERN.search(msg)
 
         if match:
             matches.append(match.group(0))

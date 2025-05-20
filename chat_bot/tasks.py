@@ -16,11 +16,12 @@ from telegram_bot import bot
 from avito_account.models.models import AvitoAccount
 from base.celery import celery_logger
 from base.settings import ENVIRONMENT
-from chat_bot.ai_utils import ai_answer_with_contacts_typed, avito_chat_summary_ai_generator, AIAnswerWithContacts
+from chat_bot import ai_utils
+from chat_bot.ai_utils import avito_chat_summary_ai_generator, AIAnswerWithContacts
 from chat_bot.api.core import AvitoMessengerSync
 from chat_bot.models import AiChatBot, ChatBotTask, CompanyBranch
 from chat_bot.utils import companies_branches
-from messaging.api import get_chats, MessagingAPISync
+from messaging.api import get_chats, Chat, MessagingAPISync
 from messaging.bad_mes_report.utils_chats import filter_chats_for_last_period, \
     filter_chats_only_with_text, filter_by_bot_answered_chat_ids
 from messaging.bad_mes_report.utils_bad_messaging_report import chats_timestamp_to_datetime
@@ -99,32 +100,54 @@ class AiAnswerAvitoClass:
         if last_message_id != message_id:
             tlogger.info(f"Stop handling. Message (id={message_id}) is not actual")
             return
-        
+
         company_branch = companies_branches.define_company_branch(avito_account, chat_id)
 
-        ai_answer = ai_answer_with_contacts_typed(
-            ai_assistant=chatbot,
-            chat=chat["messages"],
-            ask_location=company_branch is None,
-            tlogger=tlogger,
-        )
-        ai_answer.answer += "..."
+        if chatbot.read_only:
+            ai_answer = ai_utils.parse_contacts(
+                chatbot=chatbot,
+                chat=chat,
+                ask_location=company_branch is None,
+                tlogger=tlogger,
+            )
 
-        AvitoMessengerSync.send_message_to_avito(avito_account, avito_account.pk, chat_id, ai_answer.answer)
-        tlogger.info("Answer was sent to avito successfully")
+            tlogger.info("Chatbot configured to read only")
+        else:
+            ai_answer = ai_utils.generate_answer_and_parse_contacts(
+                ai_assistant=chatbot,
+                chat=chat,
+                ask_location=company_branch is None,
+                tlogger=tlogger,
+            )
+            ai_answer.answer += "..."
+
+            AvitoMessengerSync.send_message_to_avito(avito_account, avito_account.pk, chat_id, ai_answer.answer)
+            tlogger.info("Answer was sent to avito successfully")
+
         AiAnswerAvitoClass.task_contacts_save(new_task_id, ai_answer, is_incoming=True, company_branch=company_branch)
         tlogger.info("AIChatBotTask was updated successfully")
 
-        if chatbot.send_new_contact_report and ai_answer.contacts:
-            tlogger.info(f"Contacts was found: {ai_answer.contacts.model_dump()}")
-            tlogger.info("Send report")
+        may_send_report = (
+            chatbot.send_new_contact_report
+            and ai_answer.contacts
+            and (
+                ai_answer.contacts.mobile
+                or ai_answer.contacts.whatsapp
+                or ai_answer.contacts.telegram
+            )
+        )
+
+        tlogger.info({
+            "chatbot.send_new_contact_report": chatbot.send_new_contact_report,
+            "contacts": ai_answer.contacts.model_dump() if ai_answer.contacts else None,
+        })
+
+        if may_send_report:
+            assert ai_answer.contacts
             ChatBotSummaryReportClass.summary_sender_main_task(avito_account_id, chat_id, trace_id=tlogger.trace_id)
+            tlogger.info("Send report")
         else:
-            tlogger.info({
-                "title": "Don't send contacts report",
-                "chatbot.send_new_contact_report": chatbot.send_new_contact_report,
-                "contacts": ai_answer.contacts.model_dump() if ai_answer.contacts else None,
-            })
+            tlogger.info("Don't send contacts report")
 
 
 class PdfReportBaseClass:
@@ -448,8 +471,11 @@ class ChatHistoryReportClass(PdfReportBaseClass):
         async_to_sync(chats_timestamp_to_datetime)({"chats": [chat]})
         avito_account = AvitoAccount.objects.get(id=avito_account_id)
         statistics = {"avito_account_name": avito_account.name, "avito_account_id": avito_account.pk, }
-        html_content = ChatHistoryReportClass.get_history_html(chat=chat,statistics=statistics,
-                                                               summary_html=summary_html)
+        html_content = ChatHistoryReportClass.get_history_html(
+            chat=chat,
+            statistics=statistics,
+            summary_html=summary_html,
+        )
         report_name_prefix = f"history_{avito_account.name}"
         pdf_path = ChatBotSummaryReportClass.get_pdf(statistics, html_content, report_name_prefix)
         if pdf_path is not None:
@@ -461,17 +487,22 @@ class ChatHistoryReportClass(PdfReportBaseClass):
         """
          -in summary report we add summary_html and in other reports without it
         """
+
         with open(f"chat_bot/templates/chat_bot/ai_chatting_history.html", "r", encoding="utf-8") as file:
             clear_template = file.read()
+
         template = Template(clear_template)
         avito_account_name = statistics.get('avito_account_name') if statistics else "Неизвестно"
         date = (datetime.datetime.now() - datetime.timedelta(days=1)).strftime("%d.%m.%Y")
         client_name = chat.get("users")[0].get("name")
-        return template.render(avito_account_name=avito_account_name,
-                               client_name=client_name,
-                               start_date=date,
-                               chat=chat,
-                               summary_html=summary_html,)
+
+        return template.render(
+            avito_account_name=avito_account_name,
+            client_name=client_name,
+            start_date=date,
+            chat=chat,
+            summary_html=summary_html,
+        )
 
     @staticmethod
     def add_from_bot_flag(chat):
@@ -509,8 +540,6 @@ class ChatBotSummaryReportClass(PdfReportBaseClass):
 
         all_tasks = ChatBotTask.objects.filter(chat_id=chat_id)
 
-        if ENVIRONMENT == "PRODUCTION":
-            time.sleep(300)
         if ENVIRONMENT == "DEVELOPMENT":
             async_to_sync(avito_account.update_refresh_token_async)()
 
@@ -518,14 +547,14 @@ class ChatBotSummaryReportClass(PdfReportBaseClass):
             tlogger.info(f"Summary report already sent for chat_id {chat_id}.")
             return
 
-        chat = MessagingAPISync.get_chat_by_id(avito_account, chat_id)
         messages = MessagingAPISync.get_chat_last_50_messages_by_chat_id(avito_account, chat_id).get("messages")
-        assert messages
-        chat["messages"] = messages
 
-        if messages is None or len(messages) == 0:
+        if not messages:
             tlogger.info("Stop summary sending. No messages in chat")
             return
+
+        chat = MessagingAPISync.get_chat_by_id(avito_account, chat_id)
+        chat["messages"] = messages
 
         chat_summary = avito_chat_summary_ai_generator(avito_account, chat_id, tlogger=tlogger)
         if chat_summary:
@@ -534,7 +563,14 @@ class ChatBotSummaryReportClass(PdfReportBaseClass):
             tlogger.info(f"Chat summary is empty, got {chat_summary}")
 
     @staticmethod
-    def summary_sender(avito_account, chat_summary, chat, all_tasks: QuerySet[ChatBotTask], *, tlogger: TraceLogger):
+    def summary_sender(
+        avito_account: AvitoAccount,
+        chat_summary: ai_utils.ChatSummary,
+        chat: Chat,
+        all_tasks: QuerySet[ChatBotTask],
+        *,
+        tlogger: TraceLogger,
+    ):
         summary_text = ChatBotSummaryReportClass.get_chat_summary_text(chat_summary, chat)
         tlogger.info(f"Summary report summary_text {summary_text}.")
 
@@ -556,7 +592,7 @@ class ChatBotSummaryReportClass(PdfReportBaseClass):
 
         summary_html = ChatBotSummaryReportClass.get_chat_summary_html(chat_summary, chat)
         tlogger.info(f"Send history pdf to chat (tg_id={telegram_id}) of '{avito_account.name}' ({location})")
-        ChatHistoryReportClass.history_pdf_sender_task.delay(avito_account.id, chat, summary_html, telegram_id)
+        ChatHistoryReportClass.history_pdf_sender_task.delay(avito_account.pk, chat, summary_html, telegram_id)
 
         last_chat_bot_task = all_tasks.last()
         if last_chat_bot_task is not None:
@@ -564,20 +600,26 @@ class ChatBotSummaryReportClass(PdfReportBaseClass):
             last_chat_bot_task.save()
 
     @staticmethod
-    def get_chat_summary_html(chat_summary, chat):
+    def get_chat_summary_html(chat_summary: ai_utils.ChatSummary, chat: Chat):
         counter = 1
         text = "<div style='font-family: Arial, sans-serif;'><b>Сводка по переписке:</b><br><br>"
 
-        title = chat.get("context").get("value").get("title")
-        if title and len(title) == 0: title = "Без названия"
+        assert "context" in chat
+        chat_context = chat["context"]["value"]
+
+        title = chat_context.get("title")
+
+        if title and len(title) == 0:
+            title = "Без названия"
+
         if title:
             text += f"<p style='margin-left: 20px;'>{counter}. Название объявления: {title}</p>"
             counter += 1
 
-            # INFO ниже может быть без локации например через личку
-        location = chat.get("context").get("value").get("location", None)
+        location = chat_context.get("location")
+
         if location:
-            city_name_from_item = chat.get("context").get("value").get("location").get("title")
+            city_name_from_item = location.get("title")
         else:
             city_name_from_item = "Без локации"
 
@@ -585,14 +627,21 @@ class ChatBotSummaryReportClass(PdfReportBaseClass):
             text += f"<p style='margin-left: 20px;'><b>{counter}. <u>Город обращения: {city_name_from_item}</u></b></p>"
             counter += 1
 
-        for key, value in chat_summary.get("paragraphs").items():
+        paragraphs = {}
+
+        if chat_summary.paragraphs:
+            paragraphs = chat_summary.paragraphs.model_dump()
+
+        for _, value in paragraphs.items():
             text += f"<p style='margin-left: 20px;'>{counter}. {value}</p>"
             counter += 1
+
         text += "</div>"
+
         return text
 
     @staticmethod
-    def get_chat_summary_text(chat_summary, chat):
+    def get_chat_summary_text(chat_summary: ai_utils.ChatSummary, chat):
         counter = 1
         text = ("🎉 <b>Новый клиент из AVITO 🎉 \n\n</b> "
                 "   📋 Сводка по переписке:\n\n")
@@ -620,7 +669,13 @@ class ChatBotSummaryReportClass(PdfReportBaseClass):
             text += f"🔸 {counter}. <u><b>Город обращения: {city_name_from_item}</b></u> \n"
             counter += 1
 
-        for key, value in chat_summary.get("paragraphs").items():
+        paragraphs = {}
+
+        if chat_summary.paragraphs:
+            paragraphs = chat_summary.paragraphs.model_dump()
+
+        for _, value in paragraphs.items():
             text += f"🔹 {counter}. {value} \n"
             counter += 1
+
         return text
