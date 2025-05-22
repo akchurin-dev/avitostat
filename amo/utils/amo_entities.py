@@ -23,7 +23,7 @@ def update_entity_fields(
         if skip_null and value is None:
             continue
 
-        field = amo_fields.find_text_field(field_name, fields)
+        field = amo_fields.find_text_field(field_name, fields, tlogger=tlogger)
 
         if field is None:
             field = amo_api.create_text_field(

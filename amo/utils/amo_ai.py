@@ -242,6 +242,10 @@ def _get_text_format(
         },
     }
 
+    tlogger.info({
+        "text_format": text_format,
+    })
+
     return text_format
 
 
@@ -268,7 +272,7 @@ def _get_fillable_entity_schema(
         if entity == amo_api.EntityEnum.CONTACTS and field.entity != amo.models.AmoEntity.CONTACT.value:
             continue
 
-        amo_field = amo_fields.find_text_field(field.name, all_fields)
+        amo_field = amo_fields.find_text_field(field.name, all_fields, tlogger=tlogger)
 
         if amo_field:
             fillable_fields.append((amo_field, field))

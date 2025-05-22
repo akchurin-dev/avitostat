@@ -15,17 +15,25 @@ TEXT_TYPES = {
 }
 
 
-def find_text_field(name: str, fields: list[amo_api.Field]) -> amo_api.Field | None:
+def find_text_field(name: str, fields: list[amo_api.Field], *, tlogger: TraceLogger) -> amo_api.Field | None:
     for field in fields:
-        if field.name == name and (field.type in TEXT_TYPES or field.type in ENUM_TYPES):
-            return field
+        if field.name != name:
+            continue
+
+        if field.type not in TEXT_TYPES and field.type not in ENUM_TYPES:
+            tlogger.info(f"Field '{field.name}' has type '{field.type}', it isn't supportable")
+            continue
+
+        return field
+
+    tlogger.info(f"Field '{name}' not found")
 
     return None
 
 
 def get_or_create_field(domain: str, entity: amo_api.EntityEnum, name: str, *, tlogger: TraceLogger) -> amo_api.Field:
     fields = amo_api.get_fields(domain, entity, tlogger=tlogger)
-    field = find_text_field(name, fields)
+    field = find_text_field(name, fields, tlogger=tlogger)
 
     if field:
         return field
