@@ -263,7 +263,7 @@ def _get_fillable_entity_schema(
         tlogger=tlogger,
     )
 
-    fillable_fields: list[tuple[amo_api.Field, amo.models.FillableField]] = []
+    fillable_fields: list[tuple[amo_api.Field | None, amo.models.FillableField]] = []
 
     for field in fields:
         if entity == amo_api.EntityEnum.LEADS and field.entity != amo.models.AmoEntity.LEAD.value:
@@ -273,15 +273,13 @@ def _get_fillable_entity_schema(
             continue
 
         amo_field = amo_fields.find_text_field(field.name, all_fields, tlogger=tlogger)
-
-        if amo_field:
-            fillable_fields.append((amo_field, field))
+        fillable_fields.append((amo_field, field))
 
     if len(fillable_fields) == 0:
         return None
 
     properties = {
-        amo_field.name: _get_field_schema(amo_field, fillable_field.description)
+        fillable_field.name: _get_field_schema(amo_field, fillable_field)
             for amo_field, fillable_field in fillable_fields
     }
 
@@ -293,15 +291,15 @@ def _get_fillable_entity_schema(
     }
 
 
-def _get_field_schema(field: amo_api.Field, description: str) -> dict:
+def _get_field_schema(amo_field: amo_api.Field | None, fillable_field: amo.models.FillableField) -> dict:
     schema = {
         "type": ["string", "null"],
-        "description": description,
+        "description": fillable_field.description,
     }
 
-    if field.type in amo_fields.ENUM_TYPES:
-        assert field.enums is not None
-        schema["enum"] = [field_enum.value for field_enum in field.enums]
+    if amo_field and amo_field.type in amo_fields.ENUM_TYPES:
+        assert amo_field.enums is not None
+        schema["enum"] = [field_enum.value for field_enum in amo_field.enums]
 
     return schema
 
