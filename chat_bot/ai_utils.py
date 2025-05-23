@@ -19,7 +19,6 @@ from prompts import prompts
 from utils.logging import TraceLogger
 
 
-# MODEL: ChatModel = "gpt-4o-mini-2024-07-18"
 MODEL: ChatModel = "gpt-4.1-2025-04-14"
 COMPANY_BRANCH_KEy = "nearest_company_branch"
 
