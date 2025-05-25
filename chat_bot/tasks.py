@@ -128,27 +128,8 @@ class AiAnswerAvitoClass:
         AiAnswerAvitoClass.task_contacts_save(new_task_id, ai_answer, is_incoming=True, company_branch=company_branch)
         tlogger.info("AIChatBotTask was updated successfully")
 
-        may_send_report = (
-            chatbot.send_new_contact_report
-            and ai_answer.contacts
-            and (
-                ai_answer.contacts.mobile
-                or ai_answer.contacts.whatsapp
-                or ai_answer.contacts.telegram
-            )
-        )
-
-        tlogger.info({
-            "chatbot.send_new_contact_report": chatbot.send_new_contact_report,
-            "contacts": ai_answer.contacts.model_dump() if ai_answer.contacts else None,
-        })
-
-        if may_send_report:
-            assert ai_answer.contacts
+        if summaries.may_send_report(chatbot, ai_answer.contacts, tlogger=tlogger):
             ChatBotSummaryReportClass.summary_sender_main_task(avito_account_id, chat_id, trace_id=tlogger.trace_id)
-            tlogger.info("Send report")
-        else:
-            tlogger.info("Don't send contacts report")
 
 
 @shared_task
@@ -226,12 +207,8 @@ def outgoing_messages_handler(
     )
     AiAnswerAvitoClass.task_contacts_save(message_id, ai_answer, is_incoming=False, company_branch=company_branch)
 
-    if not ai_answer.contacts:
-        tlogger.info(f"Cotacts not found, got {ai_answer.contacts}")
-        return
-
-    tlogger.info(f"Contacts found - {ai_answer.contacts.model_dump()}")
-    ChatBotSummaryReportClass.summary_sender_main_task(avito_account.pk, chat_id, trace_id=tlogger.trace_id)
+    if summaries.may_send_report(chatbot, ai_answer.contacts, tlogger=tlogger):
+        ChatBotSummaryReportClass.summary_sender_main_task(avito_account.pk, chat_id, trace_id=tlogger.trace_id)
 
 
 class PdfReportBaseClass:
