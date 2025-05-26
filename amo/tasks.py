@@ -5,9 +5,8 @@ from celery import shared_task
 import amo.models
 from amo.utils import amo_ai
 from amo.utils import amo_api
-from amo.utils import amo_chatbots
 from amo.utils import amo_chatbottasks
-from amo.utils import amo_entities
+from amo.utils import amo_fields
 from amo.utils import amo_leads
 from amo.utils import amo_messages
 from amo.utils import amo_pipelines
@@ -15,7 +14,6 @@ from amo.utils import amo_reports
 from amo.utils import amo_transcriptions
 from amo.utils import chatbot_lead_pair_defining
 from amo.utils import qualification
-from base import settings
 from utils.logging import TraceLogger
 
 
@@ -247,7 +245,7 @@ def handle_ai_answer(ai_answer_serializable: dict, messages_serializable: list[d
             return
 
         if ai_answer.payload.lead_info:
-            amo_entities.update_entity_fields(
+            amo_fields.update_entity_fields(
                 domain=task.account.domain,
                 entity=amo_api.EntityEnum.LEADS,
                 instance_id=task.lead_id,
@@ -258,7 +256,7 @@ def handle_ai_answer(ai_answer_serializable: dict, messages_serializable: list[d
             tlogger.info("Lead info wasn't recognized by AI")
 
         if ai_answer.payload.contacts:
-            amo_entities.update_entity_fields(
+            amo_fields.update_entity_fields(
                 domain=task.account.domain,
                 entity=amo_api.EntityEnum.CONTACTS,
                 instance_id=task.contact_id,

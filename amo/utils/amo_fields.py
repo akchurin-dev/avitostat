@@ -8,11 +8,59 @@ ENUM_TYPES = {
 }
 
 TEXT_TYPES = {
+    "multitext",
     "streetaddress",
     "text",
     "textarea",
     "url",
 }
+
+
+def update_entity_fields(
+    domain: str,
+    entity: amo_api.EntityEnum,
+    instance_id: int | str,
+    fields_values: dict[str, str | None],
+    skip_null: bool = True,
+    *,
+    tlogger: TraceLogger,
+) -> None:
+
+    fields = amo_api.get_fields(domain, entity, tlogger=tlogger)
+
+    custom_fields_values = []
+
+    for field_name, value in fields_values.items():
+        if skip_null and value is None:
+            continue
+
+        field = find_text_field(field_name, fields, tlogger=tlogger)
+
+        if field is None:
+            field = amo_api.create_text_field(
+                domain=domain,
+                entity=entity,
+                name=field_name,
+                tlogger=tlogger,
+            )
+
+        custom_fields_values.append({
+            "field_id": field.id,
+            "values": [{"value": value}]
+        })
+
+    amo_api._request_with_token(
+        method="PATCH",
+        domain=domain,
+        action=f"/api/v4/{entity.value}/{instance_id}",
+        json={"custom_fields_values": custom_fields_values},
+        tlogger=tlogger,
+    )
+
+    tlogger.info({
+        "message": f"Update {entity.value} id='{instance_id}'",
+        "data": custom_fields_values,
+    })
 
 
 def find_text_field(name: str, fields: list[amo_api.Field], *, tlogger: TraceLogger) -> amo_api.Field | None:
