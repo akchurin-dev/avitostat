@@ -1,12 +1,13 @@
 from django.contrib.auth.models import User
 from django.db import models
 
-from amo.utils import amo_api
 from amo.utils import amo_chatbottasks
+from amo.utils import amo_webhooks
 import chat_bot.models
 from chatbottasks import chatbottasks
 import transcriptions.models
 from utils import miscellaneous
+from utils.logging import TraceLogger
 
 
 class AmoAccount(models.Model):
@@ -259,11 +260,11 @@ class AmoChatBot(chat_bot.models.AIChatBotBase):
         ).exists()
 
         if active_chatbots_exists:
-            amo_api.subscribe_to_new_messages(self.account.domain)
+            amo_webhooks.subscribe_for_webhooks(self.account, tlogger=TraceLogger())
 
         if not active_chatbots_exists:
             try:
-                amo_api.unsubscribe_from_messages(self.account.domain)
+                amo_webhooks.unsubscribe_from_webhooks(self.account, tlogger=TraceLogger())
             except:
                 pass
 
@@ -277,7 +278,7 @@ class AmoChatBot(chat_bot.models.AIChatBotBase):
 
         if not active_chatbots_exists:
             try:
-                amo_api.unsubscribe_from_messages(self.account.domain)
+                amo_webhooks.unsubscribe_from_webhooks(self.account, tlogger=TraceLogger())
             except:
                 pass
 

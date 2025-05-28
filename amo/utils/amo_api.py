@@ -51,47 +51,6 @@ def get_account_info(domain: str, access_token: str, *, tlogger: TraceLogger) ->
     return Account.model_validate_json(response.text)
 
 
-def subscribe_to_new_messages(domain: str, tlogger: TraceLogger | None = None) -> None:
-    """ https://www.amocrm.ru/developers/content/crm_platform/webhooks-api#webhook-subscribe """
-
-    tlogger = tlogger or TraceLogger()
-
-    action = "/api/v4/webhooks"
-
-    data = {
-        "destination": "https://" + settings.AMO_WEBHOOK_DOMAIN + "/amo/webhook-inbox",
-        "settings": ["add_message"],
-    }
-
-    response = _request_with_token("POST", domain, action, json=data, tlogger=tlogger)
-    response.raise_for_status()
-
-    tlogger.info(f"Add subsription for new messages for domain '{domain}'")
-
-
-def unsubscribe_from_messages(domain: str, tlogger: TraceLogger | None = None) -> None:
-    """ https://www.amocrm.ru/developers/content/crm_platform/webhooks-api#webhooks-delete """
-
-    tlogger = tlogger or TraceLogger()
-
-    action = "/api/v4/webhooks"
-
-    data = {
-        "destination": "https://" + settings.AMO_WEBHOOK_DOMAIN + "/amo/webhook-inbox",
-    }
-
-    response = _request_with_token(
-        method="DELETE",
-        domain=domain,
-        action=action,
-        data=data,
-        tlogger=tlogger,
-    )
-    response.raise_for_status()
-
-    tlogger.info(f"Delete new messages subscription for domain '{domain}'")
-
-
 def get_lead_events(account_id: str, lead_id: str, tlogger: TraceLogger) -> list[dict]:
     action = f"/ajax/v3/leads/{lead_id}/events_timeline"
 
@@ -185,9 +144,9 @@ def create_lead(account: amo_models.AmoAccount, contact_id: int, *, tlogger: Tra
         },
     }]
 
-    response = _request_with_token(
+    response = openapi_request_by_account(
+        account=account,
         method="POST",
-        domain=account.domain,
         action=action,
         json=data,
         tlogger=tlogger,
@@ -419,6 +378,31 @@ def get_sources(account_id: int, *, tlogger: TraceLogger) -> list[Source]:
             })
 
     return sources
+
+
+def openapi_request_by_account(
+    account: amo_models.AmoAccount,
+    method: httpx_helper.MethodType,
+    action: str,
+    params: dict | None = None,
+    data: dict | None = None,
+    json: dict | list | None = None,
+    headers: dict | None = None,
+    retry: bool = False,
+    *,
+    tlogger: TraceLogger,
+):
+    return _request_with_token(
+        method=method,
+        domain=account.domain,
+        action=action,
+        params=params,
+        data=data,
+        json=json,
+        headers=headers,
+        retry=retry,
+        tlogger=tlogger,
+    )
 
 
 def _request_with_token(

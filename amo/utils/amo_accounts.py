@@ -1,6 +1,7 @@
 import amo.models
 from amo.utils import amo_api
 from amo.utils import amo_tokens
+from amo.utils import amo_webhooks
 from utils.logging import TraceLogger
 
 
@@ -39,6 +40,6 @@ def create_account_or_update_tokens(domain: str, code: str, created_by_id: int, 
         tlogger.info("Не удалось обновить токены, возможно не введены логин и пароль")
 
     if amo.models.AmoChatBot.objects.filter(account=account, is_active=True).exists():
-        amo_api.subscribe_to_new_messages(domain, tlogger=tlogger)
+        amo_webhooks.subscribe_for_webhooks(account, tlogger=tlogger)
 
     return account
