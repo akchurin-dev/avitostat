@@ -64,7 +64,7 @@ def get_webhook_type(request_data: dict) -> WebhookType | None:
     if "message[add][0]" in request_data:
         return WebhookType.NEW_INCOMING_MESSAGE
 
-    if "note[lead][0]" in request_data:
+    if "leads[note][0]" in request_data:
         return WebhookType.NEW_NOTE_LEAD
 
     return None
