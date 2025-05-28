@@ -41,7 +41,7 @@ def handle_new_message_webhook(request_data: dict, *, tlogger: TraceLogger) -> N
         if attachment_type:
             file_link = request_data.get("message[add][0][attachment][link]")
     except:
-        tlogger.info("Error when parse request data, request data =")
+        tlogger.info("Error when parse amo new message webhook request data")
         tlogger.info(dict(request_data))
         raise
 

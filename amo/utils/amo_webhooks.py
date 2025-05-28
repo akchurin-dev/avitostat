@@ -61,10 +61,10 @@ def unsubscribe_from_webhooks(account: amo.models.AmoAccount, *, tlogger: TraceL
 
 
 def get_webhook_type(request_data: dict) -> WebhookType | None:
-    if "message[add][0]" in request_data:
+    if "message[add][0][id]" in request_data:
         return WebhookType.NEW_INCOMING_MESSAGE
 
-    if "leads[note][0]" in request_data:
+    if "leads[note][0][note][id]" in request_data:
         return WebhookType.NEW_NOTE_LEAD
 
     return None
