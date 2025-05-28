@@ -3,8 +3,15 @@ from amo.utils import amo_api
 from utils.logging import TraceLogger
 
 
-def get_status_by_name(domain: str, pipeline_id: int, status_name: str, *, tlogger: TraceLogger) -> amo_api.PipelineStatus:
-    statuses = amo_api.get_pipeline_statuses(domain, pipeline_id, tlogger=tlogger)
+def get_status_by_name(
+    account: amo.models.AmoAccount,
+    pipeline_id: int,
+    status_name: str,
+    *,
+    tlogger: TraceLogger,
+) -> amo_api.PipelineStatus:
+
+    statuses = amo_api.get_pipeline_statuses(account, pipeline_id, tlogger=tlogger)
 
     for status in statuses:
         if status.name == status_name:

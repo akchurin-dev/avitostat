@@ -20,14 +20,10 @@ def send_report(
     messages_legacy_format = amo_messages.to_legacy_format(messages)
     ai_report = ai_utils.generate_chat_summary(messages_legacy_format)
 
-    lead = amo_api.get_lead(
-        domain=account.domain,
-        lead_id=lead_id,
-        tlogger=tlogger,
-    )
+    lead = amo_api.get_lead(account, lead_id, tlogger=tlogger)
 
     contact = amo_api.get_contact(
-        domain=account.domain,
+        account=account,
         contact_id=contact_id,
         tlogger=tlogger,
     )

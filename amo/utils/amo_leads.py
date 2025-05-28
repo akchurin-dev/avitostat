@@ -4,12 +4,12 @@ from amo.utils import amo_pipelines
 from utils.logging import TraceLogger
 
 
-def change_lead_status(domain: str, lead_id: int | str, status_id: int | str, *, tlogger: TraceLogger) -> None:
+def change_lead_status(account: amo.models.AmoAccount, lead_id: int | str, status_id: int | str, *, tlogger: TraceLogger) -> None:
     data = {"status_id": int(status_id)}
 
-    response = amo_api._request_with_token(
+    response = amo_api.openapi_request_by_account(
+        account=account,
         method="PATCH",
-        domain=domain,
         action=f"/api/v4/{amo_api.EntityEnum.LEADS.value}/{lead_id}",
         json=data,
         tlogger=tlogger,
@@ -27,7 +27,7 @@ def get_open_leads_by_contact(
     tlogger: TraceLogger,
 ) -> list[amo_api.Lead]:
 
-    contact = amo_api.get_contact(account.domain, contact_id, with_leads=True, tlogger=tlogger)
+    contact = amo_api.get_contact(account, contact_id, with_leads=True, tlogger=tlogger)
 
     if contact.lead_ids is None:
         return []
@@ -37,7 +37,7 @@ def get_open_leads_by_contact(
     open_leads: list[amo_api.Lead] = []
 
     for lead_id in contact.lead_ids:
-        lead = amo_api.get_lead(account.domain, lead_id, tlogger=tlogger)
+        lead = amo_api.get_lead(account, lead_id, tlogger=tlogger)
 
         if lead.status_id is None:
             continue
@@ -46,7 +46,7 @@ def get_open_leads_by_contact(
             open_leads.append(lead)
 
     if advised_lead_id:
-        advised_lead = amo_api.get_lead(account.domain, advised_lead_id, tlogger=tlogger)
+        advised_lead = amo_api.get_lead(account, advised_lead_id, tlogger=tlogger)
 
         if advised_lead.status_id is not None and amo_pipelines.status_opened(advised_lead.status_id):
             open_leads.append(advised_lead)

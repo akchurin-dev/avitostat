@@ -1,8 +1,7 @@
-import datetime
 import re
-import time
 from typing import Iterable
 
+from openai.types.responses import Response
 from openai.types.responses import ResponseInputParam
 from openai.types.responses import ResponseTextConfigParam
 from openai.types.responses.easy_input_message_param import EasyInputMessageParam as GPTMessage
@@ -27,7 +26,7 @@ PHRASE_AUTHOR_REGEX = re.compile(r"^\s*\w+:\s*")
 
 
 class AIAnswerPayload(BaseModel):
-    answer: str
+    answer: str | None = None
     contacts: dict[str, str | None] | None = None
     lead_info: dict[str, str | None] | None = None
     new_status: str | None = None
@@ -54,16 +53,8 @@ def generate_answer(
 
     fillable_fields = amo.models.FillableField.objects.filter(chatbot=chatbot)
 
-    lead = amo_api.get_lead(
-        domain=account.domain,
-        lead_id=lead_id,
-        tlogger=tlogger,
-    )
-    available_pipeline_statuses = amo_api.get_pipeline_statuses(
-        domain=account.domain,
-        pipeline_id=lead.pipeline_id,
-        tlogger=tlogger,
-    )
+    lead = amo_api.get_lead(account, lead_id, tlogger=tlogger)
+    available_pipeline_statuses = amo_api.get_pipeline_statuses(account, lead.pipeline_id, tlogger=tlogger)
 
     gpt_messages = _get_gpt_messages(
         chatbot=chatbot,
@@ -77,8 +68,8 @@ def generate_answer(
     text_format = _get_text_format(
         account=account,
         fields=fillable_fields,
-        available_pipeline_statuses=available_pipeline_statuses,
-        field_for_new_status=not chatbot.change_status_only_when_qualification,
+        field_for_answer=True,
+        available_pipeline_statuses=None if chatbot.change_status_only_when_qualification else available_pipeline_statuses,
         tlogger=tlogger,
     )
 
@@ -107,20 +98,54 @@ def generate_answer(
         if error:
             raise error
 
-    tokens_completion = tokens_prompt = 0
+    return _get_ai_answer_wrapper(response, payload, tlogger=tlogger)
 
-    if response.usage:
-        tokens_completion = response.usage.output_tokens
-        tokens_prompt = response.usage.input_tokens
 
-    res = AIAnswer(
-        payload=payload,
-        tokens_completion=tokens_completion,
-        tokens_prompt=tokens_prompt,
+def parse_form(chatbot: amo.models.AmoChatBot, form: str, *, tlogger: TraceLogger) -> AIAnswer:
+    if use_gpt_flag():
+        return AIAnswer.model_validate({})
+
+    fillable_fields = amo.models.FillableField.objects.filter(chatbot=chatbot)
+
+    gpt_messages: ResponseInputParam = [
+        {"role": "system", "content": "Extract required fields from text"},
+        {"role": "user", "content": "Extract required fields from this text:\n\n" + form},
+    ]
+
+    text_format = _get_text_format(
+        account=chatbot.account,
+        fields=fillable_fields,
+        field_for_answer=False,
+        available_pipeline_statuses=None,
+        tlogger=tlogger,
     )
-    res.payload.answer = _delete_phrase_author_if_exists(res.payload.answer, tlogger=tlogger)
 
-    return res
+    error = None
+
+    for _ in range(AI_RETRIES):
+        try:
+            response = client.responses.create(
+                model=MODEL,
+                input=gpt_messages,
+                text=text_format,
+                max_output_tokens=2000,
+            )
+            ai_requests.create_from_response(response, tlogger=tlogger)
+
+            payload = AIAnswerPayload.model_validate(response.output_text)
+
+            break
+        except pydantic.ValidationError as e:
+            error = e
+            tlogger.info({
+                "title": "Invalid gpt response",
+                "error": e,
+            })
+    else:
+        if error:
+            raise error
+
+    return _get_ai_answer_wrapper(response, payload, tlogger=tlogger)
 
 
 def _get_gpt_messages(
@@ -189,8 +214,8 @@ def _amo_message_to_gpt_format(message: Message, transcriptions: TranscriptionsF
 def _get_text_format(
     account: amo.models.AmoAccount,
     fields: Iterable[amo.models.FillableField],
-    available_pipeline_statuses: list[amo_api.PipelineStatus],
-    field_for_new_status: bool,
+    field_for_answer: bool,
+    available_pipeline_statuses: list[amo_api.PipelineStatus] | None = None,
     *,
     tlogger: TraceLogger,
 ) -> ResponseTextConfigParam:
@@ -209,9 +234,10 @@ def _get_text_format(
         tlogger=tlogger,
     )
 
-    properties: dict = {
-        "answer": {"type": "string"},
-    }
+    properties: dict = {}
+
+    if field_for_answer:
+        properties["answer"] = {"type": "string"}
 
     if contacts_schema:
         properties["contacts"] = contacts_schema
@@ -219,7 +245,7 @@ def _get_text_format(
     if lead_schema:
         properties["lead_info"] = lead_schema
 
-    if field_for_new_status:
+    if available_pipeline_statuses is not None:
         properties["new_status"] = {
             "type": ["string", "null"],
             "description": "Новый этап сделки. Если сделка не меняет этап, то null",
@@ -257,11 +283,7 @@ def _get_fillable_entity_schema(
     tlogger: TraceLogger,
 ) -> dict | None:
 
-    all_fields = amo_api.get_fields(
-        domain=account.domain,
-        entity=entity,
-        tlogger=tlogger,
-    )
+    all_fields = amo_api.get_fields(account, entity, tlogger=tlogger)
 
     fillable_fields: list[tuple[amo_api.Field | None, amo.models.FillableField]] = []
 
@@ -340,7 +362,7 @@ def _get_prompt(
     prompt = _add_chatbot_prompt(prompt, chatbot)
     prompt = _add_fields_prompt(prompt, fields)
 
-    if chatbot.change_status_only_when_qualification:
+    if not chatbot.change_status_only_when_qualification:
         prompt = _add_pipelines_prompt(
             prompt=prompt,
             pipeline_status_update_rules=chatbot.pipeline_status_update_rules,
@@ -428,3 +450,20 @@ def _add_fields_prompt(prompt: str, fields: Iterable[amo.models.FillableField]) 
         prompt += "\n\n\n"
 
     return prompt + new_text
+
+
+def _get_ai_answer_wrapper(response: Response, payload: AIAnswerPayload, *, tlogger: TraceLogger) -> AIAnswer:
+    tokens_completion = tokens_prompt = 0
+
+    if response.usage:
+        tokens_completion = response.usage.output_tokens
+        tokens_prompt = response.usage.input_tokens
+
+    if payload.answer:
+        payload.answer = _delete_phrase_author_if_exists(payload.answer, tlogger=tlogger)
+
+    return AIAnswer(
+        payload=payload,
+        tokens_completion=tokens_completion,
+        tokens_prompt=tokens_prompt,
+    )

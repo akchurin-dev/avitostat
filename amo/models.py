@@ -288,6 +288,20 @@ class AmoChatBot(chat_bot.models.AIChatBotBase):
         return f"{self.name} ({self.pk})"
 
 
+class HandlebleNote(models.Model):
+    chatbot = models.ForeignKey(
+        verbose_name="Чат-бот",
+        to=AmoChatBot,
+        on_delete=models.CASCADE,
+    )
+
+    author_name = models.CharField(
+        verbose_name="Название источника",
+        max_length=255,
+        db_index=True,
+    )
+
+
 class AmoPipelineStatusChatbotLink(models.Model):
     chatbot = models.ForeignKey(
         verbose_name="Чат-бот",

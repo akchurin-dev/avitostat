@@ -1,3 +1,4 @@
+import amo.models
 from amo.utils import amo_api
 from utils.logging import TraceLogger
 
@@ -17,7 +18,7 @@ TEXT_TYPES = {
 
 
 def update_entity_fields(
-    domain: str,
+    account: amo.models.AmoAccount,
     entity: amo_api.EntityEnum,
     instance_id: int | str,
     fields_values: dict[str, str | None],
@@ -26,7 +27,7 @@ def update_entity_fields(
     tlogger: TraceLogger,
 ) -> None:
 
-    fields = amo_api.get_fields(domain, entity, tlogger=tlogger)
+    fields = amo_api.get_fields(account, entity, tlogger=tlogger)
 
     custom_fields_values = []
 
@@ -34,24 +35,16 @@ def update_entity_fields(
         if skip_null and value is None:
             continue
 
-        field = find_text_field(field_name, fields, tlogger=tlogger)
-
-        if field is None:
-            field = amo_api.create_text_field(
-                domain=domain,
-                entity=entity,
-                name=field_name,
-                tlogger=tlogger,
-            )
+        field = get_or_create_field(account, entity, field_name, tlogger=tlogger)
 
         custom_fields_values.append({
             "field_id": field.id,
             "values": [{"value": value}]
         })
 
-    amo_api._request_with_token(
+    amo_api.openapi_request_by_account(
+        account=account,
         method="PATCH",
-        domain=domain,
         action=f"/api/v4/{entity.value}/{instance_id}",
         json={"custom_fields_values": custom_fields_values},
         tlogger=tlogger,
@@ -79,11 +72,18 @@ def find_text_field(name: str, fields: list[amo_api.Field], *, tlogger: TraceLog
     return None
 
 
-def get_or_create_field(domain: str, entity: amo_api.EntityEnum, name: str, *, tlogger: TraceLogger) -> amo_api.Field:
-    fields = amo_api.get_fields(domain, entity, tlogger=tlogger)
+def get_or_create_field(
+    account: amo.models.AmoAccount,
+    entity: amo_api.EntityEnum,
+    name: str,
+    *,
+    tlogger: TraceLogger,
+) -> amo_api.Field:
+
+    fields = amo_api.get_fields(account, entity, tlogger=tlogger)
     field = find_text_field(name, fields, tlogger=tlogger)
 
     if field:
         return field
 
-    return amo_api.create_text_field(domain, entity, name, tlogger=tlogger)
+    return amo_api.create_text_field(account, entity, name, tlogger=tlogger)

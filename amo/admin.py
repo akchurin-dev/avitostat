@@ -80,10 +80,16 @@ class AmoOriginInline(admin.TabularInline):
     extra = 0
 
 
+class HandlebleNoteInline(admin.TabularInline):
+    model = amo.models.HandlebleNote
+    fields = ["author_name"]
+    extra = 0
+
+
 @admin.register(amo.models.AmoChatBot)
 class AmoChatBotAdmin(admin.ModelAdmin):
     list_display = ["name", "account"]
-    inlines = [FillableFieldInline, AmoPipelineStatusInline, AmoOriginInline]
+    inlines = [FillableFieldInline, AmoPipelineStatusInline, AmoOriginInline, HandlebleNoteInline]
 
     def get_queryset(self, request: HttpRequest) -> QuerySet:
         qs = super().get_queryset(request)

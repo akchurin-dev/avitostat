@@ -6,24 +6,25 @@ from utils.logging import TraceLogger
 
 def change_status_if_qualification(
     chatbot: amo.models.AmoChatBot,
-    lead: amo_api.Lead,
+    lead_id: int,
     contact_id: int,
-    domain: str,
     *,
     tlogger: TraceLogger,
 ) -> bool:
 
+    lead = amo_api.get_lead(chatbot.account, lead_id, tlogger=tlogger)
+
     if not should_check_qualification(chatbot, lead, tlogger=tlogger):
         return False
 
-    contact = amo_api.get_contact(domain, contact_id, tlogger=tlogger)
+    contact = amo_api.get_contact(chatbot.account, contact_id, tlogger=tlogger)
 
     if not qualification_achieved(chatbot.pk, lead, contact, tlogger=tlogger):
         return False
 
     assert chatbot.new_status_when_qualification
     amo_leads.change_lead_status(
-        domain=domain,
+        account=chatbot.account,
         lead_id=lead.id,
         status_id=chatbot.new_status_when_qualification.amo_id,
         tlogger=tlogger,

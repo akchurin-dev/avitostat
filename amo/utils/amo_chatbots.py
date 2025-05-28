@@ -8,14 +8,20 @@ from utils.logging import TraceLogger
 def get_possible_chatbots(
     account: amo.models.AmoAccount,
     possible_leads: list[amo_api.Lead],
-    origin: str,
+    origin: str | None = None,
+    note_author_name: str | None = None,
     *,
     tlogger: TraceLogger,
 ) -> list[amo.models.AmoChatBot]:
 
     chatbots = amo.models.AmoChatBot.get_available_chatbots()
     chatbots = filter_by_pipelines_statuses(chatbots, account, possible_leads, tlogger=tlogger)
-    chatbots = filter_by_origin(chatbots, origin, tlogger=tlogger)
+
+    if origin is not None:
+        chatbots = filter_by_origin(chatbots, origin, tlogger=tlogger)
+
+    if note_author_name is not None:
+        chatbots = filter_by_note_author(chatbots, note_author_name, tlogger=tlogger)
 
     chatbots_list = list(chatbots)
 
@@ -68,5 +74,25 @@ def filter_by_origin(
 
     if len(chatbots_ids) == 0:
         tlogger.info(f"Chatbots for origin '{origin}' aren't found")
+
+    return chatbots.filter(pk__in=chatbots_ids)
+
+
+def filter_by_note_author(
+    chatbots: QuerySet[amo.models.AmoChatBot],
+    note_author_name: str,
+    *,
+    tlogger: TraceLogger,
+) -> QuerySet[amo.models.AmoChatBot]:
+
+    chatbots_ids = (
+        amo.models.HandlebleNote.objects.filter(
+            chatbot__in=chatbots,
+            author_name=note_author_name,
+        ).values_list("chatbot_id", flat=True)
+    )
+
+    if len(chatbots_ids) == 0:
+        tlogger.info(f"Chatbots for note with author '{note_author_name}' aren't found")
 
     return chatbots.filter(pk__in=chatbots_ids)
