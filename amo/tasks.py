@@ -9,9 +9,13 @@ from utils.logging import TraceLogger
 @shared_task
 def handle_amo_webhook(request_data: dict):
     tlogger = TraceLogger()
-    tlogger.info({"amo webhook request": request_data})
 
     webhook_type = amo_webhooks.get_webhook_type(request_data)
+
+    tlogger.info({
+        "webhook_type": webhook_type and webhook_type.name,
+        "request_data": request_data,
+    })
 
     if webhook_type is None:
         tlogger.info("Stop handling. Unknown webhook type")
