@@ -371,7 +371,7 @@ class AmoOrigin(models.Model):
 
     def __str__(self):
         return " | ".join([
-            self.name,
+            self.name or "-",
             self.origin_title or "-",
             self.source_name or "-",
             self.origin or "-",
