@@ -1,5 +1,7 @@
 import json
 
+from celery import shared_task
+
 import amo.models
 from amo.utils import amo_ai
 from amo.utils import amo_api
@@ -26,16 +28,17 @@ def handle_new_lead_note_webhook(request_data: dict, *, tlogger: TraceLogger) ->
         tlogger.info(request_data)
         raise
 
-    launch_lead_note_handling(
+    launch_lead_note_handling.s(
         account_id=account_id,
         lead_id=lead_id,
         note_type=note_type,
         author_name=author_name,
         text=text,
         tlogger=tlogger,
-    )
+    ).apply_async(countdown=60)
 
 
+@shared_task
 def launch_lead_note_handling(
     account_id: int,
     lead_id: int,
