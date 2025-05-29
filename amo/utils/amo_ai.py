@@ -102,7 +102,7 @@ def generate_answer(
 
 
 def parse_form(chatbot: amo.models.AmoChatBot, form: str, *, tlogger: TraceLogger) -> AIAnswer:
-    if use_gpt_flag():
+    if not use_gpt_flag():
         return AIAnswer.model_validate({})
 
     fillable_fields = amo.models.FillableField.objects.filter(chatbot=chatbot)
