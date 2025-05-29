@@ -365,23 +365,16 @@ class AmoOrigin(models.Model):
         db_index=True,
     )
 
-    # TODO Удалить поле, раньше использовался вместо origin, но сейчас не используется
-    code = models.CharField(
-        verbose_name="Код",
-        max_length=64,
-        db_index=True,
-    )
-
     class Meta:
         verbose_name = "Amo-источник"
         verbose_name_plural = "Amo-источники"
 
     def __str__(self):
-        return " ".join([
+        return " | ".join([
             self.name,
-            f"({self.origin_title or '-'})",
-            f"({self.source_name or '-'})",
-            f"({self.origin or '-'})"
+            self.origin_title or "-",
+            self.source_name or "-",
+            self.origin or "-",
         ])
 
 

@@ -76,7 +76,7 @@ def syncronize_amo_account(request: Request, pk: int) -> Response:
 
     account = amo.models.AmoAccount.objects.get(pk=pk)
 
-    amo_pipelines.syncronize_pipelines(account.domain, tlogger=tlogger)
+    amo_pipelines.syncronize_pipelines(account, tlogger=tlogger)
     amo_sources.scan_new_origins(account.amo_id, tlogger=tlogger)
 
     return Response(status=status.HTTP_200_OK)

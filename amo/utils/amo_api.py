@@ -251,12 +251,12 @@ class PipelineStatus(BaseModel):
     pipeline_name: str
 
 
-def get_pipelines_statuses(domain: str, *, tlogger: TraceLogger) -> list[PipelineStatus]:
+def get_pipelines_statuses(account: amo_models.AmoAccount, *, tlogger: TraceLogger) -> list[PipelineStatus]:
     action = "/api/v4/leads/pipelines"
 
-    response = _request_with_token(
+    response = openapi_request_by_account(
+        account=account,
         method="GET",
-        domain=domain,
         action=action,
         tlogger=tlogger,
     )

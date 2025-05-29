@@ -20,27 +20,46 @@ def get_status_by_name(
     raise Exception(f"Status '{status_name}' from pipeline (id={pipeline_id}) is not found")
 
 
-def syncronize_pipelines(domain: str, *, tlogger: TraceLogger) -> None:
-    account = amo.models.AmoAccount.objects.get(domain=domain)
-    statuses = amo_api.get_pipelines_statuses(domain, tlogger=tlogger)
+def syncronize_pipelines(account: amo.models.AmoAccount, *, tlogger: TraceLogger) -> None:
+    statuses = amo_api.get_pipelines_statuses(account, tlogger=tlogger)
+
+    existing_statuses_ids: set[int] = set(
+        amo.models.AmoPipelineStatus.objects.filter(
+            account=account,
+            amo_id__in=[status.id for status in statuses],
+        ).values_list("amo_id", flat=True)
+    )
+
+    statuses_for_create: list[amo.models.AmoPipelineStatus] = []
+    statuses_for_update: list[amo.models.AmoPipelineStatus] = []
 
     for status in statuses:
-        amo.models.AmoPipelineStatus.objects.update_or_create(
+        list_add_to = statuses_for_create
+
+        if status.id in existing_statuses_ids:
+            list_add_to = statuses_for_update
+
+        list_add_to.append(amo.models.AmoPipelineStatus(
             account=account,
             pipeline_id=status.pipeline_id,
+            pipeline_name=status.pipeline_name,
             amo_id=status.id,
-            defaults={
-                "pipeline_name": status.pipeline_name,
-                "name": status.name,
-            },
-        )
+            name=status.name,
+        ))
 
-    non_existing = (
+    if statuses_for_create:
+        amo.models.AmoPipelineStatus.objects.bulk_create(statuses_for_create)
+
+    if statuses_for_update:
+        amo.models.AmoPipelineStatus.objects.bulk_update(statuses_for_update, ["pipeline_name", "name"])
+
+    statuses_for_delete = (
         amo.models.AmoPipelineStatus.objects
         .filter(account=account)
         .exclude(amo_id__in=[status.id for status in statuses])
     )
-    non_existing.delete()
+
+    statuses_for_delete.delete()
 
 
 def status_opened(id: int) -> bool:
