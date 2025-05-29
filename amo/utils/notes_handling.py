@@ -33,7 +33,7 @@ def handle_new_lead_note_webhook(request_data: dict, *, tlogger: TraceLogger) ->
         note_type=note_type,
         author_name=author_name,
         text=text,
-        tlogger=tlogger,
+        trace_id=tlogger.trace_id,
     ).apply_async(countdown=60)
 
 
@@ -45,8 +45,10 @@ def launch_lead_note_handling(
     author_name: str,
     text: str,
     *,
-    tlogger: TraceLogger,
+    trace_id: str,
 ) -> None:
+
+    tlogger = TraceLogger(trace_id)
 
     if note_type != 4:
         tlogger.info("Stop handling. Handle only notes with note_type = 4")
