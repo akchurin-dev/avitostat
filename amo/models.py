@@ -301,6 +301,10 @@ class HandlebleNote(models.Model):
         db_index=True,
     )
 
+    class Meta:
+        verbose_name = "Обрабатываемая заявка"
+        verbose_name_plural = "Обрабатываемые заявки"
+
 
 class AmoPipelineStatusChatbotLink(models.Model):
     chatbot = models.ForeignKey(

@@ -13,15 +13,14 @@ from utils.logging import TraceLogger
 def handle_new_lead_note_webhook(request_data: dict, *, tlogger: TraceLogger) -> None:
     try:
         account_id = int(request_data["account[id]"])
-        note: dict = request_data["leads[note][0][note]"]
 
-        assert note["element_type"] == "2"
-        lead_id = int(note["element_id"])
+        assert request_data["leads[note][0][note][element_type]"] == "2"
+        lead_id = int(request_data["leads[note][0][note][element_id]"])
 
-        note_type = int(note["note_type"])
-        text = note["text"]
+        note_type = int(request_data["leads[note][0][note][note_type]"])
+        text = request_data["leads[note][0][note][text]"]
 
-        metadata: dict = json.loads(note["metadata"])
+        metadata: dict = json.loads(request_data["leads[note][0][note][metadata]"])
         author_name = metadata["event_source"]["author_name"]
     except:
         tlogger.info("Error when parsing amo new lead note webhook request data")
