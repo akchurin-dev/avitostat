@@ -330,12 +330,42 @@ class AmoPipelineStatusChatbotLink(models.Model):
 
 
 class AmoOrigin(models.Model):
+    account = models.ForeignKey(
+        verbose_name="Amo-аккаунт",
+        to=AmoAccount,
+        on_delete=models.CASCADE,
+    )
+
     amo_id = models.CharField(
         verbose_name="Идентификатор в системе Amo",
         max_length=64,
         primary_key=True,
     )
 
+    name = models.CharField(
+        verbose_name="Название",
+        max_length=255,
+    )
+
+    origin_title = models.CharField(
+        verbose_name="Заголовок источника",
+        max_length=255,
+        blank=True,
+    )
+
+    source_name = models.CharField(
+        verbose_name="Название источника",
+        max_length=255,
+        blank=True,
+    )
+
+    origin = models.CharField(
+        verbose_name="Источник",
+        max_length=255,
+        db_index=True,
+    )
+
+    # TODO Удалить поле, раньше использовался вместо origin, но сейчас не используется
     code = models.CharField(
         verbose_name="Код",
         max_length=64,
@@ -347,7 +377,12 @@ class AmoOrigin(models.Model):
         verbose_name_plural = "Amo-источники"
 
     def __str__(self):
-        return self.code
+        return " ".join([
+            self.name,
+            f"({self.origin_title or '-'})",
+            f"({self.source_name or '-'})",
+            f"({self.origin or '-'})"
+        ])
 
 
 class AmoChatbotOriginLink(models.Model):

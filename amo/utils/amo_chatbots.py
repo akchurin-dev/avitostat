@@ -67,7 +67,7 @@ def filter_by_origin(
 
     origin_bot_links = amo.models.AmoChatbotOriginLink.objects.filter(
         chatbot__in=chatbots,
-        origin__code=origin,
+        origin__origin=origin,
     )
 
     chatbots_ids = [origin_bot_link.chatbot.pk for origin_bot_link in origin_bot_links]

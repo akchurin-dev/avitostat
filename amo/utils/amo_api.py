@@ -351,6 +351,9 @@ def get_fields(account: amo_models.AmoAccount, entity: EntityEnum, *, tlogger: T
 
 class Source(BaseModel):
     id: int
+    name: str
+    origin_title: str
+    source_name: str
     origin: str
 
 

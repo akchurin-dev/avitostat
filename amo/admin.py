@@ -62,6 +62,20 @@ class AmoAccountAdmin(admin.ModelAdmin):
         return qs
 
 
+@admin.register(amo.models.AmoOrigin)
+class AmoOriginAdmin(admin.ModelAdmin):
+    def get_queryset(self, request: HttpRequest) -> QuerySet:
+        qs = super().get_queryset(request)
+
+        if request.user.is_superuser:
+            return qs
+
+        amo_accounts = amo.models.AmoAccount.objects.filter(created_by=request.user)
+        qs = qs.filter(account__in=amo_accounts)
+
+        return qs
+
+
 class FillableFieldInline(admin.TabularInline):
     model = amo.models.FillableField
     fields = ["name", "entity", "required_for_qualification", "description"]

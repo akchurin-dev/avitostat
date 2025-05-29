@@ -3,18 +3,15 @@ import datetime
 from celery import shared_task
 
 import amo.models
+from amo_a5client import amo_a5client
 from amo.utils import amo_ai
 from amo.utils import amo_api
 from amo.utils import amo_chatbottasks
-from amo.utils import amo_fields
-from amo.utils import amo_leads
 from amo.utils import amo_messages
-from amo.utils import amo_pipelines
 from amo.utils import amo_reports
 from amo.utils import amo_transcriptions
 from amo.utils import ai_answer_using
 from amo.utils import chatbot_lead_pair_defining
-from amo.utils import qualification
 from utils.logging import TraceLogger
 
 
@@ -26,6 +23,7 @@ def handle_new_message_webhook(request_data: dict, *, tlogger: TraceLogger) -> N
         chat_id: str = request_data["message[add][0][chat_id]"]
         talk_id: int = int(request_data["message[add][0][talk_id]"])
         message_id: str = request_data["message[add][0][id]"]
+        author_name: str = request_data["message[add][0][author][name]"]
         text: str = request_data["message[add][0][text]"]
         message_created_at: datetime.datetime = datetime.datetime.fromtimestamp(
             timestamp=int(request_data["message[add][0][created_at]"]),
@@ -45,6 +43,16 @@ def handle_new_message_webhook(request_data: dict, *, tlogger: TraceLogger) -> N
         tlogger.info("Error when parse amo new message webhook request data")
         tlogger.info(dict(request_data))
         raise
+
+    if origin == amo_a5client.ORIGIN_NAME:
+        amo_a5client.handle_message_from_amo(
+            account_id=account_id,
+            contact_id=contact_id,
+            message_created_at=message_created_at,
+            text=text,
+            author_name=author_name,
+        )
+        return
 
     launch_new_message_handling(
         account_id=account_id,
