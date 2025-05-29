@@ -132,7 +132,7 @@ def parse_form(chatbot: amo.models.AmoChatBot, form: str, *, tlogger: TraceLogge
             )
             ai_requests.create_from_response(response, tlogger=tlogger)
 
-            payload = AIAnswerPayload.model_validate(response.output_text)
+            payload = AIAnswerPayload.model_validate_json(response.output_text)
 
             break
         except pydantic.ValidationError as e:
