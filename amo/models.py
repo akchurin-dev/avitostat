@@ -1,5 +1,3 @@
-from typing import Self
-
 from django.contrib.auth.models import User
 from django.db import models
 from django.db.models import QuerySet
@@ -553,7 +551,7 @@ class AmoChatBotTask(chat_bot.models.AIResultContainer, chatbottasks.Task):
 
         return False
 
-    def get_newer_tasks(self) -> QuerySet[Self]:
+    def get_newer_tasks(self) -> QuerySet:
         return self.objects.filter(
             message_created_at__gt=self.message_created_at,
             object_id=amo_chatbottasks.get_object_id(
