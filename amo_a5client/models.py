@@ -29,13 +29,13 @@ class AmoAvitoAccountsLink(models.Model):
         verbose_name = "Связь аккаунтов Амо-Авито"
         verbose_name_plural = "Связи аккаунтов Амо-Авито"
 
-    def save(self, force_insert: bool, force_update: bool, using: str | None, update_fields: Iterable[str] | None) -> None:
-        super().save(force_insert, force_update, using, update_fields)
+    def save(self, *args, **kwargs) -> None:
+        super().save(*args, **kwargs)
         avito_webhooks.update_avito_webhook_subscription(self.avito_account)
 
-    def delete(self, using: Any, keep_parents: bool) -> tuple[int, dict[str, int]]:
+    def delete(self, *args, **kwargs) -> tuple[int, dict[str, int]]:
         avito_webhooks.update_avito_webhook_subscription(self.avito_account)
-        return super().delete(using, keep_parents)
+        return super().delete(*args, **kwargs)
 
 
 class AmoContactAvitoChatLink(models.Model):
