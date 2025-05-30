@@ -3,9 +3,50 @@ import httpx
 from avito_account.models.models import AvitoAccount
 from base.exceptions import HTTPException
 from base import settings
+from utils.logging import TraceLogger
 
 
-async def subscribe_to_messages(avito_account: AvitoAccount):
+def subscribe_for_messages(account: AvitoAccount, *, raise_error: bool, tlogger: TraceLogger) -> None:
+    url = "https://api.avito.ru/messenger/v3/webhook"
+
+    headers = {'authorization': f"Bearer {account.access_token}"}
+
+    params = {"url": f"https://{settings.AVITO_WEBHOOK_HOST}/chat_bot/webhook_inbox"}
+
+    with httpx.Client() as client:
+        response = client.post(url, headers=headers, json=params)
+
+    if raise_error:
+        response.raise_for_status()
+
+    data = response.json()
+
+    tlogger.info(data)
+    tlogger.info(f"'{account.name}' subscribed for messages successfully")
+
+
+def unsubscribe_from_messages(account: AvitoAccount, *, raise_error: bool, tlogger: TraceLogger) -> None:
+    url = "https://api.avito.ru/messenger/v1/webhook/unsubscribe"
+
+    headers = {
+        'authorization': f"Bearer {account.access_token}"
+    }
+
+    params = {"url": f"https://{settings.AVITO_WEBHOOK_HOST}/chat_bot/webhook_inbox"}
+
+    with httpx.Client() as client:
+        response = client.post(url, headers=headers, json=params)
+
+    if raise_error:
+        response.raise_for_status()
+
+    data = response.json()
+
+    tlogger.info(f"'{account.name}' stopped subscription successfully")
+    tlogger.info(data)
+
+
+async def asubscribe_to_messages(avito_account: AvitoAccount):
     await avito_account.update_refresh_token_async()
     url = "https://api.avito.ru/messenger/v3/webhook"
     headers = {'authorization': f"Bearer {avito_account.access_token}"}
@@ -23,7 +64,7 @@ async def subscribe_to_messages(avito_account: AvitoAccount):
             raise HTTPException(status_code=response.status_code, detail=response.text)
 
 
-async def stop_subscribe_to_messages(avito_account: AvitoAccount):
+async def astop_subscribe_to_messages(avito_account: AvitoAccount):
     # await avito_account.update_refresh_token_async()
     url = "https://api.avito.ru/messenger/v1/webhook/unsubscribe"
     headers = {

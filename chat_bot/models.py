@@ -4,9 +4,10 @@ from django.db.models import F
 from django.db.models import Q
 from django.core.validators import MinValueValidator
 
+from avito_account.utils import avito_webhooks
 from avito_account.models.models import AvitoAccount
 from base.settings import ENVIRONMENT
-from chat_bot.api.subscriptions import subscribe_to_messages, stop_subscribe_to_messages
+from chat_bot.api.subscriptions import asubscribe_to_messages, astop_subscribe_to_messages
 from chat_bot.utils import companies_branches
 from prompts import prompts
 from utils import miscellaneous
@@ -114,29 +115,11 @@ class AiChatBot(AIChatBotBase):
         verbose_name_plural = "ИИ чат боты"
 
     def save(self, *args, **kwargs):
-        previous = AiChatBot.objects.filter(pk=self.pk).first()
         super().save(*args, **kwargs)
-
-        if self.account is None:
-            return
-
-        if ENVIRONMENT == "DEVELOPMENT":
-            async_to_sync(self.account.update_refresh_token_async)()
-
-        if previous is None:  # Если изначально вообще небыло инстанса
-            if self.is_active:
-                async_to_sync(subscribe_to_messages)(self.account)
-        else:
-            if previous.is_active != self.is_active:
-                if self.is_active:
-                    async_to_sync(subscribe_to_messages)(self.account)
-                else:
-                    async_to_sync(stop_subscribe_to_messages)(self.account)
+        avito_webhooks.update_avito_webhook_subscription(self.account)
 
     def delete(self, using=None, keep_parents=False):
-        if self.account and self.is_active:
-            async_to_sync(stop_subscribe_to_messages)(self.account)
-
+        avito_webhooks.update_avito_webhook_subscription(self.account)
         super().delete()
 
 

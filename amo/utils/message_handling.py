@@ -25,10 +25,7 @@ def handle_new_message_webhook(request_data: dict, *, tlogger: TraceLogger) -> N
         message_id: str = request_data["message[add][0][id]"]
         author_name: str = request_data["message[add][0][author][name]"]
         text: str = request_data["message[add][0][text]"]
-        message_created_at: datetime.datetime = datetime.datetime.fromtimestamp(
-            timestamp=int(request_data["message[add][0][created_at]"]),
-            tz=datetime.timezone.utc,
-        )
+        message_created_at_timestamp: int = int(request_data["message[add][0][created_at]"])
 
         entity_type: str | None = request_data.get("message[add][0][entity_type]")
         lead_id: int | None = None
@@ -46,9 +43,9 @@ def handle_new_message_webhook(request_data: dict, *, tlogger: TraceLogger) -> N
 
     if origin == amo_a5client.ORIGIN_NAME:
         amo_a5client.handle_message_from_amo(
-            account_id=account_id,
+            amo_account_id=account_id,
             contact_id=contact_id,
-            message_created_at=message_created_at,
+            message_created_at_timestamp=message_created_at_timestamp,
             text=text,
             author_name=author_name,
         )
@@ -62,7 +59,7 @@ def handle_new_message_webhook(request_data: dict, *, tlogger: TraceLogger) -> N
         chat_id=chat_id,
         talk_id=talk_id,
         message_id=message_id,
-        message_created_at=message_created_at,
+        message_created_at_timestamp=message_created_at_timestamp,
         text=text,
         file_type=attachment_type,
         file_link=file_link,
@@ -78,7 +75,7 @@ def launch_new_message_handling(
     chat_id: str,
     talk_id: int,
     message_id: str,
-    message_created_at: datetime.datetime,
+    message_created_at_timestamp: int,
     text: str,
     file_type: str | None,
     file_link: str | None,
@@ -114,6 +111,8 @@ def launch_new_message_handling(
 
     tlogger.info(f"Selected chat bot is '{chatbot}'")
     tlogger.info(f"Selected lead id={lead.id}")
+
+    message_created_at = datetime.datetime.fromtimestamp(message_created_at_timestamp, datetime.timezone.utc)
 
     tlogger.info((
         "New message:\n"
@@ -155,17 +154,8 @@ def launch_new_message_handling(
         tlogger.info("Stop handling. Task exists already")
         return
 
-    newer_tasks = amo.models.AmoChatBotTask.objects.filter(
-        message_created_at__gt=task.message_created_at,
-        object_id=amo_chatbottasks.get_object_id(
-            domain=task.account.domain,
-            chat_id=task.chat_id,
-        ),
-    )
-
-    if newer_tasks.exists():
-        tlogger.info("Stop handling. There is task with newer message")
-        task.cancel(tlogger)
+    if task.cancel_if_not_newest(tlogger=tlogger):
+        tlogger.info("Stop handling")
         return
 
     ok = task.cancel_others(tlogger=tlogger)
@@ -207,7 +197,7 @@ def prepare_message_handling_data(*, task_id: int, trace_id: str):
             tlogger.info("Stop handling. Talk is closed")
             return
 
-        if len(messages) > 0 and messages[-1].id != task.message_id:
+        if messages[-1].id != task.message_id:
             task.cancel(tlogger=tlogger)
             tlogger.info(f"Stop handling. Message (id='{task.message_id}') is not actual")
             return

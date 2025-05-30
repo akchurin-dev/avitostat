@@ -7,6 +7,7 @@ from django.views.decorators.csrf import csrf_exempt
 from django.utils.decorators import method_decorator
 from django.views import View
 
+from amo_a5client import amo_a5client
 from avito_account.models.models import AvitoAccount
 from base.settings import ENVIRONMENT
 from chat_bot.api.core import AvitoMessengerSync
@@ -17,7 +18,7 @@ from chat_bot.tasks import (
     PdfReportBaseClass,
     outgoing_messages_handler,
 )
-from chat_bot.api.subscriptions import subscribe_to_messages, stop_subscribe_to_messages, check_subscriptions
+from chat_bot.api.subscriptions import asubscribe_to_messages, astop_subscribe_to_messages, check_subscriptions
 from chat_bot.models import AiChatBot, ChatBotTask
 from chat_bot.utils import avito_chatbots
 from utils.logging import new_trace_id, TraceLogger
@@ -42,12 +43,24 @@ class WebhookInboxViewClass(View):
             text = request_data["payload"]["value"]["content"].get("text", "Не предусмотрено")
             author_id = request_data["payload"]["value"]["author_id"]
             user_id = request_data["payload"]["value"]["user_id"]
+            created_at_timestamp = request_data["payload"]["value"]["created"]
         except:
             tlogger.info({
                 "title": "Error when parse request data",
                 "request_data": request_data,
             })
             raise
+
+        if amo_a5client.avito_account_handleble(user_id):
+            amo_a5client.handle_message_from_avito(
+                avito_account_id=user_id,
+                chat_id=chat_id,
+                message_id=message_id,
+                message_created_at_timestamp=created_at_timestamp,
+                text=text,
+                tlogger=tlogger,
+            )
+            return
 
         incoming_msg = author_id != user_id
         avito_account = AvitoAccount.objects.filter(id=user_id).first()
@@ -157,14 +170,14 @@ class WebhookInboxViewClass(View):
 class SubscribeView(View):
     async def get(self, request, *args, **kwargs):
         avito_account = await sync_to_async(AvitoAccount.objects.get)(pk=145213826)  #Rauf
-        await subscribe_to_messages(avito_account)
+        await asubscribe_to_messages(avito_account)
         return JsonResponse({"status": "ok"}, status=200)
 
 class StopSubscribeView(View):
     async def get(self, request, *args, **kwargs):
         avito_account = await sync_to_async(AvitoAccount.objects.get)(pk=145213826)  #Rauf
         # await avito_account.update_refresh_token_async()
-        await stop_subscribe_to_messages(avito_account)
+        await astop_subscribe_to_messages(avito_account)
         return JsonResponse({"status": "ok"}, status=200)
 
 @method_decorator(csrf_exempt, name='dispatch')

@@ -1,0 +1,3 @@
+ORIGIN_NAME = "a5client"
+
+RETRIES_DELAY_SEC = 5

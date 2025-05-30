@@ -7,7 +7,14 @@ import urllib.parse
 
 import amo.models
 import amo.schemas
+import amo_a5client.models
 from base import settings
+
+
+class AvitoAccountInline(admin.TabularInline):
+    model = amo_a5client.models.AmoAvitoAccountsLink
+    fields = ["avito_account", "is_active"]
+    extra = 0
 
 
 @admin.register(amo.models.AmoAccount)
@@ -40,6 +47,7 @@ class AmoAccountAdmin(admin.ModelAdmin):
         "created_at",
         "updated_at",
     ]
+    inlines = [AvitoAccountInline]
 
     def add_view(self, request: HttpRequest, *args, **kwargs) -> HttpResponse:
         if request.user.pk is None:

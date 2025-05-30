@@ -39,12 +39,18 @@ class ChatContext(TypedDict):
     value: ChatContextValue
 
 
+class ChatUser(TypedDict):
+    id: int
+    name: str
+
+
 class Chat(TypedDict, total=False):
     id: str
     created: int
     updated: int
     context: ChatContext
     messages: list[ChatMessage]
+    users: list[ChatUser]
 
 
 async def timestamp_in_period(timestamp: int, period: str = "week") -> bool:

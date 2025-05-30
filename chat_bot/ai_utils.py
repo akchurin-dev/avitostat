@@ -2,12 +2,12 @@ from __future__ import annotations
 
 from enum import Enum
 
-from asgiref.sync import  async_to_sync
 import httpx
 from openai import OpenAI
 from openai.types.chat.parsed_chat_completion import ParsedChatCompletion
 from openai.types.chat.chat_completion_message_param import ChatCompletionMessageParam
 from openai.types.chat_model import ChatModel
+from openai.types.responses import ResponseInputItemParam
 from pydantic import BaseModel
 
 from ai_requests import ai_requests
@@ -59,22 +59,29 @@ def format_chat_history(chat: messaging.api.Chat) -> list[ChatCompletionMessageP
         if msg["type"] != 'text':
             continue
 
-        text = msg["content"].get("text")
-        assert text is not None
-
-        if msg["direction"] == "in":
-            formatted_messages.append({
-                "role": "user",
-                "content": text,
-            })
-
-        if msg["direction"] == "out":
-            formatted_messages.append({
-                "role": "assistant",
-                "content": text,
-            })
+        gpt_formatted = avito_message_to_gpt_format(msg)
+        formatted_messages.append(gpt_formatted)
 
     return formatted_messages
+
+
+def avito_message_to_gpt_format(message: messaging.api.ChatMessage) -> ResponseInputItemParam:
+    text = message["content"].get("text")
+    assert text is not None
+
+    if message["direction"] == "in":
+        return {
+            "role": "user",
+            "content": text,
+        }
+
+    if message["direction"] == "out":
+        return {
+            "role": "assistant",
+            "content": text,
+        }
+
+    raise Exception("Not reachable code")
 
 
 class AIAnswerContacts(BaseModel):

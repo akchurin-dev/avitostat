@@ -1,27 +1,85 @@
-import datetime
+from celery import shared_task
 
+import amo_a5client.models
+import messaging.api
+from amo_a5client.config import ORIGIN_NAME, RETRIES_DELAY_SEC
 from amo_a5client.utils import amo_avito_links
-
-
-ORIGIN_NAME = "a5client"
+from amo_a5client.utils import message_handling
+from avito_account.models.models import AvitoAccount
+from utils.logging import TraceLogger
 
 
 def handle_message_from_amo(
-    account_id: int,
+    amo_account_id: int,
     contact_id: int,
-    message_created_at: datetime.datetime,
+    message_created_at_timestamp: int,
     text: str,
     author_name: str,
 ) -> None:
 
     amo_avito_links.remember_amo_message(
-        amo_account_id=account_id,
+        amo_account_id=amo_account_id,
         contact_id=contact_id,
-        message_created_at=message_created_at,
+        message_created_at_ts=message_created_at_timestamp,
         text=text,
         author_name=author_name,
     )
 
 
-def handle_message_from_avito() -> None:
-    pass
+@shared_task
+def handle_message_from_avito(
+    avito_account_id: int,
+    chat_id: str,
+    message_id: str,
+    message_created_at_timestamp: int,
+    text: str,
+    retries: int = 3,
+    *,
+    tlogger: TraceLogger,
+) -> None:
+
+    tlogger.info("AvitoA5Client message handling started")
+
+    avito_account = AvitoAccount.objects.get(pk=avito_account_id)
+    chat = messaging.api.MessagingAPISync.get_chat_by_id(avito_account, chat_id)
+    assert "users" in chat
+
+    contact = amo_avito_links.get_amo_contact_by_avito_message(
+        avito_account_id=avito_account_id,
+        chat_id=chat_id,
+        message_created_at_ts=message_created_at_timestamp,
+        text=text,
+        author_name=chat["users"][0]["name"],
+    )
+
+    if contact is None:
+        if retries > 0:
+            handle_message_from_avito.s(
+                avito_account_id=avito_account_id,
+                chat_id=chat_id,
+                message_created_at_timestamp=message_created_at_timestamp,
+                text=text,
+                retries=retries - 1,
+            ).apply_async(countdown=RETRIES_DELAY_SEC)
+
+        return
+
+    message_handling.launch_new_message_handling(
+        amo_account_id=contact.amo_account.pk,
+        avito_account_id=avito_account_id,
+        contact_id=contact.contact_id,
+        lead_id=None,
+        chat_id=chat_id,
+        message_id=message_id,
+        message_created_at_ts=message_created_at_timestamp,
+        text=text,
+        tlogger=tlogger,
+    )
+
+
+def avito_account_handleble(avito_account_id: int) -> bool:
+    return (
+        amo_a5client.models.AmoAvitoAccountsLink.objects
+        .filter(avito_account_id=avito_account_id)
+        .exists()
+    )

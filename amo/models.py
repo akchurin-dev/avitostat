@@ -1,5 +1,8 @@
+from typing import Self
+
 from django.contrib.auth.models import User
 from django.db import models
+from django.db.models import QuerySet
 
 from amo.utils import amo_chatbottasks
 from amo.utils import amo_webhooks
@@ -499,6 +502,8 @@ class AmoChatBotTask(chat_bot.models.AIResultContainer, chatbottasks.Task):
     talk_id = models.IntegerField(
         verbose_name="Идентификатор разговора",
         db_index=True,
+        null=True,
+        blank=True,
     )
 
     message_id = models.CharField(
@@ -537,6 +542,25 @@ class AmoChatBotTask(chat_bot.models.AIResultContainer, chatbottasks.Task):
         verbose_name_plural = "Amo-задачи"
 
         unique_together = ["account", "chat_id", "message_id"]
+
+    def cancel_if_not_newest(self, *, tlogger: TraceLogger) -> bool:
+        """ Cancel task if newer tasks exist. Return True if canceled """
+
+        if self.get_newer_tasks().exists():
+            tlogger.info("Newer tasks found")
+            self.cancel(tlogger=tlogger)
+            return True
+
+        return False
+
+    def get_newer_tasks(self) -> QuerySet[Self]:
+        return self.objects.filter(
+            message_created_at__gt=self.message_created_at,
+            object_id=amo_chatbottasks.get_object_id(
+                domain=self.account.domain,
+                chat_id=self.chat_id,
+            ),
+        )
 
     def save(self, **kwargs):
         self.object_id = amo_chatbottasks.get_object_id(

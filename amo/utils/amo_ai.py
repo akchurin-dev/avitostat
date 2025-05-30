@@ -65,7 +65,7 @@ def generate_answer(
         lead=lead,
     )
 
-    text_format = _get_text_format(
+    text_format = get_text_format(
         account=account,
         fields=fillable_fields,
         field_for_answer=True,
@@ -98,7 +98,7 @@ def generate_answer(
         if error:
             raise error
 
-    return _get_ai_answer_wrapper(response, payload, tlogger=tlogger)
+    return get_ai_answer_wrapper(response, payload, tlogger=tlogger)
 
 
 def parse_form(chatbot: amo.models.AmoChatBot, form: str, *, tlogger: TraceLogger) -> AIAnswer:
@@ -112,7 +112,7 @@ def parse_form(chatbot: amo.models.AmoChatBot, form: str, *, tlogger: TraceLogge
         {"role": "user", "content": "Extract required fields from this text:\n\n" + form},
     ]
 
-    text_format = _get_text_format(
+    text_format = get_text_format(
         account=chatbot.account,
         fields=fillable_fields,
         field_for_answer=False,
@@ -145,7 +145,7 @@ def parse_form(chatbot: amo.models.AmoChatBot, form: str, *, tlogger: TraceLogge
         if error:
             raise error
 
-    return _get_ai_answer_wrapper(response, payload, tlogger=tlogger)
+    return get_ai_answer_wrapper(response, payload, tlogger=tlogger)
 
 
 def _get_gpt_messages(
@@ -167,7 +167,7 @@ def _get_gpt_messages(
     if current_status is None:
         raise Exception(f"Status (id={lead.status_id}) not found in pipeline (id={lead.pipeline_id})")
 
-    prompt = _get_prompt(chatbot, fillable_fields, available_pipeline_statuses, current_status)
+    prompt = get_prompt(chatbot, fillable_fields, available_pipeline_statuses, current_status)
 
     gpt_messages: ResponseInputParam = [{"role": "system", "content": prompt}]
 
@@ -211,7 +211,7 @@ def _amo_message_to_gpt_format(message: Message, transcriptions: TranscriptionsF
     raise Exception(f"Unknown message type, got {message.type}")
 
 
-def _get_text_format(
+def get_text_format(
     account: amo.models.AmoAccount,
     fields: Iterable[amo.models.FillableField],
     field_for_answer: bool,
@@ -351,7 +351,7 @@ def _dialog_to_str(dialog: list[Message]) -> str:
     return "\n".join(lines)
 
 
-def _get_prompt(
+def get_prompt(
     chatbot: amo.models.AmoChatBot,
     fields: Iterable[amo.models.FillableField],
     available_pipeline_statuses: list[amo_api.PipelineStatus],
@@ -452,7 +452,7 @@ def _add_fields_prompt(prompt: str, fields: Iterable[amo.models.FillableField]) 
     return prompt + new_text
 
 
-def _get_ai_answer_wrapper(response: Response, payload: AIAnswerPayload, *, tlogger: TraceLogger) -> AIAnswer:
+def get_ai_answer_wrapper(response: Response, payload: AIAnswerPayload, *, tlogger: TraceLogger) -> AIAnswer:
     tokens_completion = tokens_prompt = 0
 
     if response.usage:

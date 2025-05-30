@@ -15,6 +15,7 @@ def get_possible_chatbots(
 ) -> list[amo.models.AmoChatBot]:
 
     chatbots = amo.models.AmoChatBot.get_available_chatbots()
+    chatbots = chatbots.filter(account=account)
     chatbots = filter_by_pipelines_statuses(chatbots, account, possible_leads, tlogger=tlogger)
 
     if origin is not None:
