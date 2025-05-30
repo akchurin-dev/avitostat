@@ -2,11 +2,11 @@ from django.contrib.auth.models import User
 from django.db import models
 from django.db.models import QuerySet
 
+import chat_bot.base_models
+import transcriptions.models
 from amo.utils import amo_chatbottasks
 from amo.utils import amo_webhooks
-import chat_bot.models
 from chatbottasks import chatbottasks
-import transcriptions.models
 from utils import miscellaneous
 from utils.logging import TraceLogger
 
@@ -144,7 +144,7 @@ class AmoPipelineStatus(models.Model):
         return f"{self.pipeline_name} -> {self.name}"
 
 
-class AmoChatBot(chat_bot.models.AIChatBotBase):
+class AmoChatBot(chat_bot.base_models.AIChatBotBase):
     account = models.ForeignKey(
         verbose_name="Amo-аккаунт",
         to=AmoAccount,
@@ -459,7 +459,7 @@ class AmoTalkLeadLink(models.Model):
         unique_together = ["talk_id", "lead_id"]
 
 
-class AmoChatBotTask(chat_bot.models.AIResultContainer, chatbottasks.Task):
+class AmoChatBotTask(chat_bot.base_models.AIResultContainer, chatbottasks.Task):
     class MessageType(models.TextChoices):
         TEXT = "text"
         VOICE = "voice"

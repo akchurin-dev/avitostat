@@ -1,5 +1,3 @@
-from __future__ import annotations
-
 import amo_a5client.models
 import chat_bot.models
 import chat_bot.api.subscriptions
