@@ -38,9 +38,10 @@ def handle_message_from_avito(
     text: str,
     retries: int = 3,
     *,
-    tlogger: TraceLogger,
+    trace_id: str,
 ) -> None:
 
+    tlogger = TraceLogger(trace_id)
     tlogger.info("AvitoA5Client message handling started")
 
     avito_account = AvitoAccount.objects.get(pk=avito_account_id)
@@ -65,7 +66,7 @@ def handle_message_from_avito(
                 message_created_at_timestamp=message_created_at_timestamp,
                 text=text,
                 retries=retries - 1,
-                tlogger=tlogger,
+                trace_id=trace_id,
             ).apply_async(countdown=RETRIES_DELAY_SEC)
 
         return

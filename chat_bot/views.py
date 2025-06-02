@@ -52,13 +52,13 @@ class WebhookInboxViewClass(View):
             raise
 
         if amo_a5client.avito_account_handleble(user_id):
-            amo_a5client.handle_message_from_avito(
+            amo_a5client.handle_message_from_avito.delay(
                 avito_account_id=user_id,
                 chat_id=chat_id,
                 message_id=message_id,
                 message_created_at_timestamp=created_at_timestamp,
                 text=text,
-                tlogger=tlogger,
+                trace_id=tlogger.trace_id,
             )
             return
 
