@@ -89,5 +89,10 @@ def qualification_achieved(chatbot_id: int, lead: amo_api.Lead, contact: amo_api
             tlogger.info(f"Qualification isn't achieved. {field.entity}.{field.name} isn't filled")
             return False
 
+        tlogger.info({"qulification field filled": {
+            "field": field.name,
+            "value": value,
+        }})
+
     tlogger.info("Qualification is achieved")
     return True
