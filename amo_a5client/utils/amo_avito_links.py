@@ -42,7 +42,7 @@ def remember_amo_message(
     message = Message(message_created_at_ts, text, author_name)
     amo_contact = AmoContact(amo_account_id, contact_id)
 
-    _add_link_to_container(message, amo_contact)
+    _add_link_to_container(message, amo_contact, tlogger=tlogger)
 
     tlogger.info("Message-AmoContact link saved")
     tlogger.info({
