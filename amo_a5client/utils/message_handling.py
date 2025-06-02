@@ -71,7 +71,7 @@ def launch_new_message_handling(
         message_id=message_id,
         defaults={
             "chatbot": chatbot,
-            "lead_id": lead_id,
+            "lead_id": lead.id,
             "contact_id": contact_id,
             "talk_id": None,
             "message_created_at": message_created_at,
@@ -102,7 +102,7 @@ def launch_new_message_handling(
         task_id=task.pk,
         avito_account_id=avito_account_id,
         trace_id=tlogger.trace_id,
-    ).apply_async(chatbot.waiting_seconds)
+    ).apply_async(countdown=chatbot.waiting_seconds)
 
 
 @shared_task
@@ -125,9 +125,19 @@ def prepare_message_handling_data(task_id: int, avito_account_id: int, *, trace_
         chat = messaging.api.MessagingAPISync.get_chat_last_50_messages_by_chat_id(avito_account, task.chat_id, trace_id=trace_id)
         messages = chat.get("messages", [])
 
-        if messages[-1]["id"] != task.message_id:
+        last_message = messages[-1]
+
+        if last_message["type"] == "system":
+            last_message = messages[-2]
+
+        if last_message["id"] != task.message_id:
             task.cancel(tlogger=tlogger)
             tlogger.info(f"Stop handling. Message (id='{task.message_id}') is not actual")
+            return
+
+        if last_message["direction"] != "in":
+            task.cancel(tlogger=tlogger)
+            tlogger.info(f"Stop handling. Message (id='{task.message_id}') is outgoing")
             return
 
         manager_interfere = amo_a5_messages.manager_interfere(task.account.pk, task.lead_id, messages)

@@ -15,6 +15,8 @@ def handle_message_from_amo(
     message_created_at_timestamp: int,
     text: str,
     author_name: str,
+    *,
+    tlogger: TraceLogger,
 ) -> None:
 
     amo_avito_links.remember_amo_message(
@@ -23,6 +25,7 @@ def handle_message_from_amo(
         message_created_at_ts=message_created_at_timestamp,
         text=text,
         author_name=author_name,
+        tlogger=tlogger,
     )
 
 
@@ -50,6 +53,7 @@ def handle_message_from_avito(
         message_created_at_ts=message_created_at_timestamp,
         text=text,
         author_name=chat["users"][0]["name"],
+        tlogger=tlogger,
     )
 
     if contact is None:
@@ -57,9 +61,11 @@ def handle_message_from_avito(
             handle_message_from_avito.s(
                 avito_account_id=avito_account_id,
                 chat_id=chat_id,
+                message_id=message_id,
                 message_created_at_timestamp=message_created_at_timestamp,
                 text=text,
                 retries=retries - 1,
+                tlogger=tlogger,
             ).apply_async(countdown=RETRIES_DELAY_SEC)
 
         return

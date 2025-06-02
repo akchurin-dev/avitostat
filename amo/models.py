@@ -141,7 +141,7 @@ class AmoPipelineStatus(models.Model):
         unique_together = ["account", "pipeline_id", "amo_id"]
 
     def __str__(self):
-        return f"{self.pipeline_name} -> {self.name}"
+        return f"{self.pipeline_name} -> {self.name} ({self.account.name})"
 
 
 class AmoChatBot(chat_bot.base_models.AIChatBotBase):
@@ -251,6 +251,9 @@ class AmoChatBot(chat_bot.base_models.AIChatBotBase):
         kwargs = {field: True}
 
         return super().get_available_chatbots().filter(**kwargs)
+
+    def get_default_name(self) -> str:
+        return self.account.name
 
     def save(self, *args, **kwargs) -> None:
         super().save(*args, **kwargs)
@@ -552,7 +555,7 @@ class AmoChatBotTask(chat_bot.base_models.AIResultContainer, chatbottasks.Task):
         return False
 
     def get_newer_tasks(self) -> QuerySet:
-        return self.objects.filter(
+        return AmoChatBotTask.objects.filter(
             message_created_at__gt=self.message_created_at,
             object_id=amo_chatbottasks.get_object_id(
                 domain=self.account.domain,

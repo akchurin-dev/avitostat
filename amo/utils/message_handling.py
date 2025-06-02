@@ -6,7 +6,6 @@ import amo.models
 from amo_a5client import amo_a5client
 from amo.utils import amo_ai
 from amo.utils import amo_api
-from amo.utils import amo_chatbottasks
 from amo.utils import amo_messages
 from amo.utils import amo_reports
 from amo.utils import amo_transcriptions
@@ -42,12 +41,14 @@ def handle_new_message_webhook(request_data: dict, *, tlogger: TraceLogger) -> N
         raise
 
     if origin == amo_a5client.ORIGIN_NAME:
+        tlogger.info("Handle as avito message")
         amo_a5client.handle_message_from_amo(
             amo_account_id=account_id,
             contact_id=contact_id,
             message_created_at_timestamp=message_created_at_timestamp,
             text=text,
             author_name=author_name,
+            tlogger=tlogger,
         )
         return
 

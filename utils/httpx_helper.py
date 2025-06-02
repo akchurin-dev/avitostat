@@ -72,10 +72,12 @@ def request(
             tlogger.info(f"Timeout exception when request to {url}")
 
     if not response.is_success:
-        tlogger.info((
-            f"Not success response when request '{url}'. "
-            f"Got status={response.status_code}, data={response.text[:500]}"
-        ))
+        tlogger.info("Not success response")
+        tlogger.info({
+            "url": url,
+            "status_code": response.status_code,
+            "data": response.text[:500],
+        })
 
     return response
 

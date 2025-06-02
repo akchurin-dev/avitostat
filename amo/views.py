@@ -37,7 +37,7 @@ def oauth_callback(request: Request) -> HttpResponse:
         )
 
     state = amo.schemas.OauthStateSchema.model_validate_json(data["state"])
-    domain = data["referer"]
+    domain: str = data["referer"]
 
     account = amo_accounts.create_account_or_update_tokens(
         domain=domain,
@@ -46,7 +46,7 @@ def oauth_callback(request: Request) -> HttpResponse:
         tlogger=tlogger,
     )
 
-    amo_pipelines.syncronize_pipelines(domain, tlogger=tlogger)
+    amo_pipelines.syncronize_pipelines(account, tlogger=tlogger)
 
     try:
         amo_sources.scan_new_origins(account.amo_id, tlogger=tlogger)

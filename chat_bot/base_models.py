@@ -7,11 +7,13 @@ from utils import miscellaneous
 
 
 class AIChatBotBase(models.Model):
+    _default_name = "Безымянный ИИ"
+
     name = models.CharField(
         verbose_name="Название",
         max_length=255,
         db_index=True,
-        default="Безымянный ИИ",
+        default=_default_name,
     )
 
     is_active = models.BooleanField(default=False, verbose_name="Активирован")
@@ -43,6 +45,15 @@ class AIChatBotBase(models.Model):
             ),
             is_active=True,
         )
+
+    def get_default_name(self) -> str:
+        return self._default_name
+
+    def save(self, *args, **kwargs):
+        if not self.name or self.name == self._default_name:
+            self.name = self.get_default_name()
+
+        return super().save(*args, **kwargs)
 
     def __str__(self):
         return f"{self.name} ({self.pk})"

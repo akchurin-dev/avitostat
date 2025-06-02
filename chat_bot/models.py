@@ -66,6 +66,9 @@ class AiChatBot(chat_bot.base_models.AIChatBotBase):
         verbose_name = "ИИ чат бот"
         verbose_name_plural = "ИИ чат боты"
 
+    def get_default_name(self) -> str:
+        return self.account.name or super().get_default_name()
+
     def save(self, *args, **kwargs):
         super().save(*args, **kwargs)
         avito_webhooks.update_avito_webhook_subscription(self.account)

@@ -1,4 +1,3 @@
-from typing import Any, Iterable
 from django.db import models
 
 import amo.models

@@ -1,6 +1,7 @@
 from typing import NamedTuple
 
 import amo_a5client.models
+from utils.logging import TraceLogger
 
 
 class Message(NamedTuple):
@@ -14,8 +15,10 @@ class AmoContact(NamedTuple):
     contact_id: int
 
 
+MAX_MESSAGES_COUNT = 300
+
 _messages_to_amo_contacts: dict[Message, AmoContact] = {}
-_old_messages: set[Message] = set()
+_messages_queue: list[Message] = []
 
 
 def remember_amo_message(
@@ -24,6 +27,8 @@ def remember_amo_message(
     message_created_at_ts: int,
     text: str,
     author_name: str,
+    *,
+    tlogger: TraceLogger,
 ) -> None:
 
     contact_exists = amo_a5client.models.AmoContactAvitoChatLink.objects.filter(
@@ -37,7 +42,13 @@ def remember_amo_message(
     message = Message(message_created_at_ts, text, author_name)
     amo_contact = AmoContact(amo_account_id, contact_id)
 
-    _messages_to_amo_contacts[message] = amo_contact
+    _add_link_to_container(message, amo_contact)
+
+    tlogger.info("Message-AmoContact link saved")
+    tlogger.info({
+        "message": message,
+        "amo_contact": amo_contact,
+    })
 
 
 def get_amo_contact_by_avito_message(
@@ -45,7 +56,9 @@ def get_amo_contact_by_avito_message(
     chat_id: str,
     message_created_at_ts: int,
     text: str,
-    author_name: str
+    author_name: str,
+    *,
+    tlogger: TraceLogger,
 ) -> amo_a5client.models.AmoContactAvitoChatLink | None:
 
     amo_contact_avito_chat_link = amo_a5client.models.AmoContactAvitoChatLink.objects.filter(
@@ -54,12 +67,24 @@ def get_amo_contact_by_avito_message(
     ).first()
 
     if amo_contact_avito_chat_link:
+        tlogger.info("Found amo-contact to avito-chat link")
+        tlogger.info({
+            "chat_id": chat_id,
+            "amo_contact": amo_contact_avito_chat_link.amo_account,
+        })
+
         return amo_contact_avito_chat_link
 
     message = Message(message_created_at_ts, text, author_name)
     amo_contact = _messages_to_amo_contacts.get(message)
 
     if amo_contact:
+        tlogger.info("Create amo-contact to avito-chat link")
+        tlogger.info({
+            "chat_id": chat_id,
+            "amo_contact": amo_contact,
+        })
+
         return amo_a5client.models.AmoContactAvitoChatLink.objects.create(
             amo_account_id=amo_contact.amo_account_id,
             contact_id=amo_contact.contact_id,
@@ -67,14 +92,28 @@ def get_amo_contact_by_avito_message(
             chat_id=chat_id,
         )
 
+    tlogger.info(f"Amo contact for message {message} not found")
+
     return None
 
 
-# TODO call every 10 seconds
-def clear_queue():
-    global old_messages
+def _add_link_to_container(message: Message, contact: AmoContact, *, tlogger: TraceLogger) -> None:
+    global _messages_queue
 
-    for old_message in _old_messages:
-        del _messages_to_amo_contacts[old_message]
+    _messages_to_amo_contacts[message] = contact
+    _messages_queue.append(message)
 
-    old_messages = set(_messages_to_amo_contacts.keys())
+    tlogger.info(f"Messages count = {len(_messages_to_amo_contacts)}")
+
+    if len(_messages_to_amo_contacts) <= MAX_MESSAGES_COUNT:
+        return
+
+    delete_count = len(_messages_to_amo_contacts) - MAX_MESSAGES_COUNT // 2
+
+    for i in range(delete_count):
+        message = _messages_queue[i]
+        del _messages_to_amo_contacts[message]
+
+    _messages_queue = _messages_queue[delete_count:]
+
+    tlogger.info(f"Container cleaned. Messages count = {len(_messages_to_amo_contacts)}")
