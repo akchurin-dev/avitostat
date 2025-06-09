@@ -44,11 +44,10 @@ def remember_amo_message(
 
     _add_link_to_container(message, amo_contact, tlogger=tlogger)
 
-    tlogger.info("Message-AmoContact link saved")
-    tlogger.info({
+    tlogger.info({"Message-AmoContact link saved": {
         "message": message,
         "amo_contact": amo_contact,
-    })
+    }})
 
 
 def get_amo_contact_by_avito_message(

@@ -1,3 +1,4 @@
+import datetime
 import os
 from pathlib import Path
 from typing import Literal
@@ -21,6 +22,8 @@ logger.warning(f"ENVIRONMENT: {ENVIRONMENT}")
 if ENVIRONMENT not in ["PRODUCTION", "DEVELOPMENT", "TESTING"]:
     raise Exception(f"Unexpected ENVIRONMENT value, got {ENVIRONMENT}")
 
+DEBUG = ENVIRONMENT in ["DEVELOPMENT", "TESTING"]
+
 SECRET_KEY = os.getenv('SECRET_KEY')
 GITHUB_TOKEN = os.getenv('GITHUB_TOKEN')
 
@@ -28,8 +31,7 @@ AVITO_CLIENT_ID = os.getenv('AVITO_CLIENT_ID')
 AVITO_CLIENT_SECRET = os.getenv('AVITO_CLIENT_SECRET')
 
 AVITO_WEBHOOK_HOST = "avitostata.ru"
-if ENVIRONMENT in ["DEVELOPMENT", "TESTING"]:
-    # AVITO_WEBHOOK_HOST = "de9c-144-126-237-4.ngrok-free.app"
+if DEBUG:
     AVITO_WEBHOOK_HOST = os.getenv('AVITO_WEBHOOK_HOST')
 
 OPENAI_SECRET_KEY = os.getenv('OPENAI_SECRET_KEY')
@@ -50,7 +52,7 @@ AMO_WEBHOOK_DOMAIN = os.getenv('AMO_WEBHOOK_DOMAIN', "")
 AMO_REDIRECT_URI = f"https://{AMO_WEBHOOK_DOMAIN}/amo/oauth"
 
 USE_GPT = True
-if ENVIRONMENT in ["DEVELOPMENT", "TESTING"]:
+if DEBUG:
     USE_GPT = False
     USE_GPT = True
 
@@ -74,15 +76,14 @@ ALLOWED_HOSTS = [
     "77.75.156.35", "77.75.154.128/25", "2a02:5180::/32",
 ]
 
-if ENVIRONMENT in ["DEVELOPMENT", "TESTING"]:
-    DEBUG = True
-    ALLOWED_HOSTS = ["*", ]
+if DEBUG:
+    ALLOWED_HOSTS = ["*"]
     INTERNAL_IPS = [
+        'django',
+        '0.0.0.0',
         '127.0.0.1',
         'localhost',
     ]
-else:
-    DEBUG = False
 
 if ENVIRONMENT == "TESTING":
     TEST_DJANGO_HOST = os.getenv("TEST_DJANGO_HOST") # Хост, у которого селери спрашивает значения конфигов во время тестов
@@ -230,7 +231,6 @@ else:
         'TOKEN': TELEGRAM_BOT_TOKEN
     }
 
-# TODO CELERY settings
 # Добавляем настройки для Celery
 CELERY_BROKER_URL = REDIS_BASE_URL + "/0"
 CELERY_RESULT_BACKEND = REDIS_BASE_URL + "/1"
@@ -239,48 +239,47 @@ CELERY_TASK_SERIALIZER = 'json'
 CELERY_RESULT_SERIALIZER = 'json'
 CELERY_TIMEZONE = 'UTC'
 
-# TODO CELERY_BEAT_SCHEDULE
 if ENVIRONMENT == 'PRODUCTION':
     CELERY_BEAT_SCHEDULE = {
         'bad_messaging_week_report_task': {
             'task': 'messaging.tasks.bad_messaging_week_report_async_task_auto_generated',
-            'schedule': crontab(hour=6, minute=0, day_of_week=5),
+            'schedule': crontab(hour='6', minute='0', day_of_week='5'),
         },
 
         'send_text_report_all_async_task': {
             'task': 'conversion.tasks.send_text_report_all_async_task_auto_generated',
-            'schedule': crontab(day_of_week='mon', hour=10, minute=0),
+            'schedule': crontab(day_of_week='mon', hour='10', minute='0'),
         },
 
         'month_report_for_api_generation_task': {
             'task': 'messaging.tasks.month_report_json_getting',
-            "schedule": crontab(0, 0, day_of_month=1),
+            "schedule": crontab('0', '0', day_of_month='1'),
         },
 
         'balance_alert_send_task': {
             'task': 'avito_account.tasks.balance_alert_send_task',
-            'schedule': schedule(run_every=259200),  # every 3 days
+            'schedule': schedule(run_every=datetime.timedelta(days=3)),
         },
 
         'bad_messaging_week_report_folder_cleaner_task': {
             'task': 'messaging.tasks.bad_mes_report_pdfs_folder_cleaner_task',
-            'schedule': crontab(0, 0, day_of_month='1', month_of_year='1,4,7,10'),
+            'schedule': crontab('0', '0', day_of_month='1', month_of_year='1,4,7,10'),
             # Раз в три месяца (1 января, 1 апреля, 1 июля, 1 октября)
         },
 
         'db_auto_creator_task': {
             'task': 'messaging.tasks.db_backup_auto_creator_task',
-            'schedule': crontab(hour=0, minute=0),
+            'schedule': crontab(hour='0', minute='0'),
         },
 
         'avito_account_tokens_update_task': {
             'task': 'avito_account.tasks.update_tokens',
-            'schedule': crontab(hour=2, minute=0),
+            'schedule': crontab(hour='2', minute='0'),
         },
 
         'chat_bot_daily_report_task': {
             'task': 'chat_bot.tasks.statistics_sender_main_task',
-            'schedule': crontab(hour=6, minute=0),  # Ежедневно в 11:00 утра
+            'schedule': crontab(hour='6', minute='0'),
         },
     }
 else:
@@ -301,7 +300,7 @@ else:
         #
         'chat_bot_daily_report_task_DEBUG': {
             'task': 'chat_bot.tasks.statistics_sender_main_task',
-            'schedule': 20.0,  #  каждые 100 секунд
+            'schedule': 20,
         },
         # 'chat_bot_daily_report_task': {
         #     'task': 'chat_bot.ChatBotDailyReport.report_sender_via_celery',

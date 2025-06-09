@@ -1,11 +1,9 @@
 from celery import shared_task
 
 import amo_a5client.models
-import messaging.api
 from amo_a5client.config import ORIGIN_NAME, RETRIES_DELAY_SEC
 from amo_a5client.utils import amo_avito_links
 from amo_a5client.utils import message_handling
-from avito_account.models.models import AvitoAccount
 from utils.logging import TraceLogger
 
 
@@ -14,7 +12,6 @@ def handle_message_from_amo(
     contact_id: int,
     message_created_at_timestamp: int,
     text: str,
-    author_name: str,
     *,
     tlogger: TraceLogger,
 ) -> None:
@@ -24,7 +21,7 @@ def handle_message_from_amo(
         contact_id=contact_id,
         message_created_at_ts=message_created_at_timestamp,
         text=text,
-        author_name=author_name,
+        author_name="",
         tlogger=tlogger,
     )
 
@@ -44,16 +41,12 @@ def handle_message_from_avito(
     tlogger = TraceLogger(trace_id)
     tlogger.info("AvitoA5Client message handling started")
 
-    avito_account = AvitoAccount.objects.get(pk=avito_account_id)
-    chat = messaging.api.MessagingAPISync.get_chat_by_id(avito_account, chat_id)
-    assert "users" in chat
-
     contact = amo_avito_links.get_amo_contact_by_avito_message(
         avito_account_id=avito_account_id,
         chat_id=chat_id,
         message_created_at_ts=message_created_at_timestamp,
         text=text,
-        author_name=chat["users"][0]["name"],
+        author_name="",
         tlogger=tlogger,
     )
 

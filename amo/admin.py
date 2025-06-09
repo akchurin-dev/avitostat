@@ -17,6 +17,16 @@ class AvitoAccountInline(admin.TabularInline):
     extra = 0
 
 
+class AmoChatCreateConfigInline(admin.TabularInline):
+    model = amo.models.AmoChatCreateConfig
+    fields = [
+        "source",
+        "phone_number_field",
+        "channel_id",
+    ]
+    extra = 0
+
+
 @admin.register(amo.models.AmoAccount)
 class AmoAccountAdmin(admin.ModelAdmin):
     fields = [
@@ -47,7 +57,10 @@ class AmoAccountAdmin(admin.ModelAdmin):
         "created_at",
         "updated_at",
     ]
-    inlines = [AvitoAccountInline]
+    inlines = [
+        AvitoAccountInline,
+        AmoChatCreateConfigInline,
+    ]
 
     def add_view(self, request: HttpRequest, *args, **kwargs) -> HttpResponse:
         if request.user.pk is None:
@@ -111,9 +124,14 @@ class HandlebleNoteInline(admin.TabularInline):
 @admin.register(amo.models.AmoChatBot)
 class AmoChatBotAdmin(admin.ModelAdmin):
     list_display = ["name", "account"]
-    inlines = [FillableFieldInline, AmoPipelineStatusInline, AmoOriginInline, HandlebleNoteInline]
+    inlines = [
+        FillableFieldInline,
+        AmoPipelineStatusInline,
+        AmoOriginInline,
+        HandlebleNoteInline,
+    ]
 
-    def get_queryset(self, request: HttpRequest) -> QuerySet:
+    def get_queryset(self, request: HttpRequest) -> QuerySet[amo.models.AmoChatBot]:
         qs = super().get_queryset(request)
 
         if not request.user.is_superuser:

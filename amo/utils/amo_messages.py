@@ -34,12 +34,12 @@ class Talk(NamedTuple):
 SUPPORTED_MESSAGE_TYPES = {mt.value for mt in MessageTypeEnum}
 
 
-def get_lead_chat(account_id: str, lead_id: str, tlogger: TraceLogger) -> Talk:
-    events = amo_api.get_lead_events(account_id, lead_id, tlogger=tlogger)
+def get_lead_chat(account: amo.models.AmoAccount, lead_id: int, tlogger: TraceLogger) -> Talk:
+    events = amo_api.get_lead_events(account.pk, str(lead_id), tlogger=tlogger)
 
     lead_talks: list[int] = list(
         amo.models.AmoTalkLeadLink.objects
-        .filter(account_id=int(account_id), lead_id=int(lead_id))
+        .filter(account=account, lead_id=lead_id)
         .values_list("talk_id", flat=True)
     )
 
@@ -82,6 +82,63 @@ def get_lead_chat(account_id: str, lead_id: str, tlogger: TraceLogger) -> Talk:
         messages=messages,
         opened=message_events[0]["data"]["dialog"]["opened"],
     )
+
+
+def create_chat(account: amo.models.AmoAccount, contact: amo_api.Contact, *, tlogger: TraceLogger) -> str:
+    """ Create chat with contact. Return chat_id """
+
+    action = "/ajax/v1/chats/create"
+
+    chat_create_config = amo.models.AmoChatCreateConfig.objects.filter(account=account).first()
+
+    if chat_create_config is None:
+        raise Exception(f"Chat create config not found for account '{account.name}'")
+
+    if contact.custom_fields_values is None:
+        raise Exception(f"Contact doesn't have fields")
+
+    contact_fields_values = {fv.field_name: fv.values[0].value for fv in contact.custom_fields_values}
+    phone = contact_fields_values.get(chat_create_config.phone_number_field)
+
+    if phone is None:
+        raise Exception(f"Field '{chat_create_config.phone_number_field}' not found in contact")
+
+    scope_id = chat_create_config.channel_id + "_" + account.amojo_id
+
+    data = {
+        "request": {
+            "chats": {
+                "create": {
+                    "type": "external",
+                    "entity_id": contact.id,
+                    "entity_type": 1,
+                    "phone": phone,
+                    "source": {
+                        "scope_id": scope_id,
+                        "source_id": chat_create_config.source.amo_id,
+                        "origin": chat_create_config.source.origin,
+                    },
+                },
+            },
+        },
+    }
+
+    response = amo_api._request_with_csrf(
+        method="POST",
+        account_id=account.amo_id,
+        action=action,
+        json=data,
+        tlogger=tlogger,
+    )
+    response.raise_for_status()
+
+    data = response.json()
+
+    return data["response"]["chats"]["create"]["id"]
+
+
+def create_talk():
+    action = "/ajax/v2/talks"
 
 
 def define_message_type(text: str, attachment_type: str | None) -> MessageTypeEnum | None:

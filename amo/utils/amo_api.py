@@ -9,7 +9,6 @@ from pydantic import BaseModel
 
 from amo import models as amo_models
 from amo.utils import amo_tokens
-from base import settings
 from utils.logging import TraceLogger
 from utils import httpx_helper
 

@@ -17,11 +17,10 @@ class AmoAvitoAccountsLink(models.Model):
         on_delete=models.CASCADE,
     )
 
-    avito_account = models.ForeignKey(
+    avito_account = models.OneToOneField(
         verbose_name="Авито-аккаунт",
         to=AvitoAccount,
         on_delete=models.PROTECT,
-        unique=True,
     )
 
     class Meta:

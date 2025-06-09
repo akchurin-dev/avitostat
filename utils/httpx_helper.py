@@ -54,6 +54,8 @@ def request(
 
     tlogger = tlogger or TraceLogger()
 
+    error = None
+
     for i in range(timeout_retries + 1):
         try:
             if i > 1:
@@ -68,8 +70,12 @@ def request(
                 headers=headers,
             )
             break
-        except httpx.TimeoutException:
+        except httpx.TimeoutException as e:
+            error = e
             tlogger.info(f"Timeout exception when request to {url}")
+    else:
+        assert error is not None
+        raise error
 
     if not response.is_success:
         tlogger.info("Not success response")

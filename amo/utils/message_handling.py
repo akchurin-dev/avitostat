@@ -22,7 +22,6 @@ def handle_new_message_webhook(request_data: dict, *, tlogger: TraceLogger) -> N
         chat_id: str = request_data["message[add][0][chat_id]"]
         talk_id: int = int(request_data["message[add][0][talk_id]"])
         message_id: str = request_data["message[add][0][id]"]
-        author_name: str = request_data["message[add][0][author][name]"]
         text: str = request_data["message[add][0][text]"]
         message_created_at_timestamp: int = int(request_data["message[add][0][created_at]"])
 
@@ -47,7 +46,6 @@ def handle_new_message_webhook(request_data: dict, *, tlogger: TraceLogger) -> N
             contact_id=contact_id,
             message_created_at_timestamp=message_created_at_timestamp,
             text=text,
-            author_name=author_name,
             tlogger=tlogger,
         )
         return
@@ -188,8 +186,8 @@ def prepare_message_handling_data(*, task_id: int, trace_id: str):
 
         task = amo.models.AmoChatBotTask.objects.get(pk=task_id)
         messages, talk_opened = amo_messages.get_lead_chat(
-            account_id=task.account.pk,
-            lead_id=task.lead_id,
+            account=task.account,
+            lead_id=int(task.lead_id),
             tlogger=tlogger,
         )
 
@@ -278,7 +276,15 @@ def finish_handling(ai_answer_serializable: dict, messages_serializable: list[di
 
         assert task.chatbot
 
-        answer_handling_result = ai_answer_using.handle_ai_answer(
+        ai_answer_using.update_lead_and_contact(
+            account=task.account,
+            ai_answer=ai_answer,
+            lead_id=int(task.lead_id),
+            contact_id=int(task.contact_id),
+            tlogger=tlogger,
+        )
+
+        status_change_result = ai_answer_using.change_lead_status(
             chatbot=task.chatbot,
             ai_answer=ai_answer,
             lead_id=int(task.lead_id),
@@ -289,7 +295,7 @@ def finish_handling(ai_answer_serializable: dict, messages_serializable: list[di
         assert ai_answer.payload.answer
 
         message = ai_answer.payload.answer
-        if answer_handling_result.status_changed_on_qualification and task.chatbot.message_when_qualification:
+        if status_change_result.status_changed_on_qualification and task.chatbot.message_when_qualification:
             message = task.chatbot.message_when_qualification
 
         amo_api.send_message(

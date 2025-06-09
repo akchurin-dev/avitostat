@@ -114,6 +114,11 @@ class AmoPipelineStatus(models.Model):
         on_delete=models.CASCADE,
     )
 
+    account_name = models.CharField(
+        verbose_name="Название Amo-аккаунта",
+        max_length=255,
+    )
+
     pipeline_id = models.BigIntegerField(
         verbose_name="Идентификатор воронки в системе Amo",
         db_index=True,
@@ -140,8 +145,12 @@ class AmoPipelineStatus(models.Model):
 
         unique_together = ["account", "pipeline_id", "amo_id"]
 
+    def save(self, *args, **kwargs) -> None:
+        self.account_name = self.account.name
+        super().save(*args, **kwargs)
+
     def __str__(self):
-        return f"{self.pipeline_name} -> {self.name} ({self.account.name})"
+        return f"{self.pipeline_name} -> {self.name} ({self.account_name})"
 
 
 class AmoChatBot(chat_bot.base_models.AIChatBotBase):
@@ -158,7 +167,7 @@ class AmoChatBot(chat_bot.base_models.AIChatBotBase):
 
     new_status_when_qualification = models.ForeignKey(
         verbose_name="Этап воронки при достижении квалификации",
-        to="AmoPipelineStatus",
+        to=AmoPipelineStatus,
         on_delete=models.SET_NULL,
         null=True,
         blank=True,
@@ -166,6 +175,11 @@ class AmoChatBot(chat_bot.base_models.AIChatBotBase):
 
     message_when_qualification = models.TextField(
         verbose_name="Сообщение при достижении квалификации",
+        blank=True,
+    )
+
+    message_when_note_received = models.TextField(
+        verbose_name="Сообщение при получении заявки с сайта",
         blank=True,
     )
 
@@ -436,6 +450,40 @@ class FillableField(models.Model):
     class Meta:
         verbose_name = "Заполняемое поле"
         verbose_name_plural = "Заполняемые поля"
+
+
+class AmoChatCreateConfig(models.Model):
+    account = models.ForeignKey(
+        verbose_name="Amo-аккаунт",
+        to=AmoAccount,
+        on_delete=models.CASCADE,
+    )
+
+    source = models.ForeignKey(
+        verbose_name="Источник",
+        to=AmoOrigin,
+        on_delete=models.CASCADE,
+    )
+
+    phone_number_field = models.CharField(
+        verbose_name="Поле с номером телефона",
+        max_length=255,
+    )
+
+    channel_id = models.CharField(
+        verbose_name="Идентификатор канала",
+        max_length=63,
+        help_text=(
+            "При инициации общения с пользователем, "
+            "AmoCRM делает запрос '/ajax/v1/chats/create', "
+            "создающий чат, и передает туда scope_id, "
+            "состоящий из <channel_id>_<amojo_id>"
+        ),
+    )
+
+    class Meta:
+        verbose_name = "Конфиг для создания чата"
+        verbose_name_plural = "Конфиги для создания чата"
 
 
 class AmoTalkLeadLink(models.Model):

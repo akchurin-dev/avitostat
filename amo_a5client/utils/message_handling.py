@@ -219,7 +219,15 @@ def finish_handling(task_id: int, avito_account_id: int, ai_answer_serializable,
 
         assert task.chatbot
 
-        answer_handling_result = ai_answer_using.handle_ai_answer(
+        ai_answer_using.update_lead_and_contact(
+            account=task.account,
+            ai_answer=ai_answer,
+            lead_id=int(task.lead_id),
+            contact_id=int(task.contact_id),
+            tlogger=tlogger,
+        )
+
+        status_change_result = ai_answer_using.change_lead_status(
             chatbot=task.chatbot,
             ai_answer=ai_answer,
             lead_id=int(task.lead_id),
@@ -230,7 +238,7 @@ def finish_handling(task_id: int, avito_account_id: int, ai_answer_serializable,
         assert ai_answer.payload.answer
 
         message = ai_answer.payload.answer
-        if answer_handling_result.status_changed_on_qualification and task.chatbot.message_when_qualification:
+        if status_change_result.status_changed_on_qualification and task.chatbot.message_when_qualification:
             message = task.chatbot.message_when_qualification
 
         avito_account = AvitoAccount.objects.get(pk=avito_account_id)
@@ -243,23 +251,6 @@ def finish_handling(task_id: int, avito_account_id: int, ai_answer_serializable,
             tokens_completion=ai_answer.tokens_completion,
             tokens_prompt=ai_answer.tokens_prompt,
         )
-
-        # if ai_answer.payload.contacts:
-        #     sent_report = amo.models.AmoChatBotTask.objects.filter(
-        #         account_id=task.account.pk,
-        #         lead_id=task.lead_id,
-        #         sent_report=True,
-        #     ).exists()
-
-        #     if not sent_report:
-        #         amo_reports.send_report(
-        #             account=task.account,
-        #             lead_id=task.lead_id,
-        #             contact_id=task.contact_id,
-        #             messages=messages,
-        #             tlogger=tlogger,
-        #         )
-        #         amo.models.AmoChatBotTask.objects.filter(pk=task.pk).update(sent_report=True)
 
         task.change_status(task.Status.FINISHED, tlogger=tlogger)
 

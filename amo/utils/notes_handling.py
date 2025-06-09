@@ -3,10 +3,12 @@ import json
 from celery import shared_task
 
 import amo.models
+from amo.utils import ai_answer_using
 from amo.utils import amo_ai
 from amo.utils import amo_api
-from amo.utils import ai_answer_using
+from amo.utils import amo_messages
 from amo.utils import chatbot_lead_pair_defining
+from amo.utils import qualification
 from utils.logging import TraceLogger
 
 
@@ -27,18 +29,18 @@ def handle_new_lead_note_webhook(request_data: dict, *, tlogger: TraceLogger) ->
         tlogger.info(request_data)
         raise
 
-    launch_lead_note_handling.s(
+    handle_lead_note.s(
         account_id=account_id,
         lead_id=lead_id,
         note_type=note_type,
         author_name=author_name,
         text=text,
         trace_id=tlogger.trace_id,
-    ).apply_async(countdown=60)
+    ).apply_async(countdown=30)
 
 
 @shared_task
-def launch_lead_note_handling(
+def handle_lead_note(
     account_id: int,
     lead_id: int,
     note_type: int,
@@ -88,10 +90,48 @@ def launch_lead_note_handling(
 
     ai_answer = amo_ai.parse_form(chatbot, text, tlogger=tlogger)
 
-    ai_answer_using.handle_ai_answer(
-        chatbot=chatbot,
+    ai_answer_using.update_lead_and_contact(
+        account=account,
         ai_answer=ai_answer,
-        lead_id=lead_id,
+        lead_id=lead.id,
         contact_id=contact_id,
         tlogger=tlogger,
     )
+
+    if not chatbot.message_when_note_received:
+        return
+
+    contact = amo_api.get_contact(account, contact_id, tlogger=tlogger)
+    chat_id = amo_messages.create_chat(account, contact, tlogger=tlogger)
+    amo_api.send_message(
+        account=account,
+        chat_id=chat_id,
+        text=chatbot.message_when_note_received,
+        tlogger=tlogger,
+    )
+
+    change_status_if_message_delivered.s(
+        chatbot_id=chatbot.pk,
+        lead_id=lead.id,
+        contact_id=contact_id,
+        trace_id=tlogger.trace_id,
+    ).apply_async(countdown=30)
+
+
+@shared_task
+def change_status_if_message_delivered(
+    chatbot_id: int,
+    lead_id: int,
+    contact_id: int,
+    *,
+    trace_id: str,
+) -> None:
+
+    tlogger = TraceLogger(trace_id)
+
+    chatbot = amo.models.AmoChatBot.objects.get(pk=chatbot_id)
+
+    chat = amo_messages.get_lead_chat(chatbot.account, lead_id, tlogger=tlogger)
+
+    if chat.messages[-1] == chatbot.message_when_note_received:
+        qualification.change_status_if_qualification(chatbot, lead_id, contact_id, tlogger=tlogger)
