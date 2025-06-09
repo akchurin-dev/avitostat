@@ -17,6 +17,7 @@ from chat_bot.api.core import AvitoMessengerSync
 from utils.logging import TraceLogger
 
 
+@shared_task
 def launch_new_message_handling(
     amo_account_id: int,
     avito_account_id: int,
@@ -27,8 +28,10 @@ def launch_new_message_handling(
     message_created_at_ts: int,
     text: str,
     *,
-    tlogger: TraceLogger
+    trace_id: str,
 ) -> None:
+
+    tlogger = TraceLogger(trace_id)
 
     amo_account = amo.models.AmoAccount.objects.get(pk=amo_account_id)
 

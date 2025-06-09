@@ -64,7 +64,7 @@ def handle_message_from_avito(
 
         return
 
-    message_handling.launch_new_message_handling(
+    message_handling.launch_new_message_handling.s(
         amo_account_id=contact.amo_account.pk,
         avito_account_id=avito_account_id,
         contact_id=contact.contact_id,
@@ -73,8 +73,8 @@ def handle_message_from_avito(
         message_id=message_id,
         message_created_at_ts=message_created_at_timestamp,
         text=text,
-        tlogger=tlogger,
-    )
+        trace_id=tlogger.trace_id,
+    ).apply_async(countdown=60 * 3)
 
 
 def avito_account_handleble(avito_account_id: int) -> bool:
