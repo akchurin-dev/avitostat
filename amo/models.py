@@ -535,12 +535,6 @@ class AmoChatBotTask(chat_bot.base_models.AIResultContainer, chatbottasks.Task):
         db_index=True,
     )
 
-    contact_id = models.CharField(
-        verbose_name="Идентификатор контакта",
-        max_length=15,
-        db_index=True,
-    )
-
     chat_id = models.CharField(
         verbose_name="Идентификатор чата",
         max_length=255,

@@ -6,8 +6,8 @@ import amo.models
 import messaging.api
 from amo.utils import ai_answer_using
 from amo.utils import amo_ai
+from amo.utils import amo_leads
 from amo.utils import amo_messages
-from amo.utils import amo_reports
 from amo.utils import chatbot_lead_pair_defining
 from amo_a5client.config import ORIGIN_NAME
 from amo_a5client.utils import amo_a5_ai
@@ -222,19 +222,21 @@ def finish_handling(task_id: int, avito_account_id: int, ai_answer_serializable,
 
         assert task.chatbot
 
+        lead, contact = amo_leads.get_lead_contact_pair(task.account, task.lead_id, tlogger=tlogger)
+
         ai_answer_using.update_lead_and_contact(
             account=task.account,
             ai_answer=ai_answer,
-            lead_id=int(task.lead_id),
-            contact_id=int(task.contact_id),
+            lead=lead,
+            contact=contact,
             tlogger=tlogger,
         )
 
         status_change_result = ai_answer_using.change_lead_status(
             chatbot=task.chatbot,
             ai_answer=ai_answer,
-            lead_id=int(task.lead_id),
-            contact_id=int(task.contact_id),
+            lead=lead,
+            contact=contact,
             tlogger=tlogger,
         )
 

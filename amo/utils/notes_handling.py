@@ -6,6 +6,7 @@ import amo.models
 from amo.utils import ai_answer_using
 from amo.utils import amo_ai
 from amo.utils import amo_api
+from amo.utils import amo_leads
 from amo.utils import amo_messages
 from amo.utils import chatbot_lead_pair_defining
 from amo.utils import qualification
@@ -90,18 +91,26 @@ def handle_lead_note(
 
     ai_answer = amo_ai.parse_form(chatbot, text, tlogger=tlogger)
 
+    assert lead.contacts_ids is not None
+    contact = amo_api.get_contact(
+        account=account,
+        contact_id=lead.contacts_ids[0],
+        with_leads=False,
+        tlogger=tlogger,
+    )
+
     ai_answer_using.update_lead_and_contact(
         account=account,
         ai_answer=ai_answer,
-        lead_id=lead.id,
-        contact_id=contact_id,
+        lead=lead,
+        contact=contact,
         tlogger=tlogger,
     )
 
     if not chatbot.message_when_note_received:
+        tlogger.info("Don't send message. Message when note received is blank")
         return
 
-    contact = amo_api.get_contact(account, contact_id, tlogger=tlogger)
     chat_id = amo_messages.create_chat(account, contact, tlogger=tlogger)
     amo_api.send_message(
         account=account,
@@ -113,7 +122,6 @@ def handle_lead_note(
     change_status_if_message_delivered.s(
         chatbot_id=chatbot.pk,
         lead_id=lead.id,
-        contact_id=contact_id,
         trace_id=tlogger.trace_id,
     ).apply_async(countdown=30)
 
@@ -122,7 +130,6 @@ def handle_lead_note(
 def change_status_if_message_delivered(
     chatbot_id: int,
     lead_id: int,
-    contact_id: int,
     *,
     trace_id: str,
 ) -> None:
@@ -130,8 +137,8 @@ def change_status_if_message_delivered(
     tlogger = TraceLogger(trace_id)
 
     chatbot = amo.models.AmoChatBot.objects.get(pk=chatbot_id)
-
     chat = amo_messages.get_lead_chat(chatbot.account, lead_id, tlogger=tlogger)
+    lead, contact = amo_leads.get_lead_contact_pair(chatbot.account, lead_id, tlogger=tlogger)
 
     if chat.messages[-1] == chatbot.message_when_note_received:
-        qualification.change_status_if_qualification(chatbot, lead_id, contact_id, tlogger=tlogger)
+        qualification.change_status_if_qualification(chatbot, lead, contact, tlogger=tlogger)

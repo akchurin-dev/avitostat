@@ -106,12 +106,13 @@ class Lead(BaseModel):
     contacts_ids: list[int] | None = None
 
 
-def get_lead(account: amo_models.AmoAccount, lead_id: int | str, *, tlogger: TraceLogger) -> Lead:
+def get_lead(account: amo_models.AmoAccount, lead_id: int | str, with_contacts: bool = True, *, tlogger: TraceLogger) -> Lead:
     action = f"/api/v4/leads/{lead_id}"
 
-    params = {
-        "with": ",".join(["contacts"]),
-    }
+    params = {}
+
+    if with_contacts:
+        params["with"] = ",".join(["contacts"])
 
     response = openapi_request_by_account(
         account=account,

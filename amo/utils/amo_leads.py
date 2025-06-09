@@ -1,7 +1,14 @@
+from typing import NamedTuple
+
 import amo.models
 from amo.utils import amo_api
 from amo.utils import amo_pipelines
 from utils.logging import TraceLogger
+
+
+class LeadContactPair(NamedTuple):
+    lead: amo_api.Lead
+    contact: amo_api.Contact
 
 
 def change_lead_status(account: amo.models.AmoAccount, lead_id: int | str, status_id: int | str, *, tlogger: TraceLogger) -> None:
@@ -54,3 +61,23 @@ def get_open_leads_by_contact(
     tlogger.info(f"Open leads: {[lead.id for lead in open_leads]}")
 
     return open_leads
+
+
+def get_lead_contact_pair(account: amo.models.AmoAccount, lead_id: int | str, *, tlogger: TraceLogger) -> LeadContactPair:
+    lead = amo_api.get_lead(
+        account=account,
+        lead_id=lead_id,
+        with_contacts=True,
+        tlogger=tlogger,
+    )
+
+    assert lead.contacts_ids is not None
+
+    contact = amo_api.get_contact(
+        account=account,
+        contact_id=lead.contacts_ids[0],
+        with_leads=False,
+        tlogger=tlogger,
+    )
+
+    return LeadContactPair(lead, contact)

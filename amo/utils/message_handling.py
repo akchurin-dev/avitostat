@@ -6,6 +6,7 @@ import amo.models
 from amo_a5client import amo_a5client
 from amo.utils import amo_ai
 from amo.utils import amo_api
+from amo.utils import amo_leads
 from amo.utils import amo_messages
 from amo.utils import amo_reports
 from amo.utils import amo_transcriptions
@@ -276,19 +277,21 @@ def finish_handling(ai_answer_serializable: dict, messages_serializable: list[di
 
         assert task.chatbot
 
+        lead, contact = amo_leads.get_lead_contact_pair(task.account, task.lead_id, tlogger=tlogger)
+
         ai_answer_using.update_lead_and_contact(
             account=task.account,
             ai_answer=ai_answer,
-            lead_id=int(task.lead_id),
-            contact_id=int(task.contact_id),
+            lead=lead,
+            contact=contact,
             tlogger=tlogger,
         )
 
         status_change_result = ai_answer_using.change_lead_status(
             chatbot=task.chatbot,
             ai_answer=ai_answer,
-            lead_id=int(task.lead_id),
-            contact_id=int(task.contact_id),
+            lead=lead,
+            contact=contact,
             tlogger=tlogger,
         )
 
@@ -323,8 +326,8 @@ def finish_handling(ai_answer_serializable: dict, messages_serializable: list[di
             if not sent_report:
                 amo_reports.send_report(
                     account=task.account,
-                    lead_id=task.lead_id,
-                    contact_id=task.contact_id,
+                    lead=lead,
+                    contact=contact,
                     messages=messages,
                     tlogger=tlogger,
                 )

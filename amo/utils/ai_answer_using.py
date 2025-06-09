@@ -18,8 +18,8 @@ class StatusChangeResult(NamedTuple):
 def update_lead_and_contact(
     account: amo.models.AmoAccount,
     ai_answer: amo_ai.AIAnswer,
-    lead_id: int,
-    contact_id: int,
+    lead: amo_api.Lead,
+    contact: amo_api.Contact,
     *,
     tlogger: TraceLogger,
 ) -> None:
@@ -28,7 +28,7 @@ def update_lead_and_contact(
         amo_fields.update_entity_fields(
             account=account,
             entity=amo_api.EntityEnum.LEADS,
-            instance_id=lead_id,
+            instance_id=lead.id,
             fields_values=ai_answer.payload.lead_info,
             tlogger=tlogger,
         )
@@ -39,7 +39,7 @@ def update_lead_and_contact(
         amo_fields.update_entity_fields(
             account=account,
             entity=amo_api.EntityEnum.CONTACTS,
-            instance_id=contact_id,
+            instance_id=contact.id,
             fields_values=ai_answer.payload.contacts,
             tlogger=tlogger,
         )
@@ -50,16 +50,16 @@ def update_lead_and_contact(
 def change_lead_status(
     chatbot: amo.models.AmoChatBot,
     ai_answer: amo_ai.AIAnswer,
-    lead_id: int,
-    contact_id: int,
+    lead: amo_api.Lead,
+    contact: amo_api.Contact,
     *,
     tlogger: TraceLogger,
 ) -> StatusChangeResult:
 
     status_changed_on_qualification = qualification.change_status_if_qualification(
         chatbot=chatbot,
-        lead_id=lead_id,
-        contact_id=contact_id,
+        lead=lead,
+        contact=contact,
         tlogger=tlogger,
     )
 
@@ -71,8 +71,6 @@ def change_lead_status(
         or not ai_answer.payload.new_status
     ):
         return StatusChangeResult(status_changed=False, status_changed_on_qualification=False)
-
-    lead = amo_api.get_lead(chatbot.account, lead_id, tlogger=tlogger)
 
     status = amo_pipelines.get_status_by_name(
         account=chatbot.account,
