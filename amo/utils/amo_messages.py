@@ -12,7 +12,7 @@ from utils.logging import TraceLogger
 
 class ChatCreated(BaseModel):
     class SocialProfile(BaseModel):
-        id: str
+        id: int
         profile_data_json: str = Field(alias="profile_data")
         chat_id: str = ""
         entity_id: int
@@ -30,7 +30,7 @@ class ChatCreated(BaseModel):
     group_id: str
     users: list
     token: str
-    source_id: str
+    source_id: int
     source_name: str
     social_profile: list[SocialProfile]
     contact_amojo_id: str
