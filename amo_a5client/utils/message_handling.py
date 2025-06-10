@@ -75,7 +75,6 @@ def launch_new_message_handling(
         defaults={
             "chatbot": chatbot,
             "lead_id": lead.id,
-            "contact_id": contact_id,
             "talk_id": None,
             "message_created_at": message_created_at,
             "message_type": amo_messages.MessageTypeEnum.TEXT.value,

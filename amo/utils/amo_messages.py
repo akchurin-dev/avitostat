@@ -1,12 +1,39 @@
 import datetime
+import json
 from enum import Enum
 from typing import NamedTuple
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 import amo.models
 from amo.utils import amo_api
 from utils.logging import TraceLogger
+
+
+class ChatCreated(BaseModel):
+    class SocialProfile(BaseModel):
+        id: str
+        profile_data_json: str = Field(alias="profile_data")
+        chat_id: str = ""
+        entity_id: int
+        service: str
+        main: int
+        hidden: bool
+        service_icon: str
+        code: str
+
+        def __init__(self, *args, **kwargs):
+            super().__init__(*args, **kwargs)
+            self.chat_id = json.loads(self.profile_data_json)["chat_id"]
+
+    id: str
+    group_id: str
+    users: list
+    token: str
+    source_id: str
+    source_name: str
+    social_profile: list[SocialProfile]
+    contact_amojo_id: str
 
 
 class MessageTypeEnum(Enum):
@@ -84,26 +111,40 @@ def get_lead_chat(account: amo.models.AmoAccount, lead_id: int, tlogger: TraceLo
     )
 
 
-def create_chat(account: amo.models.AmoAccount, contact: amo_api.Contact, *, tlogger: TraceLogger) -> str:
-    """ Create chat with contact. Return chat_id """
-
-    action = "/ajax/v1/chats/create"
+def create_chat_and_talk(account: amo.models.AmoAccount, contact: amo_api.Contact, *, tlogger: TraceLogger) -> str:
+    """ Create chat and talk. Return chat_id """
 
     chat_create_config = amo.models.AmoChatCreateConfig.objects.filter(account=account).first()
 
     if chat_create_config is None:
         raise Exception(f"Chat create config not found for account '{account.name}'")
 
+    chat = create_chat(chat_create_config, contact, tlogger=tlogger)
+    chats_ids = [sp.chat_id for sp in chat.social_profile if sp.code == chat_create_config.source.origin]
+    create_talk(account, chats_ids, tlogger=tlogger)
+
+    return chat.id
+
+
+def create_chat(
+    config: amo.models.AmoChatCreateConfig,
+    contact: amo_api.Contact,
+    *,
+    tlogger: TraceLogger,
+) -> ChatCreated:
+
+    action = "/ajax/v1/chats/create"
+
     if contact.custom_fields_values is None:
         raise Exception(f"Contact doesn't have fields")
 
     contact_fields_values = {fv.field_name: fv.values[0].value for fv in contact.custom_fields_values}
-    phone = contact_fields_values.get(chat_create_config.phone_number_field)
+    phone = contact_fields_values.get(config.phone_number_field)
 
     if phone is None:
-        raise Exception(f"Field '{chat_create_config.phone_number_field}' not found in contact")
+        raise Exception(f"Field '{config.phone_number_field}' not found in contact")
 
-    scope_id = chat_create_config.channel_id + "_" + account.amojo_id
+    scope_id = config.channel_id + "_" + config.account.amojo_id
 
     data = {
         "request": {
@@ -115,13 +156,30 @@ def create_chat(account: amo.models.AmoAccount, contact: amo_api.Contact, *, tlo
                     "phone": phone,
                     "source": {
                         "scope_id": scope_id,
-                        "source_id": chat_create_config.source.amo_id,
-                        "origin": chat_create_config.source.origin,
+                        "source_id": config.source.amo_id,
+                        "origin": config.source.origin,
                     },
                 },
             },
         },
     }
+
+    response = amo_api._request_with_csrf(
+        method="POST",
+        account_id=config.account.amo_id,
+        action=action,
+        json=data,
+        tlogger=tlogger,
+    )
+    response.raise_for_status()
+
+    return ChatCreated.model_validate(response.json()["response"]["chats"]["create"])
+
+
+def create_talk(account: amo.models.AmoAccount, chats_ids: list[str], *, tlogger: TraceLogger) -> None:
+    action = "/ajax/v2/talks"
+
+    data = {"chats_ids": chats_ids}
 
     response = amo_api._request_with_csrf(
         method="POST",
@@ -131,14 +189,6 @@ def create_chat(account: amo.models.AmoAccount, contact: amo_api.Contact, *, tlo
         tlogger=tlogger,
     )
     response.raise_for_status()
-
-    data = response.json()
-
-    return data["response"]["chats"]["create"]["id"]
-
-
-def create_talk():
-    action = "/ajax/v2/talks"
 
 
 def define_message_type(text: str, attachment_type: str | None) -> MessageTypeEnum | None:

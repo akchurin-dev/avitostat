@@ -111,7 +111,7 @@ def handle_lead_note(
         tlogger.info("Don't send message. Message when note received is blank")
         return
 
-    chat_id = amo_messages.create_chat(account, contact, tlogger=tlogger)
+    chat_id = amo_messages.create_chat_and_talk(account, contact, tlogger=tlogger)
     amo_api.send_message(
         account=account,
         chat_id=chat_id,
@@ -140,5 +140,8 @@ def change_status_if_message_delivered(
     chat = amo_messages.get_lead_chat(chatbot.account, lead_id, tlogger=tlogger)
     lead, contact = amo_leads.get_lead_contact_pair(chatbot.account, lead_id, tlogger=tlogger)
 
-    if chat.messages[-1] == chatbot.message_when_note_received:
-        qualification.change_status_if_qualification(chatbot, lead, contact, tlogger=tlogger)
+    if chat.messages[-1] != chatbot.message_when_note_received:
+        tlogger.info("Message isn't sent")
+        return
+
+    qualification.change_status_if_qualification(chatbot, lead, contact, tlogger=tlogger)

@@ -478,6 +478,15 @@ def _request_with_csrf(
     cookies_str = "; ".join([k + "=" + str(v) for k, v in cookies_data.items()])
     headers = httpx_helper.add_header(headers, key="Cookie", value=cookies_str)
 
+    headers.update({
+        "origin": "https://rimzona.amocrm.ru",
+        "sec-ch-ua-platform": '"Ubuntu"',
+        "sec-fetch-dest": "empty",
+        "sec-fetch-mode": "cors",
+        "sec-fetch-site": "same-origin",
+        "x-requested-with": "XMLHttpRequest",
+    })
+
     response = httpx_helper.request(
         method=method,
         url=url,

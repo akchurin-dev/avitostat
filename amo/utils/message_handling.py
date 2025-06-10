@@ -142,7 +142,6 @@ def launch_new_message_handling(
         defaults={
             "chatbot": chatbot,
             "lead_id": str(lead.id),
-            "contact_id": str(contact_id),
             "talk_id": talk_id,
             "message_created_at": message_created_at,
             "message_type": message_type.value,
