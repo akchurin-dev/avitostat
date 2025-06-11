@@ -1,3 +1,5 @@
+from typing import NamedTuple
+
 import amo.models
 from amo.utils import amo_api
 from utils.logging import TraceLogger
@@ -35,7 +37,10 @@ def update_entity_fields(
         if skip_null and value is None:
             continue
 
-        field = get_or_create_field(account, entity, field_name, tlogger=tlogger)
+        field = find_text_field(field_name, fields, tlogger=tlogger)
+
+        if field is None:
+            field = amo_api.create_text_field(account, entity, field_name, tlogger=tlogger)
 
         custom_fields_values.append({
             "field_id": field.id,
@@ -87,3 +92,36 @@ def get_or_create_field(
         return field
 
     return amo_api.create_text_field(account, entity, name, tlogger=tlogger)
+
+
+def get_filled_fields(instance: amo_api.CustomFieldsContainer) -> list[amo_api.CustomFieldValue] | None:
+    fields: list[amo_api.CustomFieldValue] = []
+
+    if instance.custom_fields_values is None:
+        return None
+
+    for field_value in instance.custom_fields_values:
+        if len(field_value.values) == 0:
+            continue
+
+        if field_value.values[0].value:
+            fields.append(field_value)
+
+    return fields
+
+
+def get_empty_fields(instance: amo_api.CustomFieldsContainer) -> list[amo_api.CustomFieldValue] | None:
+    fields: list[amo_api.CustomFieldValue] = []
+
+    if instance.custom_fields_values is None:
+        return None
+
+    for field_value in instance.custom_fields_values:
+        if len(field_value.values) == 0:
+            fields.append(field_value)
+            continue
+
+        if not field_value.values[0].value:
+            fields.append(field_value)
+
+    return fields

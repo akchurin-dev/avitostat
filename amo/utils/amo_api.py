@@ -98,11 +98,14 @@ class CustomFieldValue(BaseModel):
     values: list[Value]
 
 
-class Lead(BaseModel):
+class CustomFieldsContainer(BaseModel):
+    custom_fields_values: list[CustomFieldValue] | None
+
+
+class Lead(CustomFieldsContainer):
     id: int
     pipeline_id: int
     status_id: int | None = None
-    custom_fields_values: list[CustomFieldValue] | None
     contacts_ids: list[int] | None = None
 
 
@@ -207,13 +210,12 @@ def get_leads_page(domain: str, page: int = 0, limit: int = 250, *, tlogger: Tra
     return LeadsPage(leads, next_href)
 
 
-class Contact(BaseModel):
+class Contact(CustomFieldsContainer):
     id: int
     name: str
     first_name: str | None = None
     last_name: str | None = None
     lead_ids: list[int] | None = None
-    custom_fields_values: list[CustomFieldValue] | None
 
 
 def get_contact(account: amo_models.AmoAccount, contact_id: int | str, with_leads: bool = False, *, tlogger: TraceLogger) -> Contact:

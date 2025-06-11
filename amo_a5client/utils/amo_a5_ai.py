@@ -12,6 +12,7 @@ import chat_bot.ai_utils
 from ai_requests import ai_requests
 from amo.utils import amo_ai
 from amo.utils import amo_api
+from amo.utils import amo_leads
 from utils.logging import TraceLogger
 
 
@@ -27,24 +28,26 @@ def generate_answer(
     if not chat_bot.ai_utils.use_gpt_flag():
         return amo_ai.AIAnswer.model_validate({})
 
-    fillable_fields = amo.models.FillableField.objects.filter(chatbot=chatbot)
-
-    lead = amo_api.get_lead(amo_account, lead_id, tlogger=tlogger)
+    lead, contact = amo_leads.get_lead_contact_pair(chatbot.account, lead_id, tlogger=tlogger)
+    all_fillable_fields = amo.models.FillableField.objects.filter(chatbot=chatbot)
+    unknown_fillable_fields = amo_ai.get_unknown_fillable_fields(all_fillable_fields, lead, contact)
     available_pipeline_statuses = amo_api.get_pipeline_statuses(amo_account, lead.pipeline_id, tlogger=tlogger)
 
     gpt_messages = _get_gpt_messages(
         chatbot=chatbot,
         messages=messages,
-        fillable_fields=fillable_fields,
+        all_fillable_fields=all_fillable_fields,
+        unknown_fillable_fields=unknown_fillable_fields,
         available_pipeline_statuses=available_pipeline_statuses,
         lead=lead,
+        contact=contact,
     )
 
     text_format = amo_ai.get_text_format(
-        account=amo_account,
-        fields=fillable_fields,
+        chatbot=chatbot,
+        fields=unknown_fillable_fields,
         field_for_answer=True,
-        available_pipeline_statuses=None if chatbot.change_status_only_when_qualification else available_pipeline_statuses,
+        available_pipeline_statuses=available_pipeline_statuses,
         tlogger=tlogger,
     )
 
@@ -80,9 +83,11 @@ def _get_gpt_messages(
     chatbot: amo.models.AmoChatBot,
     messages: list[messaging.api.ChatMessage],
     # transcriptions: TranscriptionsForMessages,
-    fillable_fields: Iterable[amo.models.FillableField],
+    all_fillable_fields: Iterable[amo.models.FillableField],
+    unknown_fillable_fields: Iterable[amo.models.FillableField],
     available_pipeline_statuses: list[amo_api.PipelineStatus],
     lead: amo_api.Lead,
+    contact: amo_api.Contact,
 ) -> ResponseInputParam:
 
     current_status = None
@@ -95,14 +100,17 @@ def _get_gpt_messages(
     if current_status is None:
         raise Exception(f"Status (id={lead.status_id}) not found in pipeline (id={lead.pipeline_id})")
 
-    prompt = amo_ai.get_prompt(chatbot, fillable_fields, available_pipeline_statuses, current_status)
+    prompt = amo_ai.get_prompt(chatbot, unknown_fillable_fields, available_pipeline_statuses, current_status)
 
     gpt_messages: ResponseInputParam = [{"role": "system", "content": prompt}]
 
     if chatbot.duplicate_instructions:
         gpt_messages.append({"role": "user", "content": chatbot.duplicate_instructions})
 
+    lead_contact_info = amo_ai.known_lead_contact_info(all_fillable_fields, lead, contact)
+    if lead_contact_info:
+        gpt_messages.append({"role": "user", "content": lead_contact_info})
+
     gpt_messages.extend([chat_bot.ai_utils.avito_message_to_gpt_format(message) for message in messages])
 
     return gpt_messages
-    

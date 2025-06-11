@@ -1,6 +1,7 @@
 import re
 from typing import Iterable
 
+from django.db.models import Q
 from openai.types.responses import Response
 from openai.types.responses import ResponseInputParam
 from openai.types.responses import ResponseTextConfigParam
@@ -12,6 +13,7 @@ from ai_requests import ai_requests
 import amo.models
 from amo.utils import amo_api
 from amo.utils import amo_fields
+from amo.utils import amo_leads
 from amo.utils.amo_messages import Message
 from amo.utils.amo_messages import MessageTypeEnum
 from amo.utils.amo_transcriptions import TranscriptionsForMessages
@@ -43,7 +45,7 @@ def generate_answer(
     messages: list[Message],
     transcriptions: TranscriptionsForMessages,
     account: amo.models.AmoAccount,
-    lead_id: int | str,
+    lead_id: int,
     *,
     tlogger: TraceLogger,
 ) -> AIAnswer:
@@ -51,25 +53,27 @@ def generate_answer(
     if not use_gpt_flag():
         return AIAnswer(payload=AIAnswerPayload(answer="mock answer"))
 
-    fillable_fields = amo.models.FillableField.objects.filter(chatbot=chatbot)
-
-    lead = amo_api.get_lead(account, lead_id, tlogger=tlogger)
+    lead, contact = amo_leads.get_lead_contact_pair(chatbot.account, lead_id, tlogger=tlogger)
+    all_fillable_fields = amo.models.FillableField.objects.filter(chatbot=chatbot)
+    unknown_fillable_fields = get_unknown_fillable_fields(all_fillable_fields, lead, contact)
     available_pipeline_statuses = amo_api.get_pipeline_statuses(account, lead.pipeline_id, tlogger=tlogger)
 
     gpt_messages = _get_gpt_messages(
         chatbot=chatbot,
         messages=messages,
         transcriptions=transcriptions,
-        fillable_fields=fillable_fields,
+        all_fillable_fields=all_fillable_fields,
+        unknown_fillable_fields=unknown_fillable_fields,
         available_pipeline_statuses=available_pipeline_statuses,
         lead=lead,
+        contact=contact,
     )
 
     text_format = get_text_format(
-        account=account,
-        fields=fillable_fields,
+        chatbot=chatbot,
+        fields=unknown_fillable_fields,
         field_for_answer=True,
-        available_pipeline_statuses=None if chatbot.change_status_only_when_qualification else available_pipeline_statuses,
+        available_pipeline_statuses=available_pipeline_statuses,
         tlogger=tlogger,
     )
 
@@ -113,10 +117,10 @@ def parse_form(chatbot: amo.models.AmoChatBot, form: str, *, tlogger: TraceLogge
     ]
 
     text_format = get_text_format(
-        account=chatbot.account,
+        chatbot=chatbot,
         fields=fillable_fields,
         field_for_answer=False,
-        available_pipeline_statuses=None,
+        available_pipeline_statuses=[],
         tlogger=tlogger,
     )
 
@@ -152,9 +156,11 @@ def _get_gpt_messages(
     chatbot: amo.models.AmoChatBot,
     messages: list[Message],
     transcriptions: TranscriptionsForMessages,
-    fillable_fields: Iterable[amo.models.FillableField],
+    all_fillable_fields: Iterable[amo.models.FillableField],
+    unknown_fillable_fields: Iterable[amo.models.FillableField],
     available_pipeline_statuses: list[amo_api.PipelineStatus],
     lead: amo_api.Lead,
+    contact: amo_api.Contact,
 ) -> ResponseInputParam:
 
     current_status = None
@@ -167,16 +173,72 @@ def _get_gpt_messages(
     if current_status is None:
         raise Exception(f"Status (id={lead.status_id}) not found in pipeline (id={lead.pipeline_id})")
 
-    prompt = get_prompt(chatbot, fillable_fields, available_pipeline_statuses, current_status)
+    prompt = get_prompt(chatbot, unknown_fillable_fields, available_pipeline_statuses, current_status)
 
     gpt_messages: ResponseInputParam = [{"role": "system", "content": prompt}]
 
     if chatbot.duplicate_instructions:
         gpt_messages.append({"role": "user", "content": chatbot.duplicate_instructions})
 
+    lead_contact_info = known_lead_contact_info(all_fillable_fields, lead, contact)
+    if lead_contact_info:
+        gpt_messages.append({"role": "user", "content": lead_contact_info})
+
     gpt_messages.extend([_amo_message_to_gpt_format(message, transcriptions) for message in messages])
 
     return gpt_messages
+
+
+def known_lead_contact_info(
+    fillable_fields: Iterable[amo.models.FillableField],
+    lead: amo_api.Lead,
+    contact: amo_api.Contact,
+) -> str | None:
+
+    known_lead_fields = amo_fields.get_filled_fields(lead) or []
+    known_contact_fields = amo_fields.get_filled_fields(contact) or []
+
+    fillable_fieds_names_descriptions = {field.name: field.description for field in fillable_fields}
+
+    known_lead_fields = [field for field in known_lead_fields if field.field_name in fillable_fieds_names_descriptions]
+    known_contact_fields = [field for field in known_contact_fields if field.field_name in fillable_fieds_names_descriptions]
+
+    if len(known_lead_fields) + len(known_contact_fields) == 0:
+        return None
+
+    paragraphs = ["О сделке и о контакте уже известна некоторая информация. Не спращивай о том, что уже извество."]
+
+    if known_lead_fields:
+        paragraphs.append(_get_entity_info_str("Информация о сделке", known_lead_fields, fillable_fieds_names_descriptions))
+
+    if known_contact_fields:
+        paragraphs.append(_get_entity_info_str("Информация о контакте", known_contact_fields, fillable_fieds_names_descriptions))
+
+    return "\n\n".join(paragraphs)
+
+
+def _get_entity_info_str(
+    title: str,
+    known_fields: list[amo_api.CustomFieldValue],
+    fillable_fields_names_descriptions: dict[str, str],
+) -> str:
+
+    assert known_fields
+
+    lines = [title]
+
+    for field_value in known_fields:
+        line = ["-", field_value.field_name]
+
+        description = fillable_fields_names_descriptions.get(field_value.field_name)
+        if description:
+            line.append("(" + description + ")")
+
+        line.extend(["=", str(field_value.values[0].value)])
+
+        lines.append(" ".join(line))
+
+    return "\n".join(lines)
 
 
 def _amo_message_to_gpt_format(message: Message, transcriptions: TranscriptionsForMessages) -> GPTMessage:
@@ -212,23 +274,23 @@ def _amo_message_to_gpt_format(message: Message, transcriptions: TranscriptionsF
 
 
 def get_text_format(
-    account: amo.models.AmoAccount,
+    chatbot: amo.models.AmoChatBot,
     fields: Iterable[amo.models.FillableField],
     field_for_answer: bool,
-    available_pipeline_statuses: list[amo_api.PipelineStatus] | None = None,
+    available_pipeline_statuses: list[amo_api.PipelineStatus],
     *,
     tlogger: TraceLogger,
 ) -> ResponseTextConfigParam:
 
     contacts_schema = _get_fillable_entity_schema(
-        account=account,
+        account=chatbot.account,
         fields=fields,
         entity=amo_api.EntityEnum.CONTACTS,
         tlogger=tlogger,
     )
 
     lead_schema = _get_fillable_entity_schema(
-        account=account,
+        account=chatbot.account,
         fields=fields,
         entity=amo_api.EntityEnum.LEADS,
         tlogger=tlogger,
@@ -245,7 +307,7 @@ def get_text_format(
     if lead_schema:
         properties["lead_info"] = lead_schema
 
-    if available_pipeline_statuses is not None:
+    if len(available_pipeline_statuses) != 0 and not chatbot.change_status_only_when_qualification:
         properties["new_status"] = {
             "type": ["string", "null"],
             "description": "Новый этап сделки. Если сделка не меняет этап, то null",
@@ -341,14 +403,19 @@ def _delete_phrase_author_if_exists(message: str, *, tlogger: TraceLogger) -> st
     return new_message
 
 
-def _dialog_to_str(dialog: list[Message]) -> str:
-    lines = ["Чат с клиентом:"]
+def get_unknown_fillable_fields(
+    all_fillable_fields: Iterable[amo.models.FillableField],
+    lead: amo_api.Lead,
+    contact: amo_api.Contact,
+) -> Iterable[amo.models.FillableField]:
 
-    for message in dialog:
-        author = "Клиент" if message.incoming else "Менеджер"
-        lines.append(f"{author}: {message.text}")
+    unknown_lead_fields: set[str] = {field_value.field_name for field_value in amo_fields.get_empty_fields(lead) or []}
+    unknown_contact_fields: set[str] = {field_value.field_name for field_value in amo_fields.get_empty_fields(contact) or []}
 
-    return "\n".join(lines)
+    unknown_fillable_fields = [ff for ff in all_fillable_fields if ff.entity == amo.models.AmoEntity.LEAD and ff.name in unknown_lead_fields]
+    unknown_fillable_fields.extend([ff for ff in all_fillable_fields if ff.entity == amo.models.AmoEntity.CONTACT and ff.name in unknown_contact_fields])
+
+    return unknown_fillable_fields
 
 
 def get_prompt(

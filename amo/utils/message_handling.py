@@ -242,7 +242,7 @@ def generate_ai_answer(messages_serializable: list[dict], task_id: int, trace_id
             messages=messages,
             transcriptions=transctiptions,
             account=task.account,
-            lead_id=task.lead_id,
+            lead_id=int(task.lead_id),
             tlogger=tlogger,
         )
         assert ai_answer.payload.answer
