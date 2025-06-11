@@ -39,7 +39,11 @@ def handle_message_from_avito(
 ) -> None:
 
     tlogger = TraceLogger(trace_id)
-    tlogger.info("AvitoA5Client message handling started")
+    tlogger.info({
+        "AvitoA5Client message handling started": {
+            "text": text,
+        },
+    })
 
     contact = amo_avito_links.get_amo_contact_by_avito_message(
         avito_account_id=avito_account_id,
@@ -51,7 +55,12 @@ def handle_message_from_avito(
     )
 
     if contact is None:
+        if retries == 0:
+            tlogger.info("Stop handling. AmoContact not found")
+
         if retries > 0:
+            tlogger.info(f"AmoContact not found. Retry found after {RETRIES_DELAY_SEC} sec")
+
             handle_message_from_avito.s(
                 avito_account_id=avito_account_id,
                 chat_id=chat_id,
@@ -64,6 +73,10 @@ def handle_message_from_avito(
 
         return
 
+    delay_sec = 60 * 3
+
+    tlogger.info(f"Wait {delay_sec} sec")
+
     message_handling.launch_new_message_handling.s(
         amo_account_id=contact.amo_account.pk,
         avito_account_id=avito_account_id,
@@ -74,7 +87,7 @@ def handle_message_from_avito(
         message_created_at_ts=message_created_at_timestamp,
         text=text,
         trace_id=tlogger.trace_id,
-    ).apply_async(countdown=60 * 3)
+    ).apply_async(countdown=delay_sec)
 
 
 def avito_account_handleble(avito_account_id: int) -> bool:

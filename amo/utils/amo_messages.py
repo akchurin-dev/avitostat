@@ -55,7 +55,7 @@ class Message(BaseModel):
 
 class Talk(NamedTuple):
     messages: list[Message]
-    opened: bool
+    opened: bool | None
 
 
 SUPPORTED_MESSAGE_TYPES = {mt.value for mt in MessageTypeEnum}
@@ -105,9 +105,13 @@ def get_lead_chat(account: amo.models.AmoAccount, lead_id: int, tlogger: TraceLo
     messages.sort(key=lambda m: m.created_at)
     _print_chat(messages, tlogger=tlogger)
 
+    talk_opened = None
+    if len(message_events) > 0:
+        talk_opened = message_events[0]["data"]["dialog"]["opened"]
+
     return Talk(
         messages=messages,
-        opened=message_events[0]["data"]["dialog"]["opened"],
+        opened=talk_opened,
     )
 
 
@@ -226,6 +230,10 @@ def to_legacy_format(messages: list[Message]) -> list[dict]:
 
 
 def _print_chat(messages: list[Message], tlogger: TraceLogger) -> None:
+    if len(messages) == 0:
+        tlogger.info("No messages")
+        return
+
     lines = ["Read chat:"]
 
     for msg in messages:
@@ -237,4 +245,4 @@ def _print_chat(messages: list[Message], tlogger: TraceLogger) -> None:
 
         lines.append(f"{line_prefix} ({msg.id}): {msg.type.value} - {msg.file_url}")
 
-    tlogger.info("\n".join(lines))
+    tlogger.info(lines)
