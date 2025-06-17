@@ -51,7 +51,10 @@ def handle_new_message_webhook(request_data: dict, *, tlogger: TraceLogger) -> N
         )
         return
 
-    launch_new_message_handling(
+    wait_sec = 60 * 3
+    tlogger.info(f"Wait for {wait_sec} sec")
+
+    launch_new_message_handling.s(
         account_id=account_id,
         contact_id=contact_id,
         lead_id=lead_id,
@@ -63,10 +66,11 @@ def handle_new_message_webhook(request_data: dict, *, tlogger: TraceLogger) -> N
         text=text,
         file_type=attachment_type,
         file_link=file_link,
-        tlogger=tlogger,
-    )
+        trace_id=tlogger.trace_id,
+    ).apply_async(countdown=wait_sec)
 
 
+@shared_task
 def launch_new_message_handling(
     account_id: int,
     contact_id: int,
@@ -80,8 +84,10 @@ def launch_new_message_handling(
     file_type: str | None,
     file_link: str | None,
     *,
-    tlogger: TraceLogger,
+    trace_id: str,
 ) -> None:
+
+    tlogger = TraceLogger(trace_id)
 
     message_type = amo_messages.define_message_type(text, file_type)
     if message_type is None:

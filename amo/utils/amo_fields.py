@@ -110,7 +110,13 @@ def get_filled_fields(instance: amo_api.CustomFieldsContainer) -> list[amo_api.C
     return fields
 
 
-def get_empty_fields(instance: amo_api.CustomFieldsContainer, *, tlogger: TraceLogger) -> list[amo_api.CustomFieldValue] | None:
+def get_empty_fields(
+    instance: amo_api.CustomFieldsContainer,
+    entity: amo_api.EntityEnum,
+    *,
+    tlogger: TraceLogger,
+) -> list[amo_api.CustomFieldValue] | None:
+
     fields: list[amo_api.CustomFieldValue] = []
 
     if instance.custom_fields_values is None:
