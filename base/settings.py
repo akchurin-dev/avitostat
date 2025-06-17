@@ -85,8 +85,8 @@ if DEBUG:
         'localhost',
     ]
 
-if ENVIRONMENT == "TESTING":
-    TEST_DJANGO_HOST = os.getenv("TEST_DJANGO_HOST") # Хост, у которого селери спрашивает значения конфигов во время тестов
+DJANGO_BASE_URL = os.getenv("DJANGO_BASE_URL", "https://localhost:8000")
+DJANGO_INNER_API_KEY = os.getenv("DJANGO_INNER_API_KEY", "")
 
 # Application definition
 

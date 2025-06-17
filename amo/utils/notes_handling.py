@@ -137,15 +137,15 @@ def change_status_if_message_delivered(
     tlogger = TraceLogger(trace_id)
 
     chatbot = amo.models.AmoChatBot.objects.get(pk=chatbot_id)
-    chat = amo_messages.get_lead_chat(chatbot.account, lead_id, tlogger=tlogger)
+    # chat = amo_messages.get_lead_chat(chatbot.account, lead_id, tlogger=tlogger)
+
+    # if len(chat.messages) == 0:
+    #     tlogger.info("Message isn't sent")
+    #     return
+
+    # if chatbot.message_when_note_received not in [msg.text for msg in chat.messages]:
+    #     tlogger.info("Message when note received not found")
+    #     return
+
     lead, contact = amo_leads.get_lead_contact_pair(chatbot.account, lead_id, tlogger=tlogger)
-
-    if len(chat.messages) == 0:
-        tlogger.info("Message isn't sent")
-        return
-
-    if chatbot.message_when_note_received not in [msg.text for msg in chat.messages]:
-        tlogger.info("Message when note received not found")
-        return
-
     qualification.change_status_if_qualification(chatbot, lead, contact, tlogger=tlogger)

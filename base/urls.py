@@ -27,6 +27,7 @@ urlpatterns = [
     path('payments/', include('payments.urls')),
     path('chat_bot/', include('chat_bot.urls')),
     path('amo/', include('amo.urls')),
+    path('a5client/', include('amo-a5client.urls')),
 ]
 
 if settings.DEBUG:

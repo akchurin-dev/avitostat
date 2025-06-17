@@ -26,7 +26,7 @@ class AIChatBot(BaseModel):
     id: int
 
 
-_avitostat_client = httpx_helper.create_client(base_url=config.TEST_DJANGO_HOST)
+_avitostat_client = httpx_helper.create_client(base_url=config.DJANGO_BASE_URL)
 
 
 def create_user() -> User:

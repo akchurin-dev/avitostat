@@ -68,3 +68,12 @@ class AmoContactAvitoChatLink(models.Model):
             ("amo_account", "contact_id"),
             ("avito_account", "chat_id"),
         ]
+
+
+# TODO временное решение, хранить связи в редисе или где-то в другом месте
+class MessageContactLink(models.Model):
+    message_created_at = models.IntegerField(db_index=True)
+    text = models.TextField()
+    author_name = models.TextField()
+    amo_account_id = models.IntegerField()
+    contact_id = models.IntegerField()

@@ -1,7 +1,7 @@
 from environs import env
 
 
-TEST_DJANGO_HOST = env.str("TEST_DJANGO_HOST")
+DJANGO_BASE_URL = env.str("DJANGO_BASE_URL", "https://localhost:8000")
 
 SELLER_AVITO_ACCOUNT_ID = env.int("TEST_SELLER_AVITO_ACCOUNT_ID", None)
 CUSTOMER_AVITO_ACCOUNT_ID = env.int("TEST_CUSTOMER_AVITO_ACCOUNT_ID")

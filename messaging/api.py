@@ -249,7 +249,7 @@ def _filter_messages(messages: list) -> list:
     if settings.ENVIRONMENT != "TESTING":
         return messages
 
-    url = f"{settings.TEST_DJANGO_HOST}/deep_tests/prev-session-last-avito-message"
+    url = settings.DJANGO_BASE_URL + "/deep_tests/prev-session-last-avito-message"
 
     response = httpx.get(url)
     response.raise_for_status()

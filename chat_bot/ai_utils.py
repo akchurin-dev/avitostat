@@ -374,7 +374,7 @@ def use_gpt_flag():
     if settings.ENVIRONMENT != "TESTING":
         return settings.USE_GPT
 
-    url = f"{settings.TEST_DJANGO_HOST}/deep_tests/use-gpt-flag"
+    url = settings.DJANGO_BASE_URL + "/deep_tests/use-gpt-flag"
 
     response = httpx.get(url)
     response.raise_for_status()
