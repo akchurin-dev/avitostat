@@ -125,4 +125,6 @@ def get_empty_fields(instance: amo_api.CustomFieldsContainer, *, tlogger: TraceL
         if not field_value.values[0].value:
             fields.append(field_value)
 
+    tlogger.info(f"Found {len(fields)} unknown fields")
+
     return fields

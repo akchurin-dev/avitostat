@@ -414,8 +414,8 @@ def get_unknown_fillable_fields(
     unknown_lead_fields: set[str] = {field_value.field_name for field_value in amo_fields.get_empty_fields(lead, tlogger=tlogger) or []}
     unknown_contact_fields: set[str] = {field_value.field_name for field_value in amo_fields.get_empty_fields(contact, tlogger=tlogger) or []}
 
-    unknown_fillable_fields = [ff for ff in all_fillable_fields if ff.entity == amo.models.AmoEntity.LEAD and ff.name in unknown_lead_fields]
-    unknown_fillable_fields.extend([ff for ff in all_fillable_fields if ff.entity == amo.models.AmoEntity.CONTACT and ff.name in unknown_contact_fields])
+    unknown_fillable_fields = [ff for ff in all_fillable_fields if ff.entity == amo.models.AmoEntity.LEAD and (1 or ff.name in unknown_lead_fields)]
+    unknown_fillable_fields.extend([ff for ff in all_fillable_fields if 1 or ff.entity == amo.models.AmoEntity.CONTACT and (1 or ff.name in unknown_contact_fields)])
 
     tlogger.info({"Unknown fillable fields": [ff.name for ff in unknown_fillable_fields]})
 

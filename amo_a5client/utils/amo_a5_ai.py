@@ -29,6 +29,7 @@ def generate_answer(
         return amo_ai.AIAnswer.model_validate({})
 
     lead, contact = amo_leads.get_lead_contact_pair(chatbot.account, lead_id, tlogger=tlogger)
+    
     all_fillable_fields = amo.models.FillableField.objects.filter(chatbot=chatbot)
     unknown_fillable_fields = amo_ai.get_unknown_fillable_fields(all_fillable_fields, lead, contact, tlogger=tlogger)
     available_pipeline_statuses = amo_api.get_pipeline_statuses(amo_account, lead.pipeline_id, tlogger=tlogger)
