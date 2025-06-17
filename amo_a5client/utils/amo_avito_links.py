@@ -103,6 +103,14 @@ def get_amo_contact_by_avito_message(
         }
     })
 
+    contact_chat_link = amo_a5client.models.AmoContactAvitoChatLink.objects.filter(
+        amo_account_id=amo_contact.amo_account_id,
+        contact_id=amo_contact.contact_id,
+    ).first()
+
+    if contact_chat_link:
+        contact_chat_link.delete()
+
     return amo_a5client.models.AmoContactAvitoChatLink.objects.create(
         amo_account_id=amo_contact.amo_account_id,
         contact_id=amo_contact.contact_id,
