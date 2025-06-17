@@ -12,7 +12,15 @@ from amo.utils import amo_reports
 from amo.utils import amo_transcriptions
 from amo.utils import ai_answer_using
 from amo.utils import chatbot_lead_pair_defining
+from utils import increasing_delay
 from utils.logging import TraceLogger
+
+
+RETRY_MESSAGE_HANGLING_DELAY_CONFIG = increasing_delay.IncreasingDelayConfig(
+    first_delay=datetime.timedelta(seconds=30),
+    multiplier=2,
+    timeout=datetime.timedelta(minutes=3),
+)
 
 
 def handle_new_message_webhook(request_data: dict, *, tlogger: TraceLogger) -> None:
@@ -40,7 +48,7 @@ def handle_new_message_webhook(request_data: dict, *, tlogger: TraceLogger) -> N
         tlogger.info(dict(request_data))
         raise
 
-    if origin == amo_a5client.ORIGIN_NAME:
+    if origin == amo_a5client.config.ORIGIN_NAME:
         tlogger.info("Handle as avito message")
         amo_a5client.handle_message_from_amo(
             amo_account_id=account_id,
@@ -51,7 +59,7 @@ def handle_new_message_webhook(request_data: dict, *, tlogger: TraceLogger) -> N
         )
         return
 
-    wait_sec = 60 * 3
+    wait_sec = 0
     tlogger.info(f"Wait for {wait_sec} sec")
 
     launch_new_message_handling.s(
@@ -83,6 +91,7 @@ def launch_new_message_handling(
     text: str,
     file_type: str | None,
     file_link: str | None,
+    time_left_for_retries_sec: float = 0,
     *,
     trace_id: str,
 ) -> None:
@@ -109,7 +118,31 @@ def launch_new_message_handling(
     )
 
     if chatbot_lead_pair is None:
-        tlogger.info("Stop handling. Chatbot and lead aren't defined")
+        timeout = increasing_delay.is_timeout(time_left_for_retries_sec, RETRY_MESSAGE_HANGLING_DELAY_CONFIG)
+
+        if timeout:
+            tlogger.info("Stop handling. Chatbot and lead aren't defined")
+
+        if not timeout:
+            retry_delay_sec = increasing_delay.next_delay(time_left_for_retries_sec, RETRY_MESSAGE_HANGLING_DELAY_CONFIG).total_seconds()
+            tlogger.info(f"Chatbot and lead aren't defined. Retry after {retry_delay_sec} sec")
+
+            launch_new_message_handling.s(
+                account_id=account_id,
+                contact_id=contact_id,
+                lead_id=lead_id,
+                origin=origin,
+                chat_id=chat_id,
+                talk_id=talk_id,
+                message_id=message_id,
+                message_created_at_timestamp=message_created_at_timestamp,
+                text=text,
+                file_type=file_type,
+                file_link=file_link,
+                time_left_for_retries_sec=time_left_for_retries_sec + retry_delay_sec,
+                trace_id=tlogger.trace_id,
+            ).apply_async(countdown=retry_delay_sec)
+
         return
 
     chatbot = chatbot_lead_pair.chatbot
@@ -296,7 +329,6 @@ def finish_handling(ai_answer_serializable: dict, messages_serializable: list[di
             chatbot=task.chatbot,
             ai_answer=ai_answer,
             lead=lead,
-            contact=contact,
             tlogger=tlogger,
         )
 

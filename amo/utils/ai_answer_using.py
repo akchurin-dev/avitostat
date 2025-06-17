@@ -51,15 +51,13 @@ def change_lead_status(
     chatbot: amo.models.AmoChatBot,
     ai_answer: amo_ai.AIAnswer,
     lead: amo_api.Lead,
-    contact: amo_api.Contact,
     *,
     tlogger: TraceLogger,
 ) -> StatusChangeResult:
 
     status_changed_on_qualification = qualification.change_status_if_qualification(
         chatbot=chatbot,
-        lead=lead,
-        contact=contact,
+        lead_id=lead.id,
         tlogger=tlogger,
     )
 

@@ -148,4 +148,4 @@ def change_status_if_message_delivered(
     #     return
 
     lead, contact = amo_leads.get_lead_contact_pair(chatbot.account, lead_id, tlogger=tlogger)
-    qualification.change_status_if_qualification(chatbot, lead, contact, tlogger=tlogger)
+    qualification.change_status_if_qualification(chatbot, lead.id, tlogger=tlogger)

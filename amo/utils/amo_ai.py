@@ -55,7 +55,7 @@ def generate_answer(
 
     lead, contact = amo_leads.get_lead_contact_pair(chatbot.account, lead_id, tlogger=tlogger)
     all_fillable_fields = amo.models.FillableField.objects.filter(chatbot=chatbot)
-    unknown_fillable_fields = get_unknown_fillable_fields(all_fillable_fields, lead, contact, tlogger=tlogger)
+    unknown_fillable_fields = get_unknown_fillable_fields(account, all_fillable_fields, lead, contact, tlogger=tlogger)
     available_pipeline_statuses = amo_api.get_pipeline_statuses(account, lead.pipeline_id, tlogger=tlogger)
 
     gpt_messages = _get_gpt_messages(
@@ -195,8 +195,8 @@ def known_lead_contact_info(
     contact: amo_api.Contact,
 ) -> str | None:
 
-    known_lead_fields = amo_fields.get_filled_fields(lead) or []
-    known_contact_fields = amo_fields.get_filled_fields(contact) or []
+    known_lead_fields = amo_fields.get_filled_fields(lead)
+    known_contact_fields = amo_fields.get_filled_fields(contact)
 
     fillable_fieds_names_descriptions = {field.name: field.description for field in fillable_fields}
 
@@ -404,6 +404,7 @@ def _delete_phrase_author_if_exists(message: str, *, tlogger: TraceLogger) -> st
 
 
 def get_unknown_fillable_fields(
+    account: amo.models.AmoAccount,
     all_fillable_fields: Iterable[amo.models.FillableField],
     lead: amo_api.Lead,
     contact: amo_api.Contact,
@@ -411,19 +412,14 @@ def get_unknown_fillable_fields(
     tlogger: TraceLogger,
 ) -> Iterable[amo.models.FillableField]:
 
-    unknown_lead_fields: set[str] = {field_value.field_name for field_value in amo_fields.get_empty_fields(
-        lead,
-        amo_api.EntityEnum.LEADS,
-        tlogger=tlogger,
-    ) or []}
-    unknown_contact_fields: set[str] = {field_value.field_name for field_value in amo_fields.get_empty_fields(
-        contact,
-        amo_api.EntityEnum.CONTACTS,
-        tlogger=tlogger,
-    ) or []}
+    empty_lead_fields = {f.name for f in amo_fields.get_empty_fields(account, lead, tlogger=tlogger)}
+    empty_contact_fields = {f.name for f in amo_fields.get_empty_fields(account, contact, tlogger=tlogger)}
 
-    unknown_fillable_fields = [ff for ff in all_fillable_fields if ff.entity == amo.models.AmoEntity.LEAD and (1 or ff.name in unknown_lead_fields)]
-    unknown_fillable_fields.extend([ff for ff in all_fillable_fields if 1 or ff.entity == amo.models.AmoEntity.CONTACT and (1 or ff.name in unknown_contact_fields)])
+    lead_fillable_fields = [ff for ff in all_fillable_fields if ff.entity == amo.models.AmoEntity.LEAD]
+    contact_fillable_fields = [ff for ff in all_fillable_fields if ff.entity == amo.models.AmoEntity.CONTACT]
+
+    unknown_fillable_fields = [ff for ff in lead_fillable_fields if ff.name in empty_lead_fields]
+    unknown_fillable_fields.extend(ff for ff in contact_fillable_fields if ff.name in empty_contact_fields)
 
     tlogger.info({"Unknown fillable fields": [ff.name for ff in unknown_fillable_fields]})
 

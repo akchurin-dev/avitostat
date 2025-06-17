@@ -1,9 +1,10 @@
 from celery import shared_task
 
 import amo_a5client.models
-from amo_a5client.config import ORIGIN_NAME, RETRIES_DELAY_SEC
+from amo_a5client import config
 from amo_a5client.utils import amo_avito_links
 from amo_a5client.utils import message_handling
+from utils import increasing_delay
 from utils.logging import TraceLogger
 
 
@@ -33,7 +34,7 @@ def handle_message_from_avito(
     message_id: str,
     message_created_at_timestamp: int,
     text: str,
-    retries: int = 3,
+    time_left_for_retries_sec: float = 0,
     *,
     trace_id: str,
 ) -> None:
@@ -55,11 +56,14 @@ def handle_message_from_avito(
     )
 
     if contact is None:
-        if retries == 0:
-            tlogger.info("Stop handling. AmoContact not found")
+        timeout = increasing_delay.is_timeout(time_left_for_retries_sec, config.RETRIES_DELAY_CONFIG)
 
-        if retries > 0:
-            tlogger.info(f"AmoContact not found. Retry found after {RETRIES_DELAY_SEC} sec")
+        if timeout:
+            tlogger.info("Stop handling. AmoContact finding timed out")
+
+        if not timeout:
+            retry_delay_sec = increasing_delay.next_delay(time_left_for_retries_sec, config.RETRIES_DELAY_CONFIG).total_seconds()
+            tlogger.info(f"AmoContact not found. Retry after {retry_delay_sec} sec")
 
             handle_message_from_avito.s(
                 avito_account_id=avito_account_id,
@@ -67,14 +71,13 @@ def handle_message_from_avito(
                 message_id=message_id,
                 message_created_at_timestamp=message_created_at_timestamp,
                 text=text,
-                retries=retries - 1,
+                time_left_for_retries_sec=time_left_for_retries_sec + retry_delay_sec,
                 trace_id=trace_id,
-            ).apply_async(countdown=RETRIES_DELAY_SEC)
+            ).apply_async(countdown=retry_delay_sec)
 
         return
 
-    delay_sec = 60 * 3
-
+    delay_sec = 0
     tlogger.info(f"Wait {delay_sec} sec")
 
     message_handling.launch_new_message_handling.s(

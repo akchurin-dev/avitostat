@@ -6,11 +6,12 @@ from utils.logging import TraceLogger
 
 def change_status_if_qualification(
     chatbot: amo.models.AmoChatBot,
-    lead: amo_api.Lead,
-    contact: amo_api.Contact,
+    lead_id: int,
     *,
     tlogger: TraceLogger,
 ) -> bool:
+
+    lead, contact = amo_leads.get_lead_contact_pair(chatbot.account, lead_id, tlogger=tlogger)
 
     if not should_check_qualification(chatbot, lead, tlogger=tlogger):
         return False

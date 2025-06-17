@@ -9,11 +9,13 @@ from amo.utils import amo_ai
 from amo.utils import amo_leads
 from amo.utils import amo_messages
 from amo.utils import chatbot_lead_pair_defining
+from amo.utils.message_handling import RETRY_MESSAGE_HANGLING_DELAY_CONFIG
 from amo_a5client.config import ORIGIN_NAME
 from amo_a5client.utils import amo_a5_ai
 from amo_a5client.utils import amo_a5_messages
 from avito_account.models.models import AvitoAccount
 from chat_bot.api.core import AvitoMessengerSync
+from utils import increasing_delay
 from utils.logging import TraceLogger
 
 
@@ -27,6 +29,7 @@ def launch_new_message_handling(
     message_id: str,
     message_created_at_ts: int,
     text: str,
+    time_left_for_retries_sec: float = 0,
     *,
     trace_id: str,
 ) -> None:
@@ -44,7 +47,28 @@ def launch_new_message_handling(
     )
 
     if chatbot_lead_pair is None:
-        tlogger.info("Stop handling. Chatbot and lead aren't defined")
+        timeout = increasing_delay.is_timeout(time_left_for_retries_sec, RETRY_MESSAGE_HANGLING_DELAY_CONFIG)
+
+        if timeout:
+            tlogger.info("Stop handling. Chatbot and lead aren't defined")
+
+        if not timeout:
+            retry_delay_sec = increasing_delay.next_delay(time_left_for_retries_sec, RETRY_MESSAGE_HANGLING_DELAY_CONFIG).total_seconds()
+            tlogger.info(f"Chatbot and lead aren't defined. Retry after {retry_delay_sec} sec")
+
+            launch_new_message_handling.s(
+                amo_account_id=amo_account_id,
+                avito_account_id=avito_account_id,
+                contact_id=contact_id,
+                lead_id=lead_id,
+                chat_id=chat_id,
+                message_id=message_id,
+                message_created_at_ts=message_created_at_ts,
+                text=text,
+                time_left_for_retries_sec=time_left_for_retries_sec + retry_delay_sec,
+                trace_id=tlogger.trace_id,
+            ).apply_async(countdown=retry_delay_sec)
+
         return
 
     chatbot = chatbot_lead_pair.chatbot
@@ -88,7 +112,7 @@ def launch_new_message_handling(
         return
 
     if task.cancel_if_not_newest(tlogger=tlogger):
-        tlogger.info("Stop handling")
+        tlogger.info("Stop handling. Task is not newest")
         return
 
     ok = task.cancel_others(tlogger)
@@ -235,7 +259,6 @@ def finish_handling(task_id: int, avito_account_id: int, ai_answer_serializable,
             chatbot=task.chatbot,
             ai_answer=ai_answer,
             lead=lead,
-            contact=contact,
             tlogger=tlogger,
         )
 
