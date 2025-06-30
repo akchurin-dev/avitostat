@@ -1,14 +1,18 @@
-import logging
+import datetime
+
 import httpx
+import logging
 import pytz
+import requests
 import sentry_sdk
 from asgiref.sync import sync_to_async
-from django.db import models
 from django.contrib.auth.models import User
-import requests
+from django.db import models
+
 from base import settings
 from base.exceptions import HTTPException
-import datetime
+from utils.logging import TraceLogger
+
 
 logger = logging.getLogger(__name__)
 
@@ -104,8 +108,12 @@ class AvitoAccount(BaseModel):
             self.save()
             return True
 
-    async def update_refresh_token_async(self):
+    async def update_refresh_token_async(self, tlogger: TraceLogger | None = None):
+        if tlogger is None:
+            tlogger = TraceLogger()
+
         url = 'https://api.avito.ru/token/'
+
         data = {
             'grant_type': 'refresh_token',
             'client_id': client_id,
@@ -113,19 +121,24 @@ class AvitoAccount(BaseModel):
             'refresh_token': self.refresh_token
         }
 
-        for attempt in range(3):  # Not more 3 tries
+        for attempt in range(3):
             try:
                 async with httpx.AsyncClient() as client:
                     response = await client.post(url, data=data, timeout=300)
-                    if response.status_code == 200:
-                        response_data = response.json()
-                        self.access_token = response_data['access_token']
-                        self.refresh_token = response_data['refresh_token']
-                        await sync_to_async(self.save)()
-                        return True
+                    response.raise_for_status()
+                    response_data = response.json()
+
+                    self.access_token = response_data['access_token']
+                    self.refresh_token = response_data['refresh_token']
+                    await sync_to_async(self.save)()
+
+                    return True
             except HTTPException as e:
+                tlogger.info({"error when update avito access token": e})
                 if attempt == 2:
                     sentry_sdk.capture_exception(e)
+
+        return False
 
     def __str__(self):
         return f"{self.name}, {self.telegram_id}"

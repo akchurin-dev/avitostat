@@ -1,8 +1,10 @@
 import logging
 
+from asgiref.sync import async_to_sync
 from django.db.models import QuerySet
 
 import chat_bot.tasks
+from avito_account.models.models import AvitoAccount
 from conversion.tasks import send_text_report_all_async_task
 from messaging.tasks import bad_messaging_week_report_async_task, \
     month_report_json_getting_async_task
@@ -134,3 +136,25 @@ def run_daily_pdf_report(self, request, queryset):
 
 
 run_daily_pdf_report.short_description = "Ежедневный пдф отчет"
+
+
+def update_avito_accounts_tokens(self, request, queryset: QuerySet[AvitoAccount]) -> None:
+    tlogger = TraceLogger()
+    errors: list[str] = []
+
+    for account in queryset:
+        try:
+            async_to_sync(account.update_refresh_token_async)(tlogger)
+        except Exception as e:
+            errors.append(f"Error when refresh token of '{account.name}'. Error: {e}")
+
+    message = "Токены успешно обнвлены"
+    level = "success"
+    if errors:
+        message = "\n".join(errors)
+        level = "error"
+
+    self.message_user(request, message, level=level)
+
+
+update_avito_accounts_tokens.short_description = "Обновить токены"
