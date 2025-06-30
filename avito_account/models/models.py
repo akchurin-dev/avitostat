@@ -132,6 +132,7 @@ class AvitoAccount(BaseModel):
                     self.refresh_token = response_data['refresh_token']
                     await sync_to_async(self.save)()
 
+                    tlogger.info(f"Successfully updated token for '{self.name}'")
                     return True
             except HTTPException as e:
                 tlogger.info({"error when update avito access token": e})
