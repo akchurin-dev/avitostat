@@ -13,6 +13,7 @@ import chat_bot.models
 
 @admin.register(chat_bot.models.ChatBotTask)
 class ChatBotTaskAdmin(admin.ModelAdmin):
+    ordering = ["-created_at"]
     list_filter = (ContragentFilter, 'avito_account', ChatIDFilter, ("created_at", DateRangeFilterBuilder()), ContactFilter)
     search_fields = ("chat_id", "message_id", "answer_text", "text")
 
