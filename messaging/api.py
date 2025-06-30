@@ -211,6 +211,7 @@ class MessagingAPISync:
         response = requests.get(url, headers=headers, params=params)
 
         if response.status_code != 200:
+            tlogger.error(f"Error when get avito messages. Got status {response.status_code}. Error: {response.text[:300]}")
             raise HTTPException(status_code=response.status_code, detail=response.text)
 
         messages = response.json().get("messages")[::-1]
