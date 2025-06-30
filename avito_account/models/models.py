@@ -172,9 +172,9 @@ class WorkSchedule(models.Model):  # Не BaseModel тк привязываем�
 
     def __str__(self):
         if self.avito_account:
-            return f"Рабочий график для {self.avito_account.name} id-{self.id}"
+            return f"Рабочий график для {self.avito_account.name} id-{self.pk}"
         else:
-            return f"Рабочий график по умолчанию id-{self.id}"
+            return f"Рабочий график по умолчанию id-{self.pk}"
 
     class Meta:
         verbose_name = "Рабочий график (время Московское)"

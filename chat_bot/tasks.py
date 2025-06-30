@@ -28,6 +28,8 @@ from messaging.bad_mes_report.utils_chats import filter_chats_for_last_period, \
 from messaging.bad_mes_report.utils_bad_messaging_report import chats_timestamp_to_datetime
 from messaging.api import get_chats_last_50_messages
 from utils.logging import TraceLogger
+from utils import tg
+
 
 class AiAnswerAvitoClass:
     @staticmethod
@@ -398,9 +400,11 @@ class BotStatisticsDailyReportClass(PdfReportBaseClass):
         chats = statistics.chats or None
 
         if chats and have_closed_chats and aichatbot.histories_closed:
-            PdfReportBaseClass.text_sender_to_tg(f"✅ <b>История закрытых переписок"
-                                                    f" ({len(chats_with_contacts_ids)} шт) :</b>",
-                                                    telegram_id)
+            message_title = f"✅ <b>История закрытых переписок ({len(chats_with_contacts_ids)} шт) :</b>"
+            # PdfReportBaseClass.text_sender_to_tg(f"✅ <b>История закрытых переписок"
+            #                                         f" ({len(chats_with_contacts_ids)} шт) :</b>",
+            #                                         telegram_id)
+            tg.send_message(telegram_id, message_title)
             for chat in chats:
                 if chat.get("id") in chats_with_contacts_ids:  # ДУМАЮ МОЖНО УБРАТЬ, НО НАДО ПРОВЕРЯТЬ
                     ChatHistoryReportClass.history_pdf_sender_task(
@@ -410,9 +414,11 @@ class BotStatisticsDailyReportClass(PdfReportBaseClass):
                     )
 
         if chats and have_open_chats and aichatbot.histories_open:
-            PdfReportBaseClass.text_sender_to_tg(f"❌ <b>История НЕ закрытых переписок"
-                                                    f" ({len(chats) - len(chats_with_contacts_ids)} шт)  :</b>",
-                                                    telegram_id)
+            message_title = f"❌ <b>История НЕ закрытых переписок ({len(chats) - len(chats_with_contacts_ids)} шт)  :</b>"
+            # PdfReportBaseClass.text_sender_to_tg(f"❌ <b>История НЕ закрытых переписок"
+            #                                         f" ({len(chats) - len(chats_with_contacts_ids)} шт)  :</b>",
+            #                                         telegram_id)
+            tg.send_message(telegram_id, message_title)
             for chat in chats:
                 if chat.get("id") not in chats_with_contacts_ids:
                     ChatHistoryReportClass.history_pdf_sender_task(
@@ -447,7 +453,8 @@ class BotStatisticsDailyReportClass(PdfReportBaseClass):
             f"🤖 <b>Чатов с ботом:</b> <code> {bot_chats_count}</code>\n"
             f"🎉 <b>Получено контактов:</b> <code> {contacts_count}</code>\n\n"
         )
-        BotStatisticsDailyReportClass.text_sender_to_tg(text, telegram_id)
+        # BotStatisticsDailyReportClass.text_sender_to_tg(text, telegram_id)
+        tg.send_message(telegram_id, text)
 
     @staticmethod
     def get_raw_data(
@@ -644,9 +651,15 @@ class ChatBotSummaryReportClass(PdfReportBaseClass):
             telegram_id = task_with_company_branch.company_branch.telegram_id
             location = task_with_company_branch.company_branch.location
 
+        if telegram_id is None:
+            error = "telegram_id is None"
+            tlogger.error(error)
+            raise Exception(error)
+
         if summary_text and len(summary_text) > 20:  # 20 is random value)
             tlogger.info(f"Send summary report to chat (tg_id={telegram_id}) of '{avito_account.name}' ({location})")
-            ChatBotSummaryReportClass.text_sender_to_tg(text=summary_text, telegram_id=telegram_id)
+            # ChatBotSummaryReportClass.text_sender_to_tg(text=summary_text, telegram_id=telegram_id)
+            tg.send_message(telegram_id, summary_text)
             tlogger.info(f"Summary report was sent successfully")
         else:
             tlogger.info(f"Summary text is empty or not enought long")

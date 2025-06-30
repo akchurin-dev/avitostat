@@ -16,6 +16,10 @@ async def asend_document(chat_id: str | int, path: Path | str) -> None:
     )
 
 
+def send_message(chat_id: str | int, text: str) -> None:
+    async_to_sync(asend_message)(chat_id, text)
+
+
 async def asend_message(chat_id: str | int, text: str) -> None:
     await bot.bot.session.close()
     await bot.bot.send_message(chat_id, text)
