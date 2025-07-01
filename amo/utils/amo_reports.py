@@ -5,6 +5,7 @@ import amo.models
 from amo.utils import amo_api
 from amo.utils import amo_messages
 from chat_bot import ai_utils
+from utils import tg
 from utils.logging import TraceLogger
 
 
@@ -25,14 +26,15 @@ def send_report(
     if account.telegram_id is None:
         raise Exception("AmoAccount don't have telegram_id")
 
-    async def f(chat_id: str, text: str):
-        await bot.bot.session.close()
-        await bot.bot.send_message(
-            chat_id=chat_id,
-            text=text,
-        )
+    # async def f(chat_id: str, text: str):
+    #     await bot.bot.session.close()
+    #     await bot.bot.send_message(
+    #         chat_id=chat_id,
+    #         text=text,
+    #     )
 
-    async_to_sync(f)(account.telegram_id, summary_text)
+    # async_to_sync(f)(account.telegram_id, summary_text)
+    tg.send_message(account.telegram_id, summary_text)
 
 
 def _get_summary_text(ai_report: ai_utils.ChatSummary, lead: amo_api.Lead, contact: amo_api.Contact) -> str:

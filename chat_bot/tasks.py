@@ -238,7 +238,8 @@ class PdfReportBaseClass:
                 bot.send_raw(
                     chat_id=telegram_id,
                     function="send_document",
-                    document=types.FSInputFile(pdf_path))
+                    document=types.FSInputFile(pdf_path),
+                )
             except:
                 pass
 
@@ -274,12 +275,12 @@ class PdfReportBaseClass:
             while text:
                 try:
                     bot.send_raw(
-                    chat_id=chat_id,
-                    function="send_message",
-                    text=text,
-                    parse_mode="HTML",
-                    disable_web_page_preview=True,
-                )
+                        chat_id=chat_id,
+                        function="send_message",
+                        text=text,
+                        parse_mode="HTML",
+                        disable_web_page_preview=True,
+                    )
                     text = text[4000:]
                 except Exception as e:
                     pass
@@ -519,7 +520,9 @@ class BotStatisticsDailyReportClass(PdfReportBaseClass):
         report_name_prefix = f"stat_{avito_account.name}"
         pdf_path = BotStatisticsDailyReportClass.get_pdf(statistics, html, report_name_prefix)
         if pdf_path is not None:
-            BotStatisticsDailyReportClass.file_sender_to_tg(pdf_path, avito_account.telegram_id)
+            assert avito_account.telegram_id
+            # BotStatisticsDailyReportClass.file_sender_to_tg(pdf_path, avito_account.telegram_id)
+            tg.send_document(avito_account.telegram_id, pdf_path)
 
         #HISTORY
         chats = statistics.get("chats") or None
@@ -548,7 +551,9 @@ class ChatHistoryReportClass(PdfReportBaseClass):
         pdf_path = ChatBotSummaryReportClass.get_pdf(statistics, html_content, report_name_prefix)
         if pdf_path is not None:
             telegram_id = telegram_id or avito_account.telegram_id
-            ChatBotSummaryReportClass.file_sender_to_tg(pdf_path, telegram_id)
+            assert telegram_id is not None
+            # ChatBotSummaryReportClass.file_sender_to_tg(pdf_path, telegram_id)
+            tg.send_document(telegram_id, pdf_path)
 
     @staticmethod
     def get_history_html(chat, statistics, summary_html = None):

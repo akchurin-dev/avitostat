@@ -59,7 +59,7 @@ async def handle_avito_account_not_found(chat_id: str):
         "🛠️ Пожалуйста, проверьте настройки и повторите попытку."
     )
 
-    await tg.asend_message(chat_id, text)
+    tg.send_message(chat_id, text)
 
     raise HTTPException(status_code=404, detail="Avito account not found")
 
@@ -67,7 +67,7 @@ async def handle_avito_account_not_found(chat_id: str):
 async def handle_avito_account_have_not_active_items_for_period(chat_id: str):
     text = "⚠️ Ошибка: Для данного Авито аккаунта нет активных объявлений за отчётный период \n"
 
-    await tg.asend_message(chat_id, text)
+    tg.send_message(chat_id, text)
 
     raise HTTPException(status_code=404, detail="Avito account does not have active items in period")
 
