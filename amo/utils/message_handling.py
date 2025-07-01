@@ -230,10 +230,10 @@ def prepare_message_handling_data(*, task_id: int, trace_id: str):
             tlogger=tlogger,
         )
 
-        if not talk_opened:
-            task.cancel(tlogger=tlogger)
-            tlogger.info("Stop handling. Talk is closed")
-            return
+        # if not talk_opened:
+        #     task.cancel(tlogger=tlogger)
+        #     tlogger.info("Stop handling. Talk is closed")
+        #     return
 
         if messages[-1].id != task.message_id:
             task.cancel(tlogger=tlogger)
