@@ -83,11 +83,17 @@ def get_amo_contact_by_avito_message(
     message = Message(message_created_at_ts, text, author_name)
     # amo_contact = _messages_to_amo_contacts.get(message)
 
-    amo_contact_model = amo_a5client.models.MessageContactLink.objects.filter(
-        Abs(F("message_created_at") - Value(message.message_created_at)) < Value(10),
-        text=message.text,
-        author_name=message.author_name,
-    ).first()
+    amo_contact_model = (
+        amo_a5client.models.MessageContactLink.objects.annotate(
+            mca_diff=Abs(F("message_created_at") - Value(message.message_created_at)),
+        )
+        .filter(
+            mca_diff__lte=3,
+            text=message.text,
+            author_name=message.author_name,
+        )
+        .first()
+    )
     amo_contact = None
     if amo_contact_model:
         amo_contact = AmoContact(
