@@ -1,5 +1,8 @@
 from typing import NamedTuple
 
+from django.db.models import F
+from django.db.models.functions import Abs
+
 import amo_a5client.models
 from utils.logging import TraceLogger
 
@@ -81,7 +84,7 @@ def get_amo_contact_by_avito_message(
     # amo_contact = _messages_to_amo_contacts.get(message)
 
     amo_contact_model = amo_a5client.models.MessageContactLink.objects.filter(
-        message_created_at=message.message_created_at,
+        Abs(F("message_created_at") - message.message_created_at) < 10,
         text=message.text,
         author_name=message.author_name,
     ).first()
