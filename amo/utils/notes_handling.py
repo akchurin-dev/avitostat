@@ -98,6 +98,7 @@ def handle_lead_note(
         with_leads=False,
         tlogger=tlogger,
     )
+    assert contact
 
     ai_answer_using.update_lead_and_contact(
         account=account,

@@ -218,7 +218,7 @@ class Contact(CustomFieldsContainer):
     lead_ids: list[int] | None = None
 
 
-def get_contact(account: amo_models.AmoAccount, contact_id: int | str, with_leads: bool = False, *, tlogger: TraceLogger) -> Contact:
+def get_contact(account: amo_models.AmoAccount, contact_id: int | str, with_leads: bool = False, *, tlogger: TraceLogger) -> Contact | None:
     """ https://www.amocrm.ru/developers/content/crm_platform/contacts-api#contact-detail """
 
     action = f"/api/v4/contacts/{contact_id}"
@@ -237,6 +237,10 @@ def get_contact(account: amo_models.AmoAccount, contact_id: int | str, with_lead
         tlogger=tlogger,
     )
     response.raise_for_status()
+
+    if response.status_code == 204:
+        tlogger.info("Contact is empty")
+        return None
 
     contact_json = response.json()
 

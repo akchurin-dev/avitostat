@@ -36,6 +36,9 @@ def get_open_leads_by_contact(
 
     contact = amo_api.get_contact(account, contact_id, with_leads=True, tlogger=tlogger)
 
+    if contact is None:
+        raise Exception("Contact is None")
+
     if contact.lead_ids is None:
         return []
 
@@ -79,5 +82,6 @@ def get_lead_contact_pair(account: amo.models.AmoAccount, lead_id: int | str, *,
         with_leads=False,
         tlogger=tlogger,
     )
+    assert contact
 
     return LeadContactPair(lead, contact)
