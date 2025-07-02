@@ -266,7 +266,7 @@ def get_voice_id_url_pairs(
     )
     response.raise_for_status()
 
-    return response.json()
+    return response.json()["voices_id"]
 
 
 def avito_api_request(
