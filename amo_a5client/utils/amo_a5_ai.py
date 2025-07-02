@@ -13,12 +13,14 @@ from ai_requests import ai_requests
 from amo.utils import amo_ai
 from amo.utils import amo_api
 from amo.utils import amo_leads
+from chat_bot.utils import avito_transcriptions
 from utils.logging import TraceLogger
 
 
 def generate_answer(
     chatbot: amo.models.AmoChatBot,
     messages: list[messaging.api.ChatMessage],
+    transcriptions: avito_transcriptions.TranscriptionsForMessages,
     amo_account: amo.models.AmoAccount,
     lead_id: int,
     *,
@@ -37,6 +39,7 @@ def generate_answer(
     gpt_messages = _get_gpt_messages(
         chatbot=chatbot,
         messages=messages,
+        transcriptions=transcriptions,
         all_fillable_fields=all_fillable_fields,
         unknown_fillable_fields=unknown_fillable_fields,
         available_pipeline_statuses=available_pipeline_statuses,
@@ -83,7 +86,7 @@ def generate_answer(
 def _get_gpt_messages(
     chatbot: amo.models.AmoChatBot,
     messages: list[messaging.api.ChatMessage],
-    # transcriptions: TranscriptionsForMessages,
+    transcriptions: avito_transcriptions.TranscriptionsForMessages,
     all_fillable_fields: Iterable[amo.models.FillableField],
     unknown_fillable_fields: Iterable[amo.models.FillableField],
     available_pipeline_statuses: list[amo_api.PipelineStatus],
@@ -112,6 +115,9 @@ def _get_gpt_messages(
     if lead_contact_info:
         gpt_messages.append({"role": "user", "content": lead_contact_info})
 
-    gpt_messages.extend([chat_bot.ai_utils.avito_message_to_gpt_format(message) for message in messages])
+    for message in messages:
+        gpt_message = chat_bot.ai_utils.avito_message_to_gpt_format(message, transcriptions)
+        if gpt_message:
+            gpt_messages.append(gpt_message)
 
     return gpt_messages

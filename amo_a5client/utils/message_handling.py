@@ -15,6 +15,7 @@ from amo_a5client.utils import amo_a5_ai
 from amo_a5client.utils import amo_a5_messages
 from avito_account.models.models import AvitoAccount
 from chat_bot.api.core import AvitoMessengerSync
+from chat_bot.utils import avito_transcriptions
 from utils import increasing_delay
 from utils.logging import TraceLogger
 
@@ -201,11 +202,16 @@ def generate_ai_answer(task_id: int, messages: list[messaging.api.ChatMessage], 
             tlogger.info("Stop handling. Can't go to answer generation")
             return
 
-        # transctiptions = amo_transcriptions.get_transcriptions_for_voice_messages(task.account, messages, tlogger=tlogger)
+        transctiptions = avito_transcriptions.get_voice_messages_transcriptions(
+            avito_account=AvitoAccount.objects.get(pk=avito_account_id),
+            chat={"id": task.chat_id, "messages": messages},
+            tlogger=tlogger,
+        )
 
         ai_answer = amo_a5_ai.generate_answer(
             chatbot=task.chatbot,
             messages=messages,
+            transcriptions=transctiptions,
             amo_account=task.account,
             lead_id=int(task.lead_id),
             tlogger=tlogger,

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from enum import Enum
+from typing import Literal
 
 import httpx
 from openai import OpenAI
@@ -8,18 +9,20 @@ from openai.types.chat.parsed_chat_completion import ParsedChatCompletion
 from openai.types.chat.chat_completion_message_param import ChatCompletionMessageParam
 from openai.types.chat_model import ChatModel
 from openai.types.responses import ResponseInputItemParam
+from openai.types.responses import ResponseInputMessageContentListParam
 from pydantic import BaseModel
 
-from ai_requests import ai_requests
-from avito_account.models.models import AvitoAccount
-from base import settings
 import chat_bot.models
 import messaging.api
+from ai_requests import ai_requests
+from avito_account.models.models import AvitoAccount
+from chat_bot.utils import avito_transcriptions
+from base import settings
 from prompts import prompts
 from utils.logging import TraceLogger
 
 
-MODEL: ChatModel = "gpt-4.1-2025-04-14"
+MODEL = "gpt-4.1-2025-04-14"
 COMPANY_BRANCH_KEy = "nearest_company_branch"
 
 client = OpenAI(api_key=settings.OPENAI_SECRET_KEY)
@@ -52,36 +55,63 @@ def contacts_data_prepare(data: ClientContactsSchema) -> dict | None:
     return contacts
 
 
-def format_chat_history(chat: messaging.api.Chat) -> list[ChatCompletionMessageParam]:
-    formatted_messages: list[ChatCompletionMessageParam] = []
+def format_chat_history(chat: messaging.api.Chat) -> list[ResponseInputItemParam]:
+    formatted_messages: list[ResponseInputItemParam] = []
 
     for msg in chat.get("messages", []):
-        if msg["type"] != 'text':
-            continue
-
         gpt_formatted = avito_message_to_gpt_format(msg)
-        formatted_messages.append(gpt_formatted)
+        if gpt_formatted:
+            formatted_messages.append(gpt_formatted)
 
     return formatted_messages
 
 
-def avito_message_to_gpt_format(message: messaging.api.ChatMessage) -> ResponseInputItemParam:
-    text = message["content"].get("text")
-    assert text is not None
+def avito_message_to_gpt_format(
+    message: messaging.api.ChatMessage,
+    transcriptions: avito_transcriptions.TranscriptionsForMessages | None = None,
+) -> ResponseInputItemParam | None:
 
-    if message["direction"] == "in":
-        return {
-            "role": "user",
-            "content": text,
-        }
+    role: Literal["user", "assistant"] = "user" if message["direction"] == "in" else "assistant"
+    content: str | ResponseInputMessageContentListParam | None = None
 
-    if message["direction"] == "out":
-        return {
-            "role": "assistant",
-            "content": text,
-        }
+    if message["type"] == "text":
+        content = message["content"].get("text")
 
-    raise Exception("Not reachable code")
+    if message["type"] == "image":
+        image = message["content"].get("image")
+        assert image
+        content = [{
+            "type": "input_image",
+            "image_url": _select_image(image["sizes"]),
+            "detail": "low",
+        }]
+
+    if message["type"] == "voice" and transcriptions:
+        content = transcriptions.get_transcription(message)
+
+    if content is None:
+        return None
+
+    return {
+        "role": role,
+        "content": content,
+    }
+
+
+def _select_image(sizes_to_urls: dict[str, str]) -> str:
+    MIN_SIZE = 256 * 256
+
+    widths_heights: list[tuple[int, ...]] = [tuple(map(int, size.split("x"))) for size in sizes_to_urls.keys()]
+    pixels = sorted([size[0] * size[1] for size in widths_heights])
+
+    selected_size = pixels[-1]
+    pixels = [p for p in pixels if p >= MIN_SIZE]
+    if pixels:
+        selected_size = pixels[0]
+
+    width, height = [(w, h) for w, h in widths_heights if w * h == selected_size][0]
+
+    return sizes_to_urls[f"{width}x{height}"]
 
 
 class AIAnswerContacts(BaseModel):

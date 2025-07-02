@@ -11,6 +11,7 @@ from avito_account.models.models import AvitoAccount
 from base import settings
 from base.exceptions import HTTPException
 from conversion.utils import dates_for_period_without_extra_reserve
+from utils import httpx_helper
 from utils.logging import TraceLogger
 
 
@@ -19,13 +20,15 @@ MAX_MESSAGES_ON_DEBUG = 5
 
 class ChatMessageContent(TypedDict, total=False):
     text: str | None
+    voice: dict[Literal["voice_id"], str] | None
+    image: dict[Literal["sizes"], dict[str, str]] | None
 
 
 class ChatMessage(TypedDict):
     id: str
     author_id: int
     direction: Literal["in", "out"]
-    type: str
+    type: Literal["text", "image", "link", "item", "location", "call", "deleted", "voice", "system"]
     content: ChatMessageContent
 
 
@@ -241,6 +244,56 @@ async def get_calls_statistic_last_week(avito_account: AvitoAccount):
                 return data
         else:
             raise HTTPException(status_code=response.status_code, detail=response.text)
+
+
+def get_voice_id_url_pairs(
+    account: AvitoAccount,
+    voices_ids: list[str],
+    *,
+    tlogger: TraceLogger,
+) -> dict[str, str]:
+    """ https://developers.avito.ru/api-catalog/messenger/documentation#operation/getVoiceFiles """
+
+    action = f"/messenger/v1/accounts/{account.pk}/getVoiceFiles"
+    params = {"voice_ids": voices_ids}
+
+    response = avito_api_request(
+        method="GET",
+        action=action,
+        account=account,
+        params=params,
+        tlogger=tlogger,
+    )
+    response.raise_for_status()
+
+    return response.json()
+
+
+def avito_api_request(
+    method: httpx_helper.MethodType,
+    action: str,
+    account: AvitoAccount,
+    params: dict | None = None,
+    data: dict | None = None,
+    json: dict | list | None = None,
+    headers: dict | None = None,
+    *,
+    tlogger: TraceLogger,
+):
+    url = "https://api.avito.ru" + action
+
+    assert account.access_token
+    headers = httpx_helper.add_bearer(headers, account.access_token)
+
+    return httpx_helper.request(
+        method=method,
+        url=url,
+        params=params,
+        data=data,
+        json=json,
+        headers=headers,
+        tlogger=tlogger,
+    )
 
 
 def _filter_messages(messages: list) -> list:

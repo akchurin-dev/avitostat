@@ -1,6 +1,7 @@
 from django.db import models
 
 import chat_bot.base_models
+import transcriptions.models
 from avito_account.utils import avito_webhooks
 from avito_account.models.models import AvitoAccount
 from chat_bot.utils import companies_branches
@@ -112,3 +113,29 @@ class ChatBotTask(chat_bot.base_models.AIResultContainer, chat_bot.base_models.C
 
     def __str__(self):
         return f"{self.message_id}"
+
+
+class AvitoTranscription(models.Model):
+    account = models.ForeignKey(
+        verbose_name="Авито-аккаунт",
+        to=AvitoAccount,
+        on_delete=models.CASCADE,
+    )
+
+    chat_id = models.CharField(
+        verbose_name="Идентификатор чата",
+        max_length=63,
+        db_index=True,
+    )
+
+    message_id = models.CharField(
+        verbose_name="Идентификатор сообщения",
+        max_length=63,
+        db_index=True,
+    )
+
+    transcription = models.ForeignKey(
+        verbose_name="Транскрипция",
+        to=transcriptions.models.Transcription,
+        on_delete=models.CASCADE,
+    )
