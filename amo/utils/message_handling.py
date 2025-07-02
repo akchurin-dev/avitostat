@@ -24,8 +24,6 @@ RETRY_MESSAGE_HANGLING_DELAY_CONFIG = increasing_delay.IncreasingDelayConfig(
 
 
 def handle_new_message_webhook(request_data: dict, *, tlogger: TraceLogger) -> None:
-    tlogger.info({"new amo message": dict(request_data)})
-
     try:
         account_id: int = int(request_data["account[id]"])
         contact_id = int(request_data["message[add][0][contact_id]"])
@@ -46,7 +44,7 @@ def handle_new_message_webhook(request_data: dict, *, tlogger: TraceLogger) -> N
         if attachment_type:
             file_link = request_data.get("message[add][0][attachment][link]")
     except:
-        tlogger.info("Error when parse amo new message webhook request data")
+        tlogger.info({"Error when parse amo new message webhook request data": dict(request_data)})
         raise
 
     if origin == amo_a5client.config.ORIGIN_NAME:
@@ -56,6 +54,7 @@ def handle_new_message_webhook(request_data: dict, *, tlogger: TraceLogger) -> N
             contact_id=contact_id,
             message_created_at_timestamp=message_created_at_timestamp,
             text=text,
+            attachment_type=attachment_type,
             tlogger=tlogger,
         )
         return

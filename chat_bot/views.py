@@ -45,6 +45,7 @@ class WebhookInboxViewClass(View):
             author_id = request_data["payload"]["value"]["author_id"]
             user_id = request_data["payload"]["value"]["user_id"]
             created_at_timestamp = request_data["payload"]["value"]["created"]
+            message_type = request_data["payload"]["value"]["type"]
         except:
             tlogger.info("Error when parse request data")
             raise
@@ -56,6 +57,7 @@ class WebhookInboxViewClass(View):
                 message_id=message_id,
                 message_created_at_timestamp=created_at_timestamp,
                 text=text,
+                message_type=message_type,
                 trace_id=tlogger.trace_id,
             )
             return

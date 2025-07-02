@@ -13,10 +13,12 @@ def handle_message_from_amo(
     contact_id: int,
     message_created_at_timestamp: int,
     text: str,
+    attachment_type: str | None,
     *,
     tlogger: TraceLogger,
 ) -> None:
 
+    _include_attachment_to_text(text, attachment_type)
     amo_avito_links.remember_amo_message(
         amo_account_id=amo_account_id,
         contact_id=contact_id,
@@ -34,6 +36,7 @@ def handle_message_from_avito(
     message_id: str,
     message_created_at_timestamp: int,
     text: str,
+    message_type: str,
     time_left_for_retries_sec: float = 0,
     *,
     trace_id: str,
@@ -46,6 +49,13 @@ def handle_message_from_avito(
             "created_at_ts": message_created_at_timestamp,
         },
     })
+
+    amo_attachment_type = {
+        "image": "picture",
+        "voice": "voice",
+    }.get(message_type)
+
+    _include_attachment_to_text(text, amo_attachment_type)
 
     contact = amo_avito_links.get_amo_contact_by_avito_message(
         avito_account_id=avito_account_id,
@@ -100,3 +110,14 @@ def avito_account_handleble(avito_account_id: int) -> bool:
         .filter(avito_account_id=avito_account_id)
         .exists()
     )
+
+
+def _include_attachment_to_text(text: str, attachment_type: str | None) -> str:
+    if attachment_type is None:
+        return text
+
+    if text:
+        text += "\n\n---------------------\n\n"
+
+    text += "Attachment type: " + attachment_type
+    return text
