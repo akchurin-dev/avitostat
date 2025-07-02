@@ -45,8 +45,6 @@ def get_voice_messages_transcriptions(
         assert voice
         voices_to_messages[voice["voice_id"]] = message["id"]
 
-    tlogger.info({"request voices urls": {"ids": list(voices_to_messages.keys())}})
-
     voices_ids_to_urls: dict[str, str] = {}
     if voice_messages:
         voices_ids_to_urls = messaging.api.get_voice_id_url_pairs(
@@ -55,8 +53,15 @@ def get_voice_messages_transcriptions(
             tlogger=tlogger,
         )
 
-    tlogger.info({"voices reponse": voices_ids_to_urls})
-
-    # create new transcriptions...
+    for voices_id, voice_url in voices_ids_to_urls.items():
+        message_id = voices_to_messages[voices_id]
+        transcription = transcriptions.create_transcription(voice_url, "mp4", tlogger=tlogger)
+        messages_ids_to_transcriptions[message_id] = transcription.text
+        chat_bot.models.AvitoTranscription.objects.create(
+            account=avito_account,
+            chat_id=chat.get("id", ""),
+            message_id=message_id,
+            transcription=transcription,
+        )
 
     return TranscriptionsForMessages(messages_ids_to_transcriptions)
