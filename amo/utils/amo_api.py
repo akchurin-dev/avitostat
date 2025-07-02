@@ -126,6 +126,9 @@ def get_lead(account: amo_models.AmoAccount, lead_id: int | str, with_contacts: 
     )
     response.raise_for_status()
 
+    if response.status_code == 204:
+        raise Exception("Lead is None")
+
     data = response.json()
     data["contacts_ids"] = [c["id"] for c in data["_embedded"]["contacts"]]
 

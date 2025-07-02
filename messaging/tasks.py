@@ -1,21 +1,21 @@
-from datetime import datetime
+import asyncio
 import os
+from datetime import datetime
 
-from aiogram import types
+import sentry_sdk
+import shutil
+import subprocess
 from asgiref.sync import async_to_sync, sync_to_async
 from celery import shared_task
 from django.utils import timezone
 from pathlib import Path
-import shutil
-import sentry_sdk
-import subprocess
 
+import payments.utils as payment
 from avito_account.models.models import AvitoAccount
 from avito_account.models.sending_report import SendingCampaign, SendingReport
 from base import settings
 from base.celery import celery_app
 from messaging.bad_mes_report.utils_bad_messaging_report import get_messaging_report_data
-import payments.utils as payment
 from utils import tg
 from utils.logging import TraceLogger
 
@@ -194,7 +194,8 @@ def bad_messaging_report_by_period_for_account(
                 tokens_prompt=tokens.get("prompt"),
             )
 
-    async_to_sync(f)()
+    # async_to_sync(f)()
+    asyncio.get_event_loop().create_task(f())
 
 
 @shared_task
