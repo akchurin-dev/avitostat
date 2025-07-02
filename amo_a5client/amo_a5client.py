@@ -51,7 +51,7 @@ def handle_message_from_avito(
     })
 
     amo_attachment_type = {
-        "image": "picture",
+        "picture": "image",
         "voice": "voice",
     }.get(message_type)
 
