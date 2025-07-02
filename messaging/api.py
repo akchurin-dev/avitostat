@@ -255,7 +255,7 @@ def get_voice_id_url_pairs(
     """ https://developers.avito.ru/api-catalog/messenger/documentation#operation/getVoiceFiles """
 
     action = f"/messenger/v1/accounts/{account.pk}/getVoiceFiles"
-    params = {"voice_ids": voices_ids}
+    params = {"voice_ids": ",".join(voices_ids)}
 
     response = avito_api_request(
         method="GET",
