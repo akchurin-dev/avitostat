@@ -35,6 +35,7 @@ class WebhookInboxViewClass(View):
     @shared_task
     def webhook_processing_task(request_data, *, trace_id: str):
         tlogger = TraceLogger(trace_id)
+        tlogger.info({"new avito callback": request_data})
 
         try:
             chat_id = request_data["payload"]["value"]["chat_id"]
@@ -45,10 +46,7 @@ class WebhookInboxViewClass(View):
             user_id = request_data["payload"]["value"]["user_id"]
             created_at_timestamp = request_data["payload"]["value"]["created"]
         except:
-            tlogger.info({
-                "title": "Error when parse request data",
-                "request_data": request_data,
-            })
+            tlogger.info("Error when parse request data")
             raise
 
         if amo_a5client.avito_account_handleble(user_id):

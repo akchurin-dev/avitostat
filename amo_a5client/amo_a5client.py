@@ -41,8 +41,9 @@ def handle_message_from_avito(
 
     tlogger = TraceLogger(trace_id)
     tlogger.info({
-        "AvitoA5Client message handling started": {
+        "Handle avito message as a5client": {
             "text": text,
+            "created_at_ts": message_created_at_timestamp,
         },
     })
 
