@@ -46,11 +46,15 @@ def get_voice_messages_transcriptions(
         voices_to_messages[voice["voice_id"]] = message["id"]
 
     tlogger.info({"request voices urls": {"ids": list(voices_to_messages.keys())}})
-    voices_ids_to_urls = messaging.api.get_voice_id_url_pairs(
-        account=avito_account,
-        voices_ids=list(voices_to_messages.keys()),
-        tlogger=tlogger,
-    )
+
+    voices_ids_to_urls: dict[str, str] = {}
+    if voice_messages:
+        voices_ids_to_urls = messaging.api.get_voice_id_url_pairs(
+            account=avito_account,
+            voices_ids=list(voices_to_messages.keys()),
+            tlogger=tlogger,
+        )
+
     tlogger.info({"voices reponse": voices_ids_to_urls})
 
     # create new transcriptions...
