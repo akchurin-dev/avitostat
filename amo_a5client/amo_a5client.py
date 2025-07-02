@@ -18,12 +18,12 @@ def handle_message_from_amo(
     tlogger: TraceLogger,
 ) -> None:
 
-    _include_attachment_to_text(text, attachment_type)
+    text_with_attachment = _include_attachment_to_text(text, attachment_type)
     amo_avito_links.remember_amo_message(
         amo_account_id=amo_account_id,
         contact_id=contact_id,
         message_created_at_ts=message_created_at_timestamp,
-        text=text,
+        text=text_with_attachment,
         author_name="",
         tlogger=tlogger,
     )
@@ -55,13 +55,13 @@ def handle_message_from_avito(
         "voice": "voice",
     }.get(message_type)
 
-    _include_attachment_to_text(text, amo_attachment_type)
+    text_with_attachment = _include_attachment_to_text(text, amo_attachment_type)
 
     contact = amo_avito_links.get_amo_contact_by_avito_message(
         avito_account_id=avito_account_id,
         chat_id=chat_id,
         message_created_at_ts=message_created_at_timestamp,
-        text=text,
+        text=text_with_attachment,
         author_name="",
         tlogger=tlogger,
     )
@@ -82,6 +82,7 @@ def handle_message_from_avito(
                 message_id=message_id,
                 message_created_at_timestamp=message_created_at_timestamp,
                 text=text,
+                message_type=message_type,
                 time_left_for_retries_sec=time_left_for_retries_sec + retry_delay_sec,
                 trace_id=trace_id,
             ).apply_async(countdown=retry_delay_sec)
