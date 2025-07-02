@@ -41,7 +41,7 @@ class WebhookInboxViewClass(View):
             chat_id = request_data["payload"]["value"]["chat_id"]
             request_id = request_data["id"]
             message_id = request_data["payload"]["value"]["id"]
-            text = request_data["payload"]["value"]["content"].get("text", "Не предусмотрено")
+            text = request_data["payload"]["value"]["content"].get("text", "")
             author_id = request_data["payload"]["value"]["author_id"]
             user_id = request_data["payload"]["value"]["user_id"]
             created_at_timestamp = request_data["payload"]["value"]["created"]
