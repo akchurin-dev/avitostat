@@ -55,7 +55,7 @@ def get_voice_messages_transcriptions(
 
     for voices_id, voice_url in voices_ids_to_urls.items():
         message_id = voices_to_messages[voices_id]
-        transcription = transcriptions.create_transcription(voice_url, "mp4", tlogger=tlogger)
+        transcription = transcriptions.create_transcription(voice_url, "ogg", tlogger=tlogger)
         messages_ids_to_transcriptions[message_id] = transcription.text
         chat_bot.models.AvitoTranscription.objects.create(
             account=avito_account,
