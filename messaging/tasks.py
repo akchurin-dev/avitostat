@@ -195,7 +195,7 @@ def bad_messaging_report_by_period_for_account(
             )
 
     # async_to_sync(f)()
-    asyncio.get_event_loop().create_task(f())
+    asyncio.get_event_loop().run_until_complete(f())
 
 
 @shared_task
