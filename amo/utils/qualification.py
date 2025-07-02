@@ -1,5 +1,6 @@
 import amo.models
 from amo.utils import amo_api
+from amo.utils import amo_fields
 from amo.utils import amo_leads
 from utils.logging import TraceLogger
 
@@ -58,38 +59,46 @@ def qualification_achieved(chatbot_id: int, lead: amo_api.Lead, contact: amo_api
         required_for_qualification=True,
     )
 
-    fields_name_value = {
+    fields_name_value: dict[str, dict[str, amo_api.CustomFieldValue]] = {
         "lead": {},
         "contact": {},
     }
 
     if lead.custom_fields_values:
         fields_name_value["lead"] = {
-            field_value.field_name: field_value.values[0].value for field_value in lead.custom_fields_values
+            field_value.field_name: field_value for field_value in lead.custom_fields_values
         }
 
     if contact.custom_fields_values:
         fields_name_value["contact"] = {
-            field_value.field_name: field_value.values[0].value for field_value in contact.custom_fields_values
+            field_value.field_name: field_value for field_value in contact.custom_fields_values
         }
 
     for field in fields_for_qualification:
-        value = None
+        field_value = None
 
         if field.entity == amo.models.AmoEntity.LEAD:
-            value = fields_name_value["lead"].get(field.name)
+            field_value = fields_name_value["lead"].get(field.name)
 
         if field.entity == amo.models.AmoEntity.CONTACT:
-            value = fields_name_value["contact"].get(field.name)
+            field_value = fields_name_value["contact"].get(field.name)
 
-        if value is None:
-            tlogger.info(f"Qualification isn't achieved. {field.entity}.{field.name} isn't filled")
+        if field_value is None:
+            _log_about_qualification_not_achieved(field, tlogger)
+            return False
+
+        if not amo_fields.field_filled(field_value):
+            _log_about_qualification_not_achieved(field, tlogger)
             return False
 
         tlogger.info({"qulification field filled": {
             "field": field.name,
-            "value": value,
+            "values": [value.value for value in field_value.values],
         }})
 
     tlogger.info("Qualification is achieved")
     return True
+
+
+def _log_about_qualification_not_achieved(field: amo.models.FillableField, tlogger: TraceLogger) -> None:
+    tlogger.info(f"Qualification isn't achieved. {field.entity}.{field.name} isn't filled")

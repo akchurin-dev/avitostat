@@ -18,6 +18,12 @@ TEXT_TYPES = {
     "url",
 }
 
+EMPTY_ENUM_VALUES = {
+    None,
+    "null",
+    "другой",
+}
+
 
 def update_entity_fields(
     account: amo.models.AmoAccount,
@@ -132,3 +138,13 @@ def get_empty_fields(
     tlogger.info(f"Found {len(empty_fields)} unknown fields")
 
     return empty_fields
+
+
+def field_filled(field_value: amo_api.CustomFieldValue) -> bool:
+    if field_value.field_type in TEXT_TYPES:
+        return any(value.value for value in field_value.values)
+
+    if field_value.field_type is ENUM_TYPES:
+        return any(value.value not in EMPTY_ENUM_VALUES for value in field_value.values)
+
+    raise Exception("Unknown field type, got " + field_value.field_type)

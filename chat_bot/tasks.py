@@ -259,7 +259,8 @@ class PdfReportBaseClass:
                         bot.send_raw(
                             chat_id=-4221870448,
                             function="send_media_group",
-                            media=media_group)
+                            media=media_group,
+                        )
                         media_group = list()  # Reset the media group after sending
                         celery_logger.info("Media group sent successfully.")
                         time.sleep(40) #for enable flood control

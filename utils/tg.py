@@ -20,15 +20,18 @@ def send_document(chat_id: str | int, path: Path | str) -> None:
 #     )
 
 
-def send_message(chat_id: str | int, text: str) -> None:
+def send_message(chat_id: str | int, text: str, parse_mode: str = "HTML") -> None:
     # async_to_sync(asend_message)(chat_id, text)
-    bot.send_raw(
-        chat_id=chat_id,
-        function="send_message",
-        text=text,
-        parse_mode="HTML",
-        disable_web_page_preview=True,
-    )
+    while text:
+        part = text[:4000]
+        bot.send_raw(
+            chat_id=chat_id,
+            function="send_message",
+            text=text,
+            parse_mode=parse_mode,
+            disable_web_page_preview=True,
+        )
+        text = text[len(part):]
 
 
 # async def asend_message(chat_id: str | int, text: str) -> None:
