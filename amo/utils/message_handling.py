@@ -119,15 +119,32 @@ def launch_new_message_handling(
     )
 
     if chatbot_lead_pair is None:
-        timeout = increasing_delay.is_timeout(time_left_for_retries_sec, RETRY_MESSAGE_HANGLING_DELAY_CONFIG)
+        # timeout = increasing_delay.is_timeout(time_left_for_retries_sec, RETRY_MESSAGE_HANGLING_DELAY_CONFIG)
 
-        if timeout:
-            tlogger.info("Stop handling. Chatbot and lead aren't defined")
+        # if timeout:
+        #     tlogger.info("Stop handling. Chatbot and lead aren't defined")
 
-        if not timeout:
-            retry_delay_sec = increasing_delay.next_delay(time_left_for_retries_sec, RETRY_MESSAGE_HANGLING_DELAY_CONFIG).total_seconds()
-            tlogger.info(f"Chatbot and lead aren't defined. Retry after {retry_delay_sec} sec")
+        # if not timeout:
+        #     retry_delay_sec = increasing_delay.next_delay(time_left_for_retries_sec, RETRY_MESSAGE_HANGLING_DELAY_CONFIG).total_seconds()
+        #     tlogger.info(f"Chatbot and lead aren't defined. Retry after {retry_delay_sec} sec")
 
+        #     launch_new_message_handling.s(
+        #         account_id=account_id,
+        #         contact_id=contact_id,
+        #         lead_id=lead_id,
+        #         origin=origin,
+        #         chat_id=chat_id,
+        #         talk_id=talk_id,
+        #         message_id=message_id,
+        #         message_created_at_timestamp=message_created_at_timestamp,
+        #         text=text,
+        #         file_type=file_type,
+        #         file_link=file_link,
+        #         time_left_for_retries_sec=time_left_for_retries_sec + retry_delay_sec,
+        #         trace_id=tlogger.trace_id,
+        #     ).apply_async(countdown=retry_delay_sec)
+
+        if time_left_for_retries_sec < 1:
             launch_new_message_handling.s(
                 account_id=account_id,
                 contact_id=contact_id,
@@ -140,9 +157,9 @@ def launch_new_message_handling(
                 text=text,
                 file_type=file_type,
                 file_link=file_link,
-                time_left_for_retries_sec=time_left_for_retries_sec + retry_delay_sec,
+                time_left_for_retries_sec=100,
                 trace_id=tlogger.trace_id,
-            ).apply_async(countdown=retry_delay_sec)
+            ).apply_async(countdown=60 * 3)
 
         return
 
