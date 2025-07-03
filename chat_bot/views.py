@@ -50,9 +50,11 @@ class WebhookInboxViewClass(View):
             tlogger.info("Error when parse request data")
             raise
 
-        if amo_a5client.avito_account_handleble(user_id):
+        amo_avito_accounts_link = amo_a5client.get_amo_avito_accounts_link(user_id)
+        if amo_avito_accounts_link:
             amo_a5client.handle_message_from_avito.delay(
                 avito_account_id=user_id,
+                amo_account_id=amo_avito_accounts_link.amo_account.pk,
                 chat_id=chat_id,
                 message_id=message_id,
                 message_created_at_timestamp=created_at_timestamp,

@@ -17,9 +17,9 @@ from utils.logging import TraceLogger
 
 
 RETRY_MESSAGE_HANGLING_DELAY_CONFIG = increasing_delay.IncreasingDelayConfig(
-    first_delay=datetime.timedelta(seconds=30),
+    first_delay=datetime.timedelta(seconds=10),
     multiplier=2,
-    timeout=datetime.timedelta(minutes=3),
+    timeout=datetime.timedelta(seconds=30),
 )
 
 
@@ -52,6 +52,7 @@ def handle_new_message_webhook(request_data: dict, *, tlogger: TraceLogger) -> N
         amo_a5client.handle_message_from_amo(
             amo_account_id=account_id,
             contact_id=contact_id,
+            lead_id=lead_id,
             message_created_at_timestamp=message_created_at_timestamp,
             text=text,
             attachment_type=attachment_type,

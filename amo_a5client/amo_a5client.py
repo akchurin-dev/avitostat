@@ -2,15 +2,14 @@ from celery import shared_task
 
 import amo_a5client.models
 from amo_a5client import config
-from amo_a5client.utils import amo_avito_links
 from amo_a5client.utils import message_handling
-from utils import increasing_delay
 from utils.logging import TraceLogger
 
 
 def handle_message_from_amo(
     amo_account_id: int,
     contact_id: int,
+    lead_id: int | None,
     message_created_at_timestamp: int,
     text: str,
     attachment_type: str | None,
@@ -19,25 +18,37 @@ def handle_message_from_amo(
 ) -> None:
 
     text_with_attachment = _include_attachment_to_text(text, attachment_type)
-    amo_avito_links.remember_amo_message(
-        amo_account_id=amo_account_id,
-        contact_id=contact_id,
+    link = amo_a5client.models.MessageContactLink.get_or_create_by_amo_data(
         message_created_at_ts=message_created_at_timestamp,
         text=text_with_attachment,
         author_name="",
-        tlogger=tlogger,
+        amo_account_id=amo_account_id,
+        amo_contact_id=contact_id,
     )
+
+    if link.avito_account_id and link.avito_chat_id and link.avito_message_id:
+        _launch_message_handling(
+            amo_account_id=amo_account_id,
+            avito_account_id=link.avito_account_id,
+            contact_id=contact_id,
+            lead_id=lead_id,
+            chat_id=link.avito_chat_id,
+            message_id=link.avito_message_id,
+            message_created_at_ts=link.message_created_at,
+            text=text,
+            tlogger=tlogger,
+        )
 
 
 @shared_task
 def handle_message_from_avito(
     avito_account_id: int,
+    amo_account_id: int,
     chat_id: str,
     message_id: str,
     message_created_at_timestamp: int,
     text: str,
     message_type: str,
-    time_left_for_retries_sec: float = 0,
     *,
     trace_id: str,
 ) -> None:
@@ -57,59 +68,35 @@ def handle_message_from_avito(
 
     text_with_attachment = _include_attachment_to_text(text, amo_attachment_type)
 
-    contact = amo_avito_links.get_amo_contact_by_avito_message(
-        avito_account_id=avito_account_id,
-        chat_id=chat_id,
+    link = amo_a5client.models.MessageContactLink.get_or_create_by_avito_data(
         message_created_at_ts=message_created_at_timestamp,
         text=text_with_attachment,
         author_name="",
-        tlogger=tlogger,
+        amo_account_id=amo_account_id,
+        avito_account_id=avito_account_id,
+        avito_chat_id=chat_id,
+        avito_message_id=message_id,
     )
 
-    if contact is None:
-        timeout = increasing_delay.is_timeout(time_left_for_retries_sec, config.RETRIES_DELAY_CONFIG)
-
-        if timeout:
-            tlogger.info("Stop handling. AmoContact finding timed out")
-
-        if not timeout:
-            retry_delay_sec = increasing_delay.next_delay(time_left_for_retries_sec, config.RETRIES_DELAY_CONFIG).total_seconds()
-            tlogger.info(f"AmoContact not found. Retry after {retry_delay_sec} sec")
-
-            handle_message_from_avito.s(
-                avito_account_id=avito_account_id,
-                chat_id=chat_id,
-                message_id=message_id,
-                message_created_at_timestamp=message_created_at_timestamp,
-                text=text,
-                message_type=message_type,
-                time_left_for_retries_sec=time_left_for_retries_sec + retry_delay_sec,
-                trace_id=trace_id,
-            ).apply_async(countdown=retry_delay_sec)
-
-        return
-
-    delay_sec = 0
-    tlogger.info(f"Wait {delay_sec} sec")
-
-    message_handling.launch_new_message_handling.s(
-        amo_account_id=contact.amo_account.pk,
-        avito_account_id=avito_account_id,
-        contact_id=contact.contact_id,
-        lead_id=None,
-        chat_id=chat_id,
-        message_id=message_id,
-        message_created_at_ts=message_created_at_timestamp,
-        text=text,
-        trace_id=tlogger.trace_id,
-    ).apply_async(countdown=delay_sec)
+    if link.contact_id:
+        _launch_message_handling(
+            amo_account_id=amo_account_id,
+            avito_account_id=avito_account_id,
+            contact_id=link.contact_id,
+            lead_id=None,
+            chat_id=chat_id,
+            message_id=message_id,
+            message_created_at_ts=message_created_at_timestamp,
+            text=text,
+            tlogger=tlogger,
+        )
 
 
-def avito_account_handleble(avito_account_id: int) -> bool:
+def get_amo_avito_accounts_link(avito_account_id: int) -> amo_a5client.models.AmoAvitoAccountsLink | None:
     return (
         amo_a5client.models.AmoAvitoAccountsLink.objects
         .filter(avito_account_id=avito_account_id)
-        .exists()
+        .first()
     )
 
 
@@ -122,3 +109,32 @@ def _include_attachment_to_text(text: str, attachment_type: str | None) -> str:
 
     text += "Attachment type: " + attachment_type
     return text
+
+
+def _launch_message_handling(
+    amo_account_id: int,
+    avito_account_id: int,
+    contact_id: int,
+    lead_id: int | None,
+    chat_id: str,
+    message_id: str,
+    message_created_at_ts: int,
+    text: str,
+    *,
+    tlogger: TraceLogger,
+) -> None:
+
+    delay_sec = 0
+    tlogger.info(f"Wait {delay_sec} sec")
+
+    message_handling.launch_new_message_handling.s(
+        amo_account_id=amo_account_id,
+        avito_account_id=avito_account_id,
+        contact_id=contact_id,
+        lead_id=lead_id,
+        chat_id=chat_id,
+        message_id=message_id,
+        message_created_at_ts=message_created_at_ts,
+        text=text,
+        trace_id=tlogger.trace_id,
+    ).apply_async(countdown=delay_sec)
