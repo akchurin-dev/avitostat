@@ -163,7 +163,7 @@ def bad_messaging_report_by_period_for_account(
             if messaging_report.tokens:
                 tokens = messaging_report.tokens
 
-            tg.send_document(account.telegram_id, pdf_path)
+            await tg.asend_document(account.telegram_id, pdf_path)
 
             success = True
             error_message = None
