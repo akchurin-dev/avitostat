@@ -79,7 +79,7 @@ class MessageContactLink(models.Model):
     amo_account_id = models.IntegerField()
     contact_id = models.IntegerField(null=True, default=None)
 
-    avito_account_id = models.IntegerField()
+    avito_account_id = models.IntegerField(null=True, default=None)
     avito_chat_id = models.CharField(max_length=63, null=True, default=None)
     avito_message_id = models.CharField(max_length=63, null=True, default=None)
 
