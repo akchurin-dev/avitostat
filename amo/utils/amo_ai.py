@@ -383,7 +383,17 @@ def _get_field_schema(amo_field: amo_api.Field | None, fillable_field: amo.model
 
     if amo_field and amo_field.type in amo_fields.ENUM_TYPES:
         assert amo_field.enums is not None
-        schema["enum"] = [field_enum.value for field_enum in amo_field.enums]
+
+        enum_values = [
+            field_enum.value
+            for field_enum in amo_field.enums
+            if field_enum.value not in amo_fields.ENUM_EMPTY_VALUES
+        ]
+
+        if len(enum_values) < 2:
+            enum_values.extend(["__null__", "__None__"])
+
+        schema["enum"] = enum_values
 
     return schema
 

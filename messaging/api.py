@@ -140,23 +140,28 @@ async def check_timestamp_in_period(timestamp: int, period: str = "week") -> boo
 
 async def get_chats_last_50_messages(avito_account: AvitoAccount, chats: list[Chat], *, trace_id: str | None = None) -> list[Chat]:
     tlogger = TraceLogger(trace_id)
-    if len(chats) > 0:
-        async with httpx.AsyncClient() as client:
-            for chat in chats:
-                chat_id = chat.get("id")
-                url = f"https://api.avito.ru/messenger/v3/accounts/{avito_account.pk}/chats/{chat_id}/messages/"
-                headers = {'authorization': f"Bearer {avito_account.access_token}"}
-                params = {"limit": 50, "offset": 0}
-                response = await client.get(url, headers=headers, params=params, timeout=300)
-                if response.status_code == 200:
-                    new_messages = response.json().get("messages")[::-1]
-                    if len(new_messages) == 0:
-                        break
-                    new_messages = _filter_messages(new_messages)
-                    _print_chat(new_messages, tlogger=tlogger)
-                    chat["messages"] = new_messages
-                else:
-                    raise HTTPException(status_code=response.status_code, detail=response.text)
+
+    async with httpx.AsyncClient() as client:
+        for chat in chats:
+            chat_id = chat.get("id")
+            url = f"https://api.avito.ru/messenger/v3/accounts/{avito_account.pk}/chats/{chat_id}/messages/"
+            headers = {'authorization': f"Bearer {avito_account.access_token}"}
+            params = {"limit": 50, "offset": 0}
+            response = await client.get(url, headers=headers, params=params, timeout=300)
+
+            if not response.is_success:
+                httpx_helper.log_about_not_success_response(response, tlogger)
+                continue
+
+            new_messages = response.json().get("messages")[::-1]
+            if len(new_messages) == 0:
+                continue
+
+            new_messages = _filter_messages(new_messages)
+            _print_chat(new_messages, tlogger=tlogger)
+
+            chat["messages"] = new_messages
+
     return chats
 
 
@@ -165,23 +170,28 @@ class MessagingAPISync:
     @staticmethod
     def get_chats_last_50_messages(avito_account: AvitoAccount, chats: list[Chat], *, trace_id: str | None = None) -> list[Chat]:
         tlogger = TraceLogger(trace_id)
-        if len(chats) > 0:
-            with httpx.Client() as client:
-                for chat in chats:
-                    chat_id = chat.get("id")
-                    url = f"https://api.avito.ru/messenger/v3/accounts/{avito_account.pk}/chats/{chat_id}/messages/"
-                    headers = {'authorization': f"Bearer {avito_account.access_token}"}
-                    params = {"limit": 50, "offset": 0}
-                    response = client.get(url, headers=headers, params=params, timeout=300)
-                    if response.status_code == 200:
-                        new_messages = response.json().get("messages")[::-1]
-                        if len(new_messages) == 0:
-                            break
-                        new_messages = _filter_messages(new_messages)
-                        _print_chat(new_messages, tlogger=tlogger)
-                        chat["messages"] = new_messages
-                    else:
-                        raise HTTPException(status_code=response.status_code, detail=response.text)
+
+        with httpx.Client() as client:
+            for chat in chats:
+                chat_id = chat.get("id")
+                url = f"https://api.avito.ru/messenger/v3/accounts/{avito_account.pk}/chats/{chat_id}/messages/"
+                headers = {'authorization': f"Bearer {avito_account.access_token}"}
+                params = {"limit": 50, "offset": 0}
+                response = client.get(url, headers=headers, params=params, timeout=300)
+
+                if not response.is_success:
+                    httpx_helper.log_about_not_success_response(response, tlogger)
+                    continue
+
+                new_messages = response.json().get("messages")[::-1]
+                if len(new_messages) == 0:
+                    continue
+
+                new_messages = _filter_messages(new_messages)
+                _print_chat(new_messages, tlogger=tlogger)
+
+                chat["messages"] = new_messages
+
         return chats
 
     @staticmethod

@@ -78,12 +78,7 @@ def request(
         raise error
 
     if not response.is_success:
-        tlogger.info("Not success response")
-        tlogger.info({
-            "url": url,
-            "status_code": response.status_code,
-            "data": response.text[:500],
-        })
+        log_about_not_success_response(response, tlogger)
 
     return response
 
@@ -100,3 +95,12 @@ def add_header(headers: dict | None, key: str, value) -> dict:
 
     headers[key] = value
     return headers
+
+
+def log_about_not_success_response(response: httpx.Response, tlogger: TraceLogger) -> None:
+    tlogger.info("Not success response")
+    tlogger.info({
+        "url": response.url,
+        "status_code": response.status_code,
+        "data": response.text[:500],
+    })

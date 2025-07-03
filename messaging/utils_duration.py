@@ -9,7 +9,7 @@ async def get_durations_seconds(chats: List[Dict[str, Any]]):
     duration_times = []
 
     for chat in chats:
-        messages = chat.get("messages")
+        messages = chat.get("messages", [])
         last_in_message = None
 
         for message in messages:

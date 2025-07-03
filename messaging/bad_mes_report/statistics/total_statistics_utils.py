@@ -113,7 +113,7 @@ async def get_statistics_total(filtered_chats_only_with_text: list):
         first_incoming_time = None
         first_outgoing_time = None
 
-        for message in chat.get("messages", None):
+        for message in chat.get("messages", []):
             if message['direction'] == 'in' and first_incoming_time is None:
                 first_incoming_time = message['created']
             elif message['direction'] == 'out' and first_incoming_time is not None:
@@ -170,7 +170,7 @@ async def get_statistics_total(filtered_chats_only_with_text: list):
         }
 
     #TODO Touches in chat count average
-    counts = [len([chat for chat in chat.get("messages") if chat.get("direction") == "out"]) for chat in
+    counts = [len([chat for chat in chat.get("messages", []) if chat.get("direction") == "out"]) for chat in
               filtered_chats_only_with_text]
     touches_in_chat_average = sum(counts) / len(counts)
     color = get_color_touches_count_in_chat_average(round(touches_in_chat_average, 1))

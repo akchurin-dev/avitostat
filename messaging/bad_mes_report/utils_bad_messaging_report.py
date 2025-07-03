@@ -36,6 +36,7 @@ async def get_messaging_report_data(
     *,
     tlogger: TraceLogger,
 ) -> MessaginReport | None:
+
     if period not in ["week", "month"]:
         raise ValueError("period must be either 'week' or 'month'")
 
@@ -95,12 +96,12 @@ async def get_messaging_report_data(
 
     except Exception as e:
         sentry_sdk.capture_exception(e)
-        tlogger.info(e)
+        tlogger.error(e)
         raise e
 
     tokens = None
     if analyze_by_criteria_raw_res:
-        tokens = await get_tokens_information(analyze_by_criteria_raw_res)
+        tokens = await get_tokens_information(analyze_by_criteria_raw_res, tlogger=tlogger)
 
     if analyze_all_chats:
         analyze_all_chats = await chats_timestamp_to_datetime(analyze_all_chats)
@@ -118,7 +119,7 @@ async def api_report_data_generation(analyze_all_chats: dict, avito_account: Avi
     chats = analyze_all_chats.get("chats", None)
     if chats is not None:
         for chat in chats:
-            messages = chat.get("messages", None)
+            messages = chat.get("messages", [])
             if len(messages) > 15:
                 chat["messages"] = messages[:15]
 
@@ -159,7 +160,7 @@ async def chats_timestamp_to_datetime(analyze_all_chats):
             timestamp = chat.get("updated")
             chat["updated_date"] = datetime.fromtimestamp(timestamp, msk_tz).strftime('%d.%m.%Y')
 
-            for message in chat.get("messages"):
+            for message in chat.get("messages", []):
                 timestamp = message.get("created")
                 message["created_time"] = datetime.fromtimestamp(timestamp, msk_tz).time()
 
@@ -198,17 +199,19 @@ async def bad_messaging_report_generate_html(analyze_all_chats):
     avito_account_name = analyze_all_chats['avito_account_name'] if analyze_all_chats else "Неизвестно"
 
     # Генерация HTML с использованием шаблона и данных
-    return template.render(avito_account_name=avito_account_name,
-                           start_date=analyze_all_chats.get('start_date'),
-                           end_date=analyze_all_chats.get('end_date'),
-                           contacts=analyze_all_chats.get('contacts'),
-                           chats=analyze_all_chats.get('chats', []),
-                           statistics_total=analyze_all_chats.get("statistics_total"),
-                           statistics_by_managers=analyze_all_chats.get("statistics_by_managers"),
-                           analyze_by_criteria=analyze_all_chats.get("analyze_by_criteria"), )
+    return template.render(
+        avito_account_name=avito_account_name,
+        start_date=analyze_all_chats.get('start_date'),
+        end_date=analyze_all_chats.get('end_date'),
+        contacts=analyze_all_chats.get('contacts'),
+        chats=analyze_all_chats.get('chats', []),
+        statistics_total=analyze_all_chats.get("statistics_total"),
+        statistics_by_managers=analyze_all_chats.get("statistics_by_managers"),
+        analyze_by_criteria=analyze_all_chats.get("analyze_by_criteria"),
+    )
 
 
-async def get_tokens_information(analyze_by_criteria_raw_result: list):
+async def get_tokens_information(analyze_by_criteria_raw_result: list, *, tlogger: TraceLogger):
     # BY CRITERIA
     by_criteria_completion = [x["tokens_by_criteria_analyze"].get("completion_tokens")
                               for x in analyze_by_criteria_raw_result]
@@ -224,12 +227,12 @@ async def get_tokens_information(analyze_by_criteria_raw_result: list):
     total_completion = sum(total_analyze_completion) + sum(by_criteria_completion)
     total_prompt = sum(by_criteria_prompt) + sum(total_analyze_prompt)
 
-    print(f"Всего токенов completion {round(total_completion, 2)}")
-    print(f"Всего токенов prompt {round(total_prompt, 2)}")
-    print(
+    tlogger.info(f"Всего токенов completion {round(total_completion, 2)}")
+    tlogger.info(f"Всего токенов prompt {round(total_prompt, 2)}")
+    tlogger.info(
         f"Среднее количество токенов completion на чат {round(total_completion / len(analyze_by_criteria_raw_result), 2)}")
-    print(f"Всего количество токенов prompt на чат {round(total_prompt / len(analyze_by_criteria_raw_result), 2)}")
-    print(f"Чатов обработано {len(analyze_by_criteria_raw_result)}")
+    tlogger.info(f"Всего количество токенов prompt на чат {round(total_prompt / len(analyze_by_criteria_raw_result), 2)}")
+    tlogger.info(f"Чатов обработано {len(analyze_by_criteria_raw_result)}")
 
     return {
         "completion": total_completion,
