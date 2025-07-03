@@ -1,4 +1,5 @@
 from django.db import models
+from django.db.models.functions import Abs
 
 import amo.models
 from avito_account.models.models import AvitoAccount
@@ -92,14 +93,27 @@ class MessageContactLink(models.Model):
         amo_account_id: int,
         amo_contact_id: int,
     ):
-        link, _ = cls.objects.get_or_create(
+        link = (
+            cls.objects.annotate(
+                created_at_diff=Abs(models.F("message_created_at") - models.Value(message_created_at_ts))
+            ).filter(
+                created_at_diff__lte=5,
+                text=text,
+                author_name=author_name,
+                amo_account_id=amo_account_id,
+            )
+            .first()
+        )
+
+        if link:
+            return link
+
+        link = cls.objects.create(
             message_created_at=message_created_at_ts,
             text=text,
             author_name=author_name,
             amo_account_id=amo_account_id,
-            defaults={
-                "contact_id": amo_contact_id,
-            },
+            contact_id=amo_contact_id,
         )
 
         return link
@@ -115,16 +129,31 @@ class MessageContactLink(models.Model):
         avito_chat_id: str,
         avito_message_id: str
     ):
-        link, _ = cls.objects.get_or_create(
+        link = (
+            cls.objects
+            .annotate(
+                created_at_diff=Abs(models.F("message_created_at") - models.Value(message_created_at_ts))
+            )
+            .filter(
+                created_at_diff__lte=5,
+                text=text,
+                author_name=author_name,
+                amo_account_id=amo_account_id,
+            )
+            .first()
+        )
+
+        if link:
+            return link
+
+        link = cls.objects.create(
             message_created_at=message_created_at_ts,
             text=text,
             author_name=author_name,
             amo_account_id=amo_account_id,
-            defaults={
-                "avito_account_id": avito_account_id,
-                "avito_chat_id": avito_chat_id,
-                "avito_message_id": avito_message_id,
-            },
+            avito_account_id=avito_account_id,
+            avito_chat_id=avito_chat_id,
+            avito_message_id=avito_message_id,
         )
 
         return link

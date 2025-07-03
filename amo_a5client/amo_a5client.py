@@ -38,6 +38,8 @@ def handle_message_from_amo(
             text=text,
             tlogger=tlogger,
         )
+    else:
+        tlogger.info("Message not found")
 
 
 @shared_task
@@ -90,6 +92,8 @@ def handle_message_from_avito(
             text=text,
             tlogger=tlogger,
         )
+    else:
+        tlogger.info("Message not found")
 
 
 def get_amo_avito_accounts_link(avito_account_id: int) -> amo_a5client.models.AmoAvitoAccountsLink | None:
