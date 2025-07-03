@@ -385,7 +385,7 @@ class BotStatisticsDailyReportClass(PdfReportBaseClass):
     def history_main_sender(avito_account: AvitoAccount, telegram_id: str, statistics: Statistic, *, tlogger: TraceLogger):
         chats_with_contacts_ids = statistics.chats_with_contacts_ids
 
-        aichatbot: AiChatBot | None = getattr(avito_account, "ai_chat_bots", None)
+        aichatbot: AiChatBot | None = AiChatBot.objects.filter(account=avito_account).first()
 
         if aichatbot is None:
             tlogger.info(f"Stop history sending for '{avito_account.name}'. AiChatBot is None")
