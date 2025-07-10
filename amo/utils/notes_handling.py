@@ -4,7 +4,7 @@ from celery import shared_task
 
 import amo.models
 from amo.utils import ai_answer_using
-from amo.utils import amo_ai
+from amo.utils.ai import answers
 from amo.utils import amo_api
 from amo.utils import amo_leads
 from amo.utils import amo_messages
@@ -89,7 +89,7 @@ def handle_lead_note(
         "text": text,
     })
 
-    ai_answer = amo_ai.parse_form(chatbot, text, tlogger=tlogger)
+    ai_answer = answers.parse_form(chatbot, text, tlogger=tlogger)
 
     assert lead.contacts_ids is not None
     contact = amo_api.get_contact(

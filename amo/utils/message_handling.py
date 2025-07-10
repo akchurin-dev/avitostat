@@ -4,7 +4,6 @@ from celery import shared_task
 
 import amo.models
 from amo_a5client import amo_a5client
-from amo.utils import amo_ai
 from amo.utils import amo_api
 from amo.utils import amo_leads
 from amo.utils import amo_messages
@@ -12,6 +11,8 @@ from amo.utils import amo_reports
 from amo.utils import amo_transcriptions
 from amo.utils import ai_answer_using
 from amo.utils import chatbot_lead_pair_defining
+from amo.utils.ai import answers
+from amo.utils.ai import isolated_check
 from utils import increasing_delay
 from utils.logging import TraceLogger
 
@@ -119,31 +120,6 @@ def launch_new_message_handling(
     )
 
     if chatbot_lead_pair is None:
-        # timeout = increasing_delay.is_timeout(time_left_for_retries_sec, RETRY_MESSAGE_HANGLING_DELAY_CONFIG)
-
-        # if timeout:
-        #     tlogger.info("Stop handling. Chatbot and lead aren't defined")
-
-        # if not timeout:
-        #     retry_delay_sec = increasing_delay.next_delay(time_left_for_retries_sec, RETRY_MESSAGE_HANGLING_DELAY_CONFIG).total_seconds()
-        #     tlogger.info(f"Chatbot and lead aren't defined. Retry after {retry_delay_sec} sec")
-
-        #     launch_new_message_handling.s(
-        #         account_id=account_id,
-        #         contact_id=contact_id,
-        #         lead_id=lead_id,
-        #         origin=origin,
-        #         chat_id=chat_id,
-        #         talk_id=talk_id,
-        #         message_id=message_id,
-        #         message_created_at_timestamp=message_created_at_timestamp,
-        #         text=text,
-        #         file_type=file_type,
-        #         file_link=file_link,
-        #         time_left_for_retries_sec=time_left_for_retries_sec + retry_delay_sec,
-        #         trace_id=tlogger.trace_id,
-        #     ).apply_async(countdown=retry_delay_sec)
-
         if time_left_for_retries_sec < 1:
             launch_new_message_handling.s(
                 account_id=account_id,
@@ -292,18 +268,19 @@ def generate_ai_answer(messages_serializable: list[dict], task_id: int, trace_id
             tlogger.info("Stop handling. Can't go to answer generation")
             return
 
-        transctiptions = amo_transcriptions.get_transcriptions_for_voice_messages(task.account, messages, tlogger=tlogger)
+        transcriptions = amo_transcriptions.get_transcriptions_for_voice_messages(task.account, messages, tlogger=tlogger)
+        messages_ai_format = [answers.amo_message_to_gpt_format(message, transcriptions) for message in messages]
 
-        ai_answer = amo_ai.generate_answer(
+        ai_answer = answers.generate_answer(
             chatbot=task.chatbot,
-            messages=messages,
-            transcriptions=transctiptions,
+            messages=messages_ai_format,
             account=task.account,
             lead_id=int(task.lead_id),
             tlogger=tlogger,
         )
         assert ai_answer.payload.answer
         ai_answer.payload.answer = task.chatbot.message_prefix + ai_answer.payload.answer + task.chatbot.message_postfix
+        isolated_check.check_fields_isolately_and_update_ai_result(task.chatbot, messages_ai_format, ai_answer, tlogger=tlogger)
 
         tlogger.info({"ai_answer": ai_answer.model_dump()})
 
@@ -321,7 +298,7 @@ def generate_ai_answer(messages_serializable: list[dict], task_id: int, trace_id
 @shared_task
 def finish_handling(ai_answer_serializable: dict, messages_serializable: list[dict], *, task_id: int, trace_id: str):
     @amo.models.AmoChatBotTask.interrupt_task_if_error
-    def f(ai_answer: amo_ai.AIAnswer, messages: list[amo_messages.Message], *, task_id: int, trace_id: str):
+    def f(ai_answer: answers.AIAnswer, messages: list[amo_messages.Message], *, task_id: int, trace_id: str):
         tlogger = TraceLogger(trace_id)
 
         task = amo.models.AmoChatBotTask.objects.get(pk=task_id)
@@ -390,7 +367,7 @@ def finish_handling(ai_answer_serializable: dict, messages_serializable: list[di
 
         task.change_status(task.Status.FINISHED, tlogger=tlogger)
 
-    ai_answer = amo_ai.AIAnswer.model_validate(ai_answer_serializable)
+    ai_answer = answers.AIAnswer.model_validate(ai_answer_serializable)
     messages = [amo_messages.Message.model_validate(m) for m in messages_serializable]
 
     f(ai_answer, messages, task_id=task_id, trace_id=trace_id)

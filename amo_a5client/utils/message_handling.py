@@ -5,18 +5,18 @@ from celery import shared_task
 import amo.models
 import messaging.api
 from amo.utils import ai_answer_using
-from amo.utils import amo_ai
 from amo.utils import amo_leads
 from amo.utils import amo_messages
 from amo.utils import chatbot_lead_pair_defining
-from amo.utils.message_handling import RETRY_MESSAGE_HANGLING_DELAY_CONFIG
+from amo.utils.ai import answers
+from amo.utils.ai import isolated_check
 from amo_a5client.config import ORIGIN_NAME
 from amo_a5client.utils import amo_a5_ai
 from amo_a5client.utils import amo_a5_messages
 from avito_account.models.models import AvitoAccount
+from chat_bot.ai_utils import avito_message_to_gpt_format
 from chat_bot.api.core import AvitoMessengerSync
 from chat_bot.utils import avito_transcriptions
-from utils import increasing_delay
 from utils.logging import TraceLogger
 
 
@@ -216,23 +216,32 @@ def generate_ai_answer(task_id: int, messages: list[messaging.api.ChatMessage], 
             tlogger.info("Stop handling. Can't go to answer generation")
             return
 
-        transctiptions = avito_transcriptions.get_voice_messages_transcriptions(
+        transcriptions = avito_transcriptions.get_voice_messages_transcriptions(
             avito_account=AvitoAccount.objects.get(pk=avito_account_id),
             chat={"id": task.chat_id, "messages": messages},
             tlogger=tlogger,
         )
+        messages_ai_format = [avito_message_to_gpt_format(message, transcriptions) for message in messages]
 
-        ai_answer = amo_a5_ai.generate_answer(
+        # ai_answer = amo_a5_ai.generate_answer(
+        #     chatbot=task.chatbot,
+        #     messages=messages,
+        #     transcriptions=transctiptions,
+        #     amo_account=task.account,
+        #     lead_id=int(task.lead_id),
+        #     tlogger=tlogger,
+        # )
+
+        ai_answer = answers.generate_answer(
             chatbot=task.chatbot,
-            messages=messages,
-            transcriptions=transctiptions,
-            amo_account=task.account,
+            messages=messages_ai_format,
+            account=task.account,
             lead_id=int(task.lead_id),
             tlogger=tlogger,
         )
-
         assert ai_answer.payload.answer
         ai_answer.payload.answer = task.chatbot.message_prefix + ai_answer.payload.answer + task.chatbot.message_postfix
+        isolated_check.check_fields_isolately_and_update_ai_result(task.chatbot, messages_ai_format, ai_answer, tlogger=tlogger)
 
         tlogger.info({"ai_answer": ai_answer.model_dump()})
 
@@ -253,7 +262,7 @@ def generate_ai_answer(task_id: int, messages: list[messaging.api.ChatMessage], 
 @shared_task
 def finish_handling(task_id: int, avito_account_id: int, ai_answer_serializable, *, trace_id: str) -> None:
     @amo.models.AmoChatBotTask.interrupt_task_if_error
-    def f(ai_answer: amo_ai.AIAnswer, avito_account_id: int, *, task_id: int, trace_id: str) -> None:
+    def f(ai_answer: answers.AIAnswer, avito_account_id: int, *, task_id: int, trace_id: str) -> None:
         tlogger = TraceLogger(trace_id)
 
         task = amo.models.AmoChatBotTask.objects.get(pk=task_id)
@@ -301,6 +310,6 @@ def finish_handling(task_id: int, avito_account_id: int, ai_answer_serializable,
 
         task.change_status(task.Status.FINISHED, tlogger=tlogger)
 
-    ai_answer = amo_ai.AIAnswer.model_validate(ai_answer_serializable)
+    ai_answer = answers.AIAnswer.model_validate(ai_answer_serializable)
 
     f(ai_answer, avito_account_id, task_id=task_id, trace_id=trace_id)

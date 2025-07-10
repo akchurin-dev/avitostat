@@ -69,7 +69,7 @@ def format_chat_history(chat: messaging.api.Chat) -> list[ResponseInputItemParam
 def avito_message_to_gpt_format(
     message: messaging.api.ChatMessage,
     transcriptions: avito_transcriptions.TranscriptionsForMessages | None = None,
-) -> ResponseInputItemParam | None:
+) -> ResponseInputItemParam:
 
     role: Literal["user", "assistant"] = "user" if message["direction"] == "in" else "assistant"
     content: str | ResponseInputMessageContentListParam | None = None
@@ -90,7 +90,7 @@ def avito_message_to_gpt_format(
         content = transcriptions.get_transcription(message)
 
     if content is None:
-        return None
+        content = "<message unavailable>"
 
     return {
         "role": role,

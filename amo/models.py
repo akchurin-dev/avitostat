@@ -447,6 +447,11 @@ class FillableField(models.Model):
         default=False,
     )
 
+    isolated_check = models.BooleanField(
+        verbose_name="Проверять отдельно",
+        default=False,
+    )
+
     class Meta:
         verbose_name = "Заполняемое поле"
         verbose_name_plural = "Заполняемые поля"

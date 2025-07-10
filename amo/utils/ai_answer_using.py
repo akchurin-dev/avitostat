@@ -1,7 +1,7 @@
 from typing import NamedTuple
 
 import amo.models
-from amo.utils import amo_ai
+from amo.utils.ai import answers
 from amo.utils import amo_api
 from amo.utils import amo_fields
 from amo.utils import amo_leads
@@ -17,7 +17,7 @@ class StatusChangeResult(NamedTuple):
 
 def update_lead_and_contact(
     account: amo.models.AmoAccount,
-    ai_answer: amo_ai.AIAnswer,
+    ai_answer: answers.AIAnswer,
     lead: amo_api.Lead,
     contact: amo_api.Contact,
     *,
@@ -49,7 +49,7 @@ def update_lead_and_contact(
 
 def change_lead_status(
     chatbot: amo.models.AmoChatBot,
-    ai_answer: amo_ai.AIAnswer,
+    ai_answer: answers.AIAnswer,
     lead: amo_api.Lead,
     *,
     tlogger: TraceLogger,

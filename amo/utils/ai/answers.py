@@ -1,12 +1,11 @@
 import re
 from typing import Iterable
 
-from django.db.models import Q
+import pydantic
 from openai.types.responses import Response
 from openai.types.responses import ResponseInputParam
+from openai.types.responses import ResponseInputItemParam
 from openai.types.responses import ResponseTextConfigParam
-from openai.types.responses.easy_input_message_param import EasyInputMessageParam as GPTMessage
-import pydantic
 from pydantic import BaseModel
 
 from ai_requests import ai_requests
@@ -42,8 +41,7 @@ class AIAnswer(BaseModel):
 
 def generate_answer(
     chatbot: amo.models.AmoChatBot,
-    messages: list[Message],
-    transcriptions: TranscriptionsForMessages,
+    messages: list[ResponseInputItemParam],
     account: amo.models.AmoAccount,
     lead_id: int,
     *,
@@ -54,14 +52,13 @@ def generate_answer(
         return AIAnswer(payload=AIAnswerPayload(answer="mock answer"))
 
     lead, contact = amo_leads.get_lead_contact_pair(chatbot.account, lead_id, tlogger=tlogger)
-    all_fillable_fields = amo.models.FillableField.objects.filter(chatbot=chatbot)
+    all_fillable_fields = amo.models.FillableField.objects.filter(chatbot=chatbot, isolated_check=False)
     unknown_fillable_fields = get_unknown_fillable_fields(account, all_fillable_fields, lead, contact, tlogger=tlogger)
     available_pipeline_statuses = amo_api.get_pipeline_statuses(account, lead.pipeline_id, tlogger=tlogger)
 
     gpt_messages = _get_gpt_messages(
         chatbot=chatbot,
         messages=messages,
-        transcriptions=transcriptions,
         all_fillable_fields=all_fillable_fields,
         unknown_fillable_fields=unknown_fillable_fields,
         available_pipeline_statuses=available_pipeline_statuses,
@@ -77,30 +74,12 @@ def generate_answer(
         tlogger=tlogger,
     )
 
-    error = None
-
-    for _ in range(AI_RETRIES):
-        try:
-            response = client.responses.create(
-                model=MODEL,
-                input=gpt_messages,
-                text=text_format,
-                max_output_tokens=2000,
-            )
-            ai_requests.create_from_response(response, tlogger=tlogger)
-
-            payload = AIAnswerPayload.model_validate_json(response.output_text)
-
-            break
-        except pydantic.ValidationError as e:
-            error = e
-            tlogger.info({
-                "title": "Invalid gpt response",
-                "error": e,
-            })
-    else:
-        if error:
-            raise error
+    response = openai_request_with_retries(
+        input=gpt_messages,
+        text=text_format,
+        tlogger=tlogger,
+    )
+    payload = AIAnswerPayload.model_validate_json(response.output_text)
 
     return get_ai_answer_wrapper(response, payload, tlogger=tlogger)
 
@@ -124,38 +103,50 @@ def parse_form(chatbot: amo.models.AmoChatBot, form: str, *, tlogger: TraceLogge
         tlogger=tlogger,
     )
 
+    response = openai_request_with_retries(
+        input=gpt_messages,
+        text=text_format,
+        tlogger=tlogger,
+    )
+    payload = AIAnswerPayload.model_validate_json(response.output_text)
+
+    return get_ai_answer_wrapper(response, payload, tlogger=tlogger)
+
+
+def openai_request_with_retries(
+    input: ResponseInputParam,
+    text: ResponseTextConfigParam,
+    max_output_tokens: int = 2000,
+    *,
+    tlogger: TraceLogger,
+) -> Response:
+
     error = None
 
     for _ in range(AI_RETRIES):
         try:
             response = client.responses.create(
                 model=MODEL,
-                input=gpt_messages,
-                text=text_format,
-                max_output_tokens=2000,
+                input=input,
+                text=text,
+                max_output_tokens=max_output_tokens,
             )
             ai_requests.create_from_response(response, tlogger=tlogger)
-
-            payload = AIAnswerPayload.model_validate_json(response.output_text)
-
-            break
+            return response
         except pydantic.ValidationError as e:
             error = e
             tlogger.info({
                 "title": "Invalid gpt response",
                 "error": e,
             })
-    else:
-        if error:
-            raise error
 
-    return get_ai_answer_wrapper(response, payload, tlogger=tlogger)
+    assert error
+    raise error
 
 
 def _get_gpt_messages(
     chatbot: amo.models.AmoChatBot,
-    messages: list[Message],
-    transcriptions: TranscriptionsForMessages,
+    messages: list[ResponseInputItemParam],
     all_fillable_fields: Iterable[amo.models.FillableField],
     unknown_fillable_fields: Iterable[amo.models.FillableField],
     available_pipeline_statuses: list[amo_api.PipelineStatus],
@@ -184,7 +175,7 @@ def _get_gpt_messages(
     if lead_contact_info:
         gpt_messages.append({"role": "user", "content": lead_contact_info})
 
-    gpt_messages.extend([_amo_message_to_gpt_format(message, transcriptions) for message in messages])
+    gpt_messages.extend(messages)
 
     return gpt_messages
 
@@ -241,7 +232,7 @@ def _get_entity_info_str(
     return "\n".join(lines)
 
 
-def _amo_message_to_gpt_format(message: Message, transcriptions: TranscriptionsForMessages) -> GPTMessage:
+def amo_message_to_gpt_format(message: Message, transcriptions: TranscriptionsForMessages) -> ResponseInputItemParam:
     role = "assistant"
     if message.incoming:
         role = "user"
@@ -345,26 +336,14 @@ def _get_fillable_entity_schema(
     tlogger: TraceLogger,
 ) -> dict | None:
 
-    all_fields = amo_api.get_fields(account, entity, tlogger=tlogger)
+    fillable_field_amo_field_pairs = get_fillable_field_amo_field_pairs(account, fields, entity, tlogger=tlogger)
 
-    fillable_fields: list[tuple[amo_api.Field | None, amo.models.FillableField]] = []
-
-    for field in fields:
-        if entity == amo_api.EntityEnum.LEADS and field.entity != amo.models.AmoEntity.LEAD.value:
-            continue
-
-        if entity == amo_api.EntityEnum.CONTACTS and field.entity != amo.models.AmoEntity.CONTACT.value:
-            continue
-
-        amo_field = amo_fields.find_text_field(field.name, all_fields, tlogger=tlogger)
-        fillable_fields.append((amo_field, field))
-
-    if len(fillable_fields) == 0:
+    if len(fillable_field_amo_field_pairs) == 0:
         return None
 
     properties = {
-        fillable_field.name: _get_field_schema(amo_field, fillable_field)
-            for amo_field, fillable_field in fillable_fields
+        fillable_field.name: get_field_schema(amo_field, fillable_field)
+            for fillable_field, amo_field in fillable_field_amo_field_pairs
     }
 
     return {
@@ -375,7 +354,31 @@ def _get_fillable_entity_schema(
     }
 
 
-def _get_field_schema(amo_field: amo_api.Field | None, fillable_field: amo.models.FillableField) -> dict:
+def get_fillable_field_amo_field_pairs(
+    account: amo.models.AmoAccount,
+    fillable_fields: Iterable[amo.models.FillableField],
+    entity: amo_api.EntityEnum,
+    *,
+    tlogger: TraceLogger,
+) -> list[tuple[amo.models.FillableField, amo_api.Field | None]]:
+
+    all_amo_fields = amo_api.get_fields(account, entity, tlogger=tlogger)
+    fillable_field_amo_field_pairs: list[tuple[amo.models.FillableField, amo_api.Field | None]] = []
+
+    for fillable_field in fillable_fields:
+        if entity == amo_api.EntityEnum.LEADS and fillable_field.entity != amo.models.AmoEntity.LEAD.value:
+            continue
+
+        if entity == amo_api.EntityEnum.CONTACTS and fillable_field.entity != amo.models.AmoEntity.CONTACT.value:
+            continue
+
+        amo_field = amo_fields.find_text_field(fillable_field.name, all_amo_fields, tlogger=tlogger)
+        fillable_field_amo_field_pairs.append((fillable_field, amo_field))
+
+    return fillable_field_amo_field_pairs
+
+
+def get_field_schema(amo_field: amo_api.Field | None, fillable_field: amo.models.FillableField) -> dict:
     schema = {
         "type": ["string", "null"],
         "description": fillable_field.description,
@@ -390,8 +393,9 @@ def _get_field_schema(amo_field: amo_api.Field | None, fillable_field: amo.model
             if field_enum.value not in amo_fields.ENUM_EMPTY_VALUES
         ]
 
-        if len(enum_values) < 2:
-            enum_values.extend(["__null__", "__None__"])
+        # if len(enum_values) < 2:
+        #     enum_values.extend(["__null__", "__None__"])
+        enum_values.extend(["__null__", "__None__"])
 
         schema["enum"] = enum_values
 

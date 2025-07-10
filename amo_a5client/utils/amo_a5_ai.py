@@ -10,77 +10,77 @@ import amo.models
 import messaging.api
 import chat_bot.ai_utils
 from ai_requests import ai_requests
-from amo.utils import amo_ai
+from amo.utils.ai import answers
 from amo.utils import amo_api
 from amo.utils import amo_leads
 from chat_bot.utils import avito_transcriptions
 from utils.logging import TraceLogger
 
 
-def generate_answer(
-    chatbot: amo.models.AmoChatBot,
-    messages: list[messaging.api.ChatMessage],
-    transcriptions: avito_transcriptions.TranscriptionsForMessages,
-    amo_account: amo.models.AmoAccount,
-    lead_id: int,
-    *,
-    tlogger: TraceLogger,
-) -> amo_ai.AIAnswer:
+# def generate_answer(
+#     chatbot: amo.models.AmoChatBot,
+#     messages: list[messaging.api.ChatMessage],
+#     transcriptions: avito_transcriptions.TranscriptionsForMessages,
+#     amo_account: amo.models.AmoAccount,
+#     lead_id: int,
+#     *,
+#     tlogger: TraceLogger,
+# ) -> answers.AIAnswer:
 
-    if not chat_bot.ai_utils.use_gpt_flag():
-        return amo_ai.AIAnswer.model_validate({})
+#     if not chat_bot.ai_utils.use_gpt_flag():
+#         return answers.AIAnswer.model_validate({})
 
-    lead, contact = amo_leads.get_lead_contact_pair(chatbot.account, lead_id, tlogger=tlogger)
+#     lead, contact = amo_leads.get_lead_contact_pair(chatbot.account, lead_id, tlogger=tlogger)
     
-    all_fillable_fields = amo.models.FillableField.objects.filter(chatbot=chatbot)
-    unknown_fillable_fields = amo_ai.get_unknown_fillable_fields(amo_account, all_fillable_fields, lead, contact, tlogger=tlogger)
-    available_pipeline_statuses = amo_api.get_pipeline_statuses(amo_account, lead.pipeline_id, tlogger=tlogger)
+#     all_fillable_fields = amo.models.FillableField.objects.filter(chatbot=chatbot)
+#     unknown_fillable_fields = answers.get_unknown_fillable_fields(amo_account, all_fillable_fields, lead, contact, tlogger=tlogger)
+#     available_pipeline_statuses = amo_api.get_pipeline_statuses(amo_account, lead.pipeline_id, tlogger=tlogger)
 
-    gpt_messages = _get_gpt_messages(
-        chatbot=chatbot,
-        messages=messages,
-        transcriptions=transcriptions,
-        all_fillable_fields=all_fillable_fields,
-        unknown_fillable_fields=unknown_fillable_fields,
-        available_pipeline_statuses=available_pipeline_statuses,
-        lead=lead,
-        contact=contact,
-    )
+#     gpt_messages = _get_gpt_messages(
+#         chatbot=chatbot,
+#         messages=messages,
+#         transcriptions=transcriptions,
+#         all_fillable_fields=all_fillable_fields,
+#         unknown_fillable_fields=unknown_fillable_fields,
+#         available_pipeline_statuses=available_pipeline_statuses,
+#         lead=lead,
+#         contact=contact,
+#     )
 
-    text_format = amo_ai.get_text_format(
-        chatbot=chatbot,
-        fields=unknown_fillable_fields,
-        field_for_answer=True,
-        available_pipeline_statuses=available_pipeline_statuses,
-        tlogger=tlogger,
-    )
+#     text_format = answers.get_text_format(
+#         chatbot=chatbot,
+#         fields=unknown_fillable_fields,
+#         field_for_answer=True,
+#         available_pipeline_statuses=available_pipeline_statuses,
+#         tlogger=tlogger,
+#     )
 
-    error = None
+#     error = None
 
-    for _ in range(amo_ai.AI_RETRIES):
-        try:
-            response = chat_bot.ai_utils.client.responses.create(
-                model=chat_bot.ai_utils.MODEL,
-                input=gpt_messages,
-                text=text_format,
-                max_output_tokens=2000,
-            )
-            ai_requests.create_from_response(response, tlogger=tlogger)
+#     for _ in range(answers.AI_RETRIES):
+#         try:
+#             response = chat_bot.ai_utils.client.responses.create(
+#                 model=chat_bot.ai_utils.MODEL,
+#                 input=gpt_messages,
+#                 text=text_format,
+#                 max_output_tokens=2000,
+#             )
+#             ai_requests.create_from_response(response, tlogger=tlogger)
 
-            payload = amo_ai.AIAnswerPayload.model_validate_json(response.output_text)
+#             payload = answers.AIAnswerPayload.model_validate_json(response.output_text)
 
-            break
-        except pydantic.ValidationError as e:
-            error = e
-            tlogger.info({
-                "title": "Invalid gpt response",
-                "error": e,
-            })
-    else:
-        if error:
-            raise error
+#             break
+#         except pydantic.ValidationError as e:
+#             error = e
+#             tlogger.info({
+#                 "title": "Invalid gpt response",
+#                 "error": e,
+#             })
+#     else:
+#         if error:
+#             raise error
 
-    return amo_ai.get_ai_answer_wrapper(response, payload, tlogger=tlogger)
+#     return answers.get_ai_answer_wrapper(response, payload, tlogger=tlogger)
 
 
 def _get_gpt_messages(
@@ -104,14 +104,14 @@ def _get_gpt_messages(
     if current_status is None:
         raise Exception(f"Status (id={lead.status_id}) not found in pipeline (id={lead.pipeline_id})")
 
-    prompt = amo_ai.get_prompt(chatbot, unknown_fillable_fields, available_pipeline_statuses, current_status)
+    prompt = answers.get_prompt(chatbot, unknown_fillable_fields, available_pipeline_statuses, current_status)
 
     gpt_messages: ResponseInputParam = [{"role": "system", "content": prompt}]
 
     if chatbot.duplicate_instructions:
         gpt_messages.append({"role": "user", "content": chatbot.duplicate_instructions})
 
-    lead_contact_info = amo_ai.known_lead_contact_info(all_fillable_fields, lead, contact)
+    lead_contact_info = answers.known_lead_contact_info(all_fillable_fields, lead, contact)
     if lead_contact_info:
         gpt_messages.append({"role": "user", "content": lead_contact_info})
 
