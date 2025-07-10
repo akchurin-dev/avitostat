@@ -56,6 +56,10 @@ def find_value(
     *,
     tlogger: TraceLogger,
 ):
+    tlogger.info({"isolated field check": {
+        "field": fillable_field.name,
+    }})
+
     response = answers.openai_request_with_retries(
         input=get_ai_input(chatbot, messages, fillable_field),
         text=get_text_format(fillable_field, amo_field),
@@ -79,7 +83,7 @@ def get_ai_input(
         "Ниже информация о поле.",
         fillable_field.description or "<Дополнительная информация отсутствует>",
         "",
-        "Не додумывай, исходи строго из чата с клиентом. Если в чате недостаточно информации, то оставь поле путым (null или None)",
+        "Не додумывай, исходи строго из содержимого чата с клиентом. Если в чате недостаточно информации, то оставь поле путым (null или None)",
     ])
     ai_input: ResponseInputParam = [{"role": "system", "content": prompt}]
     ai_input.extend(messages)
