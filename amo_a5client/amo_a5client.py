@@ -52,6 +52,7 @@ def handle_message_from_avito(
     text: str,
     message_type: str,
     *,
+    retry: bool =False,
     trace_id: str,
 ) -> None:
 
@@ -93,6 +94,19 @@ def handle_message_from_avito(
             tlogger=tlogger,
         )
     else:
+        if not retry:
+            handle_message_from_avito.s(
+                avito_account_id=avito_account_id,
+                amo_account_id=amo_account_id,
+                chat_id=chat_id,
+                message_id=message_id,
+                message_created_at_timestamp=message_created_at_timestamp,
+                text=text,
+                message_type=message_type,
+                retry=True,
+                trace_id=tlogger.trace_id,
+            ).apply_async(countdown=10)
+
         tlogger.info("Message not found")
 
 
