@@ -32,6 +32,8 @@ def check_fields_isolately_and_update_ai_result(
         tlogger=tlogger,
     ))
 
+    tlogger.info({"fields for isolated check": [ff.name for ff in fillable_fields]})
+
     for fillable_field, amo_field in fillable_field_amo_field_pairs:
         value = find_value(chatbot, messages, fillable_field, amo_field, tlogger=tlogger)
 
@@ -56,16 +58,18 @@ def find_value(
     *,
     tlogger: TraceLogger,
 ):
-    tlogger.info({"isolated field check": {
-        "field": fillable_field.name,
-    }})
-
     response = answers.openai_request_with_retries(
         input=get_ai_input(chatbot, messages, fillable_field),
         text=get_text_format(fillable_field, amo_field),
         tlogger=tlogger,
     )
     struct = json.loads(response.output_text)
+
+    tlogger.info({"isolated field checked": {
+        "field": fillable_field.name,
+        "value": struct[fillable_field.name],
+    }})
+
     return struct[fillable_field.name]
 
 
