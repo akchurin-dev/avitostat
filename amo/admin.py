@@ -99,7 +99,7 @@ class AmoOriginAdmin(admin.ModelAdmin):
 
 class FillableFieldInline(admin.TabularInline):
     model = amo.models.FillableField
-    fields = ["name", "entity", "required_for_qualification", "description"]
+    fields = ["name", "entity", "required_for_qualification", "isolated_check", "description"]
     extra = 0
 
 
