@@ -71,23 +71,6 @@ class WebhookInboxViewClass(View):
             tlogger.info(f"Stop handling. AvitoAccount with id = {user_id} not found")
             return
 
-        chatbot = AiChatBot.objects.filter(account=avito_account).first()
-
-        if chatbot is None:
-            tlogger.info(f"Stop handling. Chatbot for account '{avito_account.name}' not found")
-            return
-
-        if not chatbot.is_active:
-            tlogger.info("Stop handling. Chatbot is inactive")
-            return
-
-        if avito_account is None:
-            tlogger.info(f"Stop handling. AvitoAccount (id={user_id}) isn't found")
-            return
-
-        if ENVIRONMENT != "PRODUCTION":
-            async_to_sync(avito_account.update_refresh_token_async)()
-
         tlogger.info(f"Request id - {request_id}")
         tlogger.info(f"account - {avito_account.name}")
         tlogger.info(f"Request text - {text}")
@@ -99,10 +82,22 @@ class WebhookInboxViewClass(View):
             message_id=message_id,
             text=text,
         )
-
         if not created:
             tlogger.info(f"Stop handling. Request already processed: message_id - {new_task.message_id}")
             return
+
+        chatbot = AiChatBot.objects.filter(account=avito_account).first()
+
+        if chatbot is None:
+            tlogger.info(f"Stop handling. Chatbot for account '{avito_account.name}' not found")
+            return
+
+        if not chatbot.is_active:
+            tlogger.info("Stop handling. Chatbot is inactive")
+            return
+
+        if ENVIRONMENT != "PRODUCTION":
+            async_to_sync(avito_account.update_refresh_token_async)()
 
         request_type = request_data["payload"]["type"]
         message_type = request_data["payload"]["value"]["type"]

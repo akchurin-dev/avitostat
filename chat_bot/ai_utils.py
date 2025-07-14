@@ -6,8 +6,6 @@ from typing import Literal
 import httpx
 from openai import OpenAI
 from openai.types.chat.parsed_chat_completion import ParsedChatCompletion
-from openai.types.chat.chat_completion_message_param import ChatCompletionMessageParam
-from openai.types.chat_model import ChatModel
 from openai.types.responses import ResponseInputItemParam
 from openai.types.responses import ResponseInputMessageContentListParam
 from pydantic import BaseModel
@@ -225,11 +223,11 @@ def _get_messages_for_gpt(
     extract_contacts_only: bool,
     *,
     tlogger: TraceLogger,
-) -> list[ChatCompletionMessageParam]:
+) -> list[ResponseInputItemParam]:
 
     prompt = _get_system_message(aichatbot, chat, extract_contacts_only, tlogger=tlogger)
 
-    messages: list[ChatCompletionMessageParam] = [{"role": "system", "content": prompt}, ]
+    messages: list[ResponseInputItemParam] = [{"role": "system", "content": prompt}]
 
     chat_history_formatted = format_chat_history(chat)
     tlogger.info(f"Последнее сообщение для ИИ ответа-{chat_history_formatted[-1]}")
