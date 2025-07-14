@@ -146,6 +146,7 @@ def bad_messaging_report_by_period_for_account(
             await payment.check_balance_enought(
                 user=account.created_by,
                 required_amount=payment.REPORT_DEFAULT_COST,
+                raise_exception=True,
             )
 
             messaging_report = await get_messaging_report_data(

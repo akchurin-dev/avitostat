@@ -6,7 +6,7 @@ from payments.models import UserProfile
 from utils.atomic_async import aatomic
 
 
-REPORT_DEFAULT_COST = 500
+REPORT_DEFAULT_COST = 0
 
 
 @aatomic()
