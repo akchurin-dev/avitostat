@@ -19,8 +19,8 @@ from utils.logging import TraceLogger
 
 
 class BaseTokenUsage(TypedDict):
-    tokens_prompt: int
-    tokens_completion: int
+    total_prompt: int
+    total_completion: int
     total_tokens: int
 
 
@@ -83,8 +83,8 @@ def get_usage_by_models(since: datetime, until: datetime, *, tlogger: TraceLogge
         )
         .values('model')
         .annotate(
-            tokens_prompt=Sum('tokens_prompt'),
-            tokens_completion=Sum('tokens_completion'),
+            total_prompt=Sum('tokens_prompt'),
+            total_completion=Sum('tokens_completion'),
         )
         .annotate(
             total_tokens=ExpressionWrapper(
@@ -97,10 +97,10 @@ def get_usage_by_models(since: datetime, until: datetime, *, tlogger: TraceLogge
 
     tlogger.info(f"Token usage by gpt models report between {since.isoformat()} and {until.isoformat()}")
     for stat in stats:
-        tlogger.info("Model: " + stat["model"])
-        tlogger.info(f"   Tokens Prompt: {stat["tokens_prompt"] or 0}")
-        tlogger.info(f"   Tokens Completion: {stat["tokens_completion"] or 0}")
-        tlogger.info(f"  Total Tokens: {stat["total_tokens"] or 0}")
+        tlogger.info("Model: " + stat['model'])
+        tlogger.info(f"   Tokens Prompt: {stat['total_prompt'] or 0}")
+        tlogger.info(f"   Tokens Completion: {stat['total_completion'] or 0}")
+        tlogger.info(f"  Total Tokens: {stat['total_tokens'] or 0}")
 
     return stats
 
@@ -110,19 +110,19 @@ def send_stats_to_tg(usages_by_models: list[TokenUsageByModel], usages_by_avito_
         async with Bot(AVITOSTATA_ALIVE_BOT_TOKEN) as bot:
             text1 = "\n\n".join([
                 "\n".join([
-                    f"Модель: {usage_by_model["model"]}",
-                    f"    Токены на промпт: {usage_by_model["tokens_prompt"]}",
-                    f"    Токены на выполнение: {usage_by_model["tokens_completion"]}",
-                    f"    Токенов всего: {usage_by_model["total_tokens"]}",
+                    f"Модель: {usage_by_model['model']}",
+                    f"    Токены на промпт: {usage_by_model['total_prompt']}",
+                    f"    Токены на выполнение: {usage_by_model['total_completion']}",
+                    f"    Токенов всего: {usage_by_model['total_tokens']}",
                 ]) for usage_by_model in usages_by_models
             ])
 
             text2 = "\n\n".join([
                 "\n".join([
-                    f"Авито-аккаунт: {usage_by_avito_account["avito_account__name"]}",
-                    f"    Токены на промпт: {usage_by_avito_account["tokens_prompt"]}",
-                    f"    Токены на выполнение: {usage_by_avito_account["tokens_completion"]}",
-                    f"    Токенов всего: {usage_by_avito_account["total_tokens"]}",
+                    f"Авито-аккаунт: {usage_by_avito_account['avito_account__name']}",
+                    f"    Токены на промпт: {usage_by_avito_account['total_prompt']}",
+                    f"    Токены на выполнение: {usage_by_avito_account['total_completion']}",
+                    f"    Токенов всего: {usage_by_avito_account['total_tokens']}",
                 ]) for usage_by_avito_account in usages_by_avito_accounts
             ])
 
