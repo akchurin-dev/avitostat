@@ -86,7 +86,7 @@ def send_stats_to_tg(usages_by_models: list[TokenUsageByModel], usages_by_avito_
             text1 = "\n\n".join([
                 "\n".join([
                     f"Модель: {usage_by_model['model']}",
-                    f"    Запросов: {usage_by_model['count']}"
+                    f"    Запросов: {usage_by_model['count']}",
                     f"    В среднем токенов на промпт: {usage_by_model['avg_prompt']}",
                     f"    Всего токенов на промпт: {usage_by_model['sum_prompt']}",
                     f"    В среднем токенов на выполнение: {usage_by_model['avg_completion']}",
@@ -97,7 +97,7 @@ def send_stats_to_tg(usages_by_models: list[TokenUsageByModel], usages_by_avito_
             text2 = "\n\n".join([
                 "\n".join([
                     f"Авито-аккаунт: {usage_by_avito_account['avito_account__name']}",
-                    f"    Сообщений обработано: {usage_by_avito_account['count']}"
+                    f"    Сообщений обработано: {usage_by_avito_account['count']}",
                     f"    В среднем токенов на промпт: {usage_by_avito_account['avg_prompt']}",
                     f"    Всего токенов на промпт: {usage_by_avito_account['sum_prompt']}",
                     f"    В среднем токенов на выполнение: {usage_by_avito_account['avg_completion']}",
