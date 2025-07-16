@@ -9,6 +9,7 @@ from celery import shared_task
 from django.db.models import Avg
 from django.db.models import Count
 from django.db.models import Sum
+from django.db.models.functions import Round
 
 from ai_requests.models import AIRequest
 from base.settings import AVITOSTATA_ALIVE_BOT_TOKEN
@@ -117,12 +118,12 @@ async def send_message(bot: Bot, text: str) -> None:
         text = text[len(text_part):]
 
 
-def _add_annotation(qs):
+def _add_annotation(qs) -> list:
     return qs.annotate(
         count=Count('*'),
-        avg_prompt=Avg('tokens_prompt'),
+        avg_prompt=Round(Avg('tokens_prompt'), 2),
         sum_prompt=Sum('tokens_prompt'),
-        avg_completion=Avg('tokens_completion'),
+        avg_completion=Round(Avg('tokens_completion'), 2),
         sum_completion=Sum('tokens_completion'),
     ).order_by('-count')
 
