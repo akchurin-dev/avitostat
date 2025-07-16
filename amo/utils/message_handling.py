@@ -280,13 +280,20 @@ def generate_ai_answer(messages_serializable: list[dict], task_id: int, trace_id
         )
         assert ai_answer.payload.answer
         ai_answer.payload.answer = task.chatbot.message_prefix + ai_answer.payload.answer + task.chatbot.message_postfix
-        isolated_check.check_fields_isolately_and_update_ai_result(task.chatbot, messages_ai_format, ai_answer, tlogger=tlogger)
+        additional_usage = isolated_check.check_fields_isolately_and_update_ai_result(
+            task.chatbot,
+            messages_ai_format,
+            ai_answer,
+            tlogger=tlogger,
+        )
 
         tlogger.info({"ai_answer": ai_answer.model_dump()})
 
         finish_handling.delay(
             ai_answer_serializable=ai_answer.model_dump(),
             messages_serializable=messages_serializable,
+            additional_tokens_prompt=additional_usage.tokens_prompt,
+            additional_tokens_completion=additional_usage.tokens_completion,
             task_id=task_id,
             trace_id=trace_id,
         )
@@ -296,7 +303,15 @@ def generate_ai_answer(messages_serializable: list[dict], task_id: int, trace_id
 
 
 @shared_task
-def finish_handling(ai_answer_serializable: dict, messages_serializable: list[dict], *, task_id: int, trace_id: str):
+def finish_handling(
+    ai_answer_serializable: dict,
+    messages_serializable: list[dict],
+    additional_tokens_prompt: int,
+    additional_tokens_completion: int,
+    *,
+    task_id: int,
+    trace_id: str,
+) -> None:
     @amo.models.AmoChatBotTask.interrupt_task_if_error
     def f(ai_answer: answers.AIAnswer, messages: list[amo_messages.Message], *, task_id: int, trace_id: str):
         tlogger = TraceLogger(trace_id)
@@ -344,8 +359,8 @@ def finish_handling(ai_answer_serializable: dict, messages_serializable: list[di
         amo.models.AmoChatBotTask.save_ai_result(
             pk=task.pk,
             answer_text=ai_answer.payload.answer,
-            tokens_completion=ai_answer.tokens_completion,
-            tokens_prompt=ai_answer.tokens_prompt,
+            tokens_completion=ai_answer.tokens_completion + additional_tokens_completion,
+            tokens_prompt=ai_answer.tokens_prompt + additional_tokens_prompt,
         )
 
         if ai_answer.payload.contacts:

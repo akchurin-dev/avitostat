@@ -1,4 +1,6 @@
 import json
+from typing import Any
+from typing import NamedTuple
 
 from openai.types.responses.response_input_param import ResponseInputParam
 from openai.types.responses.response_input_param import ResponseInputItemParam
@@ -11,12 +13,17 @@ from amo.utils.ai import answers
 from utils.logging import TraceLogger
 
 
+class TokensUsage(NamedTuple):
+    tokens_prompt: int
+    tokens_completion: int
+
+
 def check_fields_isolately_and_update_ai_result(
     chatbot: amo.models.AmoChatBot,
     messages: list[ResponseInputItemParam],
     ai_answer: answers.AIAnswer,
     tlogger: TraceLogger,
-) -> None:
+) -> TokensUsage:
 
     fillable_fields = amo.models.FillableField.objects.filter(chatbot=chatbot, isolated_check=True)
     fillable_field_amo_field_pairs = answers.get_fillable_field_amo_field_pairs(
@@ -34,8 +41,13 @@ def check_fields_isolately_and_update_ai_result(
 
     tlogger.info({"fields for isolated check": [ff.name for ff in fillable_fields]})
 
+    tokens_prompt = tokens_completion = 0
+
     for fillable_field, amo_field in fillable_field_amo_field_pairs:
-        value = find_value(chatbot, messages, fillable_field, amo_field, tlogger=tlogger)
+        value, usage = find_value(chatbot, messages, fillable_field, amo_field, tlogger=tlogger)
+
+        tokens_prompt += usage.tokens_prompt
+        tokens_completion += usage.tokens_completion
 
         if not value or value in amo_fields.ENUM_EMPTY_VALUES:
             continue
@@ -49,6 +61,8 @@ def check_fields_isolately_and_update_ai_result(
                 ai_answer.payload.lead_info = {}
             ai_answer.payload.lead_info[fillable_field.name] = value
 
+    return TokensUsage(tokens_prompt, tokens_completion)
+
 
 def find_value(
     chatbot: amo.models.AmoChatBot,
@@ -57,7 +71,8 @@ def find_value(
     amo_field: amo_api.Field | None,
     *,
     tlogger: TraceLogger,
-):
+) -> tuple[Any, TokensUsage]:
+
     response = answers.openai_request_with_retries(
         input=get_ai_input(chatbot, messages, fillable_field),
         text=get_text_format(fillable_field, amo_field),
@@ -70,7 +85,11 @@ def find_value(
         "value": struct[fillable_field.name],
     }})
 
-    return struct[fillable_field.name]
+    usage = TokensUsage(0, 0)
+    if response.usage:
+        usage = TokensUsage(response.usage.input_tokens, response.usage.output_tokens)
+
+    return struct[fillable_field.name], usage
 
 
 def get_ai_input(

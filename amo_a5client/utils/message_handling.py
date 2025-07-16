@@ -241,7 +241,12 @@ def generate_ai_answer(task_id: int, messages: list[messaging.api.ChatMessage], 
         )
         assert ai_answer.payload.answer
         ai_answer.payload.answer = task.chatbot.message_prefix + ai_answer.payload.answer + task.chatbot.message_postfix
-        isolated_check.check_fields_isolately_and_update_ai_result(task.chatbot, messages_ai_format, ai_answer, tlogger=tlogger)
+        additional_usage = isolated_check.check_fields_isolately_and_update_ai_result(
+            task.chatbot,
+            messages_ai_format,
+            ai_answer,
+            tlogger=tlogger,
+        )
 
         tlogger.info({"ai_answer": ai_answer.model_dump()})
 
@@ -249,6 +254,8 @@ def generate_ai_answer(task_id: int, messages: list[messaging.api.ChatMessage], 
             task_id=task_id,
             avito_account_id=avito_account_id,
             ai_answer_serializable=ai_answer.model_dump(),
+            additional_tokens_prompt=additional_usage.tokens_prompt,
+            additional_tokens_completion=additional_usage.tokens_completion,
             trace_id=trace_id,
         )
 
@@ -260,7 +267,15 @@ def generate_ai_answer(task_id: int, messages: list[messaging.api.ChatMessage], 
 
 
 @shared_task
-def finish_handling(task_id: int, avito_account_id: int, ai_answer_serializable, *, trace_id: str) -> None:
+def finish_handling(
+    task_id: int,
+    avito_account_id: int,
+    ai_answer_serializable,
+    additional_tokens_prompt: int,
+    additional_tokens_completion: int,
+    *,
+    trace_id: str,
+) -> None:
     @amo.models.AmoChatBotTask.interrupt_task_if_error
     def f(ai_answer: answers.AIAnswer, avito_account_id: int, *, task_id: int, trace_id: str) -> None:
         tlogger = TraceLogger(trace_id)
@@ -304,8 +319,8 @@ def finish_handling(task_id: int, avito_account_id: int, ai_answer_serializable,
         amo.models.AmoChatBotTask.save_ai_result(
             pk=task.pk,
             answer_text=ai_answer.payload.answer,
-            tokens_completion=ai_answer.tokens_completion,
-            tokens_prompt=ai_answer.tokens_prompt,
+            tokens_completion=ai_answer.tokens_completion + additional_tokens_completion,
+            tokens_prompt=ai_answer.tokens_prompt + additional_tokens_prompt,
         )
 
         task.change_status(task.Status.FINISHED, tlogger=tlogger)
