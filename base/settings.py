@@ -10,10 +10,9 @@ import pytz
 from sentry_sdk.integrations.celery import CeleryIntegration
 from sentry_sdk.integrations.django import DjangoIntegration
 
-# Build paths inside the project like this: BASE_DIR / 'subdir'.
+
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-# SECURITY WARNING: keep the secret key used in production secret!
 load_dotenv()
 
 ENVIRONMENT: Literal["PRODUCTION", "DEVELOPMENT", "TESTING"] | None
