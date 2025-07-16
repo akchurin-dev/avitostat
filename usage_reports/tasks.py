@@ -6,10 +6,10 @@ from aiogram import Bot
 from aiogram.enums import ParseMode
 from asgiref.sync import async_to_sync
 from celery import shared_task
-from django.db.models import ExpressionWrapper
-from django.db.models import F
-from django.db.models import IntegerField
+from django.db.models import Avg
+from django.db.models import Count
 from django.db.models import Sum
+from django.db.models.query import ValuesQuerySet
 
 from ai_requests.models import AIRequest
 from base.settings import AVITOSTATA_ALIVE_BOT_TOKEN
@@ -19,9 +19,11 @@ from utils.logging import TraceLogger
 
 
 class BaseTokenUsage(TypedDict):
-    total_prompt: int
-    total_completion: int
-    total_tokens: int
+    count: int
+    avg_prompt: float
+    sum_prompt: int
+    avg_completion: float
+    sum_completion: int
 
 
 class TokenUsageByModel(BaseTokenUsage):
@@ -48,59 +50,32 @@ def report_daily_token_usage():
 
 
 def get_usage_by_avito_accounts(since: datetime, until: datetime, *, tlogger: TraceLogger) -> list[TokenUsageByAvitoAccount]:
-    stats: list[TokenUsageByAvitoAccount] = list(
+    stats: list[TokenUsageByAvitoAccount] = list(_add_annotation(
         ChatBotTask.objects
         .filter(created_at__gte=since, created_at__lt=until)
         .values('avito_account__id', 'avito_account__name')
-        .annotate(
-            total_prompt=Sum('tokens_prompt'),
-            total_completion=Sum('tokens_completion'),
-        )
-        .annotate(
-            total_tokens=ExpressionWrapper(
-                F('total_prompt') + F('total_completion'),
-                output_field=IntegerField()
-            )
-        )
-        .order_by('-total_tokens')
-    )
+    ))
 
     tlogger.info(f"Token usage by avito accounts report between {since.isoformat()} and {until.isoformat()}:")
     for stat in stats:
         tlogger.info(f"Avito Account: {stat['avito_account__name']} (ID: {stat['avito_account__id']})")
-        tlogger.info(f"  Tokens Prompt: {stat['total_prompt'] or 0}")
-        tlogger.info(f"  Tokens Completion: {stat['total_completion'] or 0}")
-        tlogger.info(f"  Total Tokens: {stat['total_tokens'] or 0}")
-        tlogger.info("-" * 40)
+        _log_annotations_and_delimeter(stat, tlogger=tlogger)
 
     return stats
 
 
 def get_usage_by_models(since: datetime, until: datetime, *, tlogger: TraceLogger) -> list[TokenUsageByModel]:
-    stats: list[TokenUsageByModel] = list(
+    stats: list[TokenUsageByModel] = list(_add_annotation(
         AIRequest.objects.filter(
             created_at__gte=since, created_at__lt=until,
         )
         .values('model')
-        .annotate(
-            total_prompt=Sum('tokens_prompt'),
-            total_completion=Sum('tokens_completion'),
-        )
-        .annotate(
-            total_tokens=ExpressionWrapper(
-                F('total_prompt') + F('total_completion'),
-                output_field=IntegerField()
-            )
-        )
-        .order_by('-total_tokens')
-    )
+    ))
 
     tlogger.info(f"Token usage by gpt models report between {since.isoformat()} and {until.isoformat()}")
     for stat in stats:
         tlogger.info("Model: " + stat['model'])
-        tlogger.info(f"   Tokens Prompt: {stat['total_prompt'] or 0}")
-        tlogger.info(f"   Tokens Completion: {stat['total_completion'] or 0}")
-        tlogger.info(f"  Total Tokens: {stat['total_tokens'] or 0}")
+        _log_annotations_and_delimeter(stat, tlogger=tlogger)
 
     return stats
 
@@ -111,18 +86,22 @@ def send_stats_to_tg(usages_by_models: list[TokenUsageByModel], usages_by_avito_
             text1 = "\n\n".join([
                 "\n".join([
                     f"Модель: {usage_by_model['model']}",
-                    f"    Токены на промпт: {usage_by_model['total_prompt']}",
-                    f"    Токены на выполнение: {usage_by_model['total_completion']}",
-                    f"    Токенов всего: {usage_by_model['total_tokens']}",
+                    f"    Запросов: {usage_by_model['count']}"
+                    f"    В среднем токенов на промпт: {usage_by_model['avg_prompt']}",
+                    f"    Всего токенов на промпт: {usage_by_model['sum_prompt']}",
+                    f"    В среднем токенов на выполнение: {usage_by_model['avg_completion']}",
+                    f"    Всего токенов на выполнение: {usage_by_model['sum_completion']}",
                 ]) for usage_by_model in usages_by_models
             ])
 
             text2 = "\n\n".join([
                 "\n".join([
                     f"Авито-аккаунт: {usage_by_avito_account['avito_account__name']}",
-                    f"    Токены на промпт: {usage_by_avito_account['total_prompt']}",
-                    f"    Токены на выполнение: {usage_by_avito_account['total_completion']}",
-                    f"    Токенов всего: {usage_by_avito_account['total_tokens']}",
+                    f"    Сообщений обработано: {usage_by_avito_account['count']}"
+                    f"    В среднем токенов на промпт: {usage_by_avito_account['avg_prompt']}",
+                    f"    Всего токенов на промпт: {usage_by_avito_account['sum_prompt']}",
+                    f"    В среднем токенов на выполнение: {usage_by_avito_account['avg_completion']}",
+                    f"    Всего токенов на выполнение: {usage_by_avito_account['sum_completion']}",
                 ]) for usage_by_avito_account in usages_by_avito_accounts
             ])
 
@@ -137,3 +116,22 @@ async def send_message(bot: Bot, text: str) -> None:
         text_part = text[:4000]
         await bot.send_message(AVITOSTATA_ALIVE_REPORTS_CHAT_ID, text_part, parse_mode=ParseMode.HTML)
         text = text[len(text_part):]
+
+
+def _add_annotation(qs: ValuesQuerySet) -> ValuesQuerySet:
+    return qs.annotate(
+        count=Count(),
+        avg_prompt=Avg('tokens_prompt'),
+        sum_prompt=Sum('tokens_prompt'),
+        avg_completion=Avg('tokens_completion'),
+        sum_completion=Sum('tokens_completion'),
+    ).order_by('-count')
+
+
+def _log_annotations_and_delimeter(stat: BaseTokenUsage, *, tlogger: TraceLogger) -> None:
+    tlogger.info(f"  Records Count: {stat['count']}")
+    tlogger.info(f"  Avg Prompt Tokens: {stat['avg_prompt']}")
+    tlogger.info(f"  Sum Prompt Tokens: {stat['sum_prompt']}")
+    tlogger.info(f"  Avg Completion Tokens: {stat['avg_completion']}")
+    tlogger.info(f"  Sum Completion Tokens: {stat['sum_completion']}")
+    tlogger.info("-" * 40)
