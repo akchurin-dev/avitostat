@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import time
 from enum import Enum
 from typing import Any
 from typing import NamedTuple
@@ -440,6 +441,7 @@ def _request_with_token(
         headers=headers,
         tlogger=tlogger,
     )
+    time.sleep(0.05)
 
     if not retry and response.status_code == 401:
         amo_tokens.update_tokens(
@@ -505,6 +507,7 @@ def _request_with_csrf(
         headers=headers,
         tlogger=tlogger,
     )
+    time.sleep(0.05)
 
     if not retry and response.status_code == 401:
         amo_tokens.update_hidden_api_tokens(account_id, tlogger=tlogger)
@@ -547,6 +550,7 @@ def _amojo_request(
         headers=headers,
         tlogger=tlogger,
     )
+    time.sleep(0.05)
 
     if not retry and response.status_code == 401:
         amo_tokens.update_hidden_api_tokens(account.amo_id, tlogger=tlogger)
