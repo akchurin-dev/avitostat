@@ -88,7 +88,7 @@ def get_usage_by_models(since: datetime, until: datetime, *, tlogger: TraceLogge
         )
         .annotate(
             total_tokens=ExpressionWrapper(
-                F('tokens_prompt') + F('tokens_completion'),
+                F('total_prompt') + F('total_completion'),
                 output_field=IntegerField()
             )
         )
