@@ -119,7 +119,7 @@ async def send_message(bot: Bot, text: str) -> None:
 
 def _add_annotation(qs):
     return qs.annotate(
-        count=Count(),
+        count=Count('*'),
         avg_prompt=Avg('tokens_prompt'),
         sum_prompt=Sum('tokens_prompt'),
         avg_completion=Avg('tokens_completion'),
