@@ -8,7 +8,7 @@ class AIRequest(models.Model):
     )
 
     tokens_completion = models.IntegerField(
-        verbose_name="Токены выполнениы",
+        verbose_name="Токены выполнения",
     )
 
     tokens_prompt = models.IntegerField(

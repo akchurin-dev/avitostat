@@ -34,6 +34,9 @@ AVITO_WEBHOOK_HOST = "avitostata.ru"
 if DEBUG:
     AVITO_WEBHOOK_HOST = os.getenv('AVITO_WEBHOOK_HOST')
 
+AVITOSTATA_ALIVE_BOT_TOKEN = os.getenv("AVITOSTATA_ALIVE_BOT_TOKEN", "")
+AVITOSTATA_ALIVE_REPORTS_CHAT_ID = os.getenv("AVITOSTATA_ALIVE_REPORTS_CHAT_ID", "")
+
 OPENAI_SECRET_KEY = os.getenv('OPENAI_SECRET_KEY')
 
 YOOKASSA_TEST_SHOP_ID = os.getenv('YOOKASSA_TEST_SHOP_ID')
@@ -113,6 +116,7 @@ INSTALLED_APPS = [
     'transcriptions',
     'ai_requests',
     'amo_a5client',
+    'usage_reports',
 ]
 
 if DEBUG:
@@ -279,6 +283,10 @@ if ENVIRONMENT == 'PRODUCTION':
             'task': 'chat_bot.tasks.statistics_sender_main_task',
             'schedule': crontab(hour='6', minute='0'),
         },
+        'daily_tokens_usage_report': {
+            'task': 'usage_reports.tasks.report_daily_token_usage',
+            'schedule': crontab(hour='0', minute='0'),
+        }
     }
 else:
     CELERY_BEAT_SCHEDULE = {
