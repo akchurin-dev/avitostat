@@ -96,10 +96,6 @@ class AiAnswerAvitoClass:
             last_message_type = chat["messages"][-2]["type"]
             last_message_id = chat["messages"][-2]["id"]
 
-        if last_message_type != "text":
-            tlogger.info(f"Stop handling. Unsupported message type, got {last_message_type}")
-            return
-
         if last_message_id != message_id:
             tlogger.info(f"Stop handling. Message (id={message_id}) is not actual")
             return
@@ -132,6 +128,8 @@ class AiAnswerAvitoClass:
 
         if summaries.may_send_report(chatbot, ai_answer.contacts, tlogger=tlogger):
             ChatBotSummaryReportClass.summary_sender_main_task(avito_account_id, chat_id, trace_id=tlogger.trace_id)
+
+        tlogger.info("Incoming message handling is finished")
 
 
 @shared_task
@@ -177,7 +175,7 @@ def outgoing_messages_handler(
         tlogger.info("Bot successfully disabled after manager")
 
     if not chatbot.send_new_contact_report:
-        tlogger.info("Stop hanling. Chatbot configured don't send new contacts reports")
+        tlogger.info("Stop handling. Chatbot configured don't send new contacts reports")
         return
 
     if summaries.new_contact_report_sent(avito_account, chat_id):
@@ -211,6 +209,8 @@ def outgoing_messages_handler(
 
     if summaries.may_send_report(chatbot, ai_answer.contacts, tlogger=tlogger):
         ChatBotSummaryReportClass.summary_sender_main_task(avito_account.pk, chat_id, trace_id=tlogger.trace_id)
+
+    tlogger.info("Outgoing message handling is finished")
 
 
 class PdfReportBaseClass:
@@ -535,10 +535,21 @@ class BotStatisticsDailyReportClass(PdfReportBaseClass):
 class ChatHistoryReportClass(PdfReportBaseClass):
     @staticmethod
     @shared_task
-    def history_pdf_sender_task(avito_account_id, chat, summary_html = None, telegram_id: str | None = None):
+    def history_pdf_sender_task(
+        avito_account_id,
+        chat,
+        summary_html = None,
+        telegram_id: str | None = None,
+        *,
+        trace_id: str | None = None,
+    ) -> None:
         """
             1) sometimes we don't have summary_html
         """
+
+        tlogger = TraceLogger(trace_id)
+        tlogger.info("History pdf sending is started")
+
         ChatHistoryReportClass.add_from_bot_flag(chat)
         async_to_sync(chats_timestamp_to_datetime)({"chats": [chat]})
         avito_account = AvitoAccount.objects.get(id=avito_account_id)
@@ -555,6 +566,8 @@ class ChatHistoryReportClass(PdfReportBaseClass):
             assert telegram_id is not None
             # ChatBotSummaryReportClass.file_sender_to_tg(pdf_path, telegram_id)
             tg.send_document(telegram_id, pdf_path)
+
+        tlogger.info("History pdf sending is finished")
 
     @staticmethod
     def get_history_html(chat, statistics, summary_html = None):
@@ -672,7 +685,7 @@ class ChatBotSummaryReportClass(PdfReportBaseClass):
 
         summary_html = ChatBotSummaryReportClass.get_chat_summary_html(chat_summary, chat)
         tlogger.info(f"Send history pdf to chat (tg_id={telegram_id}) of '{avito_account.name}' ({location})")
-        ChatHistoryReportClass.history_pdf_sender_task.delay(avito_account.pk, chat, summary_html, telegram_id)
+        ChatHistoryReportClass.history_pdf_sender_task.delay(avito_account.pk, chat, summary_html, telegram_id, trace_id=tlogger.trace_id)
 
         last_chat_bot_task = all_tasks.last()
         if last_chat_bot_task is not None:

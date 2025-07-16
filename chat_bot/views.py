@@ -71,6 +71,8 @@ class WebhookInboxViewClass(View):
             tlogger.info(f"Stop handling. AvitoAccount with id = {user_id} not found")
             return
 
+        tlogger.info(f"New message callback for avito account '{avito_account.name}'")
+
         tlogger.info(f"Request id - {request_id}")
         tlogger.info(f"account - {avito_account.name}")
         tlogger.info(f"Request text - {text}")
@@ -89,7 +91,7 @@ class WebhookInboxViewClass(View):
         chatbot = AiChatBot.objects.filter(account=avito_account).first()
 
         if chatbot is None:
-            tlogger.info(f"Stop handling. Chatbot for account '{avito_account.name}' not found")
+            tlogger.info(f"Stop handling. Chatbot not found")
             return
 
         if not chatbot.is_active:
@@ -123,7 +125,7 @@ class WebhookInboxViewClass(View):
             return
 
         if not avito_chatbots.check_chatbot_worktime_now(chatbot):
-            tlogger.info(f"Stop handling. It isn't worktime for chatbot '{chatbot.name}'")
+            tlogger.info(f"Stop handling. It isn't chatbot worktime")
             return
 
         if avito_chatbots.check_chatbot_shutdown_for_chat(chat_id, chatbot, tlogger=tlogger):
