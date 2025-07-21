@@ -17,6 +17,7 @@ def update_tokens_task():
     for account in accounts:
         try:
             async_to_sync(account.update_refresh_token_async)()
+            async_to_sync(account.update_profile_url)()
         except Exception:
             celery_logger.exception(f'Error while updating tokens{Exception}')
 

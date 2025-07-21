@@ -9,6 +9,7 @@ from asgiref.sync import sync_to_async
 from django.contrib.auth.models import User
 from django.db import models
 
+from avito_account.oauth_utils import get_avito_account_info
 from base import settings
 from base.exceptions import HTTPException
 from utils.logging import TraceLogger
@@ -140,6 +141,12 @@ class AvitoAccount(BaseModel):
                     sentry_sdk.capture_exception(e)
 
         return False
+
+    async def update_profile_url(self) -> None:
+        assert self.access_token
+        account_info = get_avito_account_info(self.access_token)
+        self.profile_url = account_info["profile_url"]
+        await sync_to_async(self.save)()
 
     def __str__(self):
         return f"{self.name}, {self.telegram_id}"
