@@ -121,10 +121,16 @@ class HandlebleNoteInline(admin.TabularInline):
     extra = 0
 
 
+class AmoPromptInline(admin.StackedInline):
+    model = amo.models.AmoPrompt
+    extra = 0
+
+
 @admin.register(amo.models.AmoChatBot)
 class AmoChatBotAdmin(admin.ModelAdmin):
     list_display = ["name", "account"]
     inlines = [
+        AmoPromptInline,
         FillableFieldInline,
         AmoPipelineStatusInline,
         AmoOriginInline,

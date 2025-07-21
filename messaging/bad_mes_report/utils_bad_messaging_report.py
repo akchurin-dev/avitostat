@@ -85,7 +85,7 @@ async def get_messaging_report_data(
         if stat_splitted_by_managers:
             analyze_all_chats["statistics_by_managers"] = stat_splitted_by_managers
 
-        analyze_messaging = await messaging_total_analyze(chats_filtered_by_excluded_sellings, period)
+        analyze_messaging = await messaging_total_analyze(avito_account, chats_filtered_by_excluded_sellings, period)
         if analyze_messaging:
             analyze_all_chats["chats"] = analyze_messaging
 

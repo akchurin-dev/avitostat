@@ -89,7 +89,7 @@ def handle_lead_note(
         "text": text,
     })
 
-    ai_answer = answers.parse_form(chatbot, text, tlogger=tlogger)
+    ai_answer = answers.parse_form(account, chatbot, text, tlogger=tlogger)
 
     assert lead.contacts_ids is not None
     contact = amo_api.get_contact(

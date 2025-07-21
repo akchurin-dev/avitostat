@@ -2,6 +2,7 @@ from typing import Iterable
 
 from openai.types.responses import Response
 from openai.types.responses import ResponseInputParam
+from openai.types.responses import ResponseInputItemParam
 from openai.types.responses import ResponseTextConfigParam
 from openai.types.responses.easy_input_message_param import EasyInputMessageParam as GPTMessage
 import pydantic
@@ -83,41 +84,42 @@ from utils.logging import TraceLogger
 #     return answers.get_ai_answer_wrapper(response, payload, tlogger=tlogger)
 
 
-def _get_gpt_messages(
-    chatbot: amo.models.AmoChatBot,
-    messages: list[messaging.api.ChatMessage],
-    transcriptions: avito_transcriptions.TranscriptionsForMessages,
-    all_fillable_fields: Iterable[amo.models.FillableField],
-    unknown_fillable_fields: Iterable[amo.models.FillableField],
-    available_pipeline_statuses: list[amo_api.PipelineStatus],
-    lead: amo_api.Lead,
-    contact: amo_api.Contact,
-) -> ResponseInputParam:
+# def _get_gpt_messages(
+#     account: amo.models.AmoAccount,
+#     chatbot: amo.models.AmoChatBot,
+#     messages: list[ResponseInputItemParam],
+#     transcriptions: avito_transcriptions.TranscriptionsForMessages,
+#     all_fillable_fields: Iterable[amo.models.FillableField],
+#     unknown_fillable_fields: Iterable[amo.models.FillableField],
+#     available_pipeline_statuses: list[amo_api.PipelineStatus],
+#     lead: amo_api.Lead,
+#     contact: amo_api.Contact,
+# ) -> ResponseInputParam:
 
-    current_status = None
+#     current_status = None
 
-    for status in available_pipeline_statuses:
-        if status.id == lead.status_id:
-            current_status = status
-            break
+#     for status in available_pipeline_statuses:
+#         if status.id == lead.status_id:
+#             current_status = status
+#             break
 
-    if current_status is None:
-        raise Exception(f"Status (id={lead.status_id}) not found in pipeline (id={lead.pipeline_id})")
+#     if current_status is None:
+#         raise Exception(f"Status (id={lead.status_id}) not found in pipeline (id={lead.pipeline_id})")
 
-    prompt = answers.get_prompt(chatbot, unknown_fillable_fields, available_pipeline_statuses, current_status)
+#     prompt = answers.get_prompt(account, chatbot, messages, unknown_fillable_fields, available_pipeline_statuses, current_status)
 
-    gpt_messages: ResponseInputParam = [{"role": "system", "content": prompt}]
+#     gpt_messages: ResponseInputParam = [{"role": "system", "content": prompt}]
 
-    if chatbot.duplicate_instructions:
-        gpt_messages.append({"role": "user", "content": chatbot.duplicate_instructions})
+#     if chatbot.duplicate_instructions:
+#         gpt_messages.append({"role": "user", "content": chatbot.duplicate_instructions})
 
-    lead_contact_info = answers.known_lead_contact_info(all_fillable_fields, lead, contact)
-    if lead_contact_info:
-        gpt_messages.append({"role": "user", "content": lead_contact_info})
+#     lead_contact_info = answers.known_lead_contact_info(all_fillable_fields, lead, contact)
+#     if lead_contact_info:
+#         gpt_messages.append({"role": "user", "content": lead_contact_info})
 
-    for message in messages:
-        gpt_message = chat_bot.ai_utils.avito_message_to_gpt_format(message, transcriptions)
-        if gpt_message:
-            gpt_messages.append(gpt_message)
+#     for message in messages:
+#         gpt_message = chat_bot.ai_utils.avito_message_to_gpt_format(message, transcriptions)
+#         if gpt_message:
+#             gpt_messages.append(gpt_message)
 
-    return gpt_messages
+#     return gpt_messages

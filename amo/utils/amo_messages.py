@@ -121,7 +121,7 @@ def create_chat_and_talk(account: amo.models.AmoAccount, contact: amo_api.Contac
     chat_create_config = amo.models.AmoChatCreateConfig.objects.filter(account=account).first()
 
     if chat_create_config is None:
-        raise Exception(f"Chat create config not found for account '{account.name}'")
+        raise Exception(f"Chat create config not found for account '{account.domain}'")
 
     chat = create_chat(chat_create_config, contact, tlogger=tlogger)
     chats_ids = [sp.chat_id for sp in chat.social_profile if sp.code == chat_create_config.source.origin]

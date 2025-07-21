@@ -19,21 +19,13 @@ def send_report(
 ) -> None:
 
     messages_legacy_format = amo_messages.to_legacy_format(messages)
-    ai_report = ai_utils.generate_chat_summary(messages_legacy_format)
+    ai_report = ai_utils.generate_chat_summary("Amo", account.domain, messages_legacy_format)
 
     summary_text = _get_summary_text(ai_report, lead, contact)
 
     if account.telegram_id is None:
         raise Exception("AmoAccount don't have telegram_id")
 
-    # async def f(chat_id: str, text: str):
-    #     await bot.bot.session.close()
-    #     await bot.bot.send_message(
-    #         chat_id=chat_id,
-    #         text=text,
-    #     )
-
-    # async_to_sync(f)(account.telegram_id, summary_text)
     tg.send_message(account.telegram_id, summary_text)
 
 

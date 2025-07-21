@@ -242,6 +242,7 @@ def generate_ai_answer(task_id: int, messages: list[messaging.api.ChatMessage], 
         assert ai_answer.payload.answer
         ai_answer.payload.answer = task.chatbot.message_prefix + ai_answer.payload.answer + task.chatbot.message_postfix
         additional_usage = isolated_check.check_fields_isolately_and_update_ai_result(
+            task.account,
             task.chatbot,
             messages_ai_format,
             ai_answer,

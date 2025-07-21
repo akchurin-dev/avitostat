@@ -159,7 +159,11 @@ def generate_answer_and_parse_contacts(
         max_tokens=2000,
         timeout=30,
     )
-    ai_requests.create_from_chat_completion(response, tlogger=tlogger)
+    ai_requests.create_from_chat_completion(
+        tag=f"Avito | {ai_assistant.account.name} | generate answer and parse contacts",
+        completion=response,
+        tlogger=tlogger,
+    )
 
     return parse_response(response)
 
@@ -180,7 +184,11 @@ def parse_contacts(
         messages=_get_messages_for_gpt(chatbot, chat, extract_contacts_only=True, tlogger=tlogger),
         response_format=_get_schema(chatbot.account, ask_location, ClientContactsSchema),
     )
-    ai_requests.create_from_chat_completion(response, tlogger=tlogger)
+    ai_requests.create_from_chat_completion(
+        tag=f"Avito | {chatbot.account.name} | parse contacts",
+        completion=response,
+        tlogger=tlogger,
+    )
 
     return parse_response(response)
 
@@ -253,7 +261,13 @@ def _get_system_message(
 
     chat_str = _chat_to_str(chat)
     prompts_qs = chat_bot.models.AvitoPrompt.objects.filter(chatbot=chatbot)
-    prompt_base = prompts.define_prompt(prompts_qs, chat_str, tlogger=tlogger)
+    prompt_base = prompts.define_prompt(
+        prompts_qs,
+        chat_str,
+        module="Avito",
+        account_name=chatbot.account.name or "",
+        tlogger=tlogger,
+    )
 
     if prompt_base:
         lines.append(prompt_base)
@@ -329,7 +343,7 @@ def avito_chat_summary_ai_generator(avito_account: AvitoAccount, chat_id: str, *
     messages = chat.get("messages")
     assert messages
 
-    return generate_chat_summary(messages)
+    return generate_chat_summary("Avito", avito_account.name or "", messages)
 
 
 class ChatSummaryParagraphs(BaseModel):
@@ -344,7 +358,7 @@ class ChatSummary(BaseModel):
     tokens_prompt: int
 
 
-def generate_chat_summary(chat: list) -> ChatSummary:
+def generate_chat_summary(module: Literal["Avito", "Amo"], account_name: str, chat: list) -> ChatSummary:
     if not use_gpt_flag():
         return ChatSummary.model_validate({
             'paragraphs': {
@@ -378,7 +392,11 @@ def generate_chat_summary(chat: list) -> ChatSummary:
         response_format=ChatSummarySchema,
         max_tokens=600,
     )
-    ai_requests.create_from_chat_completion(response, tlogger=TraceLogger())
+    ai_requests.create_from_chat_completion(
+        tag=f"{module} | {account_name} | generate chat summary",
+        completion=response,
+        tlogger=TraceLogger(),
+    )
 
     data = response.choices[0].message.parsed
     if data is None:

@@ -15,7 +15,7 @@ MODEL = "gpt-4o-2024-08-06"
 client = AsyncOpenAI(api_key=settings.OPENAI_SECRET_KEY)
 
 
-async def analyze_chat(chat):
+async def analyze_chat(account: AvitoAccount, chat):
     chat_text = "\n".join(
         [message.get('direction') + ": " + message.get('content').get("text") for message in chat.get('messages') if
          message.get('type', None) == 'text'])
@@ -93,7 +93,11 @@ async def analyze_chat(chat):
         ],
         temperature=1.0
     )
-    await sync_to_async(ai_requests.create_from_chat_completion)(completion, tlogger=TraceLogger())
+    await sync_to_async(ai_requests.create_from_chat_completion)(
+        tag=f"Avito | {account.name} | analyze chat",
+        completion=completion,
+        tlogger=TraceLogger(),
+    )
 
     chat["analyze"] = completion.choices[0].message.content
 
@@ -111,7 +115,7 @@ async def analyze_chat(chat):
     return chat
 
 
-async def messaging_total_analyze(ready_chats: list, period: str = "week"):
+async def messaging_total_analyze(account: AvitoAccount, ready_chats: list, period: str = "week"):
     if period == "week":
         ready_chats = ready_chats[:15]
     elif period == "month":
@@ -120,7 +124,7 @@ async def messaging_total_analyze(ready_chats: list, period: str = "week"):
     tasks = []
 
     for chat in ready_chats:
-        tasks.append(analyze_chat(chat))
+        tasks.append(analyze_chat(account, chat))
 
     # Выполняем все задачи параллельно
     analyzed_chats = await asyncio.gather(*tasks)
@@ -173,7 +177,11 @@ async def analyze_by_criteria_chat(chat: dict, test_from_prod: bool, avito_accou
         temperature=1.0,
         tools=[openai.pydantic_function_tool(CriterionAnalyzeSchema)]
     )
-    await sync_to_async(ai_requests.create_from_chat_completion)(response, tlogger=TraceLogger())
+    await sync_to_async(ai_requests.create_from_chat_completion)(
+        tag=f"Avito | {avito_account.name} | analyze by criteria chat",
+        completion=response,
+        tlogger=TraceLogger(),
+    )
     tool_calls = response.choices[0].message.tool_calls or []
     raw_result = [x.function.arguments for x in tool_calls]
 

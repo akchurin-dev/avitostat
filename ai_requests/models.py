@@ -2,9 +2,17 @@ from django.db import models
 
 
 class AIRequest(models.Model):
+    tag = models.CharField(
+        verbose_name="Тэг",
+        max_length=255,
+        default="",
+        db_index=True,
+    )
+
     model = models.CharField(
         verbose_name="Модель",
         max_length=127,
+        db_index=True,
     )
 
     tokens_completion = models.IntegerField(
@@ -30,4 +38,5 @@ class AIRequest(models.Model):
     created_at = models.DateTimeField(
         verbose_name="Создано",
         auto_now_add=True,
+        db_index=True,
     )

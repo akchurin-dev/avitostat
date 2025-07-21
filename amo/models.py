@@ -7,6 +7,7 @@ import transcriptions.models
 from amo.utils import amo_chatbottasks
 from amo.utils import amo_webhooks
 from chatbottasks import chatbottasks
+from prompts import prompts
 from utils import miscellaneous
 from utils.logging import TraceLogger
 
@@ -642,3 +643,15 @@ class AmoTranscription(models.Model):
         to=transcriptions.models.Transcription,
         on_delete=models.CASCADE,
     )
+
+
+class AmoPrompt(prompts.PromptBase):
+    chatbot = models.ForeignKey(
+        verbose_name="Чат-бот",
+        to=AmoChatBot,
+        on_delete=models.CASCADE,
+    )
+
+    class Meta:
+        verbose_name = "Amo-промпт"
+        verbose_name_plural = "Amo-промпты"

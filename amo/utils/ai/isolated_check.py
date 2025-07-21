@@ -19,6 +19,7 @@ class TokensUsage(NamedTuple):
 
 
 def check_fields_isolately_and_update_ai_result(
+    account: amo.models.AmoAccount,
     chatbot: amo.models.AmoChatBot,
     messages: list[ResponseInputItemParam],
     ai_answer: answers.AIAnswer,
@@ -44,7 +45,7 @@ def check_fields_isolately_and_update_ai_result(
     tokens_prompt = tokens_completion = 0
 
     for fillable_field, amo_field in fillable_field_amo_field_pairs:
-        value, usage = find_value(chatbot, messages, fillable_field, amo_field, tlogger=tlogger)
+        value, usage = find_value(account, chatbot, messages, fillable_field, amo_field, tlogger=tlogger)
 
         tokens_prompt += usage.tokens_prompt
         tokens_completion += usage.tokens_completion
@@ -65,6 +66,7 @@ def check_fields_isolately_and_update_ai_result(
 
 
 def find_value(
+    account: amo.models.AmoAccount,
     chatbot: amo.models.AmoChatBot,
     messages: list[ResponseInputItemParam],
     fillable_field: amo.models.FillableField,
@@ -76,6 +78,7 @@ def find_value(
     response = answers.openai_request_with_retries(
         input=get_ai_input(chatbot, messages, fillable_field),
         text=get_text_format(fillable_field, amo_field),
+        tag=f"Amo | {account.domain} | field isolated check",
         tlogger=tlogger,
     )
     struct = json.loads(response.output_text)

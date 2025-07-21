@@ -1,5 +1,6 @@
 import json
 from typing import Iterable
+from typing import Literal
 
 from django.db import models
 from openai.types.responses.response_text_config_param import ResponseTextConfigParam
@@ -32,7 +33,15 @@ class PromptBase(models.Model):
         return f"{self.title} ({self.pk})"
 
 
-def define_prompt(prompts_iterable: Iterable[PromptBase], dialog: str, *, tlogger: TraceLogger) -> str | None:
+def define_prompt(
+    prompts_iterable: Iterable[PromptBase],
+    dialog: str,
+    *,
+    module: Literal["Amo", "Avito"],
+    account_name: str,
+    tlogger: TraceLogger,
+) -> str | None:
+
     prompts = list(prompts_iterable)
 
     if len(prompts) == 0:
@@ -59,7 +68,11 @@ def define_prompt(prompts_iterable: Iterable[PromptBase], dialog: str, *, tlogge
         input=[{"role": "system", "content": request_prompt}],
         text=response_format,
     )
-    ai_requests.create_from_response(response, tlogger=tlogger)
+    ai_requests.create_from_response(
+        tag=f"{module} | {account_name} | define prompt",
+        response=response,
+        tlogger=tlogger,
+    )
 
     titles = set(json.loads(response.output_text)["required_prompts"])
     tlogger.info({

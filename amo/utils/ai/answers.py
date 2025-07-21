@@ -8,8 +8,8 @@ from openai.types.responses import ResponseInputItemParam
 from openai.types.responses import ResponseTextConfigParam
 from pydantic import BaseModel
 
-from ai_requests import ai_requests
 import amo.models
+from ai_requests import ai_requests
 from amo.utils import amo_api
 from amo.utils import amo_fields
 from amo.utils import amo_leads
@@ -19,6 +19,7 @@ from amo.utils.amo_transcriptions import TranscriptionsForMessages
 from chat_bot.ai_utils import client
 from chat_bot.ai_utils import MODEL
 from chat_bot.ai_utils import use_gpt_flag
+from prompts import prompts
 from utils.logging import TraceLogger
 
 
@@ -57,6 +58,7 @@ def generate_answer(
     available_pipeline_statuses = amo_api.get_pipeline_statuses(account, lead.pipeline_id, tlogger=tlogger)
 
     gpt_messages = _get_gpt_messages(
+        account=account,
         chatbot=chatbot,
         messages=messages,
         all_fillable_fields=all_fillable_fields,
@@ -64,6 +66,7 @@ def generate_answer(
         available_pipeline_statuses=available_pipeline_statuses,
         lead=lead,
         contact=contact,
+        tlogger=tlogger,
     )
 
     text_format = get_text_format(
@@ -77,6 +80,7 @@ def generate_answer(
     response = openai_request_with_retries(
         input=gpt_messages,
         text=text_format,
+        tag=f"Amo | {account.domain} | generate answer",
         tlogger=tlogger,
     )
     payload = AIAnswerPayload.model_validate_json(response.output_text)
@@ -84,7 +88,7 @@ def generate_answer(
     return get_ai_answer_wrapper(response, payload, tlogger=tlogger)
 
 
-def parse_form(chatbot: amo.models.AmoChatBot, form: str, *, tlogger: TraceLogger) -> AIAnswer:
+def parse_form(account: amo.models.AmoAccount, chatbot: amo.models.AmoChatBot, form: str, *, tlogger: TraceLogger) -> AIAnswer:
     if not use_gpt_flag():
         return AIAnswer.model_validate({})
 
@@ -106,6 +110,7 @@ def parse_form(chatbot: amo.models.AmoChatBot, form: str, *, tlogger: TraceLogge
     response = openai_request_with_retries(
         input=gpt_messages,
         text=text_format,
+        tag=f"Amo | {account.domain} | parse form",
         tlogger=tlogger,
     )
     payload = AIAnswerPayload.model_validate_json(response.output_text)
@@ -118,6 +123,7 @@ def openai_request_with_retries(
     text: ResponseTextConfigParam,
     max_output_tokens: int = 2000,
     *,
+    tag: str,
     tlogger: TraceLogger,
 ) -> Response:
 
@@ -131,7 +137,7 @@ def openai_request_with_retries(
                 text=text,
                 max_output_tokens=max_output_tokens,
             )
-            ai_requests.create_from_response(response, tlogger=tlogger)
+            ai_requests.create_from_response(tag, response, tlogger=tlogger)
             return response
         except pydantic.ValidationError as e:
             error = e
@@ -145,6 +151,7 @@ def openai_request_with_retries(
 
 
 def _get_gpt_messages(
+    account: amo.models.AmoAccount,
     chatbot: amo.models.AmoChatBot,
     messages: list[ResponseInputItemParam],
     all_fillable_fields: Iterable[amo.models.FillableField],
@@ -152,6 +159,8 @@ def _get_gpt_messages(
     available_pipeline_statuses: list[amo_api.PipelineStatus],
     lead: amo_api.Lead,
     contact: amo_api.Contact,
+    *,
+    tlogger: TraceLogger,
 ) -> ResponseInputParam:
 
     current_status = None
@@ -164,7 +173,7 @@ def _get_gpt_messages(
     if current_status is None:
         raise Exception(f"Status (id={lead.status_id}) not found in pipeline (id={lead.pipeline_id})")
 
-    prompt = get_prompt(chatbot, unknown_fillable_fields, available_pipeline_statuses, current_status)
+    prompt = _get_prompt(account, chatbot, messages, unknown_fillable_fields, available_pipeline_statuses, current_status, tlogger=tlogger)
 
     gpt_messages: ResponseInputParam = [{"role": "system", "content": prompt}]
 
@@ -440,15 +449,19 @@ def get_unknown_fillable_fields(
     return unknown_fillable_fields
 
 
-def get_prompt(
+def _get_prompt(
+    account: amo.models.AmoAccount,
     chatbot: amo.models.AmoChatBot,
+    messages: list[ResponseInputItemParam],
     fields: Iterable[amo.models.FillableField],
     available_pipeline_statuses: list[amo_api.PipelineStatus],
     current_status: amo_api.PipelineStatus,
+    *,
+    tlogger: TraceLogger,
 ) -> str:
 
     prompt = ""
-    prompt = _add_chatbot_prompt(prompt, chatbot)
+    prompt = _add_chatbot_prompt(prompt, account, chatbot, messages, tlogger=tlogger)
     prompt = _add_fields_prompt(prompt, fields)
 
     if not chatbot.change_status_only_when_qualification:
@@ -462,38 +475,85 @@ def get_prompt(
     return prompt
 
 
-def _add_chatbot_prompt(prompt: str, chatbot: amo.models.AmoChatBot) -> str:
-    role_and_tasks_title = "Твои роль и задачи"
-    behaviour_style_title = "Стиль поведения во время общения"
-    company_and_products_title = "Описание компании и ее продуктов"
-    important_conditions_title = "Важные условия на которые тебе нужно обратить внимание"
-    links_and_contacts_title = "Полезные ссылки и контакты"
+# def _add_chatbot_prompt(prompt: str, chatbot: amo.models.AmoChatBot) -> str:
+#     role_and_tasks_title = "Твои роль и задачи"
+#     behaviour_style_title = "Стиль поведения во время общения"
+#     company_and_products_title = "Описание компании и ее продуктов"
+#     important_conditions_title = "Важные условия на которые тебе нужно обратить внимание"
+#     links_and_contacts_title = "Полезные ссылки и контакты"
 
-    titles_and_descriptions = {
-        role_and_tasks_title: chatbot.role_and_tasks,
-        behaviour_style_title: chatbot.behaviour_style,
-        company_and_products_title: chatbot.company_and_products,
-        important_conditions_title: chatbot.important_conditions,
-        links_and_contacts_title: chatbot.links_and_contacts,
-    }
+#     titles_and_descriptions = {
+#         role_and_tasks_title: chatbot.role_and_tasks,
+#         behaviour_style_title: chatbot.behaviour_style,
+#         company_and_products_title: chatbot.company_and_products,
+#         important_conditions_title: chatbot.important_conditions,
+#         links_and_contacts_title: chatbot.links_and_contacts,
+#     }
 
-    titles_ordered = [
-        role_and_tasks_title,
-        behaviour_style_title,
-        company_and_products_title,
-        important_conditions_title,
-        links_and_contacts_title,
-    ]
+#     titles_ordered = [
+#         role_and_tasks_title,
+#         behaviour_style_title,
+#         company_and_products_title,
+#         important_conditions_title,
+#         links_and_contacts_title,
+#     ]
 
-    new_text = "\n\n".join([title + "\n" + desc for title in titles_ordered if (desc := titles_and_descriptions[title])])
+#     new_text = "\n\n".join([title + "\n" + desc for title in titles_ordered if (desc := titles_and_descriptions[title])])
 
-    if not new_text:
+#     if not new_text:
+#         return prompt
+
+#     if prompt:
+#         prompt += "\n\n"
+
+#     return prompt + new_text
+
+
+def _add_chatbot_prompt(
+    prompt: str,
+    account: amo.models.AmoAccount,
+    chatbot: amo.models.AmoChatBot,
+    messages: list[ResponseInputItemParam],
+    *,
+    tlogger: TraceLogger,
+) -> str:
+
+    prompts_qs = amo.models.AmoPrompt.objects.filter(chatbot=chatbot)
+    chatbot_prompt = prompts.define_prompt(
+        prompts_qs,
+        _get_dialog_str(messages),
+        module="Amo",
+        account_name=account.domain,
+        tlogger=tlogger,
+    )
+
+    if not chatbot_prompt:
         return prompt
 
     if prompt:
         prompt += "\n\n"
 
-    return prompt + new_text
+    return prompt + chatbot_prompt
+
+
+def _get_dialog_str(messages: list[ResponseInputItemParam]) -> str:
+    replics: list[str] = []
+
+    for msg in messages:
+        if "role" not in msg or "content" not in msg:
+            continue
+
+        author = {"assistant": "Manager", "user": "Customer"}.get(msg["role"])
+        if author is None:
+            continue
+
+        text = "Не текстовое сообщение"
+        if isinstance(msg["content"], str):
+            text = msg["content"]
+
+        replics.append(author + ": " + text)
+
+    return "\n\n".join(replics)
 
 
 def _add_pipelines_prompt(

@@ -5,7 +5,7 @@ from ai_requests.models import AIRequest
 from utils.logging import TraceLogger
 
 
-def create_from_response(response: Response, *, tlogger: TraceLogger) -> AIRequest:
+def create_from_response(tag: str, response: Response, *, tlogger: TraceLogger) -> AIRequest:
     tokens_completion = tokens_prompt = 0
 
     completion_detail: str = ""
@@ -18,6 +18,7 @@ def create_from_response(response: Response, *, tlogger: TraceLogger) -> AIReque
         prompt_detail = str(response.usage.input_tokens_details)
 
     return create(
+        tag=tag,
         model=response.model,
         tokens_completion=tokens_completion,
         tokens_prompt=tokens_prompt,
@@ -27,7 +28,7 @@ def create_from_response(response: Response, *, tlogger: TraceLogger) -> AIReque
     )
 
 
-def create_from_chat_completion(completion: ChatCompletion, *, tlogger: TraceLogger) -> AIRequest:
+def create_from_chat_completion(tag: str, completion: ChatCompletion, *, tlogger: TraceLogger) -> AIRequest:
     tokens_completion = tokens_prompt = 0
 
     completion_detail: str = ""
@@ -40,6 +41,7 @@ def create_from_chat_completion(completion: ChatCompletion, *, tlogger: TraceLog
         prompt_detail = str(completion.usage.prompt_tokens_details)
 
     return create(
+        tag=tag,
         model=completion.model,
         tokens_completion=tokens_completion,
         tokens_prompt=tokens_prompt,
@@ -50,6 +52,7 @@ def create_from_chat_completion(completion: ChatCompletion, *, tlogger: TraceLog
 
 
 def create(
+    tag: str,
     model: str,
     tokens_completion: int,
     tokens_prompt: int,
@@ -68,6 +71,7 @@ def create(
     )
 
     return AIRequest.objects.create(
+        tag=tag,
         model=model,
         tokens_completion=tokens_completion,
         tokens_prompt=tokens_prompt,

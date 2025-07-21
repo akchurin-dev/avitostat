@@ -31,7 +31,7 @@ def create_transcription(audio_url: str, format: str, *, tlogger: TraceLogger) -
 def audio_to_transcription(audio: io.BytesIO, *, tlogger: TraceLogger) -> str:
     transcription = client.audio.transcriptions.create(model=MODEL, file=audio)
 
-    ai_requests.create(MODEL, 0, 0, tlogger=tlogger)
+    ai_requests.create("audio transcription", MODEL, 0, 0, tlogger=tlogger)
 
     return transcription.text
 
