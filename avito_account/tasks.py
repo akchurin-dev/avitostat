@@ -1,9 +1,11 @@
 from asgiref.sync import async_to_sync, sync_to_async
 from telegram_bot import bot
-from base.celery import celery_app, celery_logger
+
+from avito_account import oauth_utils
 from avito_account.api.get_balance import get_balance
 from avito_account.models.models import AvitoAccount
 from base import settings
+from base.celery import celery_app, celery_logger
 
 
 @celery_app.task(name='avito_account.tasks.sentry_test')
@@ -17,7 +19,11 @@ def update_tokens_task():
     for account in accounts:
         try:
             async_to_sync(account.update_refresh_token_async)()
-            async_to_sync(account.update_profile_url)()
+
+            assert account.access_token
+            account_info = oauth_utils.get_avito_account_info(account.access_token)
+            account.profile_url = account_info["profile_url"]
+            account.save()
         except Exception:
             celery_logger.exception(f'Error while updating tokens{Exception}')
 
