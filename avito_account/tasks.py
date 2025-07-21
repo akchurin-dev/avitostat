@@ -14,8 +14,11 @@ def sentry_test():
 
 
 @celery_app.task(name='avito_account.tasks.update_tokens')
-def update_tokens_task():
+def update_tokens_task(accounts_ids: list[int] | None = None):
     accounts = AvitoAccount.objects.all()
+    if accounts_ids:
+        accounts = accounts.filter(id__in=accounts_ids)
+
     for account in accounts:
         try:
             async_to_sync(account.update_refresh_token_async)()

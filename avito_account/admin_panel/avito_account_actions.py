@@ -4,6 +4,7 @@ from asgiref.sync import async_to_sync
 from django.db.models import QuerySet
 
 import chat_bot.tasks
+from avito_account.tasks import update_tokens_task
 from avito_account.models.models import AvitoAccount
 from conversion.tasks import send_text_report_all_async_task
 from messaging.tasks import bad_messaging_week_report_async_task, \
@@ -142,11 +143,13 @@ def update_avito_accounts_tokens(self, request, queryset: QuerySet[AvitoAccount]
     tlogger = TraceLogger()
     errors: list[str] = []
 
-    for account in queryset:
-        try:
-            async_to_sync(account.update_refresh_token_async)(tlogger)
-        except Exception as e:
-            errors.append(f"Error when refresh token of '{account.name}'. Error: {e}")
+    # for account in queryset:
+    #     try:
+    #         async_to_sync(account.update_refresh_token_async)(tlogger)
+    #     except Exception as e:
+    #         errors.append(f"Error when refresh token of '{account.name}'. Error: {e}")
+
+    update_tokens_task([account.pk for account in queryset])
 
     message = "Токены успешно обнвлены"
     level = "success"
