@@ -2,6 +2,10 @@ import datetime
 import re
 
 
+def datetime_now_msk():
+    return datetime_now_with_tz(utc_offset_hours=3)
+
+
 def datetime_now_with_tz(utc_offset_hours: int) -> datetime.datetime:
     utc_time_now = datetime.datetime.now(datetime.timezone.utc)
     return datetime_from_utc_to_tz(utc_time_now, utc_offset_hours)

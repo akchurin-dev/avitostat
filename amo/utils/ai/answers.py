@@ -2,6 +2,8 @@ import re
 from typing import Iterable
 from typing import NamedTuple
 
+from django.db.models import F
+from django.db.models import Q
 from openai.types.responses import ResponseInputParam
 from openai.types.responses import ResponseInputItemParam
 from openai.types.responses import ResponseTextConfigParam
@@ -18,6 +20,7 @@ from amo.utils.amo_transcriptions import TranscriptionsForMessages
 from chat_bot.ai_utils import use_gpt_flag
 from prompts import prompts
 from utils.logging import TraceLogger
+from utils.miscellaneous import datetime_now_msk
 
 
 PHRASE_AUTHOR_REGEX = re.compile(r"^\s*\w+:\s*")
@@ -446,7 +449,21 @@ def _add_chatbot_prompt(
     tlogger: TraceLogger,
 ) -> str:
 
-    prompts_qs = amo.models.AmoPrompt.objects.filter(chatbot=chatbot)
+    time_now = datetime_now_msk().time()
+    prompts_qs = amo.models.AmoPrompt.objects.filter(
+        Q(
+            available_since=F("available_until"),
+        ) | Q(
+            available_since__lt=F("available_until"),
+            available_since_lte=time_now,
+            available_until__gte=time_now,
+        ) | Q(
+            Q(available_since__lte=time_now) | Q(available_until__gte=time_now),
+            available_since_gt=F("available_until"),
+        ),
+        chatbot=chatbot,
+    )
+
     chatbot_prompt = prompts.define_prompt(
         prompts_qs,
         _get_dialog_str(messages),

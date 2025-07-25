@@ -102,7 +102,8 @@ class MessageContactLink(models.Model):
                 author_name=author_name,
                 amo_account_id=amo_account_id,
             )
-            .first()
+            .order_by("message_created_at")
+            .last()
         )
 
         if link:
@@ -140,7 +141,8 @@ class MessageContactLink(models.Model):
                 author_name=author_name,
                 amo_account_id=amo_account_id,
             )
-            .first()
+            .order_by("message_created_at")
+            .last()
         )
 
         if link:

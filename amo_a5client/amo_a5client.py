@@ -1,3 +1,5 @@
+import time
+
 from celery import shared_task
 
 import amo_a5client.models
@@ -16,6 +18,8 @@ def handle_message_from_amo(
     *,
     tlogger: TraceLogger,
 ) -> None:
+
+    time.sleep(1)  # Для уменьшения шанса того, что амо и авито одновременно создадут линк
 
     text_with_attachment = _include_attachment_to_text(text, attachment_type)
     link = amo_a5client.models.MessageContactLink.get_or_create_by_amo_data(

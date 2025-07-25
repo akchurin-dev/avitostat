@@ -1,3 +1,5 @@
+import datetime
+
 from django.contrib.auth.models import User
 from django.db import models
 from django.db.models import QuerySet
@@ -632,6 +634,16 @@ class AmoPrompt(prompts.PromptBase):
         verbose_name="Чат-бот",
         to=AmoChatBot,
         on_delete=models.CASCADE,
+    )
+
+    available_since = models.TimeField(
+        verbose_name="Актуально с",
+        default=datetime.time.fromisoformat("00:00:00"),
+    )
+
+    available_until = models.TimeField(
+        verbose_name="Актуально до",
+        default=datetime.time.fromisoformat("23:59:59"),
     )
 
     class Meta:
