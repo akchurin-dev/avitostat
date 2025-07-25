@@ -418,6 +418,9 @@ def additional_values_finding(
     phone_number_field_name = "Телефон"
     diameter_field_name = "Диаметр диска"
 
+    if "contact" not in fields_values:
+        fields_values["contact"] = {}
+
     if fields_values["contact"]:
         phone = fields_values["contact"].get(phone_number_field_name)
 
@@ -426,6 +429,9 @@ def additional_values_finding(
             if phone:
                 tlogger.info("Found phone number without ai")
                 fields_values["contact"][phone_number_field_name] = phone
+
+    if "lead" not in fields_values:
+        fields_values["lead"] = {}
 
     if fields_values["lead"]:
         diameter = fields_values["lead"].get(diameter_field_name)
