@@ -443,7 +443,7 @@ def _request_with_token(
     )
     time.sleep(0.05)
 
-    if not retry and response.status_code == 401:
+    if not retry and response.status_code in [401, 403]:
         amo_tokens.update_tokens(
             domain=domain,
             refresh_token=account.refresh_token,
@@ -509,7 +509,7 @@ def _request_with_csrf(
     )
     time.sleep(0.05)
 
-    if not retry and response.status_code == 401:
+    if not retry and response.status_code in [401, 403]:
         amo_tokens.update_hidden_api_tokens(account_id, tlogger=tlogger)
         return _request_with_csrf(
             method=method,
@@ -552,7 +552,7 @@ def _amojo_request(
     )
     time.sleep(0.05)
 
-    if not retry and response.status_code == 401:
+    if not retry and response.status_code in [401, 403]:
         amo_tokens.update_hidden_api_tokens(account.amo_id, tlogger=tlogger)
         return _amojo_request(
             account=account,
