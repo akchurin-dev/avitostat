@@ -10,6 +10,7 @@ import amo.models
 from amo.utils import amo_api
 from amo.utils import amo_fields
 from amo.utils.ai import answers
+from amo.utils.ai.openai import openai_request_with_retries
 from utils.logging import TraceLogger
 
 
@@ -75,7 +76,7 @@ def find_value(
     tlogger: TraceLogger,
 ) -> tuple[Any, TokensUsage]:
 
-    response = answers.openai_request_with_retries(
+    response = openai_request_with_retries(
         input=get_ai_input(chatbot, messages, fillable_field),
         text=get_text_format(fillable_field, amo_field),
         tag=f"Amo | {account.domain} | field isolated check",

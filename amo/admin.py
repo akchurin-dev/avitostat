@@ -115,12 +115,6 @@ class AmoOriginInline(admin.TabularInline):
     extra = 0
 
 
-class HandlebleNoteInline(admin.TabularInline):
-    model = amo.models.HandlebleNote
-    fields = ["author_name"]
-    extra = 0
-
-
 class AmoPromptInline(admin.StackedInline):
     model = amo.models.AmoPrompt
     extra = 0
@@ -134,7 +128,6 @@ class AmoChatBotAdmin(admin.ModelAdmin):
         FillableFieldInline,
         AmoPipelineStatusInline,
         AmoOriginInline,
-        HandlebleNoteInline,
     ]
 
     def get_queryset(self, request: HttpRequest) -> QuerySet[amo.models.AmoChatBot]:

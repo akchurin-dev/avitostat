@@ -12,7 +12,8 @@ from amo.utils import amo_transcriptions
 from amo.utils import ai_answer_using
 from amo.utils import chatbot_lead_pair_defining
 from amo.utils.ai import answers
-from amo.utils.ai import isolated_check
+from amo.utils.ai import fields_recognition
+# from amo.utils.ai import isolated_check
 from utils import increasing_delay
 from utils.logging import TraceLogger
 
@@ -271,30 +272,47 @@ def generate_ai_answer(messages_serializable: list[dict], task_id: int, trace_id
         transcriptions = amo_transcriptions.get_transcriptions_for_voice_messages(task.account, messages, tlogger=tlogger)
         messages_ai_format = [answers.amo_message_to_gpt_format(message, transcriptions) for message in messages]
 
-        ai_answer = answers.generate_answer(
+        # ai_answer = answers.generate_answer(
+        #     chatbot=task.chatbot,
+        #     messages=messages_ai_format,
+        #     account=task.account,
+        #     lead_id=int(task.lead_id),
+        #     tlogger=tlogger,
+        # )
+        # assert ai_answer.payload.answer
+        # ai_answer.payload.answer = task.chatbot.message_prefix + ai_answer.payload.answer + task.chatbot.message_postfix
+        # additional_usage = isolated_check.check_fields_isolately_and_update_ai_result(
+        #     task.account,
+        #     task.chatbot,
+        #     messages_ai_format,
+        #     ai_answer,
+        #     tlogger=tlogger,
+        # )
+
+        # tlogger.info({"ai_answer": ai_answer.model_dump()})
+
+        answer, tokens_prompt1, tokens_completion1 = answers.generate_answer(
+            account=task.account,
             chatbot=task.chatbot,
             messages=messages_ai_format,
-            account=task.account,
-            lead_id=int(task.lead_id),
-            tlogger=tlogger,
-        )
-        assert ai_answer.payload.answer
-        ai_answer.payload.answer = task.chatbot.message_prefix + ai_answer.payload.answer + task.chatbot.message_postfix
-        additional_usage = isolated_check.check_fields_isolately_and_update_ai_result(
-            task.account,
-            task.chatbot,
-            messages_ai_format,
-            ai_answer,
             tlogger=tlogger,
         )
 
-        tlogger.info({"ai_answer": ai_answer.model_dump()})
+        fillable_fields = list(amo.models.FillableField.objects.filter(chatbot=task.chatbot))
+        entities_fields_values, tokens_prompt2, tokens_completion2 = fields_recognition.recognize_fields(
+            account=task.account,
+            messages=messages_ai_format,
+            fillable_fields=fillable_fields,
+            tlogger=tlogger,
+        )
 
         finish_handling.delay(
-            ai_answer_serializable=ai_answer.model_dump(),
+        # finish_handling(
+            answer=answer,
+            entities_fields_values=entities_fields_values,
             messages_serializable=messages_serializable,
-            additional_tokens_prompt=additional_usage.tokens_prompt,
-            additional_tokens_completion=additional_usage.tokens_completion,
+            tokens_prompt=tokens_prompt1 + tokens_prompt2,
+            tokens_completion=tokens_completion1 + tokens_completion2,
             task_id=task_id,
             trace_id=trace_id,
         )
@@ -305,16 +323,17 @@ def generate_ai_answer(messages_serializable: list[dict], task_id: int, trace_id
 
 @shared_task
 def finish_handling(
-    ai_answer_serializable: dict,
+    answer: str,
+    entities_fields_values: fields_recognition.EntitiesFieldsValues,
     messages_serializable: list[dict],
-    additional_tokens_prompt: int,
-    additional_tokens_completion: int,
+    tokens_prompt: int,
+    tokens_completion: int,
     *,
     task_id: int,
     trace_id: str,
 ) -> None:
     @amo.models.AmoChatBotTask.interrupt_task_if_error
-    def f(ai_answer: answers.AIAnswer, messages: list[amo_messages.Message], *, task_id: int, trace_id: str):
+    def f(messages: list[amo_messages.Message], *, task_id: int, trace_id: str):
         tlogger = TraceLogger(trace_id)
 
         task = amo.models.AmoChatBotTask.objects.get(pk=task_id)
@@ -330,7 +349,7 @@ def finish_handling(
 
         ai_answer_using.update_lead_and_contact(
             account=task.account,
-            ai_answer=ai_answer,
+            entities_fields_values=entities_fields_values,
             lead=lead,
             contact=contact,
             tlogger=tlogger,
@@ -338,14 +357,11 @@ def finish_handling(
 
         status_change_result = ai_answer_using.change_lead_status(
             chatbot=task.chatbot,
-            ai_answer=ai_answer,
             lead=lead,
             tlogger=tlogger,
         )
 
-        assert ai_answer.payload.answer
-
-        message = ai_answer.payload.answer
+        message = answer
         if status_change_result.status_changed_on_qualification and task.chatbot.message_when_qualification:
             message = task.chatbot.message_when_qualification
 
@@ -359,31 +375,102 @@ def finish_handling(
 
         amo.models.AmoChatBotTask.save_ai_result(
             pk=task.pk,
-            answer_text=ai_answer.payload.answer,
-            tokens_completion=ai_answer.tokens_completion + additional_tokens_completion,
-            tokens_prompt=ai_answer.tokens_prompt + additional_tokens_prompt,
+            answer_text=answer,
+            tokens_completion=tokens_completion,
+            tokens_prompt=tokens_prompt,
         )
 
-        if ai_answer.payload.contacts:
-            sent_report = amo.models.AmoChatBotTask.objects.filter(
-                account_id=task.account.pk,
-                lead_id=task.lead_id,
-                sent_report=True,
-            ).exists()
+        # if ai_answer.payload.contacts:
+        #     sent_report = amo.models.AmoChatBotTask.objects.filter(
+        #         account_id=task.account.pk,
+        #         lead_id=task.lead_id,
+        #         sent_report=True,
+        #     ).exists()
 
-            if not sent_report:
-                amo_reports.send_report(
-                    account=task.account,
-                    lead=lead,
-                    contact=contact,
-                    messages=messages,
-                    tlogger=tlogger,
-                )
-                amo.models.AmoChatBotTask.objects.filter(pk=task.pk).update(sent_report=True)
+        #     if not sent_report:
+        #         amo_reports.send_report(
+        #             account=task.account,
+        #             lead=lead,
+        #             contact=contact,
+        #             messages=messages,
+        #             tlogger=tlogger,
+        #         )
+        #         amo.models.AmoChatBotTask.objects.filter(pk=task.pk).update(sent_report=True)
 
         task.change_status(task.Status.FINISHED, tlogger=tlogger)
 
-    ai_answer = answers.AIAnswer.model_validate(ai_answer_serializable)
     messages = [amo_messages.Message.model_validate(m) for m in messages_serializable]
+    f(messages, task_id=task_id, trace_id=trace_id)
 
-    f(ai_answer, messages, task_id=task_id, trace_id=trace_id)
+
+
+from openai.types.responses import ResponseInputItemParam
+
+def additional_values_finding(
+    fields_values: fields_recognition.EntitiesFieldsValues,
+    messages: list[ResponseInputItemParam],
+    *,
+    tlogger: TraceLogger,
+) -> None:
+
+    phone_number_field_name = "Телефон"
+    diameter_field_name = "Диаметр диска"
+
+    if fields_values["contact"]:
+        phone = fields_values["contact"].get(phone_number_field_name)
+
+        if phone is None:
+            phone = _find_phone_number(messages)
+            if phone:
+                tlogger.info("Found phone number without ai")
+                fields_values["contact"][phone_number_field_name] = phone
+
+    if fields_values["lead"]:
+        diameter = fields_values["lead"].get(diameter_field_name)
+
+        if diameter is None:
+            diameter = _find_diameter(messages)
+            if diameter:
+                tlogger.info("Found diameter without ai")
+                fields_values["lead"][diameter_field_name] = diameter
+
+
+import re
+PHONE_RE = re.compile(r"\+?[78]?\s*-?\s*\(?\s*9\s*\d\s*\d\s*\)?\s*-?\s*\d\s*\d\s*\d\s*-?\s*\d\s*\d\s*-?\s*\d\s*\d")
+DIAMETER_RE = re.compile(r"[rRрР][12]\d")
+
+
+def _find_phone_number(messages: list[ResponseInputItemParam]) -> str | None:
+    for i in range(len(messages) - 1, -1, -1):
+        message = messages[i]
+
+        if "role" not in message or message["role"] != "user":
+            continue
+
+        text = message.get("content")
+        if not isinstance(text, str):
+            continue
+
+        phone = PHONE_RE.search(text)
+        if phone:
+            return phone.group()
+
+    return None
+
+
+def _find_diameter(messages: list[ResponseInputItemParam]) -> str | None:
+    for i in range(len(messages) - 1, -1, -1):
+        message = messages[i]
+
+        if "role" not in message or message["role"] != "user":
+            continue
+
+        text = message.get("content")
+        if not isinstance(text, str):
+            continue
+
+        diameter = DIAMETER_RE.search(text)
+        if diameter:
+            return diameter.group()
+
+    return None

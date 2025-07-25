@@ -1,3 +1,4 @@
+import time
 from typing import NamedTuple
 
 import amo.models
@@ -85,3 +86,26 @@ def get_lead_contact_pair(account: amo.models.AmoAccount, lead_id: int | str, *,
     assert contact
 
     return LeadContactPair(lead, contact)
+
+
+def get_lead_contact(account: amo.models.AmoAccount, lead: amo_api.Lead, *, tlogger: TraceLogger) -> amo_api.Contact | None:
+    for also_retries in range(1, -1, -1):
+        assert lead.contacts_ids is not None
+        contact = amo_api.get_contact(
+            account=account,
+            contact_id=lead.contacts_ids[0],
+            with_leads=False,
+            tlogger=tlogger,
+        )
+
+        if contact:
+            return contact
+
+        if also_retries != 0:
+            time.sleep(3)
+            lead = amo_api.get_lead(account, lead.id, tlogger=tlogger)
+    else:
+        tlogger.error({"contact is empty": {
+            "lead_contacts_ids": lead.contacts_ids,
+        }})
+        return None

@@ -9,9 +9,10 @@ from amo.utils import amo_leads
 from amo.utils import amo_messages
 from amo.utils import chatbot_lead_pair_defining
 from amo.utils.ai import answers
-from amo.utils.ai import isolated_check
+from amo.utils.ai import fields_recognition
+# from amo.utils.ai import isolated_check
 from amo_a5client.config import ORIGIN_NAME
-from amo_a5client.utils import amo_a5_ai
+# from amo_a5client.utils import amo_a5_ai
 from amo_a5client.utils import amo_a5_messages
 from avito_account.models.models import AvitoAccount
 from chat_bot.ai_utils import avito_message_to_gpt_format
@@ -232,31 +233,41 @@ def generate_ai_answer(task_id: int, messages: list[messaging.api.ChatMessage], 
         #     tlogger=tlogger,
         # )
 
-        ai_answer = answers.generate_answer(
+        answer, tokens_prompt1, tokens_completion1 = answers.generate_answer(
+            account=task.account,
             chatbot=task.chatbot,
             messages=messages_ai_format,
-            account=task.account,
-            lead_id=int(task.lead_id),
+            # lead_id=int(task.lead_id),
             tlogger=tlogger,
         )
-        assert ai_answer.payload.answer
-        ai_answer.payload.answer = task.chatbot.message_prefix + ai_answer.payload.answer + task.chatbot.message_postfix
-        additional_usage = isolated_check.check_fields_isolately_and_update_ai_result(
-            task.account,
-            task.chatbot,
-            messages_ai_format,
-            ai_answer,
-            tlogger=tlogger,
-        )
+        # assert ai_answer.payload.answer
+        # ai_answer.payload.answer = task.chatbot.message_prefix + ai_answer.payload.answer + task.chatbot.message_postfix
+        # additional_usage = isolated_check.check_fields_isolately_and_update_ai_result(
+        #     task.account,
+        #     task.chatbot,
+        #     messages_ai_format,
+        #     ai_answer,
+        #     tlogger=tlogger,
+        # )
 
-        tlogger.info({"ai_answer": ai_answer.model_dump()})
+        # tlogger.info({"ai_answer": ai_answer.model_dump()})
+
+        fillable_fields = list(amo.models.FillableField.objects.filter(chatbot=task.chatbot))
+        entities_fields_values, tokens_prompt2, tokens_completion2 = fields_recognition.recognize_fields(
+            account=task.account,
+            messages=messages_ai_format,
+            fillable_fields=fillable_fields,
+            tlogger=tlogger
+        )
 
         finish_handling.delay(
+        # finish_handling(
             task_id=task_id,
             avito_account_id=avito_account_id,
-            ai_answer_serializable=ai_answer.model_dump(),
-            additional_tokens_prompt=additional_usage.tokens_prompt,
-            additional_tokens_completion=additional_usage.tokens_completion,
+            answer=answer,
+            entities_fields_values=entities_fields_values,
+            tokens_prompt=tokens_prompt1 + tokens_prompt2,
+            tokens_completion=tokens_completion1 + tokens_completion2,
             trace_id=trace_id,
         )
 
@@ -271,14 +282,15 @@ def generate_ai_answer(task_id: int, messages: list[messaging.api.ChatMessage], 
 def finish_handling(
     task_id: int,
     avito_account_id: int,
-    ai_answer_serializable,
-    additional_tokens_prompt: int,
-    additional_tokens_completion: int,
+    answer: str,
+    entities_fields_values: fields_recognition.EntitiesFieldsValues,
+    tokens_prompt: int,
+    tokens_completion: int,
     *,
     trace_id: str,
 ) -> None:
     @amo.models.AmoChatBotTask.interrupt_task_if_error
-    def f(ai_answer: answers.AIAnswer, avito_account_id: int, *, task_id: int, trace_id: str) -> None:
+    def f(avito_account_id: int, *, task_id: int, trace_id: str) -> None:
         tlogger = TraceLogger(trace_id)
 
         task = amo.models.AmoChatBotTask.objects.get(pk=task_id)
@@ -294,7 +306,7 @@ def finish_handling(
 
         ai_answer_using.update_lead_and_contact(
             account=task.account,
-            ai_answer=ai_answer,
+            entities_fields_values=entities_fields_values,
             lead=lead,
             contact=contact,
             tlogger=tlogger,
@@ -302,14 +314,12 @@ def finish_handling(
 
         status_change_result = ai_answer_using.change_lead_status(
             chatbot=task.chatbot,
-            ai_answer=ai_answer,
+            # ai_answer=ai_answer,
             lead=lead,
             tlogger=tlogger,
         )
 
-        assert ai_answer.payload.answer
-
-        message = ai_answer.payload.answer
+        message = answer
         if status_change_result.status_changed_on_qualification and task.chatbot.message_when_qualification:
             message = task.chatbot.message_when_qualification
 
@@ -319,13 +329,11 @@ def finish_handling(
 
         amo.models.AmoChatBotTask.save_ai_result(
             pk=task.pk,
-            answer_text=ai_answer.payload.answer,
-            tokens_completion=ai_answer.tokens_completion + additional_tokens_completion,
-            tokens_prompt=ai_answer.tokens_prompt + additional_tokens_prompt,
+            answer_text=answer,
+            tokens_completion=tokens_completion,
+            tokens_prompt=tokens_prompt,
         )
 
         task.change_status(task.Status.FINISHED, tlogger=tlogger)
 
-    ai_answer = answers.AIAnswer.model_validate(ai_answer_serializable)
-
-    f(ai_answer, avito_account_id, task_id=task_id, trace_id=trace_id)
+    f(avito_account_id, task_id=task_id, trace_id=trace_id)

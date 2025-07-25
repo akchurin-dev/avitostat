@@ -1,16 +1,135 @@
 import json
+from abc import ABC, abstractmethod
+from enum import Enum
+from dataclasses import dataclass
 
 from celery import shared_task
 
 import amo.models
 from amo.utils import ai_answer_using
-from amo.utils.ai import answers
 from amo.utils import amo_api
 from amo.utils import amo_leads
 from amo.utils import amo_messages
 from amo.utils import chatbot_lead_pair_defining
 from amo.utils import qualification
+# from amo.utils.ai import answers
+from amo.utils.ai import fields_recognition
 from utils.logging import TraceLogger
+
+
+class NoteAuthors(Enum):
+    RIMZONA_RU = "Заявки с сайта rimzona.ru"
+    RIMZONA_WHEELS = "rimzona-wheels.ru"
+
+
+NOTE_AUTHORS_NAMES: set[str] = {note_author.value for note_author in NoteAuthors}
+
+
+@dataclass
+class FormParsed:
+    auto_model: str | None
+    diameter: str | None
+    city: str | None
+
+
+class BaseParser(ABC):
+    @classmethod
+    def parse(cls, text: str) -> FormParsed:
+        lines = text.split("\n")
+        return FormParsed(
+            auto_model=cls.parse_auto_model(lines),
+            diameter=cls.parse_diameter(lines),
+            city=cls.parse_city(lines),
+        )
+
+    @classmethod
+    @abstractmethod
+    def parse_auto_model(cls, text_lines: list[str]) -> str | None:
+        pass
+
+    @classmethod
+    @abstractmethod
+    def parse_diameter(cls, text_lines: list[str]) -> str | None:
+        pass
+
+    @classmethod
+    @abstractmethod
+    def parse_city(cls, text_lines: list[str]) -> str | None:
+        pass
+
+
+class RimzonaRuParser(BaseParser):
+    """
+Марка, модель и год выпуска вашего авто
+bmw 3 
+Какой диаметр дисков вы выбираете?
+R19
+Из какого вы города?
+москва 
+Вам нужны шины?
+Нет
+    """
+
+    @classmethod
+    def parse_auto_model(cls, text_lines: list[str]) -> str | None:
+        for i, line in enumerate(text_lines):
+            if line == "Марка, модель и год выпуска вашего авто":
+                return text_lines[i + 1]
+
+        return None
+
+    @classmethod
+    def parse_diameter(cls, text_lines: list[str]) -> str | None:
+        for i, line in enumerate(text_lines):
+            if line == "Какой диаметр дисков вы выбираете?":
+                return text_lines[i + 1].strip("Rr ")
+
+        return None
+
+    @classmethod
+    def parse_city(cls, text_lines: list[str]) -> str | None:
+        for i, line in enumerate(text_lines):
+            if line == "Из какого вы города?":
+                return text_lines[i + 1]
+
+        return None
+
+
+class RimzonaWheelsParser(BaseParser):
+    """
+1) Напишите марку и модель вашего авто: митсубиши паджеро 
+   
+2) Какой диаметр дисков?: R15
+3) Нужны ли вам шины?: Нет
+4) Ваш город: Петропавловск-Каамчатский
+
+
+Как связаться: WhatsApp
+    """
+
+    @classmethod
+    def parse_auto_model(cls, text_lines: list[str]) -> str | None:
+        for line in text_lines:
+            if "Напишите марку и модель вашего авто" in line:
+                return line.split(":")[-1].strip()
+
+        return None
+
+    @classmethod
+    def parse_diameter(cls, text_lines: list[str]) -> str | None:
+        for line in text_lines:
+            if "Какой диаметр дисков?" in line:
+                return line.split(":")[-1].strip()
+
+        return None
+
+    @classmethod
+    def parse_city(cls, text_lines: list[str]) -> str | None:
+        for line in text_lines:
+            if "Ваш город" in line:
+                return line.split(":")[-1].strip()
+
+        return None
 
 
 def handle_new_lead_note_webhook(request_data: dict, *, tlogger: TraceLogger) -> None:
@@ -57,6 +176,10 @@ def handle_lead_note(
         tlogger.info("Stop handling. Handle only notes with note_type = 4")
         return
 
+    if author_name not in NOTE_AUTHORS_NAMES:
+        tlogger.info(f"Stop handling. Note author is unknown, got '{author_name}'")
+        return
+
     account = amo.models.AmoAccount.objects.get(amo_id=account_id)
 
     advised_lead = amo_api.get_lead(account, lead_id, tlogger=tlogger)
@@ -67,7 +190,6 @@ def handle_lead_note(
         account=account,
         contact_id=contact_id,
         advised_lead_id=lead_id,
-        note_author_name=author_name,
         tlogger=tlogger,
     )
 
@@ -89,20 +211,26 @@ def handle_lead_note(
         "text": text,
     })
 
-    ai_answer = answers.parse_form(account, chatbot, text, tlogger=tlogger)
+    # ai_answer = answers.parse_form(account, chatbot, text, tlogger=tlogger)
+    form = _parse_form(author_name, text)
+    entities_fields_values: fields_recognition.EntitiesFieldsValues = {
+        "lead": {
+            "Марка модель год": form.auto_model,
+            "Диаметр диска": form.diameter,
+            "Город": form.city,
+        },
+        "contact": None,
+    }
 
-    assert lead.contacts_ids is not None
-    contact = amo_api.get_contact(
-        account=account,
-        contact_id=lead.contacts_ids[0],
-        with_leads=False,
-        tlogger=tlogger,
-    )
-    assert contact
+    contact = amo_leads.get_lead_contact(account, lead, tlogger=tlogger)
+    if contact is None:
+        tlogger.info("Stop handling. Contact is empty")
+        return
 
     ai_answer_using.update_lead_and_contact(
         account=account,
-        ai_answer=ai_answer,
+        # ai_answer=ai_answer,
+        entities_fields_values=entities_fields_values,
         lead=lead,
         contact=contact,
         tlogger=tlogger,
@@ -120,33 +248,13 @@ def handle_lead_note(
         tlogger=tlogger,
     )
 
-    change_status_if_message_delivered.s(
-        chatbot_id=chatbot.pk,
-        lead_id=lead.id,
-        trace_id=tlogger.trace_id,
-    ).apply_async(countdown=30)
-
-
-@shared_task
-def change_status_if_message_delivered(
-    chatbot_id: int,
-    lead_id: int,
-    *,
-    trace_id: str,
-) -> None:
-
-    tlogger = TraceLogger(trace_id)
-
-    chatbot = amo.models.AmoChatBot.objects.get(pk=chatbot_id)
-    # chat = amo_messages.get_lead_chat(chatbot.account, lead_id, tlogger=tlogger)
-
-    # if len(chat.messages) == 0:
-    #     tlogger.info("Message isn't sent")
-    #     return
-
-    # if chatbot.message_when_note_received not in [msg.text for msg in chat.messages]:
-    #     tlogger.info("Message when note received not found")
-    #     return
-
-    lead, contact = amo_leads.get_lead_contact_pair(chatbot.account, lead_id, tlogger=tlogger)
     qualification.change_status_if_qualification(chatbot, lead.id, tlogger=tlogger)
+
+
+def _parse_form(note_author: str, text: str) -> FormParsed:
+    author_to_parser: dict[str, type[BaseParser]] = {
+        NoteAuthors.RIMZONA_RU.value: RimzonaRuParser,
+        NoteAuthors.RIMZONA_WHEELS.value: RimzonaWheelsParser,
+    }
+
+    return author_to_parser[note_author].parse(text)

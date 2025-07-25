@@ -17,7 +17,6 @@ def define_chatbot_and_lead(
     contact_id: int,
     advised_lead_id: int | None,
     origin: str | None = None,
-    note_author_name: str | None = None,
     *,
     tlogger: TraceLogger,
 ) -> DefinedChatbotLead | None:
@@ -37,7 +36,6 @@ def define_chatbot_and_lead(
         account=account,
         possible_leads=open_leads,
         origin=origin,
-        note_author_name=note_author_name,
         tlogger=tlogger,
     )
 
