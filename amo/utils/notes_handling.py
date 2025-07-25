@@ -82,7 +82,7 @@ R19
     def parse_diameter(cls, text_lines: list[str]) -> str | None:
         for i, line in enumerate(text_lines):
             if line == "Какой диаметр дисков вы выбираете?":
-                return text_lines[i + 1].strip("Rr ")
+                return text_lines[i + 1].strip("RrРр ")
 
         return None
 
@@ -119,7 +119,7 @@ class RimzonaWheelsParser(BaseParser):
     def parse_diameter(cls, text_lines: list[str]) -> str | None:
         for line in text_lines:
             if "Какой диаметр дисков?" in line:
-                return line.split(":")[-1].strip()
+                return line.split(":")[-1].strip("RrРр ")
 
         return None
 
