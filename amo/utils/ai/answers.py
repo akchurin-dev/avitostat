@@ -455,11 +455,11 @@ def _add_chatbot_prompt(
             available_since=F("available_until"),
         ) | Q(
             available_since__lt=F("available_until"),
-            available_since_lte=time_now,
+            available_since__lte=time_now,
             available_until__gte=time_now,
         ) | Q(
             Q(available_since__lte=time_now) | Q(available_until__gte=time_now),
-            available_since_gt=F("available_until"),
+            available_since__gt=F("available_until"),
         ),
         chatbot=chatbot,
     )
