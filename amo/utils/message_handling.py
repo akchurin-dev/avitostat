@@ -306,6 +306,8 @@ def generate_ai_answer(messages_serializable: list[dict], task_id: int, trace_id
             tlogger=tlogger,
         )
 
+        additional_values_finding(entities_fields_values, messages_ai_format, tlogger=tlogger)
+
         finish_handling.delay(
         # finish_handling(
             answer=answer,
@@ -427,12 +429,15 @@ def additional_values_finding(
 
     if fields_values["lead"]:
         diameter = fields_values["lead"].get(diameter_field_name)
+        diameters = _find_diameters(messages)
+
+        # if diameter is not None:
+        #     if not diameters in 
 
         if diameter is None:
-            diameter = _find_diameter(messages)
             if diameter:
                 tlogger.info("Found diameter without ai")
-                fields_values["lead"][diameter_field_name] = diameter
+                fields_values["lead"][diameter_field_name] = diameters[0]
 
 
 import re
@@ -458,7 +463,9 @@ def _find_phone_number(messages: list[ResponseInputItemParam]) -> str | None:
     return None
 
 
-def _find_diameter(messages: list[ResponseInputItemParam]) -> str | None:
+def _find_diameters(messages: list[ResponseInputItemParam]) -> list[str]:
+    diameters: list[str] = []
+
     for i in range(len(messages) - 1, -1, -1):
         message = messages[i]
 
@@ -471,6 +478,6 @@ def _find_diameter(messages: list[ResponseInputItemParam]) -> str | None:
 
         diameter = DIAMETER_RE.search(text)
         if diameter:
-            return diameter.group()
+            diameters.append(diameter.group().strip("RrРр "))
 
-    return None
+    return diameters

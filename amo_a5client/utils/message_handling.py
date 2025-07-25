@@ -8,6 +8,7 @@ from amo.utils import ai_answer_using
 from amo.utils import amo_leads
 from amo.utils import amo_messages
 from amo.utils import chatbot_lead_pair_defining
+from amo.utils.message_handling import additional_values_finding
 from amo.utils.ai import answers
 from amo.utils.ai import fields_recognition
 # from amo.utils.ai import isolated_check
@@ -259,6 +260,8 @@ def generate_ai_answer(task_id: int, messages: list[messaging.api.ChatMessage], 
             fillable_fields=fillable_fields,
             tlogger=tlogger
         )
+
+        additional_values_finding(entities_fields_values, messages_ai_format, tlogger=tlogger)
 
         finish_handling.delay(
         # finish_handling(
