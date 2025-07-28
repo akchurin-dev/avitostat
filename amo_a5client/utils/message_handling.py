@@ -198,7 +198,7 @@ def prepare_message_handling_data(task_id: int, avito_account_id: int, *, trace_
         additional_info = {
             field_value.field_name: field_value.values[0].value
                 for field_value in contact.custom_fields_values or []
-                    if field_value in {"Телефон"}
+                    if field_value.field_name in {"Телефон"}
         }
 
         generate_ai_answer.delay(
