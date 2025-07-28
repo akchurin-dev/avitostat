@@ -246,9 +246,23 @@ def prepare_message_handling_data(*, task_id: int, trace_id: str):
             tlogger.info("Stop handling. Shutdown after manager")
             return
 
+        lead = amo_api.get_lead(task.account, task.lead_id, tlogger=tlogger)
+        contact = amo_leads.get_lead_contact(task.account, lead, tlogger=tlogger)
+        assert contact
+
+        additional_info = {}
+        if contact.custom_fields_values:
+            additional_info.update({
+                field_value.field_name: field_value.values[0].value
+                    for field_value in contact.custom_fields_values
+                        if field_value.field_name in {"Телефон"}
+            })
+
         generate_ai_answer.delay(
+        # generate_ai_answer(
             messages_serializable=[m.model_dump(mode="json") for m in messages],
             task_id=task_id,
+            additional_info=additional_info,
             trace_id=trace_id,
         )
 
@@ -256,7 +270,14 @@ def prepare_message_handling_data(*, task_id: int, trace_id: str):
 
 
 @shared_task
-def generate_ai_answer(messages_serializable: list[dict], task_id: int, trace_id: str):
+def generate_ai_answer(
+    messages_serializable: list[dict],
+    task_id: int,
+    additional_info: dict[str, str],
+    *,
+    trace_id: str,
+) -> None:
+
     @amo.models.AmoChatBotTask.interrupt_task_if_error
     def f(messages: list[amo_messages.Message], *, task_id: int, trace_id: str) -> None:
         tlogger = TraceLogger(trace_id)
@@ -295,6 +316,7 @@ def generate_ai_answer(messages_serializable: list[dict], task_id: int, trace_id
             account=task.account,
             chatbot=task.chatbot,
             messages=messages_ai_format,
+            additional_info=additional_info,
             tlogger=tlogger,
         )
 

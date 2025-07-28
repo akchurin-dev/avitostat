@@ -5,6 +5,7 @@ from celery import shared_task
 import amo.models
 import messaging.api
 from amo.utils import ai_answer_using
+from amo.utils import amo_api
 from amo.utils import amo_leads
 from amo.utils import amo_messages
 from amo.utils import chatbot_lead_pair_defining
@@ -190,10 +191,22 @@ def prepare_message_handling_data(task_id: int, avito_account_id: int, *, trace_
             tlogger.info("Stop handling. Shutdown after manager")
             return
 
+        lead = amo_api.get_lead(task.account, task.lead_id, tlogger=tlogger)
+        contact = amo_leads.get_lead_contact(task.account, lead, tlogger=tlogger)
+        assert contact
+
+        additional_info = {
+            field_value.field_name: field_value.values[0].value
+                for field_value in contact.custom_fields_values or []
+                    if field_value in {"Телефон"}
+        }
+
         generate_ai_answer.delay(
+        # generate_ai_answer(
             task_id=task_id,
             messages=messages,
             avito_account_id=avito_account_id,
+            additional_info=additional_info,
             trace_id=trace_id,
         )
 
@@ -205,7 +218,15 @@ def prepare_message_handling_data(task_id: int, avito_account_id: int, *, trace_
 
 
 @shared_task
-def generate_ai_answer(task_id: int, messages: list[messaging.api.ChatMessage], avito_account_id: int, *, trace_id: str) -> None:
+def generate_ai_answer(
+    task_id: int,
+    messages: list[messaging.api.ChatMessage],
+    avito_account_id: int,
+    additional_info: dict[str, str],
+    *,
+    trace_id: str,
+) -> None:
+
     @amo.models.AmoChatBotTask.interrupt_task_if_error
     def f(messages: list[messaging.api.ChatMessage], *, task_id: int, trace_id: str) -> None:
         tlogger = TraceLogger(trace_id)
@@ -239,6 +260,7 @@ def generate_ai_answer(task_id: int, messages: list[messaging.api.ChatMessage], 
             chatbot=task.chatbot,
             messages=messages_ai_format,
             # lead_id=int(task.lead_id),
+            additional_info=additional_info,
             tlogger=tlogger,
         )
         # assert ai_answer.payload.answer

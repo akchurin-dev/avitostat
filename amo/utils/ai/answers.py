@@ -28,14 +28,15 @@ PHRASE_AUTHOR_REGEX = re.compile(r"^\s*\w+:\s*")
 
 class AIAnswer(NamedTuple):
     answer: str
-    tokens_completion: int
     tokens_prompt: int
+    tokens_completion: int
 
 
 def generate_answer(
     account: amo.models.AmoAccount,
     chatbot: amo.models.AmoChatBot,
     messages: list[ResponseInputItemParam],
+    additional_info: dict[str, str],
     # lead_id: int,
     *,
     tlogger: TraceLogger,
@@ -70,7 +71,7 @@ def generate_answer(
     # )
 
     response = openai_request_with_retries(
-        input=_get_ai_input(account, chatbot, messages, tlogger=tlogger),
+        input=_get_ai_input(account, chatbot, messages, additional_info, tlogger=tlogger),
         tag=f"Amo | {account.domain} | generate answer",
         tlogger=tlogger,
     )
@@ -130,6 +131,7 @@ def _get_ai_input(
     account: amo.models.AmoAccount,
     chatbot: amo.models.AmoChatBot,
     messages: list[ResponseInputItemParam],
+    info_about_client: dict[str, str] | None = None,
     *,
     tlogger: TraceLogger,
 ) -> ResponseInputParam:
@@ -140,6 +142,13 @@ def _get_ai_input(
         "Не добавляй комментарии, пояснения или автора реплики — только текст ответа."
     )
 
+    user_prompt = "Переписка с клиентом:\n" + _get_dialog_str(messages)
+    if info_about_client:
+        user_prompt = "\n".join(
+            ["Информация о клиенте, не переспрашивай о ней и не повторяй ее."]
+            + [key + ": " + value for key, value in info_about_client.items()]
+        ) + "\n\n" + user_prompt
+
     ai_input: ResponseInputParam = [
         {
             "role": "system",
@@ -147,7 +156,7 @@ def _get_ai_input(
         },
         {
             "role": "user",
-            "content": "Переписка с клиентом:\n" + _get_dialog_str(messages),
+            "content": user_prompt
         }
     ]
 
