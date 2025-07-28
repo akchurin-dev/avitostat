@@ -30,7 +30,7 @@ def update_entity_fields(
     account: amo.models.AmoAccount,
     entity: amo_api.EntityEnum,
     instance_id: int | str,
-    fields_values: dict[str, str | None],
+    fields_values: dict[str, str | list[str] | None],
     skip_null: bool = True,
     *,
     tlogger: TraceLogger,
@@ -49,10 +49,16 @@ def update_entity_fields(
         if field is None:
             field = amo_api.create_text_field(account, entity, field_name, tlogger=tlogger)
 
-        custom_fields_values.append({
-            "field_id": field.id,
-            "values": [{"value": value}]
-        })
+        if isinstance(value, str):
+            custom_fields_values.append({
+                "field_id": field.id,
+                "values": [{"value": value}]
+            })
+        elif isinstance(value, list):
+            custom_fields_values.append({
+                "field_id": field.id,
+                "values": [{"value": v} for v in value]
+            })
 
     amo_api.openapi_request_by_account(
         account=account,

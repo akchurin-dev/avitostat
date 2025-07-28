@@ -24,8 +24,8 @@ SYSTEM_PROMPT = """
 
 
 class EntitiesFieldsValues(TypedDict):
-    contact: dict[str, str | None] | None
-    lead: dict[str, str | None] | None
+    contact: dict[str, str | list[str] | None] | None
+    lead: dict[str, str | list[str] | None] | None
 
 
 class AIAnswer(NamedTuple):

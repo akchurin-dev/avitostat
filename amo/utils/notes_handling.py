@@ -28,7 +28,7 @@ NOTE_AUTHORS_NAMES: set[str] = {note_author.value for note_author in NoteAuthors
 @dataclass
 class FormParsed:
     auto_model: str | None
-    diameter: str | None
+    diameter: list[str] | None
     city: str | None
 
 
@@ -49,7 +49,7 @@ class BaseParser(ABC):
 
     @classmethod
     @abstractmethod
-    def parse_diameter(cls, text_lines: list[str]) -> str | None:
+    def parse_diameter(cls, text_lines: list[str]) -> list[str] | None:
         pass
 
     @classmethod
@@ -79,10 +79,10 @@ R19
         return None
 
     @classmethod
-    def parse_diameter(cls, text_lines: list[str]) -> str | None:
+    def parse_diameter(cls, text_lines: list[str]) -> list[str] | None:
         for i, line in enumerate(text_lines):
             if line == "Какой диаметр дисков вы выбираете?":
-                return text_lines[i + 1].strip("RrРр ")
+                return [d.strip("RrРр ") for d in text_lines[i + 1].split(", ")]
 
         return None
 
@@ -116,10 +116,10 @@ class RimzonaWheelsParser(BaseParser):
         return None
 
     @classmethod
-    def parse_diameter(cls, text_lines: list[str]) -> str | None:
+    def parse_diameter(cls, text_lines: list[str]) -> list[str] | None:
         for line in text_lines:
             if "Какой диаметр дисков?" in line:
-                return line.split(":")[-1].strip("RrРр ")
+                return [d.strip("RrРр ") for d in line.split(":")[-1].split(", ")]
 
         return None
 
