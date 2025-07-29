@@ -169,17 +169,18 @@ def prepare_message_handling_data(task_id: int, avito_account_id: int, *, trace_
         chat = messaging.api.MessagingAPISync.get_chat_last_50_messages_by_chat_id(avito_account, task.chat_id, trace_id=trace_id)
         messages = chat.get("messages", [])[-10:]
 
-        last_message = messages[-1]
-
-        if last_message["type"] == "system":
-            last_message = messages[-2]
-
         if not amo_a5_messages.is_message_actual(task, messages, tlogger=tlogger):
             task.cancel(tlogger=tlogger)
             tlogger.info(f"Stop handling. Message (id='{task.message_id}') is not actual")
             return
 
-        if last_message["direction"] != "in":
+        incoming = False
+        for i in range(len(messages) - 1, -1, -1):
+            if messages[i]["id"] == task.message_id:
+                incoming = messages[i]["direction"] == "in"
+                break
+
+        if not incoming:
             task.cancel(tlogger=tlogger)
             tlogger.info(f"Stop handling. Message (id='{task.message_id}') is outgoing")
             return
