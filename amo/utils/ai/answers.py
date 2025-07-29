@@ -372,8 +372,8 @@ def get_field_schema(amo_field: amo_api.Field | None, fillable_field: amo.models
 
         enum_values = [
             field_enum.value
-            for field_enum in amo_field.enums
-            if field_enum.value not in amo_fields.ENUM_EMPTY_VALUES
+                for field_enum in amo_field.enums
+                    if field_enum.value not in amo_fields.ENUM_EMPTY_VALUES
         ]
 
         # if len(enum_values) < 2:

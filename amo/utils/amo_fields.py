@@ -31,7 +31,6 @@ def update_entity_fields(
     entity: amo_api.EntityEnum,
     instance_id: int | str,
     fields_values: dict[str, str | list[str] | None],
-    skip_null: bool = True,
     *,
     tlogger: TraceLogger,
 ) -> None:
@@ -41,10 +40,13 @@ def update_entity_fields(
     custom_fields_values = []
 
     for field_name, value in fields_values.items():
-        if skip_null and value is None:
+        if value is None:
             continue
 
         field = find_text_field(field_name, fields, tlogger=tlogger)
+
+        if field and field.type in ENUM_TYPES and value in ENUM_EMPTY_VALUES:
+            continue
 
         if field is None:
             field = amo_api.create_text_field(account, entity, field_name, tlogger=tlogger)

@@ -230,9 +230,9 @@ def prepare_message_handling_data(*, task_id: int, trace_id: str):
         #     tlogger.info("Stop handling. Talk is closed")
         #     return
 
-        if messages[-1].id != task.message_id:
+        if not amo_messages.is_message_actual(task, messages, tlogger=tlogger):
             task.cancel(tlogger=tlogger)
-            tlogger.info(f"Stop handling. Message (id='{task.message_id}') is not actual")
+            tlogger.info(f"Stop handling. Message is not actual")
             return
 
         manager_interfere = amo_messages.manager_interfere(

@@ -217,6 +217,28 @@ def manager_interfere(account_id: str, lead_id: str, messages: list[Message]) ->
     return len(manager_answers_id) > 0
 
 
+def is_message_actual(task: amo.models.AmoChatBotTask, messages: list[Message], *, tlogger: TraceLogger) -> bool:
+    chatbot_answers: set[str | None] = {
+        t.answer_text
+            for t in amo.models.AmoChatBotTask.get_tasks_by_chat(task.account, task.chat_id)
+    }
+
+    for i in range(len(messages) - 1, -1, -1):
+        if messages[i].created_at < task.message_created_at or messages[i].id == task.message_id:
+            break
+
+        if messages[i].incoming:
+            tlogger.info(f"Found newer incoming message ({messages[i].id}): {messages[i].text}")
+            return False
+
+        if not messages[i].incoming and messages[i].text not in chatbot_answers:
+            tlogger.info(f"Found newer message outgoing not from bot ({messages[i].id}): {messages[i].text}")
+            return False
+
+    tlogger.info("Message is actual")
+    return True
+
+
 def to_legacy_format(messages: list[Message]) -> list[dict]:
     messages_legacy_format = [{
         "type": "text" if m.text else "not-text",

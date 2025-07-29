@@ -30,6 +30,7 @@ class ChatMessage(TypedDict):
     direction: Literal["in", "out"]
     type: Literal["text", "image", "link", "item", "location", "call", "deleted", "voice", "system"]
     content: ChatMessageContent
+    created: int
 
 
 class ChatContextValue(TypedDict, total=False):

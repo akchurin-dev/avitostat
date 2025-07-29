@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import datetime
 
 from django.contrib.auth.models import User
@@ -594,6 +596,10 @@ class AmoChatBotTask(chat_bot.base_models.AIResultContainer, chatbottasks.Task):
                 chat_id=self.chat_id,
             ),
         )
+
+    @classmethod
+    def get_tasks_by_chat(cls, account: AmoAccount, chat_id: str) -> QuerySet[AmoChatBotTask]:
+        return AmoChatBotTask.objects.filter(account=account, chat_id=chat_id).order_by("message_created_at")
 
     def save(self, **kwargs):
         self.object_id = amo_chatbottasks.get_object_id(

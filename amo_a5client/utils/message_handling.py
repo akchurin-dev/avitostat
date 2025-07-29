@@ -174,7 +174,7 @@ def prepare_message_handling_data(task_id: int, avito_account_id: int, *, trace_
         if last_message["type"] == "system":
             last_message = messages[-2]
 
-        if last_message["id"] != task.message_id:
+        if not amo_a5_messages.is_message_actual(task, messages, tlogger=tlogger):
             task.cancel(tlogger=tlogger)
             tlogger.info(f"Stop handling. Message (id='{task.message_id}') is not actual")
             return
