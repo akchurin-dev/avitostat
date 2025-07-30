@@ -9,13 +9,14 @@ from utils.logging import TraceLogger
 from utils.miscellaneous import datetime_now_msk
 from utils.tg import send_message
 from work_reports import daily_report
+from work_reports import weekly_report
 
 
 reports_bot = Bot(token=AVITOSTATA_ALIVE_BOT_TOKEN)
 
 
 @shared_task
-def send_daily_report():
+def send_daily_report() -> None:
     until = datetime_now_msk()
     since = until - timedelta(days=1)
     report = daily_report.make_daily_report(since, until)
@@ -24,5 +25,9 @@ def send_daily_report():
 
 
 @shared_task
-def weekly_report():
-    pass
+def send_weekly_report() -> None:
+    until = datetime_now_msk()
+    since = until - timedelta(days=7)
+    report = weekly_report.make_weekly_report(since, until)
+    text = weekly_report.get_weekly_report_message_text(report)
+    send_message(AVITOSTATA_ALIVE_REPORTS_CHAT_ID, text, bot=reports_bot)

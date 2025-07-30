@@ -283,9 +283,13 @@ if ENVIRONMENT == 'PRODUCTION':
             'schedule': crontab(hour='6', minute='0'),
         },
         'daily_work_report': {
-            'task': 'usage_reports.tasks.send_daily_report',
+            'task': 'work_reports.tasks.send_daily_report',
             'schedule': crontab(hour='15', minute='0'),
-        }
+        },
+        'weekly_work_report': {
+            'task': 'work_reports.tasks.send_weekly_report',
+            'schedule': crontab(hour='6', minute='30', day_of_week='5'),
+        },
     }
 else:
     CELERY_BEAT_SCHEDULE = {

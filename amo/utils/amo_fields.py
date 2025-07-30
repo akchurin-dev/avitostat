@@ -45,8 +45,14 @@ def update_entity_fields(
 
         field = find_text_field(field_name, fields, tlogger=tlogger)
 
-        if field and field.type in ENUM_TYPES and value in ENUM_EMPTY_VALUES:
-            continue
+        if field and field.type in ENUM_TYPES:
+            if isinstance(value, str) and value in ENUM_EMPTY_VALUES:
+                continue
+
+            if isinstance(value, list):
+                value = [v for v in value if v not in ENUM_EMPTY_VALUES]
+                if len(value) == 0:
+                    continue
 
         if field is None:
             field = amo_api.create_text_field(account, entity, field_name, tlogger=tlogger)
