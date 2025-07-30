@@ -163,8 +163,8 @@ def get_spending(since: datetime, until: datetime) -> list[Spending]:
     return [Spending(project, spent_dollars) for project, spent_dollars in project_to_dollars_spending.items()]
 
 
-def form_daily_report_message_text(report: list[DailyProjectReport]) -> str:
-    text_parts: list[str] = []
+def form_daily_report_message_text(title: str, report: list[DailyProjectReport]) -> str:
+    text_parts: list[str] = ["<b>" + title + "</b>"]
 
     for i, project_report in enumerate(report):
         text_parts.append("\n".join([
