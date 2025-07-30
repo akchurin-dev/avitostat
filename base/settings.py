@@ -115,7 +115,7 @@ INSTALLED_APPS = [
     'transcriptions',
     'ai_requests',
     'amo_a5client',
-    'usage_reports',
+    'work_reports',
 ]
 
 if DEBUG:
@@ -282,9 +282,9 @@ if ENVIRONMENT == 'PRODUCTION':
             'task': 'chat_bot.tasks.statistics_sender_main_task',
             'schedule': crontab(hour='6', minute='0'),
         },
-        'daily_tokens_usage_report': {
-            'task': 'usage_reports.tasks.report_daily_token_usage',
-            'schedule': crontab(hour='0', minute='0'),
+        'daily_work_report': {
+            'task': 'usage_reports.tasks.send_daily_report',
+            'schedule': crontab(hour='15', minute='0'),
         }
     }
 else:

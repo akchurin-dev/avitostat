@@ -3,4 +3,4 @@ from django.apps import AppConfig
 
 class UsageReportsConfig(AppConfig):
     default_auto_field = 'django.db.models.BigAutoField'
-    name = 'usage_reports'
+    name = 'work_reports'
