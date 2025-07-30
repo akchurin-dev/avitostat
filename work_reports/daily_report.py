@@ -50,7 +50,7 @@ def make_daily_report(since: datetime, until: datetime) -> list[DailyProjectRepo
             project_name=project,
             chats_count=chats_count,
             contacts_count=contacts_count,
-            spent_dollars=project_to_spending[project].spent_dollars,
+            spent_dollars=project_to_spending[project].spent_dollars if project in project_to_spending else 0,
             spending_per_chat=project_to_spending[project].spent_dollars / chats_count if chats_count != 0 else None,
             spending_per_contact=project_to_spending[project].spent_dollars / contacts_count if contacts_count != 0 else None,
         ) for project, chats_count, contacts_count in chats_and_contacts
