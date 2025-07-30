@@ -88,11 +88,11 @@ def get_weekly_report_message_text(report: WeeklyReport) -> str:
 
     text_parts.append("")
 
-    text_parts.append(f"<b>Расход</b> в неделю. ChatGPT: {report.total_spending}$")
+    text_parts.append(f"<b>Расход</b> в неделю. ChatGPT: {round(report.total_spending, 2)}$")
 
     text_parts.append("")
     text_parts.append("ТОП 5 по расходу:")
     text_parts.append("")
-    text_parts.extend([f"{s.project_name}: {s.spent_dollars}$" for s in report.spendings] or ["Расходы не найдены"])
+    text_parts.extend([f"{s.project_name}: {round(s.spent_dollars, 2)}$" for s in report.spendings] or ["Расходы не найдены"])
 
     return "\n".join(text_parts)
