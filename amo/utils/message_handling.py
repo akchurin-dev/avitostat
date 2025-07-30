@@ -397,29 +397,16 @@ def finish_handling(
         )
         tlogger.info("Message was sent successfully")
 
+        if status_change_result.status_changed_on_qualification:
+            task.qualification_achieved = True
+            task.save()
+
         amo.models.AmoChatBotTask.save_ai_result(
             pk=task.pk,
             answer_text=answer,
             tokens_completion=tokens_completion,
             tokens_prompt=tokens_prompt,
         )
-
-        # if ai_answer.payload.contacts:
-        #     sent_report = amo.models.AmoChatBotTask.objects.filter(
-        #         account_id=task.account.pk,
-        #         lead_id=task.lead_id,
-        #         sent_report=True,
-        #     ).exists()
-
-        #     if not sent_report:
-        #         amo_reports.send_report(
-        #             account=task.account,
-        #             lead=lead,
-        #             contact=contact,
-        #             messages=messages,
-        #             tlogger=tlogger,
-        #         )
-        #         amo.models.AmoChatBotTask.objects.filter(pk=task.pk).update(sent_report=True)
 
         task.change_status(task.Status.FINISHED, tlogger=tlogger)
 

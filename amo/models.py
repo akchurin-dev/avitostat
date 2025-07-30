@@ -567,8 +567,8 @@ class AmoChatBotTask(chat_bot.base_models.AIResultContainer, chatbottasks.Task):
         blank=True,
     )
 
-    sent_report = models.BooleanField(
-        verbose_name="Отчет был отправлен",
+    qualification_achieved = models.BooleanField(
+        verbose_name="Квалификация достигнута",
         default=False,
     )
 

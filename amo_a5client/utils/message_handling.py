@@ -353,6 +353,10 @@ def finish_handling(
 
         AvitoMessengerSync.send_message_to_avito(avito_account, avito_account.pk, task.chat_id, message)
 
+        if status_change_result.status_changed_on_qualification:
+            task.qualification_achieved = True
+            task.save()
+
         amo.models.AmoChatBotTask.save_ai_result(
             pk=task.pk,
             answer_text=answer,
