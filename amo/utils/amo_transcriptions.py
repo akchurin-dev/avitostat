@@ -49,7 +49,7 @@ def get_transcriptions_for_voice_messages(
             continue
 
         assert message.file_url
-        transcription = transcriptions.create_transcription(message.file_url, "m4a", tlogger=tlogger)
+        transcription = transcriptions.create_transcription("Amo", account.domain, message.file_url, "m4a", tlogger=tlogger)
         messages_to_transcriptions[message_id] = transcription.text
         create_transcriptions.append(amo.models.AmoTranscription(
             account=account,

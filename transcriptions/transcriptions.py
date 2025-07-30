@@ -1,4 +1,5 @@
 import io
+from typing import Literal
 
 import httpx
 import openai
@@ -14,11 +15,19 @@ MODEL = "gpt-4o-transcribe"
 client = openai.Client(api_key=settings.OPENAI_SECRET_KEY)
 
 
-def create_transcription(audio_url: str, format: str, *, tlogger: TraceLogger) -> Transcription:
+def create_transcription(
+    module: Literal["Amo", "Avito"],
+    account: str,
+    audio_url: str,
+    format: str,
+    *,
+    tlogger: TraceLogger,
+) -> Transcription:
+
     audio = download_audio(audio_url)
     audio_io = io.BytesIO(audio)
     audio_io.name = "speech." + format
-    text = audio_to_transcription(audio_io, tlogger=tlogger)
+    text = audio_to_transcription(module, account, audio_io, tlogger=tlogger)
 
     transcription = Transcription(text=text)
     transcription.save()
@@ -28,10 +37,10 @@ def create_transcription(audio_url: str, format: str, *, tlogger: TraceLogger) -
     return transcription
 
 
-def audio_to_transcription(audio: io.BytesIO, *, tlogger: TraceLogger) -> str:
+def audio_to_transcription(module: Literal["Amo", "Avito"], account: str, audio: io.BytesIO, *, tlogger: TraceLogger) -> str:
     transcription = client.audio.transcriptions.create(model=MODEL, file=audio)
 
-    ai_requests.create("audio transcription", MODEL, 0, 0, tlogger=tlogger)
+    ai_requests.create(f"{module} | {account} | audio transcription", MODEL, 0, 0, tlogger=tlogger)
 
     return transcription.text
 

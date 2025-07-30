@@ -120,13 +120,9 @@ def get_amo_chats_and_contacts(since: datetime, until: datetime) -> list[ChatsAn
 
 
 def get_spending(since: datetime, until: datetime) -> list[Spending]:
-    qs = (
-        ai_requests.models.AIRequest.objects.filter(
-            created_at__gte=since,
-            created_at__lt=until,
-            tag__isnull=False,
-        )
-        .exclude(tag="")
+    qs = ai_requests.models.AIRequest.objects.filter(
+        created_at__range=(since, until),
+        tag__isnull=False,
     )
 
     model_to_project_tokens_spending: dict[str, dict[str, tuple[float, float]]] = {}
@@ -134,6 +130,9 @@ def get_spending(since: datetime, until: datetime) -> list[Spending]:
     for ai_request in qs:
         if ai_request.model not in model_to_project_tokens_spending:
             model_to_project_tokens_spending[ai_request.model] = {}
+
+        if ai_request.tag.count("|") != 2:
+            continue
 
         project = ai_request.tag.split("|")[1].strip()
         tokens_spending = model_to_project_tokens_spending[ai_request.model].get(project, (0, 0))
