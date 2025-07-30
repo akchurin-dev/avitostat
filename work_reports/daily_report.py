@@ -167,7 +167,7 @@ def form_daily_report_message_text(report: list[DailyProjectReport]) -> str:
             f"<b>{i + 1}.</b> {project_report.project_name}",
             f"<b>Переписок:</b> {project_report.chats_count}",
             f"<b>Сделок:</b> {project_report.contacts_count}",
-            f"<b>Расход:</b> {project_report.spent_dollars}",
+            f"<b>Расход:</b> {round(project_report.spent_dollars, 2)}",
         ]))
 
     return "\n\n".join(text_parts)
