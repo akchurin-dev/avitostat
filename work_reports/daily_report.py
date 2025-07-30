@@ -116,16 +116,24 @@ def get_amo_chats_and_contacts(since: datetime, until: datetime) -> list[ChatsAn
                     & ~Q(amochatbottask__tokens_prompt=0, amochatbottask__tokens_completion=0)
                 )
             ),
+            contacts_count=Count(
+                "amochatbottask__chat_id",
+                distinct=True,
+                filter=(
+                    Q(amochatbottask__created_at__range=(since, until), amochatbottask__qualification_acieved=True)
+                    & ~Q(amochatbottask__tokens_prompt=0, amochatbottask__tokens_completion=0)
+                )
+            )
         )
-        .values_list("domain", "chats_count")
+        .values_list("domain", "chats_count", "contacts_count")
     )
 
     return [
         ChatsAndContacts(
             project_name=project_name,
             chats_count=chats_count,
-            contacts_count=0,
-        ) for project_name, chats_count in qs
+            contacts_count=contacts_count,
+        ) for project_name, chats_count, contacts_count in qs
     ]
 
 
