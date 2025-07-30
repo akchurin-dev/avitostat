@@ -48,7 +48,7 @@ def make_daily_report(since: datetime, until: datetime) -> list[DailyProjectRepo
     chats_and_contacts = get_chats_and_contacts(since, until)
     project_to_spending = {p.project_name: p for p in get_spending(since, until)}
 
-    return [
+    projects_reports = [
         DailyProjectReport(
             project_name=project,
             chats_count=chats_count,
@@ -57,7 +57,11 @@ def make_daily_report(since: datetime, until: datetime) -> list[DailyProjectRepo
             spending_per_chat=project_to_spending.get(project, ZERO_SPENDING).spent_dollars / chats_count if chats_count != 0 else None,
             spending_per_contact=project_to_spending.get(project, ZERO_SPENDING).spent_dollars / contacts_count if contacts_count != 0 else None,
         ) for project, chats_count, contacts_count in chats_and_contacts
+            if chats_count != 0
     ]
+    projects_reports.sort(key=lambda r: r.chats_count)
+
+    return projects_reports
 
 
 def get_chats_and_contacts(since: datetime, until: datetime) -> list[ChatsAndContacts]:
