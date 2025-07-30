@@ -76,7 +76,10 @@ def get_avito_chats_and_contacts(since: datetime, until: datetime) -> list[Chats
             chats_count=Count(
                 "chatbottask__chat_id",
                 distinct=True,
-                filter=Q(chatbottask__created_at__range=(since, until))
+                filter=(
+                    Q(chatbottask__created_at__range=(since, until))
+                    & ~Q(chatbottask__tokens_prompt=0, chatbottask__tokens_completion=0)
+                ),
             ),
             contacts_count=Count(
                 "chatbottask__chat_id",
@@ -108,9 +111,9 @@ def get_amo_chats_and_contacts(since: datetime, until: datetime) -> list[ChatsAn
             chats_count=Count(
                 "amochatbottask__chat_id",
                 distinct=True,
-                filter=Q(
-                    ~Q(amochatbottask__tokens_prompt=0, amochatbottask__tokens_completion=0),
-                    amochatbottask__created_at__range=(since, until),
+                filter=(
+                    Q(amochatbottask__created_at__range=(since, until))
+                    & ~Q(amochatbottask__tokens_prompt=0, amochatbottask__tokens_completion=0)
                 )
             ),
         )
