@@ -120,7 +120,7 @@ def get_amo_chats_and_contacts(since: datetime, until: datetime) -> list[ChatsAn
                 "amochatbottask__chat_id",
                 distinct=True,
                 filter=(
-                    Q(amochatbottask__created_at__range=(since, until), amochatbottask__qualification_acieved=True)
+                    Q(amochatbottask__created_at__range=(since, until), amochatbottask__qualification_achieved=True)
                     & ~Q(amochatbottask__tokens_prompt=0, amochatbottask__tokens_completion=0)
                 )
             )
