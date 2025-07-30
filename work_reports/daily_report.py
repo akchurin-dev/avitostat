@@ -41,6 +41,9 @@ class Spending(NamedTuple):
     spent_dollars: float
 
 
+ZERO_SPENDING = Spending("", 0)
+
+
 def make_daily_report(since: datetime, until: datetime) -> list[DailyProjectReport]:
     chats_and_contacts = get_chats_and_contacts(since, until)
     project_to_spending = {p.project_name: p for p in get_spending(since, until)}
@@ -50,9 +53,9 @@ def make_daily_report(since: datetime, until: datetime) -> list[DailyProjectRepo
             project_name=project,
             chats_count=chats_count,
             contacts_count=contacts_count,
-            spent_dollars=project_to_spending[project].spent_dollars if project in project_to_spending else 0,
-            spending_per_chat=project_to_spending[project].spent_dollars / chats_count if chats_count != 0 else None,
-            spending_per_contact=project_to_spending[project].spent_dollars / contacts_count if contacts_count != 0 else None,
+            spent_dollars=project_to_spending.get(project, ZERO_SPENDING).spent_dollars,
+            spending_per_chat=project_to_spending.get(project, ZERO_SPENDING).spent_dollars / chats_count if chats_count != 0 else None,
+            spending_per_contact=project_to_spending.get(project, ZERO_SPENDING).spent_dollars / contacts_count if contacts_count != 0 else None,
         ) for project, chats_count, contacts_count in chats_and_contacts
     ]
 
