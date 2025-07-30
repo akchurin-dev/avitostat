@@ -59,7 +59,7 @@ def make_daily_report(since: datetime, until: datetime) -> list[DailyProjectRepo
         ) for project, chats_count, contacts_count in chats_and_contacts
             if chats_count != 0
     ]
-    projects_reports.sort(key=lambda r: r.chats_count)
+    projects_reports.sort(key=lambda r: r.chats_count, reverse=True)
 
     return projects_reports
 
