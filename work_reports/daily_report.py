@@ -63,14 +63,16 @@ def get_chats_and_contacts(since: datetime, until: datetime) -> list[ChatsAndCon
 
 def get_avito_chats_and_contacts(since: datetime, until: datetime) -> list[ChatsAndContacts]:
     qs = (
-        AvitoAccount.objects.annotate(
+        AvitoAccount.objects
+        .values("name")
+        .annotate(
             chats_count=Count(
-                'chatbottask__chat_id',
+                "chatbottask__chat_id",
                 distinct=True,
                 filter=Q(chatbottask__created_at__range=(since, until))
             ),
             contacts_count=Count(
-                'chatbottask__chat_id',
+                "chatbottask__chat_id",
                 distinct=True,
                 filter=Q(
                     chatbottask__created_at__range=(since, until),
@@ -78,24 +80,26 @@ def get_avito_chats_and_contacts(since: datetime, until: datetime) -> list[Chats
                 )
             )
         )
-        .order_by('-chats_count')
-        .values('name', 'chats_count', 'contacts_count')
+        .order_by("-chats_count")
+        .values_list("name", "chats_count", "contacts_count")
     )
 
     return [
         ChatsAndContacts(
             project_name=project,
-            chats_count=int(chats_count),
-            contacts_count=int(contacts_count),
+            chats_count=chats_count,
+            contacts_count=contacts_count,
         ) for project, chats_count, contacts_count in qs
     ]
 
 
 def get_amo_chats_and_contacts(since: datetime, until: datetime) -> list[ChatsAndContacts]:
     qs = (
-        amo.models.AmoAccount.objects.annotate(
+        amo.models.AmoAccount.objects
+        .values("domain")
+        .annotate(
             chats_count=Count(
-                'amochatbottask__chat_id',
+                "amochatbottask__chat_id",
                 distinct=True,
                 filter=Q(
                     ~Q(amochatbottask__tokens_prompt=0, amochatbottask__tokens_completion=0),
@@ -103,7 +107,7 @@ def get_amo_chats_and_contacts(since: datetime, until: datetime) -> list[ChatsAn
                 )
             ),
         )
-        .values('domain', 'chats_count')
+        .values_list("domain", "chats_count")
     )
 
     return [
