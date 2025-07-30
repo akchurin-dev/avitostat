@@ -129,7 +129,7 @@ def bad_messaging_report_by_period_for_account(
         nonlocal pdf_path
 
         tlogger = TraceLogger()
-        tlogger.info(f"Start report sending for '{account.name}'")
+        tlogger.info(f"Start bad messaging report sending for {period} for '{account.name}'")
 
         tokens = {"completion": -99, "prompt": -99}
 
@@ -143,11 +143,16 @@ def bad_messaging_report_by_period_for_account(
             if test_from_prod:
                 report_cost = 0
 
-            await payment.check_balance_enought(
+            balance_enought = await payment.check_balance_enought(
                 user=account.created_by,
                 required_amount=payment.REPORT_DEFAULT_COST,
-                raise_exception=True,
+                raise_exception=False,
             )
+
+            if not balance_enought:
+                error = "Balance isn't enoght"
+                tlogger.info(error)
+                raise Exception(error)
 
             messaging_report = await get_messaging_report_data(
                 avito_account_id=account.pk,
@@ -176,9 +181,11 @@ def bad_messaging_report_by_period_for_account(
                     user=account.created_by,
                     balance_decrease=report_cost,
                 )
+
+            tlogger.info("Finished successfully")
         except Exception as e:
             sentry_sdk.capture_exception(e)
-            tlogger.warning(e)
+            tlogger.error(e)
             success = False
             error_message = str(e)[:255]
             raise

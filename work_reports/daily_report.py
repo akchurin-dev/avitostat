@@ -6,7 +6,7 @@ from django.db.models import Count
 
 import amo.models
 from avito_account.models.models import AvitoAccount
-from work_reports.spendings import get_spending
+from work_reports.spendings import get_spendings
 
 
 class DailyProjectReport(NamedTuple):
@@ -26,7 +26,7 @@ class ChatsAndContacts(NamedTuple):
 
 def make_daily_report(since: datetime, until: datetime) -> list[DailyProjectReport]:
     chats_and_contacts = get_chats_and_contacts(since, until)
-    spendings = get_spending(since, until)
+    spendings = get_spendings(since, until)
 
     projects_reports = [
         DailyProjectReport(

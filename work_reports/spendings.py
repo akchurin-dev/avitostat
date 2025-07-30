@@ -39,7 +39,7 @@ class Spendings:
 ZERO_SPENDING = Spending("PROJECT NOT FOUND", 0)
 
 
-def get_spending(since: datetime, until: datetime) -> Spendings:
+def get_spendings(since: datetime, until: datetime) -> Spendings:
     qs = ai_requests.models.AIRequest.objects.filter(
         created_at__range=(since, until),
         tag__isnull=False,

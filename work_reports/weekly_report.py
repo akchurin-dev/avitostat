@@ -1,7 +1,13 @@
 from datetime import datetime
+from datetime import timedelta
 from typing import NamedTuple
 
+from django.db.models import Count
+from django.db.models import Q
+
+from avito_account.models.models import AvitoAccount
 from work_reports.spendings import Spendings
+from work_reports.spendings import get_spendings
 
 
 class WeeklyReport(NamedTuple):
@@ -13,7 +19,48 @@ class WeeklyReport(NamedTuple):
 
 
 def make_weekly_report(since: datetime, until: datetime) -> WeeklyReport:
-    pass
+    active_projects = get_active_projects()
+    successfull_report_projects, unsuccessfull_report_projects = get_successfull_unsuccessfull_report_projects(until)
+    spendings = get_spendings(since, until)
+
+    return WeeklyReport(
+        active_projects_count=len(active_projects),
+        successfull_report_sendings=len(successfull_report_projects),
+        projects_with_unsuccessfull_report_sending=[p for p in unsuccessfull_report_projects if p in active_projects],
+        total_spending=sum(s.spent_dollars for s in spendings),
+        spendings=spendings,
+    )
+
+
+def get_active_projects() -> list[str]:
+    return list(
+        AvitoAccount.objects
+        .filter(aichatbot__is_active=True)
+        .values_list("name", flat=True)
+    )
+
+
+def get_successfull_unsuccessfull_report_projects(day: datetime) -> tuple[list[str], list[str]]:
+    since = datetime.combine(day, datetime.min.time())
+    qs = (
+        AvitoAccount.objects.annotate(
+            success=Count(
+                "sendingreport",
+                filter=Q(
+                    sendingreport__timestamp__gt=since,
+                    sendingreport__campaign__name="weekly",
+                    sendingreport__campaign__sending_type="PDF",
+                    sendingreport__success=True,
+                )
+            ),
+        )
+        .values_list("name", "success")
+    )
+
+    return (
+        [project for project, success in qs if success > 0],
+        [project for project, success in qs if success == 0],
+    )
 
 
 def get_weekly_report_message_text(report: WeeklyReport) -> str:
