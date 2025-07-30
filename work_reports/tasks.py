@@ -19,7 +19,7 @@ def send_daily_report():
     until = datetime_now_msk()
     since = until - timedelta(days=1)
     report = daily_report.make_daily_report(since, until)
-    text = daily_report.form_daily_report_message_text(f"Отчет за {since.strftime("%d.%m")} по ИИ-продавцу", report)
+    text = daily_report.form_daily_report_message_text(f"Отчет за {since.strftime('%d.%m')} по ИИ-продавцу", report)
     send_message(AVITOSTATA_ALIVE_REPORTS_CHAT_ID, text, bot=reports_bot)
 
 
