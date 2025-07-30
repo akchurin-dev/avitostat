@@ -113,7 +113,7 @@ def get_amo_chats_and_contacts(since: datetime, until: datetime) -> list[ChatsAn
     return [
         ChatsAndContacts(
             project_name=project_name,
-            chats_count=int(chats_count),
+            chats_count=chats_count,
             contacts_count=0,
         ) for project_name, chats_count in qs
     ]
