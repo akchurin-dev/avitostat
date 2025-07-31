@@ -1,3 +1,4 @@
+from datetime import datetime
 from datetime import timedelta
 
 from aiogram import Bot
@@ -17,17 +18,23 @@ reports_bot = Bot(token=AVITOSTATA_ALIVE_BOT_TOKEN)
 
 @shared_task
 def send_daily_report() -> None:
-    until = datetime_now_msk()
+    today_date = datetime_now_msk().date()
+    until = datetime.combine(today_date, datetime.min.time()) - timedelta(hours=3)
     since = until - timedelta(days=1)
     report = daily_report.make_daily_report(since, until)
-    text = daily_report.form_daily_report_message_text(f"Отчет за {until.strftime('%d.%m')} по ИИ-продавцу", report)
+    yestarday_date = today_date - timedelta(days=1)
+    text = daily_report.form_daily_report_message_text(yestarday_date, report)
     send_message(AVITOSTATA_ALIVE_REPORTS_CHAT_ID, text, bot=reports_bot)
 
 
 @shared_task
 def send_weekly_report() -> None:
-    until = datetime_now_msk()
+    last_juma = datetime_now_msk().date()
+    while last_juma.weekday() != 4:
+        last_juma -= timedelta(days=1)
+
+    until = datetime.combine(last_juma, datetime.min.time()) - timedelta(hours=3)
     since = until - timedelta(days=7)
-    report = weekly_report.make_weekly_report(since, until)
+    report = weekly_report.make_weekly_report(since, until, last_juma)
     text = weekly_report.get_weekly_report_message_text(report)
     send_message(AVITOSTATA_ALIVE_REPORTS_CHAT_ID, text, bot=reports_bot)

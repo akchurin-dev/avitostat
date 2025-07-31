@@ -1,3 +1,4 @@
+from datetime import date
 from datetime import datetime
 from typing import NamedTuple
 
@@ -117,8 +118,8 @@ def get_amo_chats_and_contacts(since: datetime, until: datetime) -> list[ChatsAn
     ]
 
 
-def form_daily_report_message_text(title: str, report: list[DailyProjectReport]) -> str:
-    text_parts: list[str] = ["<b>" + title + "</b>"]
+def form_daily_report_message_text(report_for_date: date, report: list[DailyProjectReport]) -> str:
+    text_parts: list[str] = [f"<b>Отчет за {report_for_date.strftime('%d.%m')} по ИИ-продавцу</b>"]
 
     for i, project_report in enumerate(report):
         text_parts.append("\n".join([

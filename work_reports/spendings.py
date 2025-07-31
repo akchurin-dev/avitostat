@@ -25,7 +25,7 @@ class Spendings:
     _projects_to_spendings: dict[str, Spending]
 
     def __init__(self, spendings: list[Spending]) -> None:
-        self._spendings = spendings
+        self._spendings = sorted(spendings, key=lambda s: s.spent_dollars, reverse=True)
         self._projects_to_spendings = {spending.project_name: spending for spending in self._spendings}
 
     def get_project_spending(self, project: str) -> Spending:

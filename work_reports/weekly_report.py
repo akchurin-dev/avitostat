@@ -1,3 +1,4 @@
+from datetime import date
 from datetime import datetime
 from datetime import timedelta
 from typing import NamedTuple
@@ -18,9 +19,9 @@ class WeeklyReport(NamedTuple):
     spendings: Spendings
 
 
-def make_weekly_report(since: datetime, until: datetime) -> WeeklyReport:
+def make_weekly_report(since: datetime, until: datetime, find_reports_at_date: date) -> WeeklyReport:
     active_projects = get_active_projects()
-    successfull_report_projects, unsuccessfull_report_projects = get_successfull_unsuccessfull_report_projects(until)
+    successfull_report_projects, unsuccessfull_report_projects = get_successfull_unsuccessfull_report_projects(find_reports_at_date)
     spendings = get_spendings(since, until)
 
     return WeeklyReport(
@@ -40,14 +41,13 @@ def get_active_projects() -> list[str]:
     )
 
 
-def get_successfull_unsuccessfull_report_projects(day: datetime) -> tuple[list[str], list[str]]:
-    since = datetime.combine(day, datetime.min.time())
+def get_successfull_unsuccessfull_report_projects(day: date) -> tuple[list[str], list[str]]:
     qs = (
         AvitoAccount.objects.annotate(
             success=Count(
                 "sendingreport",
                 filter=Q(
-                    sendingreport__timestamp__gt=since,
+                    sendingreport__timestamp__date=day,
                     sendingreport__campaign__name="weekly",
                     sendingreport__campaign__sending_type="PDF",
                     sendingreport__success=True,
@@ -93,6 +93,6 @@ def get_weekly_report_message_text(report: WeeklyReport) -> str:
     text_parts.append("")
     text_parts.append("ТОП 5 по расходу:")
     text_parts.append("")
-    text_parts.extend([f"{s.project_name}: {round(s.spent_dollars, 2)}$" for s in report.spendings] or ["Расходы не найдены"])
+    text_parts.extend([f"{s.project_name}: {round(s.spent_dollars, 2)}$" for s in report.spendings][:5] or ["Расходы не найдены"])
 
     return "\n".join(text_parts)
