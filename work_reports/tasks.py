@@ -33,7 +33,7 @@ def send_weekly_report() -> None:
     while last_juma.weekday() != 4:
         last_juma -= timedelta(days=1)
 
-    until = datetime.combine(last_juma, datetime.min.time()) - timedelta(hours=3)
+    until = datetime.combine(datetime_now_msk().date(), datetime.min.time()) - timedelta(hours=3)
     since = until - timedelta(days=7)
     report = weekly_report.make_weekly_report(since, until, last_juma)
     text = weekly_report.get_weekly_report_message_text(report)
