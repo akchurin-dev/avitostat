@@ -284,7 +284,7 @@ if ENVIRONMENT == 'PRODUCTION':
         },
         'daily_work_report': {
             'task': 'work_reports.tasks.send_daily_report',
-            'schedule': crontab(hour='15', minute='0'),
+            'schedule': crontab(hour='6', minute='0'),
         },
         'weekly_work_report': {
             'task': 'work_reports.tasks.send_weekly_report',
