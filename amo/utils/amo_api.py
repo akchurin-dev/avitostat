@@ -69,7 +69,15 @@ def get_lead_events(account_id: str, lead_id: str, tlogger: TraceLogger) -> list
     return response.json()["_embedded"]["items"]
 
 
-def send_message(account: amo_models.AmoAccount, chat_id: str, text: str, tlogger: TraceLogger) -> None:
+class CreatedMessageDialog(BaseModel):
+    id: int
+
+
+class CreatedMessage(BaseModel):
+    dialog: CreatedMessageDialog
+
+
+def send_message(account: amo_models.AmoAccount, chat_id: str, text: str, tlogger: TraceLogger) -> CreatedMessage:
     action = f"/v1/chats/{account.amojo_id}/{chat_id}/messages"
 
     data = {
@@ -84,6 +92,8 @@ def send_message(account: amo_models.AmoAccount, chat_id: str, text: str, tlogge
         tlogger=tlogger,
     )
     response.raise_for_status()
+
+    return CreatedMessage.model_validate_json(response.content)
 
 
 class CustomFieldValue(BaseModel):

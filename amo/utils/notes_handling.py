@@ -241,11 +241,16 @@ def handle_lead_note(
         return
 
     chat_id = amo_messages.create_chat_and_talk(account, contact, tlogger=tlogger)
-    amo_api.send_message(
+    message = amo_api.send_message(
         account=account,
         chat_id=chat_id,
         text=chatbot.message_when_note_received,
         tlogger=tlogger,
+    )
+    amo.models.AmoTalkLeadLink.objects.create(
+        account_id=account.amo_id,
+        talk_id=message.dialog.id,
+        lead_id=lead.id,
     )
 
     qualification.change_status_if_qualification(chatbot, lead.id, tlogger=tlogger)
