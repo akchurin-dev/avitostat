@@ -6,6 +6,7 @@ import amo.models
 import messaging.api
 from amo.utils import ai_answer_using
 from amo.utils import amo_api
+from amo.utils import amo_fields
 from amo.utils import amo_leads
 from amo.utils import amo_messages
 from amo.utils import chatbot_lead_pair_defining
@@ -196,18 +197,15 @@ def prepare_message_handling_data(task_id: int, avito_account_id: int, *, trace_
         contact = amo_leads.get_lead_contact(task.account, lead, tlogger=tlogger)
         assert contact
 
-        additional_info = {
-            field_value.field_name: field_value.values[0].value
-                for field_value in contact.custom_fields_values or []
-                    if field_value.field_name in {"Телефон"}
-        }
+        known_info = amo_fields.get_filled_fillable_fields(task.chatbot, lead, contact)
+        tlogger.info({"Known info": known_info})
 
         generate_ai_answer.delay(
         # generate_ai_answer(
             task_id=task_id,
             messages=messages,
             avito_account_id=avito_account_id,
-            additional_info=additional_info,
+            known_info=known_info,
             trace_id=trace_id,
         )
 
@@ -223,7 +221,7 @@ def generate_ai_answer(
     task_id: int,
     messages: list[messaging.api.ChatMessage],
     avito_account_id: int,
-    additional_info: dict[str, str],
+    known_info: dict[str, list[str]],
     *,
     trace_id: str,
 ) -> None:
@@ -261,7 +259,7 @@ def generate_ai_answer(
             chatbot=task.chatbot,
             messages=messages_ai_format,
             # lead_id=int(task.lead_id),
-            additional_info=additional_info,
+            known_info=known_info,
             tlogger=tlogger,
         )
         # assert ai_answer.payload.answer

@@ -163,3 +163,29 @@ def field_filled(field_value: amo_api.CustomFieldValue) -> bool:
         return any(value.value not in ENUM_EMPTY_VALUES for value in field_value.values)
 
     raise Exception("Unknown field type, got " + field_value.field_type)
+
+
+def get_filled_fillable_fields(
+    chatbot: amo.models.AmoChatBot,
+    lead: amo_api.Lead,
+    contact: amo_api.Contact,
+) -> dict[str, list[str]]:
+
+    fillable_fields = amo.models.FillableField.objects.filter(chatbot=chatbot)
+    known_fields_values: dict[str, list[str]] = {}
+
+    for fillable_field in fillable_fields:
+        entity = "Сделка"
+        fields_values = lead.custom_fields_values
+        if fillable_field.entity == amo.models.AmoEntity.CONTACT:
+            entity = "Контакт"
+            fields_values = contact.custom_fields_values
+
+        for field_values in fields_values or []:
+            if field_values.field_name != fillable_field.name:
+                continue
+
+            known_fields_values[f"{entity}.{fillable_field.name}"] = [value.value for value in field_values.values]
+            break
+
+    return known_fields_values

@@ -36,7 +36,7 @@ def generate_answer(
     account: amo.models.AmoAccount,
     chatbot: amo.models.AmoChatBot,
     messages: list[ResponseInputItemParam],
-    additional_info: dict[str, str],
+    known_info: dict[str, list[str]],
     # lead_id: int,
     *,
     tlogger: TraceLogger,
@@ -71,7 +71,7 @@ def generate_answer(
     # )
 
     response = openai_request_with_retries(
-        input=_get_ai_input(account, chatbot, messages, additional_info, tlogger=tlogger),
+        input=_get_ai_input(account, chatbot, messages, known_info, tlogger=tlogger),
         tag=f"Amo | {account.domain} | generate answer",
         tlogger=tlogger,
     )
@@ -131,7 +131,7 @@ def _get_ai_input(
     account: amo.models.AmoAccount,
     chatbot: amo.models.AmoChatBot,
     messages: list[ResponseInputItemParam],
-    info_about_client: dict[str, str] | None = None,
+    known_info: dict[str, list[str]] | None = None,
     *,
     tlogger: TraceLogger,
 ) -> ResponseInputParam:
@@ -143,10 +143,10 @@ def _get_ai_input(
     )
 
     user_prompt = "Переписка с клиентом:\n" + _get_dialog_str(messages)
-    if info_about_client:
+    if known_info:
         user_prompt = "\n".join(
-            ["Информация о клиенте, не переспрашивай о ней и не повторяй ее."]
-            + [key + ": " + value for key, value in info_about_client.items()]
+            ["Уже известная информация о клиенте и сделке, не переспрашивай о ней и не повторяй ее."]
+            + [key + ": " + "; ".join(values) for key, values in known_info.items()]
         ) + "\n\n" + user_prompt
 
     ai_input: ResponseInputParam = [
