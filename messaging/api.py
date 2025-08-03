@@ -1,11 +1,12 @@
 import datetime
 import json
 from typing import Literal
-from typing import TypedDict
+# from typing import TypedDict
 
 import httpx
 from httpx import HTTPStatusError
 from loguru import logger
+from typing_extensions import TypedDict
 
 from avito_account.models.models import AvitoAccount
 from base import settings
