@@ -32,7 +32,7 @@ class TriggerConditionCheckResult(BaseModel):
 def check_trigger_condition(trigger: DialogTrigger, messages: list[ChatMessage], tlogger: TraceLogger) -> TriggerConditionCheckResult:
     response = openai_request_with_retries(
         input=_get_ai_input(trigger, messages, tlogger=tlogger),
-        text=TriggerConditionCheckResult,
+        text_format=TriggerConditionCheckResult,
         tag=f"Avito | {trigger.chatbot.account.name} | check trigger condition",
         tlogger=tlogger,
     )

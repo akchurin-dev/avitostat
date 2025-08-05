@@ -20,6 +20,7 @@ client = OpenAI(api_key=settings.OPENAI_SECRET_KEY)
 def openai_request_with_retries(
     input: ResponseInputParam,
     text: ResponseTextConfigParam | NotGiven = NOT_GIVEN,
+    text_format: type[pydantic.BaseModel] | None = None,
     max_output_tokens: int = 2000,
     *,
     tag: str,
@@ -30,12 +31,20 @@ def openai_request_with_retries(
 
     for _ in range(AI_RETRIES):
         try:
-            response = client.responses.create(
-                model=MODEL,
-                input=input,
-                text=text,
-                max_output_tokens=max_output_tokens,
-            )
+            if text_format:
+                response = client.responses.parse(
+                    model=MODEL,
+                    input=input,
+                    text_format=text_format,
+                    max_output_tokens=max_output_tokens,
+                )
+            else:
+                response = client.responses.create(
+                    model=MODEL,
+                    input=input,
+                    text=text,
+                    max_output_tokens=max_output_tokens,
+                )
             ai_requests.create_from_response(tag, response, tlogger=tlogger)
             return response
         except pydantic.ValidationError as e:
