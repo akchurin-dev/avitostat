@@ -17,9 +17,10 @@ def initiate_trigger_condition_check(
     delay = 0
 
     if len(worked_triggers) != 0:
-        tlogger.info(f"Last worked trigger is '{worked_triggers[-1].trigger.title}'")
-        next_trigger = worked_triggers[-1].trigger.trigger
-        delay = worked_triggers[-1].trigger.delay_before_launch_trigger_sec
+        last_worked_trigger = worked_triggers[len(worked_triggers) - 1].trigger
+        tlogger.info(f"Last worked trigger is '{last_worked_trigger.title}'")
+        next_trigger = last_worked_trigger.trigger
+        delay = last_worked_trigger.delay_before_launch_trigger_sec
     else:
         tlogger.info("Worked triggers not found")
         next_trigger = chatbot.trigger
