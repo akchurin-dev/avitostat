@@ -56,7 +56,7 @@ class DialogTriggerInitiator(models.Model):
     )
 
     delay_before_launch_trigger_sec = models.PositiveIntegerField(
-        verbose_name="Задержка перед запуском триггера",
+        verbose_name="Запускать следующий триггер через (сек)",
         default=60 * 10,
     )
 
