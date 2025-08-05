@@ -18,9 +18,9 @@ from amo_a5client.config import ORIGIN_NAME
 # from amo_a5client.utils import amo_a5_ai
 from amo_a5client.utils import amo_a5_messages
 from avito_account.models.models import AvitoAccount
-from chat_bot.ai_utils import avito_message_to_gpt_format
 from chat_bot.api.core import AvitoMessengerSync
 from chat_bot.utils import avito_transcriptions
+from chat_bot.utils.messages_formating import avito_chat_to_gpt_format
 from utils.logging import TraceLogger
 
 
@@ -243,7 +243,7 @@ def generate_ai_answer(
             chat={"id": task.chat_id, "messages": messages},
             tlogger=tlogger,
         )
-        messages_ai_format = [avito_message_to_gpt_format(message, transcriptions) for message in messages]
+        messages_ai_format = avito_chat_to_gpt_format(messages, transcriptions)
 
         # ai_answer = amo_a5_ai.generate_answer(
         #     chatbot=task.chatbot,
@@ -349,7 +349,7 @@ def finish_handling(
 
         avito_account = AvitoAccount.objects.get(pk=avito_account_id)
 
-        AvitoMessengerSync.send_message_to_avito(avito_account, avito_account.pk, task.chat_id, message)
+        AvitoMessengerSync.send_message_to_avito(avito_account, task.chat_id, message)
 
         if status_change_result.status_changed_on_qualification:
             task.qualification_achieved = True

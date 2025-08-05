@@ -10,8 +10,8 @@ import amo.models
 from amo.utils import amo_api
 from amo.utils import amo_fields
 from amo.utils.ai import answers
-from amo.utils.ai.openai import openai_request_with_retries
 from utils.logging import TraceLogger
+from utils.openai_helper import openai_request_with_retries
 
 
 class TokensUsage(NamedTuple):

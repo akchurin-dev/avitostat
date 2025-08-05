@@ -1,17 +1,20 @@
 import pydantic
 from openai import NOT_GIVEN
 from openai import NotGiven
+from openai import OpenAI
 from openai.types.responses import Response
 from openai.types.responses import ResponseInputParam
 from openai.types.responses import ResponseTextConfigParam
 
 from ai_requests import ai_requests
-from chat_bot.ai_utils import MODEL
-from chat_bot.ai_utils import client
+from base import settings
 from utils.logging import TraceLogger
 
 
 AI_RETRIES = 3
+MODEL = "gpt-4.1-2025-04-14"
+
+client = OpenAI(api_key=settings.OPENAI_SECRET_KEY)
 
 
 def openai_request_with_retries(

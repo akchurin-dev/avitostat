@@ -8,84 +8,88 @@ from chat_bot import ai_utils
 from chat_bot.api.core import AvitoMessengerSync
 from chat_bot.models import AiChatBot
 from chat_bot.models import ChatBotTask
+from chat_bot.models import DialogTrigger
+from chat_bot.utils import avito_messages
 from chat_bot.utils import companies_branches
 from chat_bot.utils import contacts_saving
 from chat_bot.utils import daily_report
+from chat_bot.utils import dialog_triggers
 from chat_bot.utils import summaries
 from chat_bot.utils import summary_sending
+from chat_bot.utils import trigger_condition_check
 from messaging.api import MessagingAPISync
 from utils.logging import TraceLogger
 
 
-class AiAnswerAvitoClass:
-    @staticmethod
-    @shared_task
-    def ai_answer_sender_task(
-        avito_account_id: int,
-        chatbot_id: int,
-        chat_id: str,
-        message_id: str,
-        new_task_id: str,
-        *,
-        trace_id: str,
-    ) -> None:
+@shared_task
+def ai_answer_sender_task(
+    avito_account_id: int,
+    chatbot_id: int,
+    chat_id: str,
+    message_id: str,
+    new_task_id: str,
+    *,
+    trace_id: str,
+) -> None:
 
-        tlogger = TraceLogger(trace_id)
-        tlogger.info(f"ai_answer_sender STARTED")
+    tlogger = TraceLogger(trace_id)
+    tlogger.info(f"ai_answer_sender STARTED")
 
-        avito_account = AvitoAccount.objects.get(pk=avito_account_id)
-        chatbot = AiChatBot.objects.get(pk=chatbot_id)
+    avito_account = AvitoAccount.objects.get(pk=avito_account_id)
+    chatbot = AiChatBot.objects.get(pk=chatbot_id)
 
-        chat = MessagingAPISync.get_chat_last_50_messages_by_chat_id(
-            avito_account=avito_account,
-            chat_id=chat_id,
-            trace_id=tlogger.trace_id,
+    chat = MessagingAPISync.get_chat_last_50_messages_by_chat_id(
+        avito_account=avito_account,
+        chat_id=chat_id,
+        trace_id=tlogger.trace_id,
+    )
+    assert "messages" in chat
+
+    new_task = ChatBotTask.objects.get(pk=new_task_id)
+
+    if not avito_messages.is_message_actual(new_task, chat["messages"], tlogger=tlogger):
+        tlogger.info(f"Stop handling. Message is not actual (id={message_id})")
+        return
+
+    company_branch = companies_branches.define_company_branch(avito_account, chat_id)
+    last_message_id = chat["messages"][-1]["id"]
+
+    if chatbot.read_only:
+        ai_answer = ai_utils.parse_contacts(
+            chatbot=chatbot,
+            chat=chat,
+            ask_location=company_branch is None,
+            tlogger=tlogger,
         )
-        assert "messages" in chat
+        tlogger.info("Chatbot configured to read only")
+    else:
+        ai_answer = ai_utils.generate_answer_and_parse_contacts(
+            ai_assistant=chatbot,
+            chat=chat,
+            ask_location=company_branch is None,
+            tlogger=tlogger,
+        )
+        ai_answer.answer += "..."
 
-        # ответ генерируем только если менеджер всё ещё не ответил
-        last_message_type = chat["messages"][-1]["type"]
-        last_message_id = chat["messages"][-1]["id"]
+        sent_message = AvitoMessengerSync.send_message_to_avito(avito_account, chat_id, ai_answer.answer)
+        last_message_id = sent_message["id"]
+        tlogger.info("Answer was sent to avito successfully")
 
-        if last_message_type == "system":  # тк при номере последним становится уже сообщение с предупреждением
-            last_message_type = chat["messages"][-2]["type"]
-            last_message_id = chat["messages"][-2]["id"]
+    contacts_saving.task_contacts_save(new_task, ai_answer, is_incoming=True, company_branch=company_branch)
+    tlogger.info("AIChatBotTask was updated successfully")
 
-        if last_message_id != message_id:
-            tlogger.info(f"Stop handling. Message (id={message_id}) is not actual")
-            return
+    if summaries.may_send_report(chatbot, ai_answer.contacts, tlogger=tlogger):
+        summary_sending.send_summary(avito_account, chat_id, trace_id=tlogger.trace_id)
 
-        company_branch = companies_branches.define_company_branch(avito_account, chat_id)
+    if not chatbot.read_only:
+        dialog_triggers.initiate_trigger_condition_check(
+            task=new_task,
+            chatbot=chatbot,
+            last_message_id=last_message_id,
+            tlogger=tlogger,
+        )
 
-        if chatbot.read_only:
-            ai_answer = ai_utils.parse_contacts(
-                chatbot=chatbot,
-                chat=chat,
-                ask_location=company_branch is None,
-                tlogger=tlogger,
-            )
-
-            tlogger.info("Chatbot configured to read only")
-        else:
-            ai_answer = ai_utils.generate_answer_and_parse_contacts(
-                ai_assistant=chatbot,
-                chat=chat,
-                ask_location=company_branch is None,
-                tlogger=tlogger,
-            )
-            ai_answer.answer += "..."
-
-            AvitoMessengerSync.send_message_to_avito(avito_account, avito_account.pk, chat_id, ai_answer.answer)
-            tlogger.info("Answer was sent to avito successfully")
-
-        new_task = ChatBotTask.objects.get(pk=new_task_id)
-        contacts_saving.task_contacts_save(new_task, ai_answer, is_incoming=True, company_branch=company_branch)
-        tlogger.info("AIChatBotTask was updated successfully")
-
-        if summaries.may_send_report(chatbot, ai_answer.contacts, tlogger=tlogger):
-            summary_sending.send_summary(avito_account, chat_id, trace_id=tlogger.trace_id)
-
-        tlogger.info("Incoming message handling is finished")
+    tlogger.info("Incoming message handling is finished")
 
 
 @shared_task
@@ -166,6 +170,14 @@ def outgoing_messages_handler(
     if summaries.may_send_report(chatbot, ai_answer.contacts, tlogger=tlogger):
         summary_sending.send_summary(avito_account, chat_id, trace_id=tlogger.trace_id)
 
+    if not chatbot.read_only:
+        dialog_triggers.initiate_trigger_condition_check(
+            task=task,
+            chatbot=chatbot,
+            last_message_id=last_message_id,
+            tlogger=tlogger,
+        )
+
     tlogger.info("Outgoing message handling is finished")
 
 
@@ -189,3 +201,48 @@ def statistics_sender_main_task():
         except Exception as error:
             tlogger.warning(f"Exception when start daily statistics for {avito_account.name}. Got '{error}'")
             celery_logger.exception(f"statistics_sender_main_task error - {error}", exc_info=True)
+
+
+@shared_task
+def dialog_trigger_launcher(trigger_id: int, chat_id: str, last_message_id: str, *, trace_id: str) -> None:
+    trigger = DialogTrigger.get(trigger_id)
+
+    tlogger = TraceLogger(trace_id)
+    tlogger.info(f"Check condition for trigger '{trigger}' of '{trigger.chatbot.account.name}'")
+
+    chat = MessagingAPISync.get_chat_last_50_messages_by_chat_id(trigger.chatbot.account, chat_id, trace_id=tlogger.trace_id)
+    messages = chat.get("messages", [])
+    last_message = None
+
+    for i in range(len(messages) - 1, -1, -1):
+        if messages[i]["type"] in {"voice", "text", "location", "link", "image"}:
+            last_message = messages[i]
+            break
+
+    assert last_message is not None
+
+    if last_message["id"] != last_message_id:
+        tlogger.info("Stop handling. Message is not actual")
+        return
+
+    if trigger.only_when_client_is_silent and last_message["direction"] == "in":
+        tlogger.info("Stop handling. Trigger work only when client is silent, but last message is incoming")
+        return
+
+    condition_matched = True
+
+    if trigger.additional_condition.strip():
+        condition_check_result = trigger_condition_check.check_trigger_condition(trigger, messages, tlogger=tlogger)
+        condition_matched = condition_check_result.condition_match_level == trigger_condition_check.ConditionMatchLevel.FULLY_COMPLETED
+
+        tlogger.info({
+            "condition match level": condition_check_result.condition_match_level,
+            "explanation": condition_check_result.short_explanation,
+        })
+
+    tlogger.info({"Condition matched": condition_matched})
+
+    if condition_matched:
+        AvitoMessengerSync.send_message_to_avito(trigger.chatbot.account, chat_id, trigger.message)
+
+    tlogger.info("Finished")

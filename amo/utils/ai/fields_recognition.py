@@ -9,8 +9,8 @@ from openai.types.responses import ResponseTextConfigParam
 import amo.models
 from amo.utils import amo_api
 from amo.utils.ai.answers import get_fillable_entity_schema
-from amo.utils.ai.openai import openai_request_with_retries
 from utils.logging import TraceLogger
+from utils.openai_helper import openai_request_with_retries
 
 
 SYSTEM_PROMPT = """

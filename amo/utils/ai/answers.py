@@ -13,7 +13,6 @@ import amo.models
 from amo.utils import amo_api
 from amo.utils import amo_fields
 # from amo.utils import amo_leads
-from amo.utils.ai.openai import openai_request_with_retries
 from amo.utils.amo_messages import Message
 from amo.utils.amo_messages import MessageTypeEnum
 from amo.utils.amo_transcriptions import TranscriptionsForMessages
@@ -21,6 +20,7 @@ from chat_bot.ai_utils import use_gpt_flag
 from prompts import prompts
 from utils.logging import TraceLogger
 from utils.miscellaneous import datetime_now_msk
+from utils.openai_helper import openai_request_with_retries
 
 
 PHRASE_AUTHOR_REGEX = re.compile(r"^\s*\w+:\s*")

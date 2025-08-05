@@ -1,3 +1,4 @@
+import datetime
 import json
 
 from asgiref.sync import sync_to_async, async_to_sync
@@ -11,13 +12,8 @@ from amo_a5client import amo_a5client
 from avito_account.models.models import AvitoAccount
 from base.settings import ENVIRONMENT
 from chat_bot.api.core import AvitoMessengerSync
-from chat_bot.tasks import (
-    AiAnswerAvitoClass,
-    # BotStatisticsDailyReportClass,
-    # ChatBotSummaryReportClass,
-    # PdfReportBaseClass,
-    outgoing_messages_handler,
-)
+from chat_bot.tasks import ai_answer_sender_task
+from chat_bot.tasks import outgoing_messages_handler
 from chat_bot.api.subscriptions import asubscribe_to_messages, astop_subscribe_to_messages, check_subscriptions
 from chat_bot.models import AiChatBot, ChatBotTask
 from chat_bot.utils import avito_chatbots
@@ -82,6 +78,7 @@ class WebhookInboxViewClass(View):
             avito_account=avito_account,
             chat_id=chat_id,
             message_id=message_id,
+            message_created_at=datetime.datetime.fromtimestamp(created_at_timestamp, datetime.timezone.utc),
             text=text,
         )
         if not created:
@@ -155,7 +152,7 @@ class WebhookInboxViewClass(View):
 
         tlogger.info(f"Wait for {chatbot.waiting_seconds} seconds...")
 
-        AiAnswerAvitoClass.ai_answer_sender_task.s(
+        ai_answer_sender_task.s(
             avito_account_id=avito_account.pk,
             chatbot_id=chatbot.pk,
             chat_id=chat_id,

@@ -64,8 +64,13 @@ class ChatBotTaskAdmin(admin.ModelAdmin):
         return response
 
 
-class ChatBotPromptInline(admin.TabularInline):
+class ChatBotPromptInline(admin.StackedInline):
     model = chat_bot.models.AvitoPrompt
+    extra = 0
+
+
+class DialogTriggerInline(admin.StackedInline):
+    model = chat_bot.models.DialogTrigger
     extra = 0
 
 
@@ -73,7 +78,7 @@ class ChatBotPromptInline(admin.TabularInline):
 class AiChatBotAdmin(admin.ModelAdmin):
     list_display = ["id", "account"]
     list_display_links = ["id", "account"]
-    inlines = [ChatBotPromptInline]
+    inlines = [ChatBotPromptInline, DialogTriggerInline]
 
     def get_queryset(self, request: HttpRequest) -> QuerySet[chat_bot.models.AiChatBot]:
         qs: QuerySet[chat_bot.models.AiChatBot] = super().get_queryset(request)

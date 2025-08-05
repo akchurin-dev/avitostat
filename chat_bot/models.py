@@ -1,4 +1,7 @@
+from __future__ import annotations
+
 from django.db import models
+from django.utils import timezone
 
 import chat_bot.base_models
 import transcriptions.models
@@ -43,7 +46,25 @@ class CompanyBranch(models.Model):
         return self.location
 
 
-class AiChatBot(chat_bot.base_models.AIChatBotBase):
+class DialogTriggerInitiator(models.Model):
+    trigger: DialogTrigger | None = models.ForeignKey(
+        verbose_name="Вызывает триггер",
+        to="DialogTrigger",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+    )
+
+    delay_before_launch_trigger_sec = models.PositiveIntegerField(
+        verbose_name="Задержка перед запуском триггера",
+        default=60 * 10,
+    )
+
+    class Meta:
+        abstract = True
+
+
+class AiChatBot(chat_bot.base_models.AIChatBotBase, DialogTriggerInitiator):
     account = models.OneToOneField(
         verbose_name="Авито-аккаунт",
         to=AvitoAccount,
@@ -101,6 +122,7 @@ class ChatBotTask(chat_bot.base_models.AIResultContainer, chat_bot.base_models.C
     chat_id = models.CharField()
     message_id = models.CharField(primary_key=True, unique=True)
     text = models.TextField(verbose_name="Текст сообщения")
+    message_created_at = models.DateTimeField(verbose_name="Когда создано сообщение")
 
     # Service fields
     summary_sanded = models.BooleanField(default=False, verbose_name="Сводка была отправлена")
@@ -110,6 +132,17 @@ class ChatBotTask(chat_bot.base_models.AIResultContainer, chat_bot.base_models.C
     class Meta:
         verbose_name = "Ответ чат бота"
         verbose_name_plural = "Ответы чат бота"
+
+    @staticmethod
+    def get_tasks_by_chat(account: AvitoAccount, chat_id: str) -> models.QuerySet[ChatBotTask]:
+        return (
+            ChatBotTask.objects
+            .filter(
+                avito_account=account,
+                chat_id=chat_id,
+            )
+            .order_by("created_at")
+        )
 
     def __str__(self):
         return f"{self.message_id}"
@@ -139,3 +172,77 @@ class AvitoTranscription(models.Model):
         to=transcriptions.models.Transcription,
         on_delete=models.CASCADE,
     )
+
+
+class DialogTrigger(DialogTriggerInitiator):
+    chatbot = models.ForeignKey(
+        verbose_name="Чат-бот",
+        to=AiChatBot,
+        on_delete=models.CASCADE,
+    )
+
+    title = models.CharField(
+        verbose_name="Название",
+        max_length=255,
+    )
+
+    only_when_client_is_silent = models.BooleanField(
+        verbose_name="Только когда клиент не отвечает",
+        default=True,
+    )
+
+    additional_condition = models.TextField(
+        verbose_name="Дополнительное условие",
+        blank=True,
+    )
+
+    message = models.TextField(
+        verbose_name="Сообщение",
+    )
+
+    class Meta:
+        verbose_name = "Триггер"
+        verbose_name_plural = "Триггеры"
+
+    @staticmethod
+    def get(id: int) -> DialogTrigger:
+        return DialogTrigger.objects.get(pk=id)
+
+    def __str__(self) -> str:
+        return self.title
+
+
+class WorkedTrigger(models.Model):
+    account = models.ForeignKey(
+        verbose_name="Аккаунт",
+        to=AvitoAccount,
+        on_delete=models.CASCADE,
+    )
+
+    trigger = models.ForeignKey(
+        verbose_name="Триггер",
+        to=DialogTrigger,
+        on_delete=models.CASCADE,
+    )
+
+    chat_id = models.CharField(
+        verbose_name="Идентификатор чата в системе Авито",
+        max_length=255,
+        db_index=True,
+    )
+
+    created_at = models.DateTimeField(
+        verbose_name="Когда создан",
+        auto_now_add=True,
+    )
+
+    @staticmethod
+    def get_worked_triggers_by_chat(account: AvitoAccount, chat_id: str) -> models.QuerySet[WorkedTrigger]:
+        return (
+            WorkedTrigger.objects.filter(
+                account=account,
+                chat_id=chat_id,
+            )
+            .select_related("trigger")
+            .order_by("created_at")
+        )
