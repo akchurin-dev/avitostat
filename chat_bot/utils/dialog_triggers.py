@@ -1,5 +1,5 @@
 import chat_bot.models
-from chat_bot.tasks import dialog_trigger_launcher
+import chat_bot.tasks
 from utils.logging import TraceLogger
 
 
@@ -31,8 +31,8 @@ def initiate_trigger_condition_check(
 
     tlogger.info(f"Next trigger is '{next_trigger.title}'")
 
-    dialog_trigger_launcher.s(
-    # dialog_trigger_launcher(
+    chat_bot.tasks.dialog_trigger_launcher.s(
+    # chat_bot.tasks.dialog_trigger_launcher(
         trigger_id=next_trigger.pk,
         chat_id=task.chat_id,
         last_message_id=last_message_id,
