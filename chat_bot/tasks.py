@@ -9,6 +9,7 @@ from chat_bot.api.core import AvitoMessengerSync
 from chat_bot.models import AiChatBot
 from chat_bot.models import ChatBotTask
 from chat_bot.models import DialogTrigger
+from chat_bot.models import WorkedTrigger
 from chat_bot.utils import avito_messages
 from chat_bot.utils import companies_branches
 from chat_bot.utils import contacts_saving
@@ -83,8 +84,8 @@ def ai_answer_sender_task(
 
     if not chatbot.read_only:
         dialog_triggers.initiate_trigger_condition_check(
-            task=new_task,
             chatbot=chatbot,
+            chat_id=new_task.chat_id,
             last_message_id=last_message_id,
             tlogger=tlogger,
         )
@@ -172,8 +173,8 @@ def outgoing_messages_handler(
 
     if not chatbot.read_only:
         dialog_triggers.initiate_trigger_condition_check(
-            task=task,
             chatbot=chatbot,
+            chat_id=new_task.chat_id,
             last_message_id=last_message_id,
             tlogger=tlogger,
         )
@@ -240,9 +241,18 @@ def dialog_trigger_launcher(trigger_id: int, chat_id: str, last_message_id: str,
             "explanation": condition_check_result.short_explanation,
         })
 
-    tlogger.info({"Condition matched": condition_matched})
+    if not condition_matched:
+        tlogger.info("Stop handling. Condition not matched")
+        return
 
-    if condition_matched:
-        AvitoMessengerSync.send_message_to_avito(trigger.chatbot.account, chat_id, trigger.message)
+    sent_message = AvitoMessengerSync.send_message_to_avito(trigger.chatbot.account, chat_id, trigger.message)
+    WorkedTrigger.create(chat_id, trigger)
 
-    tlogger.info("Finished")
+    dialog_triggers.initiate_trigger_condition_check(
+        chatbot=trigger.chatbot,
+        chat_id=chat_id,
+        last_message_id=sent_message["id"],
+        tlogger=tlogger,
+    )
+
+    tlogger.info("Triggered")

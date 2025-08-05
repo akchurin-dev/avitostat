@@ -246,3 +246,11 @@ class WorkedTrigger(models.Model):
             .select_related("trigger")
             .order_by("created_at")
         )
+
+    @staticmethod
+    def create(chat_id: str, trigger: DialogTrigger) -> WorkedTrigger:
+        return WorkedTrigger.objects.create(
+            account=trigger.chatbot.account,
+            chat_id=chat_id,
+            trigger=trigger,
+        )

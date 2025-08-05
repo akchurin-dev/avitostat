@@ -4,14 +4,14 @@ from utils.logging import TraceLogger
 
 
 def initiate_trigger_condition_check(
-    task: chat_bot.models.ChatBotTask,
     chatbot: chat_bot.models.AiChatBot,
+    chat_id: str,
     last_message_id: str,
     *,
     tlogger: TraceLogger,
 ) -> None:
 
-    worked_triggers = chat_bot.models.WorkedTrigger.get_worked_triggers_by_chat(task.avito_account, task.chat_id)
+    worked_triggers = chat_bot.models.WorkedTrigger.get_worked_triggers_by_chat(chatbot.account, chat_id)
 
     next_trigger: chat_bot.models.DialogTrigger | None = None
     delay = 0
@@ -34,7 +34,7 @@ def initiate_trigger_condition_check(
     chat_bot.tasks.dialog_trigger_launcher.s(
     # chat_bot.tasks.dialog_trigger_launcher(
         trigger_id=next_trigger.pk,
-        chat_id=task.chat_id,
+        chat_id=chat_id,
         last_message_id=last_message_id,
         trace_id=tlogger.trace_id,
     ).apply_async(countdown=delay)
