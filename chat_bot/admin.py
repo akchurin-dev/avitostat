@@ -71,6 +71,15 @@ class ChatBotPromptInline(admin.StackedInline):
 
 class DialogTriggerInline(admin.StackedInline):
     model = chat_bot.models.DialogTrigger
+    fields = [
+        "title",
+        "only_when_client_is_silent",
+        "additional_condition",
+        "message",
+        "trigger",
+        "delay_before_launch_trigger_sec",
+    ]
+    ordering = ["title"]
     extra = 0
 
 
