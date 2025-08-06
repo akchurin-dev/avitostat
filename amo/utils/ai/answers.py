@@ -145,7 +145,7 @@ def _get_ai_input(
     user_prompt = "Переписка с клиентом:\n" + _get_dialog_str(messages)
     if known_info:
         user_prompt = "\n".join(
-            ["Уже известная информация о клиенте и сделке, не переспрашивай о ней и не повторяй ее."]
+            ["Что известно о клиенте и сделке, не переспрашивай о заполненных полях и не дублируй эти значения в ответном сообщении."]
             + [key + ": " + "; ".join(values) for key, values in known_info.items()]
         ) + "\n\n" + user_prompt
 

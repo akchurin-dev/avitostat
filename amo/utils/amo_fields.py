@@ -181,6 +181,8 @@ def get_filled_fillable_fields(
             entity = "Контакт"
             fields_values = contact.custom_fields_values
 
+        known_fields_values[f"{entity}.{fillable_field.name}"] = ["<Неизвестно>"]
+
         for field_values in fields_values or []:
             if field_values.field_name != fillable_field.name:
                 continue

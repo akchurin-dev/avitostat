@@ -52,28 +52,6 @@ def launch_new_message_handling(
     )
 
     if chatbot_lead_pair is None:
-        # timeout = increasing_delay.is_timeout(time_left_for_retries_sec, RETRY_MESSAGE_HANGLING_DELAY_CONFIG)
-
-        # if timeout:
-        #     tlogger.info("Stop handling. Chatbot and lead aren't defined")
-
-        # if not timeout:
-        #     retry_delay_sec = increasing_delay.next_delay(time_left_for_retries_sec, RETRY_MESSAGE_HANGLING_DELAY_CONFIG).total_seconds()
-        #     tlogger.info(f"Chatbot and lead aren't defined. Retry after {retry_delay_sec} sec")
-
-        #     launch_new_message_handling.s(
-        #         amo_account_id=amo_account_id,
-        #         avito_account_id=avito_account_id,
-        #         contact_id=contact_id,
-        #         lead_id=lead_id,
-        #         chat_id=chat_id,
-        #         message_id=message_id,
-        #         message_created_at_ts=message_created_at_ts,
-        #         text=text,
-        #         time_left_for_retries_sec=time_left_for_retries_sec + retry_delay_sec,
-        #         trace_id=tlogger.trace_id,
-        #     ).apply_async(countdown=retry_delay_sec)
-
         if time_left_for_retries_sec < 5:
             launch_new_message_handling.s(
                 amo_account_id=amo_account_id,
@@ -245,15 +223,6 @@ def generate_ai_answer(
         )
         messages_ai_format = avito_chat_to_gpt_format(messages, transcriptions)
 
-        # ai_answer = amo_a5_ai.generate_answer(
-        #     chatbot=task.chatbot,
-        #     messages=messages,
-        #     transcriptions=transctiptions,
-        #     amo_account=task.account,
-        #     lead_id=int(task.lead_id),
-        #     tlogger=tlogger,
-        # )
-
         answer, tokens_prompt1, tokens_completion1 = answers.generate_answer(
             account=task.account,
             chatbot=task.chatbot,
@@ -262,15 +231,6 @@ def generate_ai_answer(
             known_info=known_info,
             tlogger=tlogger,
         )
-        # assert ai_answer.payload.answer
-        # ai_answer.payload.answer = task.chatbot.message_prefix + ai_answer.payload.answer + task.chatbot.message_postfix
-        # additional_usage = isolated_check.check_fields_isolately_and_update_ai_result(
-        #     task.account,
-        #     task.chatbot,
-        #     messages_ai_format,
-        #     ai_answer,
-        #     tlogger=tlogger,
-        # )
 
         # tlogger.info({"ai_answer": ai_answer.model_dump()})
 

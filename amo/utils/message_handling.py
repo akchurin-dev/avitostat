@@ -289,25 +289,6 @@ def generate_ai_answer(
         transcriptions = amo_transcriptions.get_transcriptions_for_voice_messages(task.account, messages, tlogger=tlogger)
         messages_ai_format = [answers.amo_message_to_gpt_format(message, transcriptions) for message in messages]
 
-        # ai_answer = answers.generate_answer(
-        #     chatbot=task.chatbot,
-        #     messages=messages_ai_format,
-        #     account=task.account,
-        #     lead_id=int(task.lead_id),
-        #     tlogger=tlogger,
-        # )
-        # assert ai_answer.payload.answer
-        # ai_answer.payload.answer = task.chatbot.message_prefix + ai_answer.payload.answer + task.chatbot.message_postfix
-        # additional_usage = isolated_check.check_fields_isolately_and_update_ai_result(
-        #     task.account,
-        #     task.chatbot,
-        #     messages_ai_format,
-        #     ai_answer,
-        #     tlogger=tlogger,
-        # )
-
-        # tlogger.info({"ai_answer": ai_answer.model_dump()})
-
         answer, tokens_prompt1, tokens_completion1 = answers.generate_answer(
             account=task.account,
             chatbot=task.chatbot,
