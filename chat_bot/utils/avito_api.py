@@ -287,7 +287,7 @@ def send_message(account: AvitoAccount, chat_id: str, message: str, *, tlogger: 
     return BaseMessage.model_validate_json(response.content)
 
 
-def read_chat(account: AvitoAccount, chat_id: str, *, tlogger: TraceLogger) -> bool:
+def read_chat(account: AvitoAccount, chat_id: str, *, tlogger: TraceLogger) -> None:
     """ https://developers.avito.ru/api-catalog/messenger/documentation#operation/chatRead """
 
     action = f"/messenger/v1/accounts/{account.pk}/chats/{chat_id}/read"
@@ -295,10 +295,8 @@ def read_chat(account: AvitoAccount, chat_id: str, *, tlogger: TraceLogger) -> b
     response = avito_api_request("POST", action, account, tlogger=tlogger)
     response.raise_for_status()
 
-    return response.json()["ok"]
 
-
-def subscribe_for_messages(account: AvitoAccount, *, tlogger: TraceLogger) -> bool:
+def subscribe_for_messages(account: AvitoAccount, *, tlogger: TraceLogger) -> None:
     """ https://developers.avito.ru/api-catalog/messenger/documentation#operation/postWebhookV3 """
 
     action = "/messenger/v3/webhook"
@@ -308,13 +306,8 @@ def subscribe_for_messages(account: AvitoAccount, *, tlogger: TraceLogger) -> bo
     response = avito_api_request("POST", action, account, json=request_data, tlogger=tlogger)
     response.raise_for_status()
 
-    if not response.text:
-        return False
 
-    return response.json()["ok"]
-
-
-def unsubscribe_from_messages(account: AvitoAccount, *, tlogger: TraceLogger) -> bool:
+def unsubscribe_from_messages(account: AvitoAccount, *, tlogger: TraceLogger) -> None:
     """ https://developers.avito.ru/api-catalog/messenger/documentation#operation/postWebhookUnsubscribe """
 
     action = "/messenger/v1/webhook/unsubscribe"
@@ -323,11 +316,6 @@ def unsubscribe_from_messages(account: AvitoAccount, *, tlogger: TraceLogger) ->
 
     response = avito_api_request("POST", action, account, json=request_data, tlogger=tlogger)
     response.raise_for_status()
-
-    if not response.text:
-        return False
-
-    return response.json()["ok"]
 
 
 def get_subscriptions(account: AvitoAccount, *, tlogger: TraceLogger) -> list[WebhookSubscription]:
