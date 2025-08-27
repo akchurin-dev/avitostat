@@ -303,9 +303,9 @@ def subscribe_for_messages(account: AvitoAccount, *, tlogger: TraceLogger) -> bo
 
     action = "/messenger/v3/webhook"
 
-    params = {"url": settings.AVITO_WEBHOOK_URL}
+    request_data = {"url": settings.AVITO_WEBHOOK_URL}
 
-    response = avito_api_request("POST", action, account, params=params, tlogger=tlogger)
+    response = avito_api_request("POST", action, account, json=request_data, tlogger=tlogger)
     response.raise_for_status()
 
     if not response.text:
@@ -319,9 +319,9 @@ def unsubscribe_from_messages(account: AvitoAccount, *, tlogger: TraceLogger) ->
 
     action = "/messenger/v1/webhook/unsubscribe"
 
-    params = {"url": settings.AVITO_WEBHOOK_URL}
+    request_data = {"url": settings.AVITO_WEBHOOK_URL}
 
-    response = avito_api_request("POST", action, account, params=params, tlogger=tlogger)
+    response = avito_api_request("POST", action, account, json=request_data, tlogger=tlogger)
     response.raise_for_status()
 
     if not response.text:
