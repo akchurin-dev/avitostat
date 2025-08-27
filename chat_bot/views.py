@@ -10,10 +10,10 @@ from django.views import View
 from amo_a5client import amo_a5client
 from avito_account.models.models import AvitoAccount
 from base.settings import ENVIRONMENT
-from chat_bot.api.core import AvitoMessengerSync
 from chat_bot.tasks import ai_answer_sender_task
 from chat_bot.tasks import outgoing_messages_handler
 from chat_bot.models import AiChatBot, ChatBotTask
+from chat_bot.utils import avito_api
 from chat_bot.utils import avito_chatbots
 from utils.logging import new_trace_id, TraceLogger
 
@@ -127,7 +127,7 @@ class WebhookInboxViewClass(View):
             tlogger.info("Stop handling. Chatbot is stopped for chat")
             return
 
-        AvitoMessengerSync.read_chat(avito_account, user_id, chat_id)
+        avito_api.read_chat(avito_account, chat_id, tlogger=tlogger)
         WebhookInboxViewClass.incoming_messages_handler(
             new_task=new_task,
             chat_id=chat_id,

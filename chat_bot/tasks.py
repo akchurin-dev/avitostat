@@ -1,16 +1,14 @@
-from asgiref.sync import async_to_sync
 from celery import shared_task
 
 import messaging.api
 from avito_account.models.models import AvitoAccount
 from base.celery import celery_logger
-from base.settings import ENVIRONMENT
 from chat_bot import ai_utils
-from chat_bot.api.core import AvitoMessengerSync
 from chat_bot.models import AiChatBot
 from chat_bot.models import ChatBotTask
 from chat_bot.models import DialogTrigger
 from chat_bot.models import WorkedTrigger
+from chat_bot.utils import avito_api
 from chat_bot.utils import avito_messages
 from chat_bot.utils import companies_branches
 from chat_bot.utils import contacts_saving
@@ -72,8 +70,7 @@ def ai_answer_sender_task(
         )
         ai_answer.answer += "..."
 
-        sent_message = AvitoMessengerSync.send_message_to_avito(avito_account, chat_id, ai_answer.answer)
-        last_message_id = sent_message["id"]
+        last_message_id = avito_api.send_message(avito_account, chat_id, ai_answer.answer, tlogger=tlogger).id
         tlogger.info("Answer was sent to avito successfully")
 
     contacts_saving.task_contacts_save(new_task, ai_answer, is_incoming=True, company_branch=company_branch)
@@ -251,13 +248,13 @@ def dialog_trigger_launcher(trigger_id: int, chat_id: str, last_message_id: str,
         tlogger.info("Stop handling. Condition not matched")
         return
 
-    sent_message = AvitoMessengerSync.send_message_to_avito(trigger.chatbot.account, chat_id, trigger.message)
+    sent_message_id = avito_api.send_message(trigger.chatbot.account, chat_id, trigger.message, tlogger=tlogger).id
     WorkedTrigger.create(chat_id, trigger)
 
     dialog_triggers.initiate_trigger_condition_check(
         chatbot=trigger.chatbot,
         chat_id=chat_id,
-        last_message_id=sent_message["id"],
+        last_message_id=sent_message_id,
         tlogger=tlogger,
     )
 
