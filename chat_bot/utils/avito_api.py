@@ -308,6 +308,9 @@ def subscribe_for_messages(account: AvitoAccount, *, tlogger: TraceLogger) -> bo
     response = avito_api_request("POST", action, account, params=params, tlogger=tlogger)
     response.raise_for_status()
 
+    if not response.text:
+        return False
+
     return response.json()["ok"]
 
 
@@ -320,6 +323,9 @@ def unsubscribe_from_messages(account: AvitoAccount, *, tlogger: TraceLogger) ->
 
     response = avito_api_request("POST", action, account, params=params, tlogger=tlogger)
     response.raise_for_status()
+
+    if not response.text:
+        return False
 
     return response.json()["ok"]
 
