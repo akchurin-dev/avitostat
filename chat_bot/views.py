@@ -1,7 +1,6 @@
 import datetime
 import json
 
-from asgiref.sync import sync_to_async, async_to_sync
 from celery import shared_task
 from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
@@ -14,7 +13,6 @@ from base.settings import ENVIRONMENT
 from chat_bot.api.core import AvitoMessengerSync
 from chat_bot.tasks import ai_answer_sender_task
 from chat_bot.tasks import outgoing_messages_handler
-from chat_bot.api.subscriptions import asubscribe_to_messages, astop_subscribe_to_messages, check_subscriptions
 from chat_bot.models import AiChatBot, ChatBotTask
 from chat_bot.utils import avito_chatbots
 from utils.logging import new_trace_id, TraceLogger
@@ -96,7 +94,7 @@ class WebhookInboxViewClass(View):
             return
 
         if ENVIRONMENT != "PRODUCTION":
-            async_to_sync(avito_account.update_refresh_token_async)()
+            avito_account.update_refresh_token()
 
         request_type = request_data["payload"]["type"]
         message_type = request_data["payload"]["value"]["type"]
@@ -162,27 +160,6 @@ class WebhookInboxViewClass(View):
         ).apply_async(countdown=chatbot.waiting_seconds)
 
 
-#TODO Admin panel endpoints
-class SubscribeView(View):
-    async def get(self, request, *args, **kwargs):
-        avito_account = await sync_to_async(AvitoAccount.objects.get)(pk=145213826)  #Rauf
-        await asubscribe_to_messages(avito_account)
-        return JsonResponse({"status": "ok"}, status=200)
-
-class StopSubscribeView(View):
-    async def get(self, request, *args, **kwargs):
-        avito_account = await sync_to_async(AvitoAccount.objects.get)(pk=145213826)  #Rauf
-        # await avito_account.update_refresh_token_async()
-        await astop_subscribe_to_messages(avito_account)
-        return JsonResponse({"status": "ok"}, status=200)
-
-@method_decorator(csrf_exempt, name='dispatch')
-class CheckSubscribtionsView(View):
-    async def get(self, request, *args, **kwargs):
-        avito_account = await sync_to_async(AvitoAccount.objects.get)(pk=145213826)  # Rauf
-        await check_subscriptions(avito_account)
-        return JsonResponse({"status": "ok"}, status=200)
-
 #TODO Manual testing endpoints
 @method_decorator(csrf_exempt, name='dispatch')
 class StatisticsDailyReportView(View):
@@ -190,17 +167,16 @@ class StatisticsDailyReportView(View):
         # BotStatisticsDailyReportClass.statistics_sender_main_task.delay()
         return JsonResponse({"status": "ok"}, status=200)
 
+
 @method_decorator(csrf_exempt, name='dispatch')
 class SummarySenderView(View):
     def get(self, request, *args, **kwargs):
         # ChatBotSummaryReportClass.summary_sender_main_task(163634833, "u2i-jl7kFERA8KE843KWuc4SyQ")
         return (JsonResponse({"status": "ok"}, status=200))
 
+
 @method_decorator(csrf_exempt, name='dispatch')
 class MiltipleFilesSenderTestView(View):
     def get(self, request, *args, **kwargs):
         # PdfReportBaseClass.batch_files_sender_to_tg_not_used()
         return (JsonResponse({"status": "ok"}, status=200))
-
-
-

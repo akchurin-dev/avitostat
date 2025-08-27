@@ -1,6 +1,7 @@
 from asgiref.sync import async_to_sync
 from celery import shared_task
 
+import messaging.api
 from avito_account.models.models import AvitoAccount
 from base.celery import celery_logger
 from base.settings import ENVIRONMENT
@@ -18,7 +19,6 @@ from chat_bot.utils import dialog_triggers
 from chat_bot.utils import summaries
 from chat_bot.utils import summary_sending
 from chat_bot.utils import trigger_condition_check
-from messaging.api import MessagingAPISync
 from utils.logging import TraceLogger
 
 
@@ -39,10 +39,10 @@ def ai_answer_sender_task(
     avito_account = AvitoAccount.objects.get(pk=avito_account_id)
     chatbot = AiChatBot.objects.get(pk=chatbot_id)
 
-    chat = MessagingAPISync.get_chat_last_50_messages_by_chat_id(
+    chat = messaging.api.get_chat_last_50_messages_by_chat_id(
         avito_account=avito_account,
         chat_id=chat_id,
-        trace_id=tlogger.trace_id,
+        tlogger=tlogger,
     )
     assert "messages" in chat
 
@@ -52,7 +52,7 @@ def ai_answer_sender_task(
         tlogger.info(f"Stop handling. Message is not actual (id={message_id})")
         return
 
-    company_branch = companies_branches.define_company_branch(avito_account, chat_id)
+    company_branch = companies_branches.define_company_branch(avito_account, chat_id, tlogger=tlogger)
     last_message_id = chat["messages"][-1]["id"]
 
     if chatbot.read_only:
@@ -152,10 +152,10 @@ def outgoing_messages_handler(
         tlogger.info(f"Stop handling. Summary was sent already for chat '{chat_id}'")
         return
 
-    chat = MessagingAPISync.get_chat_last_50_messages_by_chat_id(
+    chat = messaging.api.get_chat_last_50_messages_by_chat_id(
         avito_account=avito_account,
         chat_id=chat_id,
-        trace_id=tlogger.trace_id,
+        tlogger=tlogger,
     )
     assert "messages" in chat
 
@@ -167,7 +167,7 @@ def outgoing_messages_handler(
         tlogger.info(f"Stop handling. Message (id={message_id}) is not actual")
         return
 
-    company_branch = companies_branches.define_company_branch(avito_account, chat_id)
+    company_branch = companies_branches.define_company_branch(avito_account, chat_id, tlogger=tlogger)
 
     ai_answer = ai_utils.parse_contacts(
         chatbot=chatbot,
@@ -200,9 +200,6 @@ def statistics_sender_main_task():
 
     for avito_account in avito_accounts:
         try:
-            if ENVIRONMENT == "DEVELOPMENT":
-                async_to_sync(avito_account.update_refresh_token_async)()
-
             daily_report.statistics_for_avito_account.delay(
             # daily_report.statistics_for_avito_account(
                 account_id=avito_account.pk,
@@ -220,7 +217,7 @@ def dialog_trigger_launcher(trigger_id: int, chat_id: str, last_message_id: str,
     tlogger = TraceLogger(trace_id)
     tlogger.info(f"Check condition for trigger '{trigger}' of '{trigger.chatbot.account.name}'")
 
-    chat = MessagingAPISync.get_chat_last_50_messages_by_chat_id(trigger.chatbot.account, chat_id, trace_id=tlogger.trace_id)
+    chat = messaging.api.get_chat_last_50_messages_by_chat_id(trigger.chatbot.account, chat_id, tlogger=tlogger)
     messages = chat.get("messages", [])
     last_message = None
 

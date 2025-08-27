@@ -104,7 +104,7 @@ def get_raw_data(
     tlogger: TraceLogger,
 ) -> Statistic | None:
 
-    chats = async_to_sync(messaging.api.get_chats)(avito_account, period=period)
+    chats = list(messaging.api.get_chats(avito_account, period=period))
 
     if not chats:
         tlogger.info("Chats not found")
@@ -133,8 +133,8 @@ def get_raw_data(
     ).values("chat_id").distinct()
     contacts_count = len(tasks_with_contact)
     # Chats with messages getting
-    actual_chats = async_to_sync(filter_chats_for_last_period)(chats, period=period)
-    actual_chats_with_mes = async_to_sync(messaging.api.get_chats_last_50_messages)(avito_account, actual_chats, trace_id=tlogger.trace_id)
+    actual_chats = filter_chats_for_last_period(chats, period=period)
+    actual_chats_with_mes = messaging.api.get_chats_last_50_messages(avito_account, actual_chats, tlogger=tlogger)
     only_with_text = filter_chats_only_with_text(actual_chats_with_mes)
     bot_chats_with_messages = filter_by_bot_answered_chat_ids(only_with_text, unique_bot_chat_ids)
 
@@ -198,9 +198,9 @@ def history_main_sender(avito_account: AvitoAccount, telegram_id: str, statistic
     have_closed_chats = len(chats_with_contacts_ids) > 0
     have_open_chats = (len(chats) - len(chats_with_contacts_ids)) > 0
 
-    chats = statistics.chats or None
+    chats = statistics.chats or []
 
-    if chats and have_closed_chats and aichatbot.histories_closed:
+    if len(chats) != 0 and have_closed_chats and aichatbot.histories_closed:
         message_title = f"✅ <b>История закрытых переписок ({len(chats_with_contacts_ids)} шт) :</b>"
         # PdfReportBaseClass.text_sender_to_tg(f"✅ <b>История закрытых переписок"
         #                                         f" ({len(chats_with_contacts_ids)} шт) :</b>",

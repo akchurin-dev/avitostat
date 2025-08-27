@@ -46,7 +46,7 @@ def summary_sender_bot_id() -> int:
         return bot_info.id
 
     _summary_sender_bot_id = async_to_sync(f)()
-
+    assert _summary_sender_bot_id
     return _summary_sender_bot_id
 
 
@@ -67,6 +67,7 @@ def get_last_message_id():
 
 
 async def aread_message(message_id: int) -> Message | None:
+    assert config.SUMMARY_CHAT_ID is not None
     try:
         temp_msg = await bot_checker.send_message(
             chat_id=config.SUMMARY_CHAT_ID,

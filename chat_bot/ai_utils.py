@@ -1,11 +1,14 @@
 from __future__ import annotations
 
+import json
 from enum import Enum
+from typing import Any
 from typing import Literal
 
 import httpx
 from openai import OpenAI
-from openai.types.chat.parsed_chat_completion import ParsedChatCompletion
+# from openai.types.chat.parsed_chat_completion import ParsedChatCompletion
+from openai.types.responses import Response
 from openai.types.responses import ResponseInputItemParam
 from pydantic import BaseModel
 
@@ -19,7 +22,7 @@ from prompts import prompts
 from utils.logging import TraceLogger
 from utils.openai_helper import MODEL
 from utils.openai_helper import client
-from utils.openai_helper import openai_request_with_retries
+from utils.openai_helper import openai_parse_request
 
 
 COMPANY_BRANCH_KEy = "nearest_company_branch"
@@ -37,13 +40,13 @@ class ChatBotAnswerSchema(ClientContactsSchema):
     answer: str
 
 
-def contacts_data_prepare(data: ClientContactsSchema) -> dict | None:
+def contacts_data_prepare(data: dict) -> dict | None:
     contacts = {key: value for key, value in {
-        "address": data.address,
-        "mobile": data.mobile,
-        "whatsapp": data.whatsapp,
-        "telegram": data.telegram,
-        "email": data.email,
+        "address": data.get("address"),
+        "mobile": data.get("mobile"),
+        "whatsapp": data.get("whatsapp"),
+        "telegram": data.get("telegram"),
+        "email": data.get("email"),
     }.items() if value is not None}
 
     if len(contacts) == 0:
@@ -92,26 +95,26 @@ def generate_answer_and_parse_contacts(
 
     assert ai_assistant.account
 
-    response = client.beta.chat.completions.parse(
-        model=MODEL,
-        messages=_get_messages_for_gpt(ai_assistant, chat, extract_contacts_only=False, tlogger=tlogger),
-        response_format=_get_schema(ai_assistant.account, ask_location, ChatBotAnswerSchema),
-        max_tokens=2000,
-        timeout=30,
-    )
-    ai_requests.create_from_chat_completion(
-        tag=f"Avito | {ai_assistant.account.name} | generate answer and parse contacts",
-        completion=response,
-        tlogger=tlogger,
-    )
-
-    # response = openai_request_with_retries(
-    #     input=_get_messages_for_gpt(ai_assistant, chat, extract_contacts_only=False, tlogger=tlogger),
-    #     text=_get_schema(ai_assistant.account, ask_location, ChatBotAnswerSchema),
-    #     max_output_tokens=2000,
+    # response = client.beta.chat.completions.parse(
+    #     model=MODEL,
+    #     messages=_get_messages_for_gpt(ai_assistant, chat, extract_contacts_only=False, tlogger=tlogger),
+    #     response_format=_get_schema(ai_assistant.account, ask_location, ChatBotAnswerSchema),
+    #     max_tokens=2000,
+    #     timeout=30,
+    # )
+    # ai_requests.create_from_chat_completion(
     #     tag=f"Avito | {ai_assistant.account.name} | generate answer and parse contacts",
+    #     completion=response,
     #     tlogger=tlogger,
     # )
+
+    response = openai_parse_request(
+        input=_get_messages_for_gpt(ai_assistant, chat, extract_contacts_only=False, tlogger=tlogger),
+        text_format=_get_schema(ai_assistant.account, ask_location, ChatBotAnswerSchema),
+        max_output_tokens=2000,
+        tag=f"Avito | {ai_assistant.account.name} | generate answer and parse contacts",
+        tlogger=tlogger,
+    )
 
     return parse_response(response)
 
@@ -127,39 +130,45 @@ def parse_contacts(
     if not use_gpt_flag():
         return AIAnswerWithContacts.model_validate({})
 
-    response = client.beta.chat.completions.parse(
-        model=MODEL,
-        messages=_get_messages_for_gpt(chatbot, chat, extract_contacts_only=True, tlogger=tlogger),
-        response_format=_get_schema(chatbot.account, ask_location, ClientContactsSchema),
-    )
-    ai_requests.create_from_chat_completion(
+    # response = client.beta.chat.completions.parse(
+    #     model=MODEL,
+    #     messages=_get_messages_for_gpt(chatbot, chat, extract_contacts_only=True, tlogger=tlogger),
+    #     response_format=_get_schema(chatbot.account, ask_location, ClientContactsSchema),
+    # )
+    # ai_requests.create_from_chat_completion(
+    #     tag=f"Avito | {chatbot.account.name} | parse contacts",
+    #     completion=response,
+    #     tlogger=tlogger,
+    # )
+
+    response = openai_parse_request(
+        input=_get_messages_for_gpt(chatbot, chat, extract_contacts_only=True, tlogger=tlogger),
+        text_format=_get_schema(chatbot.account, ask_location, ClientContactsSchema),
         tag=f"Avito | {chatbot.account.name} | parse contacts",
-        completion=response,
         tlogger=tlogger,
     )
 
     return parse_response(response)
 
 
-def parse_response(response: ParsedChatCompletion) -> AIAnswerWithContacts:
-    data = response.choices[0].message.parsed
+# def parse_response(response: ParsedChatCompletion) -> AIAnswerWithContacts:
+def parse_response(response: Response) -> AIAnswerWithContacts:
+    data: dict = json.loads(response.output_text)
 
     if data is None:
         raise_gpt_response_is_none()
 
     assert data is not None
 
-    result = {
+    result: dict[str, Any] = {
         "answer": "",
         COMPANY_BRANCH_KEy: None,
         "contacts": contacts_data_prepare(data),
     }
 
-    data_dict = data.model_dump()
+    result["answer"] = data.get("answer", "")
 
-    result["answer"] = data_dict.get("answer", "")
-
-    nearest_compant_branch_enum: Enum | None = data_dict.get(COMPANY_BRANCH_KEy)
+    nearest_compant_branch_enum: Enum | None = data.get(COMPANY_BRANCH_KEy)
     if nearest_compant_branch_enum:
         result[COMPANY_BRANCH_KEy] = nearest_compant_branch_enum.name
 
@@ -167,8 +176,8 @@ def parse_response(response: ParsedChatCompletion) -> AIAnswerWithContacts:
     result["tokens_prompt"] = 0
 
     if response.usage:
-        result["tokens_completion"] = response.usage.completion_tokens
-        result["tokens_prompt"] = response.usage.prompt_tokens
+        result["tokens_completion"] = response.usage.output_tokens
+        result["tokens_prompt"] = response.usage.input_tokens
 
     return AIAnswerWithContacts.model_validate(result)
 
@@ -237,7 +246,7 @@ def _get_schema(avito_account: AvitoAccount, ask_location: bool, base_schema) ->
 
     locations = {cb.location_slug: cb.location for cb in company_branches}
 
-    LocationEnum = Enum("LocationEnum", locations)
+    LocationEnum = Enum("LocationEnum", locations)  # type: ignore
 
     class Schema(base_schema):
         nearest_company_branch: LocationEnum | None
@@ -266,10 +275,10 @@ def chat_summary_data_prepare(data: ChatSummarySchema) -> dict | None:
 
 
 def avito_chat_summary_ai_generator(avito_account: AvitoAccount, chat_id: str, *, tlogger: TraceLogger):
-    chat = messaging.api.MessagingAPISync.get_chat_last_50_messages_by_chat_id(
+    chat = messaging.api.get_chat_last_50_messages_by_chat_id(
         avito_account=avito_account,
         chat_id=chat_id,
-        trace_id=tlogger.trace_id,
+        tlogger=tlogger,
     )
 
     messages = chat.get("messages")
@@ -302,7 +311,7 @@ def generate_chat_summary(module: Literal["Avito", "Amo"], account_name: str, ch
             'tokens_prompt': 2,
         })
 
-    result = {}
+    result: dict[str, Any] = {}
 
     prompt = (f"""Твоя задача - проанализировать переписку чата
         И сгенерировать сводку по чату которая должна содержать пункты:

@@ -37,9 +37,9 @@ class ChatCreated(BaseModel):
 
 
 class MessageTypeEnum(Enum):
-    PICTURE = amo.models.AmoChatBotTask.MessageType.PICTURE.value
-    TEXT = amo.models.AmoChatBotTask.MessageType.TEXT.value
-    VOICE = amo.models.AmoChatBotTask.MessageType.VOICE.value
+    PICTURE = amo.models.AmoChatBotTask.MessageType.PICTURE.value  # type: ignore
+    TEXT = amo.models.AmoChatBotTask.MessageType.TEXT.value  # type: ignore
+    VOICE = amo.models.AmoChatBotTask.MessageType.VOICE.value  # type: ignore
 
 
 class Message(BaseModel):

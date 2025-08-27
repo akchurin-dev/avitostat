@@ -3,9 +3,18 @@ from django import forms
 from django.contrib import admin
 from django.db.models import Q
 from django.shortcuts import redirect
-from avito_account.admin_panel.avito_account_actions import run_txt_all_test_from_prod_report, run_txt_report, \
-    run_pdf_week_report, run_txt_all_report, run_pdf_all_report, run_pdf_all_test_from_prod_report, \
-    run_pdf_month_report, celery_pdf_month_for_api_report, run_daily_pdf_report, update_avito_accounts_tokens
+
+from avito_account.admin_panel.avito_account_actions import actualize_avito_webhooks_subscriptions
+from avito_account.admin_panel.avito_account_actions import celery_pdf_month_for_api_report
+from avito_account.admin_panel.avito_account_actions import run_daily_pdf_report
+from avito_account.admin_panel.avito_account_actions import run_pdf_all_report
+from avito_account.admin_panel.avito_account_actions import run_pdf_all_test_from_prod_report
+from avito_account.admin_panel.avito_account_actions import run_pdf_month_report
+from avito_account.admin_panel.avito_account_actions import run_pdf_week_report
+from avito_account.admin_panel.avito_account_actions import run_txt_all_report
+from avito_account.admin_panel.avito_account_actions import run_txt_all_test_from_prod_report
+from avito_account.admin_panel.avito_account_actions import run_txt_report
+from avito_account.admin_panel.avito_account_actions import update_avito_accounts_tokens
 from avito_account.models.excluded_items import ExcludedItem
 from avito_account.models.models import AnalyticSchema, WorkSchedule
 import logging
@@ -51,15 +60,16 @@ class AvitoAccountAdmin(admin.ModelAdmin):
     readonly_fields = ('id',)
     inlines = [WorkScheduleInline, ExcludedItemInline, CompanyBranchInline]
     actions = [
+        actualize_avito_webhooks_subscriptions,
         celery_pdf_month_for_api_report,
-        run_txt_all_test_from_prod_report,
-        run_pdf_all_test_from_prod_report,
-        run_txt_report,
-        run_pdf_week_report,
-        run_pdf_month_report,
-        run_txt_all_report,
-        run_pdf_all_report,
         run_daily_pdf_report,
+        run_pdf_all_report,
+        run_pdf_all_test_from_prod_report,
+        run_pdf_month_report,
+        run_pdf_week_report,
+        run_txt_all_report,
+        run_txt_all_test_from_prod_report,
+        run_txt_report,
         update_avito_accounts_tokens,
     ]
     exclude = ('access_token', 'refresh_token')

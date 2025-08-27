@@ -4,7 +4,7 @@ from asgiref.sync import async_to_sync
 from django.db.models import QuerySet
 
 import chat_bot.tasks
-from avito_account.tasks import update_tokens_task
+import avito_account.tasks
 from avito_account.models.models import AvitoAccount
 from conversion.tasks import send_text_report_all_async_task
 from messaging.tasks import bad_messaging_week_report_async_task, \
@@ -26,7 +26,7 @@ def celery_pdf_month_for_api_report(self, request, queryset):
         self.message_user(request, f"СЕЛЕРИ для АПИ месяц" f" Ошибка сервера - {e}", level='error')
 
 
-celery_pdf_month_for_api_report.short_description = "СЕЛЕРИ для АПИ месяц"
+celery_pdf_month_for_api_report.short_description = "СЕЛЕРИ для АПИ месяц"  # type: ignore
 
 
 def run_pdf_week_report(self, request, queryset: QuerySet):
@@ -40,7 +40,7 @@ def run_pdf_week_report(self, request, queryset: QuerySet):
         self.message_user(request, f"ПДФ неделя отчет не удалось отправить" f" Ошибка сервера - {e}", level='error')
 
 
-run_pdf_week_report.short_description = "ПДФ неделя отчет отправить"
+run_pdf_week_report.short_description = "ПДФ неделя отчет отправить"  # type: ignore
 
 
 def run_pdf_month_report(self, request, queryset):
@@ -54,7 +54,7 @@ def run_pdf_month_report(self, request, queryset):
         self.message_user(request, f"ПДФ месяц отчет не удалось отправить" f" Ошибка сервера - {e}", level='error')
 
 
-run_pdf_month_report.short_description = "ПДФ месяц отчет отправить"
+run_pdf_month_report.short_description = "ПДФ месяц отчет отправить"  # type: ignore
 
 
 def run_pdf_all_report(self, request, queryset):
@@ -66,7 +66,7 @@ def run_pdf_all_report(self, request, queryset):
         self.message_user(request, f"ПДФ ВСЕМ отчет не удалось отправить" f" Ошибка сервера - {e}", level='error')
 
 
-run_pdf_all_report.short_description = "ПДФ ВСЕМ отчет отправить"
+run_pdf_all_report.short_description = "ПДФ ВСЕМ отчет отправить"  # type: ignore
 
 
 def run_pdf_all_test_from_prod_report(self, request, queryset):
@@ -78,7 +78,7 @@ def run_pdf_all_test_from_prod_report(self, request, queryset):
         self.message_user(request, f"ПДФ ВСЕМ ТЕСТ отчет не удалось отправить" f" Ошибка сервера - {e}", level='error')
 
 
-run_pdf_all_test_from_prod_report.short_description = "ПДФ ВСЕМ ТЕСТ отчет отправить"
+run_pdf_all_test_from_prod_report.short_description = "ПДФ ВСЕМ ТЕСТ отчет отправить"  # type: ignore
 
 
 def run_txt_report(self, request, queryset):
@@ -91,7 +91,7 @@ def run_txt_report(self, request, queryset):
         self.message_user(request, f"Отчет не удалось отправить" f" Ошибка сервера - {e}", level='error')
 
 
-run_txt_report.short_description = "ТЕКСТОВЫЙ отчет отправить"
+run_txt_report.short_description = "ТЕКСТОВЫЙ отчет отправить"  # type: ignore
 
 
 def run_txt_all_report(self, request, queryset):
@@ -103,7 +103,7 @@ def run_txt_all_report(self, request, queryset):
         self.message_user(request, f"Отчет не удалось отправить" f" Ошибка сервера - {e}", level='error')
 
 
-run_txt_all_report.short_description = "ТЕКСТОВЫЙ ВСЕМ отчет отправить"
+run_txt_all_report.short_description = "ТЕКСТОВЫЙ ВСЕМ отчет отправить"  # type: ignore
 
 
 def run_txt_all_test_from_prod_report(self, request, queryset):
@@ -115,7 +115,7 @@ def run_txt_all_test_from_prod_report(self, request, queryset):
         self.message_user(request, f"Отчет не удалось отправить" f" Ошибка сервера - {e}", level='error')
 
 
-run_txt_all_test_from_prod_report.short_description = "ТЕКСТОВЫЙ ТЕСТ ВСЕМ отчет отправить"
+run_txt_all_test_from_prod_report.short_description = "ТЕКСТОВЫЙ ТЕСТ ВСЕМ отчет отправить"  # type: ignore
 
 
 def run_daily_pdf_report(self, request, queryset):
@@ -136,7 +136,7 @@ def run_daily_pdf_report(self, request, queryset):
         self.message_user(request, f"Отчет не удалось отправить. Ошибка серва - {e}", level='error')
 
 
-run_daily_pdf_report.short_description = "Ежедневный пдф отчет"
+run_daily_pdf_report.short_description = "Ежедневный пдф отчет"  # type: ignore
 
 
 def update_avito_accounts_tokens(self, request, queryset: QuerySet[AvitoAccount]) -> None:
@@ -149,7 +149,7 @@ def update_avito_accounts_tokens(self, request, queryset: QuerySet[AvitoAccount]
     #     except Exception as e:
     #         errors.append(f"Error when refresh token of '{account.name}'. Error: {e}")
 
-    update_tokens_task([account.pk for account in queryset])
+    avito_account.tasks.update_tokens_task([account.pk for account in queryset])
 
     message = "Токены успешно обнвлены"
     level = "success"
@@ -160,4 +160,18 @@ def update_avito_accounts_tokens(self, request, queryset: QuerySet[AvitoAccount]
     self.message_user(request, message, level=level)
 
 
-update_avito_accounts_tokens.short_description = "Обновить токены"
+update_avito_accounts_tokens.short_description = "Обновить токены"  # type: ignore
+
+
+def actualize_avito_webhooks_subscriptions(self, request, queryset: QuerySet[AvitoAccount]) -> None:
+    avito_account.tasks.actualize_avito_webhooks_subscriptions(
+        accounts_ids=[account.pk for account in queryset]
+    )
+
+    message = "Операция запушена"
+    level = "success"
+
+    self.message_user(request, message, level=level)
+
+
+actualize_avito_webhooks_subscriptions.short_description = "Обновить подписки на уведомляния"  # type: ignore

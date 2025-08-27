@@ -37,9 +37,9 @@ async def trigger_error():
 
 @router.message()
 async def echo(message: Message, bot: Bot):
-    msg = message.text.lower()
+    msg = message.text.lower() if message.text else ""
 
-    if message.from_user.id == 5640395403:
+    if message.from_user and message.from_user.id == 5640395403:
         if msg == "/pdf_all_to_users@avitostata_bot":
             # TODO check error when you tap on command
             await get_pdf_report_all_to_users()

@@ -100,7 +100,7 @@ def get_color_touches_count_in_chat_average(messages_count_in_chat_average: floa
 
 
 async def get_statistics_total(filtered_chats_only_with_text: list):
-    statistics = {}
+    statistics: dict[str, dict[str, str | float]] = {}
     #TODO First touch
     total_first_touches = []
 

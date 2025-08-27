@@ -554,7 +554,7 @@ class AmoChatBotTask(chat_bot.base_models.AIResultContainer, chatbottasks.Task):
     message_type = models.CharField(
         verbose_name="Тип сообщения",
         choices=MessageType.choices,
-        default=MessageType.TEXT.value,
+        default=MessageType.TEXT.value,  # type: ignore
     )
 
     text = models.TextField(

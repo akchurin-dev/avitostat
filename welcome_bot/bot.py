@@ -113,7 +113,7 @@ async def send_lead_info_to_chat(message: types.Message, state: FSMContext):
     🔍 Анализируете звонки: {data.get("analyze")} \n
     🧪 Хотели протестировать: {data.get("testing")} \n
     📱 Номер телефона: {data.get("phone")} \n
-    👤 Ссылка на телеграм : @{message.from_user.username}
+    👤 Ссылка на телеграм : @{message.from_user.username if message.from_user else None}
         """
         await bot.send_message(chat_id=-4521744776, text=lead_info)
         logger.info("Lead info sent successfully.")
@@ -123,6 +123,7 @@ async def send_lead_info_to_chat(message: types.Message, state: FSMContext):
 
 load_dotenv()
 WELCOME_BOT_TOKEN = os.getenv('WELCOME_BOT_TOKEN')
+assert WELCOME_BOT_TOKEN is not None
 
 bot = Bot(token=WELCOME_BOT_TOKEN)
 dp = Dispatcher(drop_pending_updates=True)

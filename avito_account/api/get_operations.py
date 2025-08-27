@@ -1,13 +1,14 @@
 import re
 import httpx
-from datetime import datetime, timedelta
 import pytz
-from asgiref.sync import sync_to_async
+from datetime import datetime
+from datetime import timedelta
 
 from avito_account.models.excluded_items import ExcludedItem
 from avito_account.models.models import AvitoAccount
-from conversion.utils import dates_for_period_with_extra_reserve, active_services_for_period_filtering
 from base.exceptions import HTTPException
+from conversion.utils import active_services_for_period_filtering
+from conversion.utils import dates_for_period_with_extra_reserve
 
 
 async def operations(access_token: str, start_date: str, end_date: str) -> dict:
@@ -87,10 +88,11 @@ async def get_active_operations_for_period(avito_account: AvitoAccount, period: 
     current_end = min(current_start + timedelta(days=7), end_date_dt)
     all_statistics = {}
 
+    assert avito_account.access_token
+
     while current_start < end_date_dt:
         # Получаем статистику для текущего отрезка
-        statistics = await get_operations_splitted_by_week(avito_account.access_token, current_start.isoformat(),
-                                                           current_end.isoformat())
+        statistics = await get_operations_splitted_by_week(avito_account.access_token, current_start.isoformat(), current_end.isoformat())
         # Обновляем словарь статистики
         all_statistics[current_start.isoformat()] = statistics
 
@@ -101,10 +103,7 @@ async def get_active_operations_for_period(avito_account: AvitoAccount, period: 
     operations_splitted_by_weeks = [item[1] for item in all_statistics.items() if
                                     item[1] is not None]  # Исключаем все пустые данные об операциях
 
-    operations_splitted_by_weeks = [item.get("result").get("operations") for item in operations_splitted_by_weeks]
-    operations_list = []
-    for week in operations_splitted_by_weeks:
-        operations_list.extend(week)
+    operations_list: list[dict] = [op for item in operations_splitted_by_weeks for op in item["result"]["operations"]]
 
     operations_list_with_calculations = await add_custom_calculations(operations_list)
     active_operations = await active_services_for_period_filtering(period=period,
@@ -115,10 +114,9 @@ async def get_active_operations_for_period(avito_account: AvitoAccount, period: 
     return active_operations
 
 
-async def operations_filter_excluded_items(active_operations, avito_account) -> list:
+async def operations_filter_excluded_items(active_operations, avito_account: AvitoAccount) -> list:
     filtered_operations = []
-    excluded_items = await sync_to_async(list)(ExcludedItem.objects.filter(avito_account_id=avito_account.id))
-    excluded_ids = [item.id for item in excluded_items]
+    excluded_ids = [item.id async for item in ExcludedItem.objects.filter(avito_account=avito_account)]
 
     for operation in active_operations:
         if operation.get("'itemId'") not in excluded_ids:

@@ -58,14 +58,16 @@ def gpt_format_to_str(messages: list[ResponseInputItemParam]) -> str:
     replicas: list[str] = []
 
     for message in messages:
-        if "role" not in message or "content" not in message:
+        gpt_role = message.get("role")
+
+        if gpt_role is None:
             continue
 
         role = "Manager"
-        if message["role"] == "user":
+        if gpt_role == "user":
             role = "Client"
 
-        content = message["content"]
+        content = message.get("content")
 
         if isinstance(content, str):
             text = content

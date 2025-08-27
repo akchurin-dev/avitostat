@@ -140,14 +140,14 @@ class CriterionAnalyzeSchema(BaseModel):
 
 
 async def analyze_by_criteria_chat(chat: dict, test_from_prod: bool, avito_account: AvitoAccount):
-    criteria = None
+    criteria: list[Criterion] | None = None
     analytic_schema_id = getattr(avito_account, "analytic_schema_id")
 
     if analytic_schema_id:
-        criteria = await sync_to_async(list)(Criterion.objects.filter(schema_id=analytic_schema_id))
+        criteria = [c async for c in Criterion.objects.filter(schema_id=analytic_schema_id)]
 
     if not criteria:
-        criteria = await sync_to_async(list)(Criterion.objects.filter(schema_id=1))
+        criteria = [c async for c in Criterion.objects.filter(schema_id=1)]
 
     criteria_dict = {criterion.pk: criterion.name for criterion in criteria}
     chat_text = "\n".join([

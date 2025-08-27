@@ -1,11 +1,17 @@
+import logging
+
 from django.contrib import admin
 from django.db.models import Q
+
 from avito_account.admin_panel.avito_account import AvitoAccountAdmin
 from avito_account.admin_panel.sending_campaign import SendingCampaignAdmin, SendingReportAdmin
 from avito_account.models.models import AvitoAccount, AnalyticSchema, Criterion, WorkSchedule
-import logging
+from avito_account.models.models import AnalyticSchema
+from avito_account.models.models import Criterion
+from avito_account.models.models import WorkSchedule
+from avito_account.models.sending_report import SendingCampaign
+from avito_account.models.sending_report import SendingReport
 
-from avito_account.models.sending_report import SendingCampaign, SendingReport
 
 logger = logging.getLogger(__name__)
 

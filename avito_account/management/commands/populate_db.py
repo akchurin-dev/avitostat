@@ -1,5 +1,6 @@
 from django.contrib.auth.models import User
-from avito_account.models.models import AnalyticSchema, AvitoAccount, WorkSchedule, SendingCampaign, SendingReport, Criterion
+from avito_account.models.models import AnalyticSchema, AvitoAccount, Criterion, WorkSchedule
+from avito_account.models.sending_report import SendingCampaign, SendingReport
 from django.core.management.base import BaseCommand
 from django.utils import timezone
 import random

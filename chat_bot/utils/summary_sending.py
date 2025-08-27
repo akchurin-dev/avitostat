@@ -1,14 +1,13 @@
 from asgiref.sync import async_to_sync
 from django.db.models import QuerySet
 
+import messaging.api
 from avito_account.models.models import AvitoAccount
 from base import settings
 from chat_bot import ai_utils
 from chat_bot.models import ChatBotTask
 from chat_bot.utils import history_pdf
 from chat_bot.utils import summaries
-from messaging.api import Chat
-from messaging.api import MessagingAPISync
 from utils import tg
 from utils.logging import TraceLogger
 
@@ -18,20 +17,17 @@ def send_summary(account: AvitoAccount, chat_id, *, trace_id: str | None = None)
 
     all_tasks = ChatBotTask.objects.filter(chat_id=chat_id)
 
-    if settings.ENVIRONMENT == "DEVELOPMENT":
-        async_to_sync(account.update_refresh_token_async)()
-
     if summaries.new_contact_report_sent(account, chat_id):
         tlogger.info(f"Stop summary sending. Summary report already sent for chat_id {chat_id}.")
         return
 
-    messages = MessagingAPISync.get_chat_last_50_messages_by_chat_id(account, chat_id).get("messages")
+    messages = messaging.api.get_chat_last_50_messages_by_chat_id(account, chat_id, tlogger=tlogger).get("messages")
 
     if not messages:
         tlogger.info("Stop summary sending. No messages in chat")
         return
 
-    chat = MessagingAPISync.get_chat_by_id(account, chat_id)
+    chat = messaging.api.get_chat_by_id(account, chat_id, tlogger=tlogger)
     chat["messages"] = messages
 
     chat_summary = ai_utils.avito_chat_summary_ai_generator(account, chat_id, tlogger=tlogger)
@@ -44,7 +40,7 @@ def send_summary(account: AvitoAccount, chat_id, *, trace_id: str | None = None)
 def summary_sender(
     avito_account: AvitoAccount,
     chat_summary: ai_utils.ChatSummary,
-    chat: Chat,
+    chat: messaging.api.Chat,
     all_tasks: QuerySet[ChatBotTask],
     *,
     tlogger: TraceLogger,
@@ -92,7 +88,7 @@ def summary_sender(
         last_chat_bot_task.save()
 
 
-def get_chat_summary_text(chat_summary: ai_utils.ChatSummary, chat: Chat):
+def get_chat_summary_text(chat_summary: ai_utils.ChatSummary, chat: messaging.api.Chat):
     counter = 1
     text = ("🎉 <b>Новый клиент из AVITO 🎉 \n\n</b> "
             "   📋 Сводка по переписке:\n\n")
@@ -125,7 +121,7 @@ def get_chat_summary_text(chat_summary: ai_utils.ChatSummary, chat: Chat):
     return text
 
 
-def get_chat_summary_html(chat_summary: ai_utils.ChatSummary, chat: Chat):
+def get_chat_summary_html(chat_summary: ai_utils.ChatSummary, chat: messaging.api.Chat):
     counter = 1
     text = "<div style='font-family: Arial, sans-serif;'><b>Сводка по переписке:</b><br><br>"
 

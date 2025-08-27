@@ -1,9 +1,11 @@
 import re
 from typing import Iterable
+from typing import Literal
 from typing import NamedTuple
 
 from django.db.models import F
 from django.db.models import Q
+from openai.types.responses import EasyInputMessageParam
 from openai.types.responses import ResponseInputParam
 from openai.types.responses import ResponseInputItemParam
 from openai.types.responses import ResponseTextConfigParam
@@ -20,7 +22,7 @@ from chat_bot.ai_utils import use_gpt_flag
 from prompts import prompts
 from utils.logging import TraceLogger
 from utils.miscellaneous import datetime_now_msk
-from utils.openai_helper import openai_request_with_retries
+from utils.openai_helper import openai_request
 
 
 PHRASE_AUTHOR_REGEX = re.compile(r"^\s*\w+:\s*")
@@ -70,7 +72,7 @@ def generate_answer(
     #     tlogger=tlogger,
     # )
 
-    response = openai_request_with_retries(
+    response = openai_request(
         input=_get_ai_input(account, chatbot, messages, known_info, tlogger=tlogger),
         tag=f"Amo | {account.domain} | generate answer",
         tlogger=tlogger,
@@ -216,99 +218,37 @@ def _get_entity_info_str(
 
 
 def amo_message_to_gpt_format(message: Message, transcriptions: TranscriptionsForMessages) -> ResponseInputItemParam:
-    role = "assistant"
+    role: Literal["assistant", "user"] = "assistant"
     if message.incoming:
         role = "user"
 
+    msg_gpt: ResponseInputItemParam
+
     if message.type == MessageTypeEnum.TEXT:
         assert message.text
-        return {
+        msg_gpt = EasyInputMessageParam({
             "role": role,
             "content": message.text,
-        }
-
-    if message.type == MessageTypeEnum.PICTURE:
+        })
+    elif message.type == MessageTypeEnum.PICTURE:
         assert message.file_url
-        return {
+        msg_gpt = EasyInputMessageParam({
             "role": role,
             "content": [{
                 "type": "input_image",
                 "image_url": message.file_url,
                 "detail": "low",
             }],
-        }
-
-    if message.type == MessageTypeEnum.VOICE:
-        return {
+        })
+    elif message.type == MessageTypeEnum.VOICE:
+        msg_gpt = EasyInputMessageParam({
             "role": role,
             "content": transcriptions.get_transcription(message),
-        }
+        })
+    else:
+        raise Exception(f"Unknown message type, got {message.type}")
 
-    raise Exception(f"Unknown message type, got {message.type}")
-
-
-def get_text_format(
-    chatbot: amo.models.AmoChatBot,
-    fields: Iterable[amo.models.FillableField],
-    field_for_answer: bool,
-    available_pipeline_statuses: list[amo_api.PipelineStatus],
-    *,
-    tlogger: TraceLogger,
-) -> ResponseTextConfigParam:
-
-    contacts_schema = get_fillable_entity_schema(
-        account=chatbot.account,
-        fields=fields,
-        entity=amo_api.EntityEnum.CONTACTS,
-        tlogger=tlogger,
-    )
-
-    lead_schema = get_fillable_entity_schema(
-        account=chatbot.account,
-        fields=fields,
-        entity=amo_api.EntityEnum.LEADS,
-        tlogger=tlogger,
-    )
-
-    properties: dict = {}
-
-    if field_for_answer:
-        properties["answer"] = {"type": "string"}
-
-    if contacts_schema:
-        properties["contacts"] = contacts_schema
-
-    if lead_schema:
-        properties["lead_info"] = lead_schema
-
-    if len(available_pipeline_statuses) != 0 and not chatbot.change_status_only_when_qualification:
-        properties["new_status"] = {
-            "type": ["string", "null"],
-            "description": "Новый этап сделки. Если сделка не меняет этап, то null",
-            "enum": [status.name for status in available_pipeline_statuses],
-        }
-
-    schema = {
-        "type": "object",
-        "properties": properties,
-        "required": list(properties.keys()),
-        "additionalProperties": False,
-    }
-
-    text_format: ResponseTextConfigParam = {
-        "format": {
-            "type": "json_schema",
-            "name": "chat_answer",
-            "schema": schema,
-            "strict": True,
-        },
-    }
-
-    tlogger.info({
-        "text_format": text_format,
-    })
-
-    return text_format
+    return msg_gpt
 
 
 def get_fillable_entity_schema(
@@ -349,10 +289,10 @@ def get_fillable_field_amo_field_pairs(
     fillable_field_amo_field_pairs: list[tuple[amo.models.FillableField, amo_api.Field | None]] = []
 
     for fillable_field in fillable_fields:
-        if entity == amo_api.EntityEnum.LEADS and fillable_field.entity != amo.models.AmoEntity.LEAD.value:
+        if entity == amo_api.EntityEnum.LEADS and fillable_field.entity != amo.models.AmoEntity.LEAD:
             continue
 
-        if entity == amo_api.EntityEnum.CONTACTS and fillable_field.entity != amo.models.AmoEntity.CONTACT.value:
+        if entity == amo_api.EntityEnum.CONTACTS and fillable_field.entity != amo.models.AmoEntity.CONTACT:
             continue
 
         amo_field = amo_fields.find_text_field(fillable_field.name, all_amo_fields, tlogger=tlogger)
@@ -494,16 +434,18 @@ def _get_dialog_str(messages: list[ResponseInputItemParam]) -> str:
     replics: list[str] = []
 
     for msg in messages:
-        if "role" not in msg or "content" not in msg:
+        role = msg.get("role")
+        if not isinstance(role, str):
             continue
 
-        author = {"assistant": "Менеджер", "user": "Клиент"}.get(msg["role"])
+        author = {"assistant": "Менеджер", "user": "Клиент"}.get(role)
         if author is None:
             continue
 
         text = "<Не текстовое сообщение>"
-        if isinstance(msg["content"], str):
-            text = msg["content"]
+        content = msg.get("content")
+        if isinstance(content, str):
+            text = content
 
         replics.append(author + ": " + text)
 

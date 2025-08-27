@@ -1,3 +1,5 @@
+from typing import Any
+
 from messaging.bad_mes_report.statistics.total_statistics_utils import grouping_chats_by_managers
 
 
@@ -17,7 +19,7 @@ async def get_stat_by_criteria_splitted_by_managers(filtered_chats_only_with_tex
 
 
 async def get_color_description(result: dict, color="#C14D3D", text="плохо"):
-    percentage = result.get("positive_chats") / result.get("total_chats")
+    percentage = result["positive_chats"] / result["total_chats"]
     if 0.33 >= percentage > 0:
         color = "#C14D3D"
         text = "плохо"
@@ -35,7 +37,7 @@ async def get_color_description(result: dict, color="#C14D3D", text="плохо"
 
 
 async def get_statistics_by_criteria(actual_chats_with_messages: list):
-    results = {}
+    results: dict[str, Any] = {}
 
     for chat in actual_chats_with_messages:
         analyze_by_criteria = chat.get("analyze_by_criteria", None)

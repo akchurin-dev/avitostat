@@ -1,11 +1,15 @@
 from asgiref.sync import async_to_sync, sync_to_async
+from celery import shared_task
 from telegram_bot import bot
 
 from avito_account import oauth_utils
-from avito_account.api.get_balance import get_balance
 from avito_account.models.models import AvitoAccount
+from avito_account.utils.avito_webhooks import update_avito_webhook_subscription
 from base import settings
-from base.celery import celery_app, celery_logger
+from base.celery import celery_app
+from base.celery import celery_logger
+from chat_bot.utils import avito_api
+from utils.logging import TraceLogger
 
 
 @celery_app.task(name='avito_account.tasks.sentry_test')
@@ -21,7 +25,7 @@ def update_tokens_task(accounts_ids: list[int] | None = None):
 
     for account in accounts:
         try:
-            async_to_sync(account.update_refresh_token_async)()
+            account.update_refresh_token()
 
             assert account.access_token
             account_info = oauth_utils.get_avito_account_info(account.access_token)
@@ -42,7 +46,8 @@ async def balance_alert_send():
         telegram_id__isnull=False))
     for avito_account in avito_accounts:
         if avito_account.balance_alerting:
-            balance = await get_balance(avito_account)
+            # balance = await get_balance(avito_account)
+            balance = avito_api.get_balance(avito_account, tlogger=TraceLogger()).real
             if balance < 5000:
                 text = (
                     f"👤 Аккаунт: {avito_account.name}\n\n"
@@ -67,3 +72,13 @@ async def balance_alert_send():
                         disable_web_page_preview=True
                     )
                     text = text[4000:]
+
+
+@shared_task
+def actualize_avito_webhooks_subscriptions(accounts_ids: list[int] | None = None) -> None:
+    accounts = AvitoAccount.objects.all()
+    if accounts_ids is not None:
+        accounts = accounts.filter(id__in=accounts_ids)
+
+    for account in accounts:
+        update_avito_webhook_subscription(account)

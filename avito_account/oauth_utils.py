@@ -1,8 +1,7 @@
-import os
-import requests
 from avito_account.models.models import AvitoAccount
 from base import settings
 from base.exceptions import HTTPException
+from utils import httpx_helper
 
 client_id = settings.AVITO_CLIENT_ID
 client_secret = settings.AVITO_CLIENT_SECRET
@@ -18,29 +17,30 @@ def get_avito_tokens(code: str):  # Если использованный ток
         'code': code
     }
 
-    response = requests.post(url, data=data)
-    if response.status_code == 200:
-        return response.json()
-    else:
-        raise HTTPException(status_code=response.status_code, detail=response.text)
+    response = httpx_helper.request(
+        method="POST",
+        url=url,
+        data=data,
+    )
+    response.raise_for_status()
+
+    return response.json()
 
 
 def get_avito_account_info(access_token: str):
     url = 'https://api.avito.ru/core/v1/accounts/self'
-    headers = {
-        'authorization': f"Bearer {access_token}"
-    }
 
-    response = requests.get(url, headers=headers)
+    response = httpx_helper.request(
+        method="GET",
+        url=url,
+        headers=httpx_helper.add_bearer(None, access_token),
+    )
+    response.raise_for_status()
 
-    if response.status_code == 200:
-        return response.json()
-    else:
-        raise HTTPException(status_code=response.status_code, detail=response.text)
+    return response.json()
 
 
 def create_or_update_avito_account(code: str, created_by_id: int) -> AvitoAccount:
-    # try:
     token_data = get_avito_tokens(code)
     access_token = token_data.get('access_token')
     account_info = get_avito_account_info(access_token)
@@ -70,13 +70,16 @@ def refresh_token(avito_account: AvitoAccount):
         'refresh_token': avito_account.refresh_token
     }
 
-    response = requests.post(url, data=data)
+    response = httpx_helper.request(
+        method="POST",
+        url=url,
+        data=data,
+    )
+    response.raise_for_status()
     response_data = response.json()
 
-    if response.status_code != 200:
-        raise HTTPException(status_code=response.status_code, detail=response.text)
-    else:
-        avito_account.access_token = response_data.get('access_token')
-        avito_account.refresh_token = response_data.get('refresh_token')
-        avito_account.save()
-        return True
+    avito_account.access_token = response_data['access_token']
+    avito_account.refresh_token = response_data['refresh_token']
+    avito_account.save()
+
+    return True

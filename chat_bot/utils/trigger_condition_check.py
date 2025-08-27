@@ -7,7 +7,7 @@ from chat_bot.models import DialogTrigger
 from chat_bot.utils import messages_formating
 from messaging.api import ChatMessage
 from utils.logging import TraceLogger
-from utils.openai_helper import openai_request_with_retries
+from utils.openai_helper import openai_parse_request
 
 
 SYSTEM_PROMPT_BASE = """
@@ -30,7 +30,7 @@ class TriggerConditionCheckResult(BaseModel):
 
 
 def check_trigger_condition(trigger: DialogTrigger, messages: list[ChatMessage], tlogger: TraceLogger) -> TriggerConditionCheckResult:
-    response = openai_request_with_retries(
+    response = openai_parse_request(
         input=_get_ai_input(trigger, messages, tlogger=tlogger),
         text_format=TriggerConditionCheckResult,
         tag=f"Avito | {trigger.chatbot.account.name} | check trigger condition",

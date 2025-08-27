@@ -17,10 +17,10 @@ class CleanerMiddleware(BaseMiddleware):
         event: TelegramObject,
         data: dict[str, Any],
     ) -> Any:
-        self.cleaner.bot = data.get('bot')
-        self.cleaner.chat_id = data.get('event_chat').id
+        self.cleaner.bot = data['bot']
+        self.cleaner.chat_id = data['event_chat'].id
 
-        data['cleaner']: Cleaner = self.cleaner
+        data['cleaner'] = self.cleaner
 
         return await handler(event, data)
 

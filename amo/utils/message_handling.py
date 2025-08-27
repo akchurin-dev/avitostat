@@ -441,7 +441,7 @@ def _find_phone_number(messages: list[ResponseInputItemParam]) -> str | None:
     for i in range(len(messages) - 1, -1, -1):
         message = messages[i]
 
-        if "role" not in message or message["role"] != "user":
+        if message.get("role") != "user":
             continue
 
         text = message.get("content")
@@ -461,7 +461,7 @@ def _find_diameters(messages: list[ResponseInputItemParam]) -> list[str]:
     for i in range(len(messages) - 1, -1, -1):
         message = messages[i]
 
-        if "role" not in message or message["role"] != "user":
+        if message.get("role") != "user":
             continue
 
         text = message.get("content")

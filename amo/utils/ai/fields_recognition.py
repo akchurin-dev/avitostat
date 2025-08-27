@@ -10,7 +10,7 @@ import amo.models
 from amo.utils import amo_api
 from amo.utils.ai.answers import get_fillable_entity_schema
 from utils.logging import TraceLogger
-from utils.openai_helper import openai_request_with_retries
+from utils.openai_helper import openai_request
 
 
 SYSTEM_PROMPT = """
@@ -42,7 +42,7 @@ def recognize_fields(
     tlogger: TraceLogger,
 ) -> AIAnswer:
 
-    response = openai_request_with_retries(
+    response = openai_request(
         input=_get_ai_input(messages, fillable_fields),
         text=_get_text_format(account, fillable_fields, tlogger=tlogger),
         tag=f"Amo | {account.name} | recognize fields",
@@ -105,16 +105,19 @@ def _get_dialog_str(messages: list[ResponseInputItemParam]) -> str:
     replics: list[str] = []
 
     for msg in messages:
-        if "role" not in msg or "content" not in msg:
+        role = msg.get("role")
+
+        if not isinstance(role, str):
             continue
 
-        author = {"assistant": "Менеджер", "user": "Клиент"}.get(msg["role"])
+        author = {"assistant": "Менеджер", "user": "Клиент"}.get(role)
         if author is None:
             continue
 
         text = "<Не текстовое сообщение>"
-        if isinstance(msg["content"], str):
-            text = msg["content"]
+        content = msg.get("content")
+        if isinstance(content, str):
+            text = content
 
         replics.append(author + ": " + text)
 

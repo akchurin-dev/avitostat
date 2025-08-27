@@ -1,7 +1,7 @@
 import amo_a5client.models
 import chat_bot.models
-import chat_bot.api.subscriptions
 from avito_account.models.models import AvitoAccount
+from chat_bot.utils import avito_api
 from utils.logging import TraceLogger
 
 
@@ -15,7 +15,7 @@ def update_avito_webhook_subscription(account: AvitoAccount) -> None:
 
     if has_active_chatbots:
         tlogger.info(f"'{account.name}' linked with active chatbot")
-        chat_bot.api.subscriptions.subscribe_for_messages(account, raise_error=False, tlogger=tlogger)
+        avito_api.subscribe_for_messages(account, tlogger=tlogger)
         return
 
     linked_with_amo = amo_a5client.models.AmoAvitoAccountsLink.objects.filter(
@@ -25,8 +25,8 @@ def update_avito_webhook_subscription(account: AvitoAccount) -> None:
 
     if linked_with_amo:
         tlogger.info(f"'{account.name}' linked with amo accounts")
-        chat_bot.api.subscriptions.subscribe_for_messages(account, raise_error=False, tlogger=tlogger)
+        avito_api.subscribe_for_messages(account, tlogger=tlogger)
         return
 
     tlogger.info(f"'{account.name}' doesn't need webhook subscription")
-    chat_bot.api.subscriptions.unsubscribe_from_messages(account, raise_error=False, tlogger=tlogger)
+    avito_api.unsubscribe_from_messages(account, tlogger=tlogger)

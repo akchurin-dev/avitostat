@@ -15,11 +15,17 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 
 load_dotenv()
 
+ENVIRONMENT_STR = os.getenv('ENVIRONMENT')
 ENVIRONMENT: Literal["PRODUCTION", "DEVELOPMENT", "TESTING"] | None
-ENVIRONMENT = os.getenv('ENVIRONMENT')
-logger.warning(f"ENVIRONMENT: {ENVIRONMENT}")
-if ENVIRONMENT not in ["PRODUCTION", "DEVELOPMENT", "TESTING"]:
-    raise Exception(f"Unexpected ENVIRONMENT value, got {ENVIRONMENT}")
+
+if ENVIRONMENT_STR == "PRODUCTION":
+    ENVIRONMENT = "PRODUCTION"
+elif ENVIRONMENT_STR == "DEVELOPMENT":
+    ENVIRONMENT = "DEVELOPMENT"
+elif ENVIRONMENT_STR == "TESTING":
+    ENVIRONMENT = "TESTING"
+else:
+    raise Exception(f"Unexpected ENVIRONMENT value, got {ENVIRONMENT_STR}")
 
 DEBUG = ENVIRONMENT in ["DEVELOPMENT", "TESTING"]
 
@@ -31,7 +37,10 @@ AVITO_CLIENT_SECRET = os.getenv('AVITO_CLIENT_SECRET')
 
 AVITO_WEBHOOK_HOST = "avitostata.ru"
 if DEBUG:
-    AVITO_WEBHOOK_HOST = os.getenv('AVITO_WEBHOOK_HOST')
+    AVITO_WEBHOOK_HOST = os.getenv('AVITO_WEBHOOK_HOST', '')
+    assert AVITO_WEBHOOK_HOST != ''
+
+AVITO_WEBHOOK_URL = f"https://{AVITO_WEBHOOK_HOST}/chat_bot/webhook_inbox"
 
 AVITOSTATA_ALIVE_BOT_TOKEN = os.getenv("AVITOSTATA_ALIVE_BOT_TOKEN", "")
 AVITOSTATA_ALIVE_REPORTS_CHAT_ID = os.getenv("AVITOSTATA_ALIVE_REPORTS_CHAT_ID", "")
@@ -44,9 +53,9 @@ YOOKASSA_TEST_SECRET_KEY = os.getenv('YOOKASSA_TEST_SECRET_KEY')
 YOOKASSA_PROD_SHOP_ID = os.getenv('YOOKASSA_PROD_SHOP_ID')
 YOOKASSA_PROD_SECRET_KEY = os.getenv('YOOKASSA_PROD_SECRET_KEY')
 
-LOCALHOST_IP = os.getenv('LOCALHOST_IP')
-TELEGRAM_BOT_TOKEN = os.getenv('TELEGRAM_BOT_TOKEN')
-TELEGRAM_BOT_TOKEN_PROD = os.getenv('TELEGRAM_BOT_TOKEN_PROD')
+LOCALHOST_IP = os.getenv('LOCALHOST_IP', '')
+TELEGRAM_BOT_TOKEN = os.getenv('TELEGRAM_BOT_TOKEN', '')
+TELEGRAM_BOT_TOKEN_PROD = os.getenv('TELEGRAM_BOT_TOKEN_PROD', '')
 
 AMO_INTEGRATION_ID = os.getenv('AMO_INTEGRATION_ID')
 AMO_SECRET = os.getenv('AMO_SECRET')
@@ -290,6 +299,10 @@ if ENVIRONMENT == 'PRODUCTION':
             'task': 'work_reports.tasks.send_weekly_report',
             'schedule': crontab(hour='6', minute='30', day_of_week='5'),
         },
+        'avito_webhook_subscription_actializing': {
+            'task': 'avito_account.tasks.actualize_avito_webhooks_subscriptions',
+            'schedule': crontab(hour='*/1'),
+        },
     }
 else:
     CELERY_BEAT_SCHEDULE = {
@@ -320,6 +333,10 @@ else:
         #     'schedule': crontab(0, 0, day_of_month='1', month_of_year='1,4,7,10'),
         #     # Раз в три месяца (1 января, 1 апреля, 1 июля, 1 октября)
         # },
+        'avito_webhook_subscription_actializing': {
+            'task': 'avito_account.tasks.actualize_avito_webhooks_subscriptions',
+            'schedule': crontab(minute='*/1'),
+        },
     }
 
 # TODO OTHER THINGS

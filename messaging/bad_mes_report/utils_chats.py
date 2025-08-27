@@ -1,17 +1,21 @@
 import datetime
 import logging
+from typing import TypeVar
 
 import pytz
 import re
 
+import messaging.api
 from avito_account.models.excluded_items import ExcludedItem
 from avito_account.models.models import AvitoAccount, WorkSchedule
-import messaging.api
+from utils.logging import TraceLogger
 
 
 logger = logging.getLogger(__name__)
-
 manager_pattern = re.compile(r'^([А-ЯЁ][а-яё]+(?:\s[А-ЯЁ][а-яё]+){1,2}):\s*\n')
+
+
+ChatType = TypeVar("ChatType", bound=messaging.api.Chat)
 
 
 class ChatWithManagerName(messaging.api.Chat):
@@ -19,9 +23,9 @@ class ChatWithManagerName(messaging.api.Chat):
 
 
 async def get_ready_chats(avito_account: AvitoAccount, period: str = "week") -> tuple[list, list]:
-    chats = await messaging.api.get_chats(avito_account, period=period)
-    chats = await filter_chats_for_last_period(chats, period)
-    chats = await messaging.api.get_chats_last_50_messages(avito_account, chats)
+    chats = list(messaging.api.get_chats(avito_account, period=period))
+    chats = filter_chats_for_last_period(chats, period)
+    chats = messaging.api.get_chats_last_50_messages(avito_account, chats, tlogger=TraceLogger())
     chats_with_manager = adding_manager_info_for_chats(chats)
     chats_with_manager = filter_chats_only_with_text(chats_with_manager)
     chats_with_manager = await schedule_filter_chats(chats_with_manager, avito_account)
@@ -30,7 +34,7 @@ async def get_ready_chats(avito_account: AvitoAccount, period: str = "week") -> 
     return chats_without_excluded_sellings, chats_with_manager
 
 
-async def filter_chats_for_last_period(chats: list[messaging.api.Chat], period: str = "week") -> list:
+def filter_chats_for_last_period(chats: list[messaging.api.Chat], period: str = "week") -> list[messaging.api.Chat]:
     filtered_chats = []
     now = datetime.datetime.now()
 
@@ -83,13 +87,15 @@ def adding_manager_info_for_chats(chats: list[messaging.api.Chat]) -> list[ChatW
     return new_chats
 
 
-def filter_chats_only_with_text(chats: list[ChatWithManagerName]) -> list[ChatWithManagerName]:
-    filtered_chats: list[ChatWithManagerName] = []
+def filter_chats_only_with_text(chats: list[ChatType]) -> list[ChatType]:
+    filtered_chats: list[ChatType] = []
 
     for chat in chats:
-        messages = chat.get("messages", [])
+        messages = None
+        if "messages" in chat:
+            messages = chat["messages"]
 
-        if len(messages) == 0:
+        if messages is None or len(messages) == 0:
             continue
 
         if messages[0]["direction"] == 'out':  # Skip chats started by manager
@@ -161,7 +167,7 @@ async def excluded_items_filter_chats(
         context = chat.get("context")
         assert context
 
-        if context["value"]["id"] not in excluded_ids:
+        if context["value"].get("id") not in excluded_ids:
             filtered_chats.append(chat)
 
     return filtered_chats

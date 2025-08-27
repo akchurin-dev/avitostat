@@ -45,7 +45,7 @@ class Task(models.Model):
     status = models.CharField(
         verbose_name="Статус",
         choices=Status,
-        default=Status.PENDING.value,
+        default=Status.PENDING.value,  # type: ignore
         db_index=True,
     )
 
@@ -86,14 +86,14 @@ class Task(models.Model):
 
             tasks_to_cancel = object_tasks.filter(status__in=cls.CANCELABLE_STATUSES).exclude(pk=except_task_id)
             canceled_ids = [task.pk for task in tasks_to_cancel]
-            tasks_to_cancel.update(status=Task.Status.CANCELED.value)
+            tasks_to_cancel.update(status=Task.Status.CANCELED)
 
             tlogger.info(f"Tasks with id in {canceled_ids} was canceled")
 
         return True
 
     @classmethod
-    def change_task_status(cls, task_id: int, new_status: Status, *, tlogger: TraceLogger) -> bool:
+    def change_task_status(cls, task_id: int, new_status: Status | str, *, tlogger: TraceLogger) -> bool:
         """ Return True if status changed successfully and False if task was canceled """
 
         with atomic():
@@ -103,14 +103,14 @@ class Task(models.Model):
 
             if task.status in cls.NOT_CHANGABLE_STATUSES:
                 tlogger.info((
-                    f"Can't change task (id={task_id}) status to '{new_status.value}'. "
+                    f"Can't change task (id={task_id}) status to '{new_status}'. "
                     f"Task {task_id} has status '{task.status}'"
                 ))
                 return False
 
             cls.objects.filter(pk=task_id).update(status=new_status)
 
-        tlogger.info(f"Task {task_id} is {new_status.value}")
+        tlogger.info(f"Task {task_id} is {new_status}")
         return True
 
     @classmethod
@@ -124,7 +124,7 @@ class Task(models.Model):
         while True:
             task = cls.objects.get(pk=task_id)
 
-            if task.status == Task.Status.CANCELED.value:
+            if task.status == Task.Status.CANCELED:
                 return
 
             active_tasks = (
@@ -162,7 +162,7 @@ class Task(models.Model):
             tlogger=tlogger,
         )
 
-    def change_status(self, new_status: Status, *, tlogger: TraceLogger) -> bool:
+    def change_status(self, new_status: Status | str, *, tlogger: TraceLogger) -> bool:
         return self.change_task_status(
             task_id=self.pk,
             new_status=new_status,

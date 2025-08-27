@@ -9,9 +9,9 @@ from openai.types.responses.response_text_config_param import ResponseTextConfig
 import amo.models
 from amo.utils import amo_api
 from amo.utils import amo_fields
-from amo.utils.ai import answers
+from amo.utils.ai import answers, fields_recognition
 from utils.logging import TraceLogger
-from utils.openai_helper import openai_request_with_retries
+from utils.openai_helper import openai_request
 
 
 class TokensUsage(NamedTuple):
@@ -23,7 +23,7 @@ def check_fields_isolately_and_update_ai_result(
     account: amo.models.AmoAccount,
     chatbot: amo.models.AmoChatBot,
     messages: list[ResponseInputItemParam],
-    ai_answer: answers.AIAnswer,
+    ai_answer: fields_recognition.AIAnswer,
     tlogger: TraceLogger,
 ) -> TokensUsage:
 
@@ -55,13 +55,17 @@ def check_fields_isolately_and_update_ai_result(
             continue
 
         if fillable_field.entity == amo.models.AmoEntity.CONTACT:
-            if ai_answer.payload.contacts is None:
-                ai_answer.payload.contacts = {}
-            ai_answer.payload.contacts[fillable_field.name] = value
+            if ai_answer.entities_info["contact"] is None:
+                ai_answer.entities_info["contact"] = {}
+
+            if ai_answer.entities_info["contact"] is not None:
+                ai_answer.entities_info["contact"][fillable_field.name] = value
         else:
-            if ai_answer.payload.lead_info is None:
-                ai_answer.payload.lead_info = {}
-            ai_answer.payload.lead_info[fillable_field.name] = value
+            if ai_answer.entities_info["lead"] is None:
+                ai_answer.entities_info["lead"] = {}
+
+            if ai_answer.entities_info["lead"] is not None:
+                ai_answer.entities_info["lead"][fillable_field.name] = value
 
     return TokensUsage(tokens_prompt, tokens_completion)
 
@@ -76,7 +80,7 @@ def find_value(
     tlogger: TraceLogger,
 ) -> tuple[Any, TokensUsage]:
 
-    response = openai_request_with_retries(
+    response = openai_request(
         input=get_ai_input(chatbot, messages, fillable_field),
         text=get_text_format(fillable_field, amo_field),
         tag=f"Amo | {account.domain} | field isolated check",

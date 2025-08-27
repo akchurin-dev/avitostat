@@ -2,13 +2,14 @@ from __future__ import annotations
 
 from slugify import slugify
 
-from avito_account.models.models import AvitoAccount
 import chat_bot.models
 import messaging.api
+from avito_account.models.models import AvitoAccount
+from utils.logging import TraceLogger
 
 
-def define_company_branch(avito_account: AvitoAccount, chat_id: str) -> chat_bot.models.CompanyBranch | None:
-    chat = messaging.api.MessagingAPISync.get_chat_by_id(avito_account, chat_id)
+def define_company_branch(avito_account: AvitoAccount, chat_id: str, *, tlogger: TraceLogger) -> chat_bot.models.CompanyBranch | None:
+    chat = messaging.api.get_chat_by_id(avito_account, chat_id, tlogger=tlogger)
     location: str | None = chat["context"]["value"].get("location", {}).get("title")
 
     if location is None:

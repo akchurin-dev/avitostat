@@ -1,4 +1,5 @@
 import datetime
+from typing import Callable
 from typing import Literal
 
 import httpx
@@ -186,7 +187,7 @@ def _request(
     json: dict | None = None,
 ) -> httpx.Response:
 
-    methods = {
+    methods: dict[str, Callable] = {
         "GET": _avitostat_client.get,
         "POST": _avitostat_client.post,
         "PUT": _avitostat_client.put,

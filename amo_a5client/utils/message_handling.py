@@ -145,7 +145,7 @@ def prepare_message_handling_data(task_id: int, avito_account_id: int, *, trace_
 
         task = amo.models.AmoChatBotTask.objects.get(pk=task_id)
         avito_account = AvitoAccount.objects.get(pk=avito_account_id)
-        chat = messaging.api.MessagingAPISync.get_chat_last_50_messages_by_chat_id(avito_account, task.chat_id, trace_id=trace_id)
+        chat = messaging.api.get_chat_last_50_messages_by_chat_id(avito_account, task.chat_id, tlogger=tlogger)
         messages = chat.get("messages", [])[-10:]
 
         if not amo_a5_messages.is_message_actual(task, messages, tlogger=tlogger):
