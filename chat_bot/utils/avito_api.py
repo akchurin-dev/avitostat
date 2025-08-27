@@ -1,8 +1,8 @@
+from collections.abc import Generator
 from datetime import date
 from datetime import datetime
 from enum import Enum
 from typing import Any
-from typing import Generator
 
 from pydantic import BaseModel
 from pydantic import Field
@@ -237,7 +237,7 @@ def get_item_info(account: AvitoAccount, item_id: int, *, tlogger: TraceLogger) 
     return Item.model_validate_json(response.content)
 
 
-def get_items_list(account: AvitoAccount, *, tlogger: TraceLogger) -> Generator[ItemResource, None]:
+def get_items_list(account: AvitoAccount, *, tlogger: TraceLogger) -> Generator[ItemResource, Any, None]:
     page = 1
 
     while True:
@@ -361,7 +361,7 @@ def get_items_statistic(
     return TypeAdapter(list[ItemInStatistic]).validate_python(response.json()["result"]["items"])
 
 
-def get_chats(account: AvitoAccount) -> Generator[Chat, None]:
+def get_chats(account: AvitoAccount) -> Generator[Chat, Any, None]:
     limit = 50
     offset = 0
 
