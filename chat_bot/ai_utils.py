@@ -168,9 +168,9 @@ def parse_response(response: Response) -> AIAnswerWithContacts:
 
     result["answer"] = data.get("answer", "")
 
-    nearest_compant_branch_enum: Enum | None = data.get(COMPANY_BRANCH_KEy)
-    if nearest_compant_branch_enum:
-        result[COMPANY_BRANCH_KEy] = nearest_compant_branch_enum.name
+    nearest_compant_branch_enum: str = data.get(COMPANY_BRANCH_KEy, "")
+    if nearest_compant_branch_enum != "":
+        result[COMPANY_BRANCH_KEy] = nearest_compant_branch_enum
 
     result["tokens_completion"] = 0
     result["tokens_prompt"] = 0
