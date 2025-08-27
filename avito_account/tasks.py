@@ -76,9 +76,14 @@ async def balance_alert_send():
 
 @shared_task
 def actualize_avito_webhooks_subscriptions(accounts_ids: list[int] | None = None) -> None:
+    tlogger = TraceLogger()
+
     accounts = AvitoAccount.objects.all()
     if accounts_ids is not None:
         accounts = accounts.filter(id__in=accounts_ids)
 
     for account in accounts:
-        update_avito_webhook_subscription(account)
+        try:
+            update_avito_webhook_subscription(account)
+        except Exception as e:
+            tlogger.error(f"Error when actualize avito subscription, got '{e}'")
