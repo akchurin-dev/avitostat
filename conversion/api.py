@@ -1,9 +1,8 @@
 from datetime import timedelta
 
-from asgiref.sync import sync_to_async
 from avito_account.api.items import get_items_list
-from avito_account.models.excluded_items import ExcludedItem
 from avito_account.models.models import AvitoAccount
+from avito_account.models.models import ExcludedItem
 from conversion.utils import iso_dates_for_period_without_extra_reserve
 from base.exceptions import HTTPException
 import httpx

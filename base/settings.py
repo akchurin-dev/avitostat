@@ -301,7 +301,11 @@ if ENVIRONMENT == 'PRODUCTION':
         },
         'avito_webhook_subscription_actializing': {
             'task': 'avito_account.tasks.actualize_avito_webhooks_subscriptions',
-            'schedule': crontab(hour='*/1'),
+            'schedule': crontab(hour='*/1', minute='0'),
+        },
+        'avito_items_actualizing': {
+            'task': 'avito_account.tasks.actualize_avito_items',
+            'schedule': crontab(hour='0', minute='0'),
         },
     }
 else:
@@ -335,6 +339,10 @@ else:
         # },
         'avito_webhook_subscription_actializing': {
             'task': 'avito_account.tasks.actualize_avito_webhooks_subscriptions',
+            'schedule': crontab(minute='*/1'),
+        },
+        'avito_items_actualizing': {
+            'task': 'avito_account.tasks.actualize_avito_items',
             'schedule': crontab(minute='*/1'),
         },
     }

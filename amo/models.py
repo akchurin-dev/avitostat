@@ -10,6 +10,7 @@ import chat_bot.base_models
 import transcriptions.models
 from amo.utils import amo_chatbottasks
 from amo.utils import amo_webhooks
+from avito_account.models.models import AvitoAccount
 from chatbottasks import chatbottasks
 from prompts import prompts
 from utils import miscellaneous
@@ -508,6 +509,10 @@ class AmoChatBotTask(chat_bot.base_models.AIResultContainer, chatbottasks.Task):
         VOICE = "voice"
         PICTURE = "picture"
 
+    class PipelineType(models.TextChoices):
+        DEFAULT = "DEFAULT"
+        A5CLIENT = "A5CLIENT"
+
     account = models.ForeignKey(
         verbose_name="Amo-аккаунт",
         to=AmoAccount,
@@ -521,6 +526,21 @@ class AmoChatBotTask(chat_bot.base_models.AIResultContainer, chatbottasks.Task):
         null=True,
     )
 
+    avito_account = models.ForeignKey(
+        verbose_name="Авито-аккаунт",
+        to=AvitoAccount,
+        on_delete=models.SET_NULL,
+        null=True,
+        default=None,
+    )
+
+    pipeline_type = models.CharField(
+        verbose_name="Тип пайплайна",
+        max_length=255,
+        choices=PipelineType.choices,
+        default=PipelineType.DEFAULT.value,  # type: ignore
+    )
+
     lead_id = models.CharField(
         verbose_name="Идентификатор сделки",
         max_length=15,
@@ -531,6 +551,13 @@ class AmoChatBotTask(chat_bot.base_models.AIResultContainer, chatbottasks.Task):
         verbose_name="Идентификатор чата",
         max_length=255,
         db_index=True,
+    )
+
+    avito_chat_id = models.CharField(
+        verbose_name="Иеднтификатор чата в системе Авито",
+        max_length=255,
+        null=True,
+        default=None,
     )
 
     # В рамках одной сделки может быть много разговоров
@@ -577,6 +604,45 @@ class AmoChatBotTask(chat_bot.base_models.AIResultContainer, chatbottasks.Task):
         verbose_name_plural = "Amo-задачи"
 
         unique_together = ["account", "chat_id", "message_id"]
+
+    @property
+    def default_pipeline(self) -> bool:
+        return self.pipeline_type == AmoChatBotTask.PipelineType.DEFAULT
+
+    @property
+    def a5client_pipeline(self) -> bool:
+        return self.pipeline_type == AmoChatBotTask.PipelineType.A5CLIENT
+
+    @staticmethod
+    def get_or_create(
+        account_id: int,
+        chat_id: str,
+        message_id: str,
+        chatbot_id: int,
+        pipeline_type: str,
+        lead_id: int,
+        talk_id: int,
+        message_created_at: datetime.datetime,
+        message_type: str,
+        text: str | None,
+        file_link: str | None,
+    ) -> tuple[AmoChatBotTask, bool]:
+
+        return AmoChatBotTask.objects.get_or_create(
+            account_id=account_id,
+            chat_id=chat_id,
+            message_id=message_id,
+            defaults={
+                "chatbot_id": chatbot_id,
+                "pipeline_type": pipeline_type,
+                "lead_id": str(lead_id),
+                "talk_id": talk_id,
+                "message_created_at": message_created_at,
+                "message_type": message_type,
+                "text": text or "",
+                "file_link": file_link or "",
+            },
+        )
 
     def cancel_if_not_newest(self, *, tlogger: TraceLogger) -> bool:
         """ Cancel task if newer tasks exist. Return True if canceled """

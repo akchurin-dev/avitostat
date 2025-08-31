@@ -1,13 +1,14 @@
 import datetime
 import logging
+import re
 from typing import TypeVar
 
 import pytz
-import re
 
 import messaging.api
-from avito_account.models.excluded_items import ExcludedItem
-from avito_account.models.models import AvitoAccount, WorkSchedule
+from avito_account.models.models import AvitoAccount
+from avito_account.models.models import ExcludedItem
+from avito_account.models.models import WorkSchedule
 from utils.logging import TraceLogger
 
 

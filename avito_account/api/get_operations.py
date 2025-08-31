@@ -4,8 +4,8 @@ import pytz
 from datetime import datetime
 from datetime import timedelta
 
-from avito_account.models.excluded_items import ExcludedItem
 from avito_account.models.models import AvitoAccount
+from avito_account.models.models import ExcludedItem
 from base.exceptions import HTTPException
 from conversion.utils import active_services_for_period_filtering
 from conversion.utils import dates_for_period_with_extra_reserve

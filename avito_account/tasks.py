@@ -4,6 +4,7 @@ from telegram_bot import bot
 
 from avito_account import oauth_utils
 from avito_account.models.models import AvitoAccount
+from avito_account.utils.avito_items import actualize_avito_account_items
 from avito_account.utils.avito_webhooks import update_avito_webhook_subscription
 from base import settings
 from base.celery import celery_app
@@ -86,4 +87,19 @@ def actualize_avito_webhooks_subscriptions(accounts_ids: list[int] | None = None
         try:
             update_avito_webhook_subscription(account)
         except Exception as e:
-            tlogger.error(f"Error when actualize avito subscription, got '{e}'")
+            tlogger.error(f"Error when actualize avito subscription for '{account.name}', got '{e}'")
+
+
+@shared_task
+def actualize_avito_items(accounts_ids: list[int] | None = None) -> None:
+    tlogger = TraceLogger()
+
+    accounts = AvitoAccount.objects.all()
+    if accounts_ids is not None:
+        accounts = accounts.filter(id__in=accounts_ids)
+
+    for account in accounts:
+        try:
+            actualize_avito_account_items(account, tlogger=tlogger)
+        except Exception as e:
+            tlogger.error(f"Error when actualize avito items for '{account.name}', got '{e}'")

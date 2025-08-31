@@ -1,9 +1,12 @@
 import json
+import logging
+
 from django import forms
 from django.contrib import admin
 from django.db.models import Q
 from django.shortcuts import redirect
 
+from avito_account.admin_panel.avito_account_actions import actualize_avito_items
 from avito_account.admin_panel.avito_account_actions import actualize_avito_webhooks_subscriptions
 from avito_account.admin_panel.avito_account_actions import celery_pdf_month_for_api_report
 from avito_account.admin_panel.avito_account_actions import run_daily_pdf_report
@@ -15,10 +18,9 @@ from avito_account.admin_panel.avito_account_actions import run_txt_all_report
 from avito_account.admin_panel.avito_account_actions import run_txt_all_test_from_prod_report
 from avito_account.admin_panel.avito_account_actions import run_txt_report
 from avito_account.admin_panel.avito_account_actions import update_avito_accounts_tokens
-from avito_account.models.excluded_items import ExcludedItem
-from avito_account.models.models import AnalyticSchema, WorkSchedule
-import logging
-
+from avito_account.models.models import AnalyticSchema
+from avito_account.models.models import ExcludedItem
+from avito_account.models.models import WorkSchedule
 from base import settings
 from chat_bot.models import CompanyBranch
 
@@ -60,6 +62,7 @@ class AvitoAccountAdmin(admin.ModelAdmin):
     readonly_fields = ('id',)
     inlines = [WorkScheduleInline, ExcludedItemInline, CompanyBranchInline]
     actions = [
+        actualize_avito_items,
         actualize_avito_webhooks_subscriptions,
         celery_pdf_month_for_api_report,
         run_daily_pdf_report,

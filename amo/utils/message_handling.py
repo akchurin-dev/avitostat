@@ -4,6 +4,7 @@ from celery import shared_task
 
 import amo.models
 from amo_a5client import amo_a5client
+from amo.utils import a5client
 from amo.utils import amo_api
 from amo.utils import amo_fields
 from amo.utils import amo_leads
@@ -15,6 +16,7 @@ from amo.utils import chatbot_lead_pair_defining
 from amo.utils.ai import answers
 from amo.utils.ai import fields_recognition
 # from amo.utils.ai import isolated_check
+from chat_bot.utils import avito_api
 from utils import increasing_delay
 from utils.logging import TraceLogger
 
@@ -50,23 +52,24 @@ def handle_new_message_webhook(request_data: dict, *, tlogger: TraceLogger) -> N
         tlogger.info({"Error when parse amo new message webhook request data": dict(request_data)})
         raise
 
-    if origin == amo_a5client.config.ORIGIN_NAME:
-        tlogger.info("Handle Amo as a5client")
-        amo_a5client.handle_message_from_amo(
-            amo_account_id=account_id,
-            contact_id=contact_id,
-            lead_id=lead_id,
-            message_created_at_timestamp=message_created_at_timestamp,
-            text=text,
-            attachment_type=attachment_type,
-            tlogger=tlogger,
-        )
-        return
+    # if origin == amo_a5client.config.ORIGIN_NAME:
+    #     tlogger.info("Handle Amo as a5client")
+    #     amo_a5client.handle_message_from_amo(
+    #         amo_account_id=account_id,
+    #         contact_id=contact_id,
+    #         lead_id=lead_id,
+    #         message_created_at_timestamp=message_created_at_timestamp,
+    #         text=text,
+    #         attachment_type=attachment_type,
+    #         tlogger=tlogger,
+    #     )
+    #     return
 
     wait_sec = 0
     tlogger.info(f"Wait for {wait_sec} sec")
 
     launch_new_message_handling.s(
+    # launch_new_message_handling(
         account_id=account_id,
         contact_id=contact_id,
         lead_id=lead_id,
@@ -124,6 +127,7 @@ def launch_new_message_handling(
     if chatbot_lead_pair is None:
         if time_left_for_retries_sec < 1:
             launch_new_message_handling.s(
+            # launch_new_message_handling(
                 account_id=account_id,
                 contact_id=contact_id,
                 lead_id=lead_id,
@@ -170,19 +174,22 @@ def launch_new_message_handling(
         lead_id=lead.id,
     )
 
-    task, created = amo.models.AmoChatBotTask.objects.get_or_create(
+    pipeline_type = amo.models.AmoChatBotTask.PipelineType.DEFAULT
+    if origin == amo_a5client.config.ORIGIN_NAME:
+        pipeline_type = amo.models.AmoChatBotTask.PipelineType.A5CLIENT
+
+    task, created = amo.models.AmoChatBotTask.get_or_create(
         account_id=account_id,
         chat_id=chat_id,
         message_id=message_id,
-        defaults={
-            "chatbot": chatbot,
-            "lead_id": str(lead.id),
-            "talk_id": talk_id,
-            "message_created_at": message_created_at,
-            "message_type": message_type.value,
-            "text": text,
-            "file_link": file_link or "",
-        },
+        chatbot_id=chatbot.pk,
+        pipeline_type=pipeline_type,
+        lead_id=lead.id,
+        talk_id=talk_id,
+        message_created_at=message_created_at,
+        message_type=message_type.value,
+        text=text,
+        file_link=file_link,
     )
     if not created:
         tlogger.info("Stop handling. Task exists already")
@@ -198,10 +205,13 @@ def launch_new_message_handling(
         return
 
     tlogger.info(f"Task ({task.pk}) created successfully")
-
     tlogger.info(f"Wait for {chatbot.waiting_seconds} seconds...")
 
-    prepare_message_handling_data.s(task_id=task.pk, trace_id=tlogger.trace_id).apply_async(countdown=chatbot.waiting_seconds)
+    prepare_message_handling_data.s(
+    # prepare_message_handling_data(
+        task_id=task.pk,
+        trace_id=tlogger.trace_id,
+    ).apply_async(countdown=chatbot.waiting_seconds)
 
 
 @shared_task
@@ -248,6 +258,15 @@ def prepare_message_handling_data(*, task_id: int, trace_id: str):
             return
 
         lead = amo_api.get_lead(task.account, task.lead_id, tlogger=tlogger)
+
+        if task.a5client_pipeline:
+            tlogger.info("A5Client pipeline")
+            ok = a5client.fill_chatbot_task_with_avito_data(task, lead, tlogger=tlogger)
+            if not ok:
+                tlogger.info("Stop handling. Task filling with avito data not success")
+                task.cancel(tlogger)
+                return
+
         contact = amo_leads.get_lead_contact(task.account, lead, tlogger=tlogger)
         assert contact
 
@@ -366,12 +385,27 @@ def finish_handling(
         if status_change_result.status_changed_on_qualification and task.chatbot.message_when_qualification:
             message = task.chatbot.message_when_qualification
 
-        amo_api.send_message(
-            account=task.account,
-            chat_id=task.chat_id,
-            text=message,
-            tlogger=tlogger,
-        )
+        if task.default_pipeline:
+            amo_api.send_message(
+                account=task.account,
+                chat_id=task.chat_id,
+                text=message,
+                tlogger=tlogger,
+            )
+        elif task.a5client_pipeline:
+            assert task.avito_account is not None
+            assert task.avito_chat_id is not None
+            avito_api.send_message(
+                account=task.avito_account,
+                chat_id=task.avito_chat_id,
+                message=message,
+                tlogger=tlogger,
+            )
+        else:
+            tlogger.error(f"Unexpected pipeline type, got '{task.pipeline_type}'")
+            task.cancel(tlogger)
+            return
+
         tlogger.info("Message was sent successfully")
 
         if status_change_result.status_changed_on_qualification:

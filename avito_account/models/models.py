@@ -1,17 +1,15 @@
-import datetime
+from __future__ import annotations
 
-import httpx
+import datetime
 import logging
 import pytz
-import sentry_sdk
-from asgiref.sync import sync_to_async
+
 from django.contrib.auth.models import User
 from django.db import models
+from django.db.models.query import QuerySet
 
 from base import settings
-from base.exceptions import HTTPException
 from utils import httpx_helper
-from utils.logging import TraceLogger
 
 
 logger = logging.getLogger(__name__)
@@ -149,3 +147,103 @@ class WorkSchedule(models.Model):  # Не BaseModel тк привязываем�
     class Meta:
         verbose_name = "Рабочий график (время Московское)"
         verbose_name_plural = "Рабочие графики"
+
+
+class AvitoItem(models.Model):
+    id = models.BigIntegerField(
+        verbose_name="Идентификатор в системе Авито",
+        primary_key=True,
+    )
+
+    account_id: int
+    account = models.ForeignKey(
+        verbose_name="Авито-аккаупт",
+        to=AvitoAccount,
+        on_delete=models.CASCADE,
+    )
+
+    url = models.CharField(
+        verbose_name="URL",
+        max_length=255,
+        null=True,
+        db_index=True,
+    )
+
+    title = models.CharField(
+        verbose_name="Название",
+        max_length=255,
+    )
+
+    address = models.CharField(
+        verbose_name="Адрес",
+        max_length=255,
+    )
+
+    price = models.IntegerField(
+        verbose_name="Цена",
+        null=True,
+    )
+
+    status = models.CharField(
+        verbose_name="Статус",
+    )
+
+    class Meta:
+        verbose_name = "Объявление"
+        verbose_name_plural = "Объявления"
+
+    @staticmethod
+    def get_by_account(account_id: int) -> QuerySet[AvitoItem]:
+        return AvitoItem.objects.filter(account_id=account_id)
+
+    @staticmethod
+    def delete_non_existing(account_id: int, existing_items_ids: list[int]) -> None:
+        AvitoItem.objects.filter(account_id=account_id).exclude(id__in=existing_items_ids).delete()
+
+    @staticmethod
+    def create_instance(
+        account_id: int,
+        id: int,
+        url: str | None,
+        title: str,
+        address: str,
+        price: int | None,
+        status: str,
+    ) -> AvitoItem:
+
+        item = AvitoItem()
+
+        item.id = id
+        item.account_id = account_id
+        item.url = url
+        item.title = title
+        item.address = address
+        item.price = price
+        item.status = status
+
+        return item
+
+    @staticmethod
+    def get_by_url(url: str) -> AvitoItem | None:
+        return AvitoItem.objects.filter(url=url).select_related("account").first()
+
+
+class ExcludedItem(models.Model):
+    avito_account = models.ForeignKey(
+        'AvitoAccount',
+        on_delete=models.CASCADE,
+        related_name='excluded_items',
+        verbose_name="Аккаунт Avito"
+    )
+    id = models.BigIntegerField(
+        verbose_name="ID объявления",
+        primary_key=True
+    )
+
+    class Meta:
+        verbose_name = "Объявление исключённое"
+        verbose_name_plural = "Объявления исключённые"
+        unique_together = (("avito_account", "id"),)
+
+    def __str__(self):
+        return str(self.id)

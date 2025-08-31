@@ -191,3 +191,11 @@ def get_filled_fillable_fields(
             break
 
     return known_fields_values
+
+
+def find_field_value(fields_values: list[amo_api.CustomFieldValue], field: str) -> amo_api.CustomFieldValue | None:
+    for field_value in fields_values:
+        if field_value.field_name == field:
+            return field_value
+
+    return None

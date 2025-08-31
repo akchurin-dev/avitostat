@@ -102,7 +102,7 @@ class ItemCategory(BaseModel):
     name: str
 
 
-class ItemResource(BaseModel):
+class ItemInList(BaseModel):
     address: str
     category: ItemCategory
     id: int
@@ -237,11 +237,11 @@ def get_item_info(account: AvitoAccount, item_id: int, *, tlogger: TraceLogger) 
     return Item.model_validate_json(response.content)
 
 
-def get_items_list(account: AvitoAccount, *, tlogger: TraceLogger) -> Generator[ItemResource, Any, None]:
+def get_items_list(account: AvitoAccount, *, tlogger: TraceLogger) -> Generator[ItemInList, Any, None]:
     page = 1
 
     while True:
-        resources: list[ItemResource] = get_items_list_page(account, page, per_page=100, tlogger=tlogger)
+        resources: list[ItemInList] = get_items_list_page(account, page, per_page=100, tlogger=tlogger)
 
         if len(resources) == 0:
             return
@@ -252,7 +252,7 @@ def get_items_list(account: AvitoAccount, *, tlogger: TraceLogger) -> Generator[
         page += 1
 
 
-def get_items_list_page(account: AvitoAccount, page: int, per_page: int = 100, *, tlogger: TraceLogger) -> list[ItemResource]:
+def get_items_list_page(account: AvitoAccount, page: int, per_page: int = 100, *, tlogger: TraceLogger) -> list[ItemInList]:
     """ https://developers.avito.ru/api-catalog/item/documentation#operation/getItemsInfo """
 
     action = "/core/v1/items"
@@ -266,7 +266,7 @@ def get_items_list_page(account: AvitoAccount, page: int, per_page: int = 100, *
     response = avito_api_request("GET", action, account, params, tlogger=tlogger)
     response.raise_for_status()
 
-    return TypeAdapter(list[ItemResource]).validate_python(response.json().get("resources", []))
+    return TypeAdapter(list[ItemInList]).validate_python(response.json().get("resources", []))
 
 
 def send_message(account: AvitoAccount, chat_id: str, message: str, *, tlogger: TraceLogger) -> BaseMessage:

@@ -1,11 +1,10 @@
 import logging
 
-from asgiref.sync import async_to_sync
 from django.db.models import QuerySet
 
-import chat_bot.tasks
 import avito_account.tasks
 from avito_account.models.models import AvitoAccount
+from chat_bot.utils import daily_report
 from conversion.tasks import send_text_report_all_async_task
 from messaging.tasks import bad_messaging_week_report_async_task, \
     month_report_json_getting_async_task
@@ -118,14 +117,14 @@ def run_txt_all_test_from_prod_report(self, request, queryset):
 run_txt_all_test_from_prod_report.short_description = "ТЕКСТОВЫЙ ТЕСТ ВСЕМ отчет отправить"  # type: ignore
 
 
-def run_daily_pdf_report(self, request, queryset):
+def run_daily_pdf_report(self, request, queryset: QuerySet[AvitoAccount]):
     tlogger = TraceLogger()
 
     try:
         tlogger.info(f"Run daily report for {len(queryset)} avito accounts")
 
         for account in queryset:
-            chat_bot.tasks.BotStatisticsDailyReportClass.statistics_for_avito_account(account.pk, trace_id=tlogger.trace_id)
+            daily_report.statistics_for_avito_account(account.pk, trace_id=tlogger.trace_id)
 
         self.message_user(request, f"Отправка отчета успешно начата", level='success')
     except Exception as e:
@@ -164,8 +163,9 @@ update_avito_accounts_tokens.short_description = "Обновить токены"
 
 
 def actualize_avito_webhooks_subscriptions(self, request, queryset: QuerySet[AvitoAccount]) -> None:
-    avito_account.tasks.actualize_avito_webhooks_subscriptions(
-        accounts_ids=[account.pk for account in queryset]
+    avito_account.tasks.actualize_avito_webhooks_subscriptions.delay(
+    # avito_account.tasks.actualize_avito_webhooks_subscriptions(
+        accounts_ids=[account.pk for account in queryset],
     )
 
     message = "Операция запушена"
@@ -175,3 +175,18 @@ def actualize_avito_webhooks_subscriptions(self, request, queryset: QuerySet[Avi
 
 
 actualize_avito_webhooks_subscriptions.short_description = "Обновить подписки на уведомляния"  # type: ignore
+
+
+def actualize_avito_items(self, request, queryset: QuerySet[AvitoAccount]) -> None:
+    avito_account.tasks.actualize_avito_items.delay(
+    # avito_account.tasks.actualize_avito_items(
+        accounts_ids=[account.pk for account in queryset],
+    )
+
+    message = "Операция запущена"
+    level = "success"
+
+    self.message_user(request, message, level=level)
+
+
+actualize_avito_items.short_description = "Обновить список объявлений"  # type: ignore
