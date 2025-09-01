@@ -128,29 +128,11 @@ class WebhookInboxViewClass(View):
             return
 
         avito_api.read_chat(avito_account, chat_id, tlogger=tlogger)
-        WebhookInboxViewClass.incoming_messages_handler(
-            new_task=new_task,
-            chat_id=chat_id,
-            message_id=message_id,
-            avito_account=avito_account,
-            chatbot=chatbot,
-            tlogger=tlogger,
-        )
-
-    @staticmethod
-    def incoming_messages_handler(
-        new_task: ChatBotTask,
-        chat_id: str,
-        message_id: str,
-        avito_account: AvitoAccount,
-        chatbot: AiChatBot,
-        *,
-        tlogger: TraceLogger,
-    ) -> None:
 
         tlogger.info(f"Wait for {chatbot.waiting_seconds} seconds...")
 
         ai_answer_sender_task.s(
+        # ai_answer_sender_task(
             avito_account_id=avito_account.pk,
             chatbot_id=chatbot.pk,
             chat_id=chat_id,
