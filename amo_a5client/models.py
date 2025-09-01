@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from django.db import models
 from django.db.models.functions import Abs
 
@@ -115,6 +117,30 @@ class MessageContactLink(models.Model):
             author_name=author_name,
             amo_account_id=amo_account_id,
             contact_id=amo_contact_id,
+        )
+
+        return link
+
+    @classmethod
+    def get_by_amo_data(
+        cls,
+        message_created_at_ts: int,
+        text: str,
+        author_name: str,
+        amo_account_id: int,
+    ) -> MessageContactLink | None:
+
+        link = (
+            cls.objects.annotate(
+                created_at_diff=Abs(models.F("message_created_at") - models.Value(message_created_at_ts))
+            ).filter(
+                created_at_diff__lte=5,
+                text=text,
+                author_name=author_name,
+                amo_account_id=amo_account_id,
+            )
+            .order_by("message_created_at")
+            .last()
         )
 
         return link

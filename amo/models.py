@@ -526,6 +526,7 @@ class AmoChatBotTask(chat_bot.base_models.AIResultContainer, chatbottasks.Task):
         null=True,
     )
 
+    avito_account_id: int
     avito_account = models.ForeignKey(
         verbose_name="Авито-аккаунт",
         to=AvitoAccount,
