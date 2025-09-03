@@ -224,13 +224,16 @@ def is_message_actual(task: amo.models.AmoChatBotTask, messages: list[Message], 
     }
 
     for i in range(len(messages) - 1, -1, -1):
-        text = messages[i].text
-        system_message = text is not None and text.startswith("Системное сообщение: ")
+        # text = messages[i].text
+        # system_message = text is not None and text.startswith("Системное сообщение: ")
 
-        if system_message:
-            continue
+        # if system_message:
+        #     continue
 
-        if messages[i].created_at < task.message_created_at or messages[i].id == task.message_id:
+        # if messages[i].created_at < task.message_created_at or messages[i].id == task.message_id:
+        #     break
+
+        if messages[i].created_at <= task.message_created_at:
             break
 
         if messages[i].incoming:
