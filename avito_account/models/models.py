@@ -166,6 +166,12 @@ class AvitoItem(models.Model):
         verbose_name="URL",
         max_length=255,
         null=True,
+    )
+
+    relative_link = models.CharField(
+        verbose_name="Относительная ссылка",
+        max_length=255,
+        null=True,
         db_index=True,
     )
 
@@ -192,6 +198,17 @@ class AvitoItem(models.Model):
         verbose_name = "Объявление"
         verbose_name_plural = "Объявления"
 
+    def set_url(self, url: str | None) -> None:
+        """ Обновляет url и relative_link """
+
+        if url is None:
+            self.url = None
+            self.relative_link = None
+            return
+
+        self.url = url
+        self.relative_link = AvitoItem.url_to_relative_link(url)
+
     @staticmethod
     def get_by_account(account_id: int) -> QuerySet[AvitoItem]:
         return AvitoItem.objects.filter(account_id=account_id)
@@ -215,17 +232,33 @@ class AvitoItem(models.Model):
 
         item.id = id
         item.account_id = account_id
-        item.url = url
         item.title = title
         item.address = address
         item.price = price
         item.status = status
 
+        item.set_url(url)
+
         return item
 
     @staticmethod
     def get_by_url(url: str) -> AvitoItem | None:
-        return AvitoItem.objects.filter(url=url).select_related("account").first()
+        relative_link = AvitoItem.url_to_relative_link(url)
+        return AvitoItem.objects.filter(relative_link=relative_link).select_related("account").first()
+
+    @staticmethod
+    def url_to_relative_link(url: str) -> str:
+        """
+            Transfer urls like 
+            https://www.avito.ru/kazan/cars/lexus_lx_470__3313424,
+            http://avito.ru/kazan/cars/lexus_lx_470__3313424 
+            to /kazan/cars/lexus_lx_470__3313424
+        """
+
+        domain = "avito.ru"
+        domain_pos = url.find(domain)
+        assert domain_pos != -1
+        return url[domain_pos + len(domain):]
 
 
 class ExcludedItem(models.Model):

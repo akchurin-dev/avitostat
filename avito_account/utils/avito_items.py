@@ -44,7 +44,7 @@ def _update_items(db_items: QuerySet[AvitoItem], items_in_avito: list[avito_api.
             changed = True
 
         if db_item.url != item_in_avito.url:
-            db_item.url = item_in_avito.url
+            db_item.set_url(item_in_avito.url)
             changed = True
 
         if changed:

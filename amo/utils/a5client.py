@@ -1,6 +1,5 @@
 import amo.models
 import amo_a5client.models
-from amo.utils import a5client
 from amo.utils import amo_api
 from amo.utils import amo_fields
 from avito_account.models.models import AvitoAccount
@@ -12,10 +11,10 @@ def fill_chatbot_task_with_avito_data(task: amo.models.AmoChatBotTask, lead: amo
     """ Return True if success """
 
     tlogger.info("Define avito account from lead fields")
-    avito_account = a5client.get_avito_account(lead, tlogger=tlogger)
+    avito_account = get_avito_account(lead, tlogger=tlogger)
 
     tlogger.info("Define avito chat_id from lead fields")
-    avito_chat_id = a5client.get_avito_chat_id(lead, tlogger=tlogger)
+    avito_chat_id = get_avito_chat_id(lead, tlogger=tlogger)
 
     if avito_account is not None and avito_chat_id is not None:
         task.avito_account = avito_account
