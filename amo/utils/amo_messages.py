@@ -1,13 +1,18 @@
-import datetime
 import json
+from datetime import datetime
+from datetime import timedelta
 from enum import Enum
 from typing import NamedTuple
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel
+from pydantic import Field
 
 import amo.models
 from amo.utils import amo_api
 from utils.logging import TraceLogger
+
+
+MAX_MESSAGE_AGE = timedelta(days=31)
 
 
 class ChatCreated(BaseModel):
@@ -50,7 +55,7 @@ class Message(BaseModel):
     type: MessageTypeEnum
     text: str | None
     file_url: str | None
-    created_at: datetime.datetime
+    created_at: datetime
 
 
 class Talk(NamedTuple):
@@ -64,19 +69,24 @@ SUPPORTED_MESSAGE_TYPES = {mt.value for mt in MessageTypeEnum}
 def get_lead_chat(account: amo.models.AmoAccount, lead_id: int, tlogger: TraceLogger) -> Talk:
     events = amo_api.get_lead_events(account.pk, str(lead_id), tlogger=tlogger)
 
-    lead_talks: list[int] = list(
-        amo.models.AmoTalkLeadLink.objects
-        .filter(account=account, lead_id=lead_id)
-        .values_list("talk_id", flat=True)
-    )
+    # lead_talks: list[int] = list(
+    #     amo.models.AmoTalkLeadLink.objects
+    #     .filter(account=account, lead_id=lead_id)
+    #     .values_list("talk_id", flat=True)
+    # )
 
     # type 89 для входящих сообщений, 90 - для исходящих
     message_events = [e for e in events if e["type"] in [89, 90]]
-    message_events = [e for e in message_events if e["data"]["dialog"]["id"] in lead_talks]
+    # message_events = [e for e in message_events if e["data"]["dialog"]["id"] in lead_talks]
 
     messages: list[Message] = []
+    now = datetime.now()
 
     for event in message_events:
+        created_at = datetime.fromtimestamp(event["data"]["created_at"])
+        if (now - created_at) > MAX_MESSAGE_AGE:
+            break
+
         message_type = event["data"]["message"]["type"]
 
         text = None
@@ -99,7 +109,7 @@ def get_lead_chat(account: amo.models.AmoAccount, lead_id: int, tlogger: TraceLo
             type=MessageTypeEnum(message_type),
             text=text,
             file_url=file_link,
-            created_at=event["data"]["created_at"],
+            created_at=created_at,
         ))
 
     messages.sort(key=lambda m: m.created_at)

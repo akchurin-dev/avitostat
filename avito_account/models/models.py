@@ -207,7 +207,7 @@ class AvitoItem(models.Model):
             return
 
         self.url = url
-        self.relative_link = AvitoItem.url_to_relative_link(url)
+        self.relative_link = AvitoItem.item_url_to_relative_link(url)
 
     @staticmethod
     def get_by_account(account_id: int) -> QuerySet[AvitoItem]:
@@ -243,11 +243,11 @@ class AvitoItem(models.Model):
 
     @staticmethod
     def get_by_url(url: str) -> AvitoItem | None:
-        relative_link = AvitoItem.url_to_relative_link(url)
+        relative_link = AvitoItem.item_url_to_relative_link(url)
         return AvitoItem.objects.filter(relative_link=relative_link).select_related("account").first()
 
     @staticmethod
-    def url_to_relative_link(url: str) -> str:
+    def item_url_to_relative_link(url: str) -> str:
         """
             Transfer urls like 
             https://www.avito.ru/kazan/cars/lexus_lx_470__3313424,
