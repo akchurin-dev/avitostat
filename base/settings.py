@@ -299,6 +299,10 @@ if ENVIRONMENT == 'PRODUCTION':
             'task': 'work_reports.tasks.send_weekly_report',
             'schedule': crontab(hour='6', minute='30', day_of_week='5'),
         },
+        'monthly_work_report': {
+            'task': 'work_reports.tasks.send_report_for_last_30_days',
+            'schedule': crontab(day_of_month='1', hour='6', minute='0')
+        },
         'avito_webhook_subscription_actializing': {
             'task': 'avito_account.tasks.actualize_avito_webhooks_subscriptions',
             'schedule': crontab(hour='*/1', minute='0'),
