@@ -1,6 +1,7 @@
 import json
 from datetime import datetime
 from datetime import timedelta
+from datetime import timezone
 from enum import Enum
 from typing import NamedTuple
 
@@ -83,7 +84,7 @@ def get_lead_chat(account: amo.models.AmoAccount, lead_id: int, tlogger: TraceLo
     now = datetime.now()
 
     for event in message_events:
-        created_at = datetime.fromtimestamp(event["data"]["created_at"])
+        created_at = datetime.fromtimestamp(event["data"]["created_at"], timezone.utc)
         if (now - created_at) > MAX_MESSAGE_AGE:
             break
 
