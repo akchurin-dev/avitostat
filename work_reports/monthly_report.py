@@ -21,13 +21,17 @@ def make_monthly_report(since: datetime, until: datetime) -> list[MonthlyReportB
     projects_to_messages_count = get_answers_count_by_avito_projects(since, until)
     projects_to_messages_count.update(get_answers_count_by_amo_projects(since, until))
 
-    return [
+    projects_reports = [
         MonthlyReportByProject(
             project_name=project,
             spending=spendings.get_project_spending(project).spent_dollars,
             answers_count=messages_count,
         ) for project, messages_count in projects_to_messages_count.items()
     ]
+    projects_reports = [pr for pr in projects_reports if pr.answers_count > 0 or pr.spending > 0]
+    projects_reports.sort(key=lambda pr: pr.answers_count, reverse=True)
+
+    return projects_reports
 
 
 def get_answers_count_by_avito_projects(since: datetime, until: datetime) -> dict[str, int]:
