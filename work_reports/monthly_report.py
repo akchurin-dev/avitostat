@@ -33,6 +33,10 @@ def make_monthly_report(since: datetime, until: datetime) -> list[MonthlyReportB
 def get_answers_count_by_avito_projects(since: datetime, until: datetime) -> dict[str, int]:
     qs = (
         AvitoAccount.objects
+        .filter(
+            Q(chatbottask__message_id__isnull=True)
+            | Q(chatbottask__created_at__range=[since, until])
+        )
         .annotate(
             answers_count=Count(
                 "chatbottask",
@@ -43,10 +47,6 @@ def get_answers_count_by_avito_projects(since: datetime, until: datetime) -> dic
                 & ~Q(chatbottask__answer_text=""),
             )
         )
-        .filter(
-            Q(chatbottask__message_id__isnull=True)
-            | Q(chatbottask__created_at__range=[since, until])
-        )
         .values_list("id", "name", "answers_count")
     )
 
@@ -56,6 +56,10 @@ def get_answers_count_by_avito_projects(since: datetime, until: datetime) -> dic
 def get_answers_count_by_amo_projects(since: datetime, until: datetime) -> dict[str, int]:
     qs = (
         amo.models.AmoAccount.objects
+        .filter(
+            Q(amochatbottask__id__isnull=True)
+            | Q(amochatbottask__created_at__range=[since, until])
+        )
         .annotate(
             answers_count=Count(
                 "amochatbottask",
@@ -63,10 +67,6 @@ def get_answers_count_by_amo_projects(since: datetime, until: datetime) -> dict[
                     amochatbottask__answer_text__isnull=False,
                 ) & ~Q(amochatbottask__answer_text="")
             )
-        )
-        .filter(
-            Q(amochatbottask__id__isnull=True)
-            | Q(amochatbottask__created_at__range=[since, until])
         )
         .values_list("amo_id", "domain", "answers_count")
     )
