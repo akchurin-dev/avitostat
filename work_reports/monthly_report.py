@@ -76,7 +76,7 @@ def get_answers_count_by_amo_projects(since: datetime, until: datetime) -> dict[
 
 def get_monthly_report_message_text(since: datetime, until: datetime, projects_reports: list[MonthlyReportByProject]) -> str:
     parts: list[str] = [
-        f"Отчет с <b>{since.strftime("%d/%m/%Y")}</b> по <b>{until.strftime("%d/%m/%Y")}</b>",
+        f"Отчет с <b>{since.strftime('%d/%m/%Y')}</b> по <b>{until.strftime('%d/%m/%Y')}</b>",
     ]
 
     for i, project_report in enumerate(projects_reports):
