@@ -87,6 +87,7 @@ class AmoAccountAdmin(admin.ModelAdmin):
         accounts_ids: list[int] = [account.amo_id for account in queryset]
         amo.tasks.actualize_amo_fields.delay(accounts_ids)
         # amo.tasks.actualize_amo_fields(accounts_ids)
+        self.message_user(request, "Операция запущена", level="success")
     actualize_amo_fields.short_description = "Обновить Amo-поля"  # type: ignore
 
     actions = [actualize_amo_fields]
