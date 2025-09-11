@@ -5,7 +5,7 @@ import datetime
 from django.contrib.auth.models import User
 from django.db import models
 from django.db.models import QuerySet
-from django.db.models.manager import RelatedManager
+from django.db.models.fields.related import RelatedManager
 
 import chat_bot.base_models
 import transcriptions.models
