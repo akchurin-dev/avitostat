@@ -5,6 +5,7 @@ import datetime
 from django.contrib.auth.models import User
 from django.db import models
 from django.db.models import QuerySet
+from django.db.models.manager import RelatedManager
 
 import chat_bot.base_models
 import transcriptions.models
@@ -409,6 +410,128 @@ class AmoEntity(models.TextChoices):
     LEAD = "LEAD", "Сделка"
 
 
+class AmoField(models.Model):
+    account_id: int
+    account = models.ForeignKey(
+        verbose_name="Amo-аккаунт",
+        to=AmoAccount,
+        on_delete=models.CASCADE,
+    )
+
+    amo_id = models.BigIntegerField(
+        verbose_name="Идентификатор в системе Amo",
+    )
+
+    entity = models.CharField(
+        verbose_name="Сущность",
+        max_length=255,
+        choices=AmoEntity,
+        db_index=True,
+    )
+
+    name = models.CharField(
+        verbose_name="Название",
+        max_length=255,
+    )
+
+    type = models.CharField(
+        verbose_name="Тип",
+        max_length=255,
+    )
+
+    code = models.CharField(
+        verbose_name="Кодовое имя",
+        max_length=255,
+        null=True,
+    )
+
+    enum = models.BooleanField(
+        verbose_name="Является справочником",
+    )
+
+    enums: RelatedManager[AmoFieldEnum]
+
+    class Meta:
+        verbose_name = "Амо-поле"
+        verbose_name_plural = "Амо-поля"
+
+        unique_together = ["account", "amo_id"]
+
+    def __str__(self):
+        return self.entity + "." + self.name + f" ({self.type})"
+
+    @staticmethod
+    def create_instance(
+        account_id: int,
+        amo_id: int,
+        entity: str,
+        name: str,
+        type: str,
+        code: str | None,
+        enum: bool,
+    ) -> AmoField:
+
+        amo_field = AmoField()
+
+        amo_field.account_id = account_id
+        amo_field.amo_id = amo_id
+        amo_field.entity = entity
+        amo_field.name = name
+        amo_field.type = type
+        amo_field.code = code
+        amo_field.enum = enum
+
+        return amo_field
+
+    @staticmethod
+    def get_fields_by_account(account_id: int, entity: str) -> QuerySet[AmoField]:
+        return AmoField.objects.filter(account_id=account_id, entity=entity).prefetch_related("enums")
+
+
+class AmoFieldEnum(models.Model):
+    field_id: int
+    field = models.ForeignKey(
+        verbose_name="Поле",
+        to=AmoField,
+        on_delete=models.CASCADE,
+        related_name="enums",
+    )
+
+    amo_id = models.BigIntegerField(
+        verbose_name="Идентфикатор в системе Amo",
+    )
+
+    sort = models.IntegerField(
+        verbose_name="Порядковый номер",
+    )
+
+    value = models.CharField(
+        verbose_name="Значение",
+        max_length=255,
+    )
+
+    class Meta:
+        verbose_name = "Значение справочника"
+        verbose_name = "Значения справочников"
+
+    @staticmethod
+    def create_instance(
+        field_id: int,
+        amo_id: int,
+        sort: int,
+        value: str,
+    ) -> AmoFieldEnum:
+
+        amo_field_enum = AmoFieldEnum()
+
+        amo_field_enum.field_id = field_id
+        amo_field_enum.amo_id = amo_id
+        amo_field_enum.sort = sort
+        amo_field_enum.value = value
+
+        return amo_field_enum
+
+
 class FillableField(models.Model):
     chatbot = models.ForeignKey(
         verbose_name="Чат-бот заполнитель поля",
@@ -443,6 +566,10 @@ class FillableField(models.Model):
     class Meta:
         verbose_name = "Заполняемое поле"
         verbose_name_plural = "Заполняемые поля"
+
+    @staticmethod
+    def get_by_chatbot(chatbot_id: int) -> QuerySet[FillableField]:
+        return FillableField.objects.filter(chatbot_id=chatbot_id)
 
 
 class AmoChatCreateConfig(models.Model):

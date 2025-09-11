@@ -1,4 +1,5 @@
 import datetime
+from typing import Literal
 
 from celery import shared_task
 
@@ -9,13 +10,11 @@ from amo.utils import amo_api
 from amo.utils import amo_fields
 from amo.utils import amo_leads
 from amo.utils import amo_messages
-from amo.utils import amo_reports
 from amo.utils import amo_transcriptions
 from amo.utils import ai_answer_using
 from amo.utils import chatbot_lead_pair_defining
 from amo.utils.ai import answers
 from amo.utils.ai import fields_recognition
-# from amo.utils.ai import isolated_check
 from chat_bot.utils import avito_api
 from utils import increasing_delay
 from utils.logging import TraceLogger
@@ -308,19 +307,25 @@ def generate_ai_answer(
         transcriptions = amo_transcriptions.get_transcriptions_for_voice_messages(task.account, messages, tlogger=tlogger)
         messages_ai_format = [answers.amo_message_to_gpt_format(message, transcriptions) for message in messages]
 
-        answer, tokens_prompt1, tokens_completion1 = answers.generate_answer(
+        fillable_fields = list(amo.models.FillableField.get_by_chatbot(task.chatbot.pk))
+        entities_fields_values, tokens_prompt1, tokens_completion1 = fields_recognition.recognize_fields(
+            account=task.account,
+            messages=messages_ai_format,
+            fillable_fields=fillable_fields,
+            tlogger=tlogger,
+        )
+
+        _update_known_fields_values(
+            known_fields_values=known_info,
+            lead_fields_values=entities_fields_values["lead"],
+            contact_fields_values=entities_fields_values["contact"],
+        )
+
+        answer, tokens_prompt2, tokens_completion2 = answers.generate_answer(
             account=task.account,
             chatbot=task.chatbot,
             messages=messages_ai_format,
             known_info=known_info,
-            tlogger=tlogger,
-        )
-
-        fillable_fields = list(amo.models.FillableField.objects.filter(chatbot=task.chatbot))
-        entities_fields_values, tokens_prompt2, tokens_completion2 = fields_recognition.recognize_fields(
-            account=task.account,
-            messages=messages_ai_format,
-            fillable_fields=fillable_fields,
             tlogger=tlogger,
         )
 
@@ -507,3 +512,27 @@ def _find_diameters(messages: list[ResponseInputItemParam]) -> list[str]:
             diameters.append(diameter.group().strip("RrРр "))
 
     return diameters
+
+
+def _update_known_fields_values(
+    known_fields_values: dict[str, list[str]],
+    lead_fields_values: dict[str, str | list[str] | None] | None,
+    contact_fields_values: dict[str, str | list[str] | None] | None,
+) -> None:
+
+    def add_field(entity: Literal["Сделка", "Контакт"], field: str, value: str | list[str] | None):
+        value_formatted = None
+
+        if isinstance(value, str):
+            value_formatted = [value]
+        elif isinstance(value, list):
+            value_formatted = value
+
+        if value_formatted is not None:
+            known_fields_values[entity + "." + field] = value_formatted
+
+    for field, value in (lead_fields_values or {}).items():
+        add_field("Сделка", field, value)
+
+    for field, value in (contact_fields_values or {}).items():
+        add_field("Контакт", field, value)

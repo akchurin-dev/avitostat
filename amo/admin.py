@@ -7,6 +7,7 @@ import urllib.parse
 
 import amo.models
 import amo.schemas
+import amo.tasks
 import amo_a5client.models
 from base import settings
 
@@ -82,6 +83,14 @@ class AmoAccountAdmin(admin.ModelAdmin):
 
         return qs
 
+    def actualize_amo_fields(self, request, queryset: QuerySet[amo.models.AmoAccount]) -> None:
+        accounts_ids: list[int] = [account.amo_id for account in queryset]
+        amo.tasks.actualize_amo_fields.delay(accounts_ids)
+        # amo.tasks.actualize_amo_fields(accounts_ids)
+    actualize_amo_fields.short_description = "Обновить Amo-поля"  # type: ignore
+
+    actions = [actualize_amo_fields]
+
 
 @admin.register(amo.models.AmoOrigin)
 class AmoOriginAdmin(admin.ModelAdmin):
@@ -99,7 +108,12 @@ class AmoOriginAdmin(admin.ModelAdmin):
 
 class FillableFieldInline(admin.TabularInline):
     model = amo.models.FillableField
-    fields = ["name", "entity", "required_for_qualification", "isolated_check", "description"]
+    fields = [
+        "name",
+        "entity",
+        "required_for_qualification",
+        "description",
+    ]
     extra = 0
 
 

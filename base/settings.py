@@ -311,6 +311,10 @@ if ENVIRONMENT == 'PRODUCTION':
             'task': 'avito_account.tasks.actualize_avito_items',
             'schedule': crontab(hour='0', minute='0'),
         },
+        'amo_fields_actualizing': {
+            'task': 'amo.tasks.actualize_amo_fields',
+            'schedule': crontab(hour='0', minute='0'),
+        }
     }
 else:
     CELERY_BEAT_SCHEDULE = {
