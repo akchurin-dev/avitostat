@@ -81,7 +81,7 @@ def get_lead_chat(account: amo.models.AmoAccount, lead_id: int, tlogger: TraceLo
     # message_events = [e for e in message_events if e["data"]["dialog"]["id"] in lead_talks]
 
     messages: list[Message] = []
-    now = datetime.now()
+    now = datetime.now(timezone.utc)
 
     for event in message_events:
         created_at = datetime.fromtimestamp(event["data"]["created_at"], timezone.utc)
