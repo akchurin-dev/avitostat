@@ -5,6 +5,7 @@ from typing import Iterable
 
 from django.contrib.auth.models import User
 from django.db import models
+from django.db.models import Manager
 from django.db.models import QuerySet
 
 import chat_bot.base_models
@@ -445,7 +446,7 @@ class AmoField(models.Model):
         null=True,
     )
 
-    enums: Iterable[AmoFieldEnum]
+    amofieldenum_set: Manager[AmoFieldEnum]
     enum = models.BooleanField(
         verbose_name="Является справочником",
     )
@@ -455,6 +456,10 @@ class AmoField(models.Model):
         verbose_name_plural = "Амо-поля"
 
         unique_together = ["account", "amo_id"]
+
+    @property
+    def enums(self) -> list[AmoFieldEnum]:
+        return list(self.amofieldenum_set.all())
 
     def __str__(self):
         return self.entity + "." + self.name + f" ({self.type})"
@@ -493,7 +498,6 @@ class AmoFieldEnum(models.Model):
         verbose_name="Поле",
         to=AmoField,
         on_delete=models.CASCADE,
-        related_name="enums",
     )
 
     amo_id = models.BigIntegerField(
