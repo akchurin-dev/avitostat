@@ -459,9 +459,7 @@ def _get_images_ai_input(messages: list[ResponseInputItemParam]) -> list[Respons
                 },
                 {
                     "type": "input_image",
-                    "image_url": {
-                        "url": images_urls[0],
-                    },
+                    "image_url": images_urls[0],
                     "detail": "low",
                 },
             ],
