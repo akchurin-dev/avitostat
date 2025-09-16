@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import datetime
+from typing import Iterable
 
 from django.contrib.auth.models import User
 from django.db import models
@@ -444,6 +445,7 @@ class AmoField(models.Model):
         null=True,
     )
 
+    enums: Iterable[AmoFieldEnum]
     enum = models.BooleanField(
         verbose_name="Является справочником",
     )

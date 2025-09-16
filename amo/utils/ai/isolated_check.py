@@ -75,7 +75,7 @@ def find_value(
     chatbot: amo.models.AmoChatBot,
     messages: list[ResponseInputItemParam],
     fillable_field: amo.models.FillableField,
-    amo_field: amo_api.Field | None,
+    amo_field: amo.models.AmoField | None,
     *,
     tlogger: TraceLogger,
 ) -> tuple[Any, TokensUsage]:
@@ -122,7 +122,7 @@ def get_ai_input(
     return ai_input
 
 
-def get_text_format(fillable_field: amo.models.FillableField, amo_field: amo_api.Field | None) -> ResponseTextConfigParam:
+def get_text_format(fillable_field: amo.models.FillableField, amo_field: amo.models.AmoField | None) -> ResponseTextConfigParam:
     return {
         "format": {
             "type": "json_schema",

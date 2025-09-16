@@ -8,7 +8,7 @@ from typing import NamedTuple
 import pydantic
 from pydantic import BaseModel
 
-from amo import models as amo_models
+import amo.models
 from amo.utils import amo_tokens
 from utils.logging import TraceLogger
 from utils import httpx_helper
@@ -18,6 +18,15 @@ class EntityEnum(Enum):
     CONTACTS = "contacts"
     COMPANIES = "companies"
     LEADS = "leads"
+
+    @property
+    def db_value(self) -> str:
+        if self == EntityEnum.CONTACTS:
+            return amo.models.AmoEntity.CONTACT  # type: ignore
+        elif self == EntityEnum.LEADS:
+            return amo.models.AmoEntity.LEAD  # type: ignore
+        else:
+            raise ValueError(f"Unexpected value, got {self}")
 
 
 class Account(BaseModel):
@@ -77,7 +86,7 @@ class CreatedMessage(BaseModel):
     dialog: CreatedMessageDialog
 
 
-def send_message(account: amo_models.AmoAccount, chat_id: str, text: str, tlogger: TraceLogger) -> CreatedMessage:
+def send_message(account: amo.models.AmoAccount, chat_id: str, text: str, tlogger: TraceLogger) -> CreatedMessage:
     action = f"/v1/chats/{account.amojo_id}/{chat_id}/messages"
 
     data = {
@@ -120,7 +129,7 @@ class Lead(CustomFieldsContainer):
     contacts_ids: list[int] | None = None
 
 
-def get_lead(account: amo_models.AmoAccount, lead_id: int | str, with_contacts: bool = True, *, tlogger: TraceLogger) -> Lead:
+def get_lead(account: amo.models.AmoAccount, lead_id: int | str, with_contacts: bool = True, *, tlogger: TraceLogger) -> Lead:
     action = f"/api/v4/leads/{lead_id}"
 
     params = {}
@@ -146,7 +155,7 @@ def get_lead(account: amo_models.AmoAccount, lead_id: int | str, with_contacts: 
     return Lead.model_validate(data)
 
 
-def create_lead(account: amo_models.AmoAccount, contact_id: int, *, tlogger: TraceLogger) -> int:
+def create_lead(account: amo.models.AmoAccount, contact_id: int, *, tlogger: TraceLogger) -> int:
     """ https://www.amocrm.ru/developers/content/crm_platform/leads-api#leads-add """
 
     action = "/api/v4/leads"
@@ -232,7 +241,7 @@ class Contact(CustomFieldsContainer):
     lead_ids: list[int] | None = None
 
 
-def get_contact(account: amo_models.AmoAccount, contact_id: int | str, with_leads: bool = False, *, tlogger: TraceLogger) -> Contact | None:
+def get_contact(account: amo.models.AmoAccount, contact_id: int | str, with_leads: bool = False, *, tlogger: TraceLogger) -> Contact | None:
     """ https://www.amocrm.ru/developers/content/crm_platform/contacts-api#contact-detail """
 
     action = f"/api/v4/contacts/{contact_id}"
@@ -271,7 +280,7 @@ class PipelineStatus(BaseModel):
     pipeline_name: str
 
 
-def get_pipelines_statuses(account: amo_models.AmoAccount, *, tlogger: TraceLogger) -> list[PipelineStatus]:
+def get_pipelines_statuses(account: amo.models.AmoAccount, *, tlogger: TraceLogger) -> list[PipelineStatus]:
     action = "/api/v4/leads/pipelines"
 
     response = openapi_request_by_account(
@@ -297,7 +306,7 @@ def get_pipelines_statuses(account: amo_models.AmoAccount, *, tlogger: TraceLogg
     return statuses
 
 
-def get_pipeline_statuses(account: amo_models.AmoAccount, pipeline_id: int | str, *, tlogger: TraceLogger) -> list[PipelineStatus]:
+def get_pipeline_statuses(account: amo.models.AmoAccount, pipeline_id: int | str, *, tlogger: TraceLogger) -> list[PipelineStatus]:
     action = f"/api/v4/leads/pipelines/{pipeline_id}"
 
     response = openapi_request_by_account(account, "GET", action, tlogger=tlogger)
@@ -331,7 +340,7 @@ class Field(BaseModel):
     enums: list[FieldEnum] | None = None
 
 
-def create_text_field(account: amo_models.AmoAccount, entity: EntityEnum, name: str, *, tlogger: TraceLogger) -> Field:
+def create_text_field(account: amo.models.AmoAccount, entity: EntityEnum, name: str, *, tlogger: TraceLogger) -> Field:
     """ https://www.amocrm.ru/developers/content/crm_platform/custom-fields#Создание-дополнительных-полей-сущности """
 
     action = f"/api/v4/{entity.value}/custom_fields"
@@ -353,7 +362,7 @@ def create_text_field(account: amo_models.AmoAccount, entity: EntityEnum, name: 
     return Field.model_validate(response.json())
 
 
-def get_fields(account: amo_models.AmoAccount, entity: EntityEnum, *, tlogger: TraceLogger) -> list[Field]:
+def get_fields(account: amo.models.AmoAccount, entity: EntityEnum, *, tlogger: TraceLogger) -> list[Field]:
     """ https://www.amocrm.ru/developers/content/crm_platform/custom-fields#Список-полей-сущности """
 
     action = f"/api/v4/{entity.value}/custom_fields"
@@ -403,7 +412,7 @@ def get_sources(account_id: int, *, tlogger: TraceLogger) -> list[Source]:
 
 
 def openapi_request_by_account(
-    account: amo_models.AmoAccount,
+    account: amo.models.AmoAccount,
     method: httpx_helper.MethodType,
     action: str,
     params: dict | None = None,
@@ -439,7 +448,7 @@ def _request_with_token(
     *,
     tlogger: TraceLogger,
 ):
-    account = amo_models.AmoAccount.objects.get(domain=domain)
+    account = amo.models.AmoAccount.objects.get(domain=domain)
     headers = httpx_helper.add_bearer(headers, account.access_token)
 
     response = httpx_helper.request(
@@ -485,7 +494,7 @@ def _request_with_csrf(
     *,
     tlogger: TraceLogger,
 ):
-    account = amo_models.AmoAccount.objects.get(amo_id=account_id)
+    account = amo.models.AmoAccount.objects.get(amo_id=account_id)
 
     url = "https://" + account.domain + action
 
@@ -537,7 +546,7 @@ def _request_with_csrf(
 
 
 def _amojo_request(
-    account: amo_models.AmoAccount,
+    account: amo.models.AmoAccount,
     method: httpx_helper.MethodType,
     action: str,
     params: dict | None = None,

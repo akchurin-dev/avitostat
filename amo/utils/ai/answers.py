@@ -156,10 +156,11 @@ def _get_ai_input(
             "role": "system",
             "content": base_prompt + "\n\n\n" + _get_prompt(account, chatbot, messages, tlogger=tlogger),
         },
+        *_get_images_ai_input(messages),
         {
             "role": "user",
-            "content": user_prompt
-        }
+            "content": user_prompt,
+        },
     ]
 
     return ai_input
@@ -283,10 +284,11 @@ def get_fillable_field_amo_field_pairs(
     entity: amo_api.EntityEnum,
     *,
     tlogger: TraceLogger,
-) -> list[tuple[amo.models.FillableField, amo_api.Field | None]]:
+) -> list[tuple[amo.models.FillableField, amo.models.AmoField | None]]:
 
-    all_amo_fields = amo_api.get_fields(account, entity, tlogger=tlogger)
-    fillable_field_amo_field_pairs: list[tuple[amo.models.FillableField, amo_api.Field | None]] = []
+    # all_amo_fields = amo_api.get_fields(account, entity, tlogger=tlogger)
+    all_amo_fields = amo.models.AmoField.get_fields_by_account(account.amo_id, entity.db_value)
+    fillable_field_amo_field_pairs: list[tuple[amo.models.FillableField, amo.models.AmoField | None]] = []
 
     for fillable_field in fillable_fields:
         if entity == amo_api.EntityEnum.LEADS and fillable_field.entity != amo.models.AmoEntity.LEAD:
@@ -301,15 +303,13 @@ def get_fillable_field_amo_field_pairs(
     return fillable_field_amo_field_pairs
 
 
-def get_field_schema(amo_field: amo_api.Field | None, fillable_field: amo.models.FillableField) -> dict:
+def get_field_schema(amo_field: amo.models.AmoField | None, fillable_field: amo.models.FillableField) -> dict:
     schema = {
         "type": ["string", "null"],
         "description": fillable_field.description,
     }
 
     if amo_field and amo_field.type in amo_fields.ENUM_TYPES:
-        assert amo_field.enums is not None
-
         enum_values = [
             field_enum.value
                 for field_enum in amo_field.enums
@@ -430,8 +430,47 @@ def _add_chatbot_prompt(
     return prompt + chatbot_prompt
 
 
+def _get_images_ai_input(messages: list[ResponseInputItemParam]) -> list[ResponseInputItemParam]:
+    images_ai_input: list[ResponseInputItemParam] = []
+    images_count = 0
+
+    for msg in messages:
+        role = msg.get("role")
+        if role is None:
+            continue
+
+        content = msg.get("content")
+        if content is None or isinstance(content, str):
+            continue
+
+        images_urls = [image_url for content_item in content if (image_url := content_item.get("image_url"))]
+
+        if len(images_urls) == 0:
+            continue
+
+        images_count += 1
+
+        images_ai_input.append(EasyInputMessageParam({
+            "role": "user" if role == "user" else "assistant",
+            "content": [
+                {
+                    "type": "input_text",
+                    "text": f"Изображение {images_count}",
+                },
+                {
+                    "type": "input_image",
+                    "image_url": images_urls[0],
+                    "detail": "low",
+                },
+            ],
+        }))
+
+    return images_ai_input
+
+
 def _get_dialog_str(messages: list[ResponseInputItemParam]) -> str:
     replics: list[str] = []
+    images_count = 0
 
     for msg in messages:
         role = msg.get("role")
@@ -442,10 +481,19 @@ def _get_dialog_str(messages: list[ResponseInputItemParam]) -> str:
         if author is None:
             continue
 
-        text = "<Не текстовое сообщение>"
         content = msg.get("content")
+        if content is None:
+            continue
+
+        text: str
+
         if isinstance(content, str):
             text = content
+        elif any(content_item.get("image_url") for content_item in content):
+            images_count += 1
+            text = f"<Изображение {images_count}>"
+        else:
+            text = "<Не текстовое сообщение>"
 
         replics.append(author + ": " + text)
 

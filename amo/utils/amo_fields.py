@@ -1,4 +1,6 @@
+from typing import Iterable
 from typing import NamedTuple
+from typing import TypeVar
 
 import amo.models
 from amo.utils import amo_api
@@ -26,6 +28,9 @@ ENUM_EMPTY_VALUES = {
 }
 
 
+FieldUnion = TypeVar("FieldUnion", amo_api.Field, amo.models.AmoField)
+
+
 def update_entity_fields(
     account: amo.models.AmoAccount,
     entity: amo_api.EntityEnum,
@@ -35,7 +40,8 @@ def update_entity_fields(
     tlogger: TraceLogger,
 ) -> None:
 
-    fields = amo_api.get_fields(account, entity, tlogger=tlogger)
+    # fields = amo_api.get_fields(account, entity, tlogger=tlogger)
+    fields = amo.models.AmoField.get_fields_by_account(account.amo_id, entity.db_value)
 
     custom_fields_values = []
 
@@ -44,6 +50,10 @@ def update_entity_fields(
             continue
 
         field = find_text_field(field_name, fields, tlogger=tlogger)
+
+        if field is None:
+            tlogger.error("Field not found")
+            continue
 
         if field and field.type in ENUM_TYPES:
             if isinstance(value, str) and value in ENUM_EMPTY_VALUES:
@@ -54,17 +64,14 @@ def update_entity_fields(
                 if len(value) == 0:
                     continue
 
-        if field is None:
-            field = amo_api.create_text_field(account, entity, field_name, tlogger=tlogger)
-
         if isinstance(value, str):
             custom_fields_values.append({
-                "field_id": field.id,
+                "field_id": field.amo_id,
                 "values": [{"value": value}]
             })
         elif isinstance(value, list):
             custom_fields_values.append({
-                "field_id": field.id,
+                "field_id": field.amo_id,
                 "values": [{"value": v} for v in value]
             })
 
@@ -82,7 +89,7 @@ def update_entity_fields(
     })
 
 
-def find_text_field(name: str, fields: list[amo_api.Field], *, tlogger: TraceLogger) -> amo_api.Field | None:
+def find_text_field(name: str, fields: Iterable[FieldUnion], *, tlogger: TraceLogger) -> FieldUnion | None:
     for field in fields:
         if field.name != name:
             continue
@@ -133,7 +140,7 @@ def get_empty_fields(
     instance: amo_api.CustomFieldsContainer,
     *,
     tlogger: TraceLogger,
-) -> list[amo_api.Field]:
+) -> list[amo.models.AmoField]:
 
     entity: amo_api.EntityEnum | None = None
 
@@ -146,9 +153,10 @@ def get_empty_fields(
     if entity is None:
         raise ValueError(f"Unsupportable type, got {type(instance)}")
 
-    all_fields = amo_api.get_fields(account, entity, tlogger=tlogger)
+    # all_fields = amo_api.get_fields(account, entity, tlogger=tlogger)
+    all_fields = amo.models.AmoField.get_fields_by_account(account.amo_id, entity.db_value)
     filled_fields_ids = {field_value.field_id for field_value in get_filled_fields(instance)}
-    empty_fields = [field for field in all_fields if field.id not in filled_fields_ids]
+    empty_fields = [field for field in all_fields if field.amo_id not in filled_fields_ids]
 
     tlogger.info(f"Found {len(empty_fields)} unknown fields")
 
