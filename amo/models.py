@@ -489,7 +489,7 @@ class AmoField(models.Model):
 
     @staticmethod
     def get_fields_by_account(account_id: int, entity: str) -> QuerySet[AmoField]:
-        return AmoField.objects.filter(account_id=account_id, entity=entity).prefetch_related("enums")
+        return AmoField.objects.filter(account_id=account_id, entity=entity).prefetch_related("amofieldenum_set")
 
 
 class AmoFieldEnum(models.Model):
