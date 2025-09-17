@@ -20,6 +20,7 @@ from amo.utils.amo_messages import MessageTypeEnum
 from amo.utils.amo_transcriptions import TranscriptionsForMessages
 from chat_bot.ai_utils import use_gpt_flag
 from prompts import prompts
+from utils import httpx_helper
 from utils.logging import TraceLogger
 from utils.miscellaneous import datetime_now_msk
 from utils.openai_helper import openai_request
@@ -450,20 +451,21 @@ def _get_images_ai_input(messages: list[ResponseInputItemParam]) -> list[Respons
 
         images_count += 1
 
-        images_ai_input.append(EasyInputMessageParam({
-            "role": "user" if role == "user" else "assistant",
-            "content": [
-                {
-                    "type": "input_text",
-                    "text": f"Изображение {images_count}",
-                },
-                {
-                    "type": "input_image",
-                    "image_url": images_urls[0],
-                    "detail": "low",
-                },
-            ],
-        }))
+        if httpx_helper.request("HEAD", images_urls[0]).is_success:
+            images_ai_input.append(EasyInputMessageParam({
+                "role": "user" if role == "user" else "assistant",
+                "content": [
+                    {
+                        "type": "input_text",
+                        "text": f"Изображение {images_count}",
+                    },
+                    {
+                        "type": "input_image",
+                        "image_url": images_urls[0],
+                        "detail": "low",
+                    },
+                ],
+            }))
 
     return images_ai_input
 

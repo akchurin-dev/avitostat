@@ -5,7 +5,7 @@ import httpx
 from utils.logging import TraceLogger
 
 
-MethodType = Literal["GET", "POST", "PATCH", "DELETE"]
+MethodType = Literal["GET", "POST", "PATCH", "DELETE", "HEAD"]
 
 DEFAULT_TIMEOUT = httpx.Timeout(15, pool=None)
 
