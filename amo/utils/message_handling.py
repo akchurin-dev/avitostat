@@ -51,19 +51,6 @@ def handle_new_message_webhook(request_data: dict, *, tlogger: TraceLogger) -> N
         tlogger.info({"Error when parse amo new message webhook request data": dict(request_data)})
         raise
 
-    # if origin == amo_a5client.config.ORIGIN_NAME:
-    #     tlogger.info("Handle Amo as a5client")
-    #     amo_a5client.handle_message_from_amo(
-    #         amo_account_id=account_id,
-    #         contact_id=contact_id,
-    #         lead_id=lead_id,
-    #         message_created_at_timestamp=message_created_at_timestamp,
-    #         text=text,
-    #         attachment_type=attachment_type,
-    #         tlogger=tlogger,
-    #     )
-    #     return
-
     wait_sec = 0
     tlogger.info(f"Wait for {wait_sec} sec")
 

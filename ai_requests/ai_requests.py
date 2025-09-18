@@ -62,13 +62,14 @@ def create(
     tlogger: TraceLogger,
 ) -> AIRequest:
 
-    tlogger.info(
-        f"Request to gpt '{model}': "
-        f"tokens_completion={tokens_completion}; "
-        f"tokens_prompt={tokens_prompt}; "
-        f"completion_detailt={completion_detail}; "
-        f"prompt_detail={prompt_detail}"
-    )
+    msg = f"Request to gpt '{model}': " + "; ".join(k + "=" + str(v) for k, v in [
+        ("tokens_completion", tokens_completion),
+        ("tokens_prompt", tokens_prompt),
+        ("completion_detail", completion_detail),
+        ("prompt_detail", prompt_detail),
+        ("tag", tag),
+    ])
+    tlogger.info(msg)
 
     return AIRequest.objects.create(
         tag=tag,

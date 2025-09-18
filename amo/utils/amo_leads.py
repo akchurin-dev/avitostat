@@ -62,7 +62,12 @@ def get_open_leads_by_contact(
         if advised_lead.status_id is not None and amo_pipelines.status_opened(advised_lead.status_id):
             open_leads.append(advised_lead)
 
-    tlogger.info(f"Open leads: {[lead.id for lead in open_leads]}")
+    tlogger.info({"Open leads": [
+        {
+            "lead_id": lead.id,
+            "pipeline_id": lead.pipeline_id,
+        } for lead in open_leads
+    ]})
 
     return open_leads
 

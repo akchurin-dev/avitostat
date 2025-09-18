@@ -12,6 +12,7 @@ class TokensCoast(NamedTuple):
 MODELS_TO_COASTS: dict[str, TokensCoast] = {
     "gpt-4.1-2025-04-14": TokensCoast(2, 8),
     "gpt-4o-2024-08-06": TokensCoast(5, 20),
+    "gpt-5-2025-08-07": TokensCoast(1.25, 10),
 }
 
 

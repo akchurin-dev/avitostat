@@ -12,7 +12,8 @@ from utils.logging import TraceLogger
 
 
 AI_RETRIES = 3
-MODEL = "gpt-4.1-2025-04-14"
+# MODEL = "gpt-4.1-2025-04-14"
+MODEL = "gpt-5-2025-08-07"
 
 client = OpenAI(api_key=settings.OPENAI_SECRET_KEY)
 
