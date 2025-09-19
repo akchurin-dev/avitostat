@@ -1,13 +1,16 @@
-import datetime
-import json
+from __future__ import annotations
+
+from datetime import date
+from datetime import datetime
 from typing import Literal
+from typing import NamedTuple
 # from typing import TypedDict
+from typing_extensions import TypedDict
 
 import httpx
-from httpx import HTTPStatusError
-from loguru import logger
-from typing import NamedTuple
-from typing_extensions import TypedDict
+from pydantic import BaseModel
+from pydantic import Field
+from pydantic import TypeAdapter
 
 from avito_account.models.models import AvitoAccount
 from base import settings
@@ -67,9 +70,23 @@ class ChatListPage(NamedTuple):
     has_more: bool
 
 
+class CallsStatisticsItem(BaseModel):
+    employee_id: int = Field(alias="employeeId")
+    item_id: int = Field(alias="itemId")
+    days: list[CallsStatisticsItemDay]
+
+
+class CallsStatisticsItemDay(BaseModel):
+    answered: int
+    calls: int
+    date: date
+    new: int
+    new_answered: int = Field(alias="newAnswered")
+
+
 def timestamp_in_period(timestamp: int, period: str = "week") -> bool:
-    start = datetime.datetime.fromtimestamp(timestamp)
-    end = datetime.datetime.now()
+    start = datetime.fromtimestamp(timestamp)
+    end = datetime.now()
     delta = end - start
     if period == "day":
         if delta.days <= 1:
@@ -195,19 +212,23 @@ def get_chat_last_50_messages_by_chat_id(
     }
 
 
-def get_calls_statistic_last_week(account: AvitoAccount, *, tlogger: TraceLogger):
+def get_calls_statistic_last_week(account: AvitoAccount, *, tlogger: TraceLogger) -> list[CallsStatisticsItem]:
     action = f"/core/v1/accounts/{account.pk}/calls/stats/"
 
     iso_date_from, iso_date_to = iso_dates_for_period_without_extra_reserve(period="week")
-    data = {
+    request_data = {
         "dateFrom": f"{iso_date_from}",
         "dateTo": f"{iso_date_to}",
     }
 
-    response = avito_api_request("POST", action, account, json=data, tlogger=tlogger)
+    response = avito_api_request("POST", action, account, json=request_data, tlogger=tlogger)
     response.raise_for_status()
+    response_data = response.json()
 
-    return response.json()
+    result: dict = response_data["result"]
+    items: list[dict] = result.get("items", [])
+
+    return TypeAdapter(list[CallsStatisticsItem]).validate_python(items)
 
 
 def get_voice_id_url_pairs(

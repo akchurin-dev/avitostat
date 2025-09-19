@@ -69,7 +69,7 @@ async def get_messaging_report_data(
             analyze_all_chats["statistics_total"] = statistics_total
 
         statistics_new = await get_text_statistics_report(avito_account=avito_account, period=period)
-        calls_unique_users = await get_calls_count_unique_numbers_last_week(avito_account)
+        calls_unique_users = get_calls_count_unique_numbers_last_week(avito_account, tlogger=tlogger)
         if statistics_new:
             analyze_all_chats["contacts"] = {
                 "total": (len(all_chats) + calls_unique_users) or 0,
