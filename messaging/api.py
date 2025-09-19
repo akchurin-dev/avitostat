@@ -182,6 +182,9 @@ def get_chat_last_50_messages_by_chat_id(
     if response.status_code != 402 or raise_if_payment_required_error:
         response.raise_for_status()
 
+    if response.is_error:
+        return {"id": chat_id}
+
     messages = response.json().get("messages")[::-1]
     messages = _filter_messages(messages)
     _print_chat(messages, tlogger=tlogger)
