@@ -26,7 +26,7 @@ class ChatWithManagerName(messaging.api.Chat):
 async def get_ready_chats(avito_account: AvitoAccount, period: str = "week") -> tuple[list, list]:
     chats = list(messaging.api.get_chats(avito_account, period=period))
     chats = filter_chats_for_last_period(chats, period)
-    messaging.api.add_messages_to_chats(avito_account, chats, tlogger=TraceLogger())
+    messaging.api.add_messages_to_chats(avito_account, chats, raise_if_payment_required_error=False, tlogger=TraceLogger())
     chats_with_manager = adding_manager_info_for_chats(chats)
     chats_with_manager = filter_chats_only_with_text(chats_with_manager)
     chats_with_manager = await schedule_filter_chats(chats_with_manager, avito_account)
