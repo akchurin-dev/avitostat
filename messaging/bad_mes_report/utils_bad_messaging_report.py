@@ -104,7 +104,7 @@ async def get_messaging_report_data(
         tokens = await get_tokens_information(analyze_by_criteria_raw_res, tlogger=tlogger)
 
     if analyze_all_chats:
-        analyze_all_chats = await chats_timestamp_to_datetime(analyze_all_chats)
+        analyze_all_chats = chats_timestamp_to_datetime(analyze_all_chats)
 
     if for_api and analyze_all_chats:  # Этот блок кода чтобы облегчить жэсонины
         await api_report_data_generation(analyze_all_chats, avito_account)
@@ -152,7 +152,7 @@ async def add_start_end_dates(analyze_all_chats, period: str) -> dict:
     return analyze_all_chats
 
 
-async def chats_timestamp_to_datetime(analyze_all_chats):
+def chats_timestamp_to_datetime(analyze_all_chats):
     try:
         msk_tz = get_tz(utc_offset_hours=3)
 

@@ -128,13 +128,20 @@ def get_chat_list_page(account: AvitoAccount, offset: int, limit: int = 50, *, t
     )
 
 
-def get_chats_last_50_messages(avito_account: AvitoAccount, chats: list[Chat], *, tlogger: TraceLogger) -> list[Chat]:
+def add_messages_to_chats(
+    avito_account: AvitoAccount,
+    chats: list[Chat],
+    raise_if_payment_required_error: bool = True,
+    *,
+    tlogger: TraceLogger,
+) -> None:
+
     for chat in chats:
         chat_id = chat.get("id", "")
-        chat_with_messages = get_chat_last_50_messages_by_chat_id(avito_account, chat_id, tlogger=tlogger)
-        chat["messages"] = chat_with_messages.get("messages", [])
-
-    return chats
+        chat_with_messages = get_chat_last_50_messages_by_chat_id(avito_account, chat_id, raise_if_payment_required_error, tlogger=tlogger)
+        messages = chat_with_messages.get("messages", None)
+        if messages is not None:
+            chat["messages"] = messages
 
 
 def get_chat_by_id(avito_account: AvitoAccount, chat_id: str, tlogger: TraceLogger) -> Chat:
@@ -152,7 +159,14 @@ def get_chat_by_id(avito_account: AvitoAccount, chat_id: str, tlogger: TraceLogg
     return response.json()
 
 
-def get_chat_last_50_messages_by_chat_id(avito_account: AvitoAccount, chat_id: str, *, tlogger: TraceLogger) -> Chat:
+def get_chat_last_50_messages_by_chat_id(
+    avito_account: AvitoAccount,
+    chat_id: str,
+    raise_if_payment_required_error: bool = True,
+    *,
+    tlogger: TraceLogger,
+) -> Chat:
+
     action = f"/messenger/v3/accounts/{avito_account.pk}/chats/{chat_id}/messages/"
 
     params = {"limit": 50, "offset": 0}
@@ -164,7 +178,9 @@ def get_chat_last_50_messages_by_chat_id(avito_account: AvitoAccount, chat_id: s
         params=params,
         tlogger=tlogger,
     )
-    response.raise_for_status()
+
+    if response.status_code != 402 or raise_if_payment_required_error:
+        response.raise_for_status()
 
     messages = response.json().get("messages")[::-1]
     messages = _filter_messages(messages)

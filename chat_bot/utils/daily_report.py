@@ -134,8 +134,8 @@ def get_raw_data(
     contacts_count = len(tasks_with_contact)
     # Chats with messages getting
     actual_chats = filter_chats_for_last_period(chats, period=period)
-    actual_chats_with_mes = messaging.api.get_chats_last_50_messages(avito_account, actual_chats, tlogger=tlogger)
-    only_with_text = filter_chats_only_with_text(actual_chats_with_mes)
+    messaging.api.add_messages_to_chats(avito_account, actual_chats, raise_if_payment_required_error=False, tlogger=tlogger)
+    only_with_text = filter_chats_only_with_text(actual_chats)
     bot_chats_with_messages = filter_by_bot_answered_chat_ids(only_with_text, unique_bot_chat_ids)
 
     return Statistic(

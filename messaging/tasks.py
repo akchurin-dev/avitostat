@@ -46,7 +46,7 @@ def month_report_json_getting_async_task():
 
 @celery_app.task(name='messaging.tasks.bad_messaging_week_report_async_task')
 def bad_messaging_week_report_async_task(only_for_users: list[int] | None = None, test_from_prod=False, period: str = "week"):
-    async_to_sync(bad_messaging_report_by_period)(
+    bad_messaging_report_by_period(
         only_for_users=only_for_users,
         test_from_prod=test_from_prod,
         period=period,
@@ -55,14 +55,14 @@ def bad_messaging_week_report_async_task(only_for_users: list[int] | None = None
 
 @celery_app.task(name='messaging.tasks.bad_messaging_week_report_async_task_auto_generated')
 def bad_messaging_week_report_async_task_auto_generated(only_for_users: list[int] | None = None, test_from_prod=False, auto_generated=True):
-    async_to_sync(bad_messaging_report_by_period)(
+    bad_messaging_report_by_period(
         only_for_users=only_for_users,
         test_from_prod=test_from_prod,
         auto_generated=auto_generated,
     )
 
 
-async def get_accounts_for_pdf_reports(only_for_users: list[int] | None, test_from_prod: bool):
+def get_accounts_for_pdf_reports(only_for_users: list[int] | None, test_from_prod: bool) -> tuple[list[AvitoAccount], SendingCampaign]:
     all_avito_accounts_qs = AvitoAccount.objects.filter(
         created_by__is_active=True,
         telegram_id__isnull=False,
@@ -71,9 +71,9 @@ async def get_accounts_for_pdf_reports(only_for_users: list[int] | None, test_fr
     if only_for_users:
         all_avito_accounts_qs = all_avito_accounts_qs.filter(id__in=only_for_users)
 
-    all_avito_accounts = [account async for account in all_avito_accounts_qs]
+    all_avito_accounts = list(all_avito_accounts_qs)
 
-    campaign = await SendingCampaign.objects.acreate(
+    campaign = SendingCampaign.objects.create(
         name="weekly",
         test_from_prod=test_from_prod,
         sending_type=SendingCampaign.PDF,
@@ -81,13 +81,13 @@ async def get_accounts_for_pdf_reports(only_for_users: list[int] | None, test_fr
         accounts_presented_count=len(all_avito_accounts),
     )
 
-    await campaign.accounts_presented.aadd(*all_avito_accounts_qs)
+    campaign.accounts_presented.add(*all_avito_accounts)
 
     return all_avito_accounts, campaign
 
 
 # TODO change auto_generated=False by default
-async def bad_messaging_report_by_period(
+def bad_messaging_report_by_period(
     only_for_users: list[int] | None = None,
     test_from_prod: bool = True,
     auto_generated=True,
@@ -102,7 +102,7 @@ async def bad_messaging_report_by_period(
     if settings.ENVIRONMENT == 'DEVELOPMENT':
         test_from_prod = True
 
-    accounts, campaign = await get_accounts_for_pdf_reports(
+    accounts, campaign = get_accounts_for_pdf_reports(
         only_for_users=only_for_users,
         test_from_prod=test_from_prod,
     )
@@ -121,7 +121,8 @@ def bad_messaging_report_by_period_for_account(
     test_from_prod: bool,
     auto_generated: bool,
     pdf_path: str | Path | None = None,
-):
+) -> None:
+
     account = AvitoAccount.objects.filter(pk=account_id).select_related("created_by").get()
     campaign = SendingCampaign.objects.get(pk=campaign_id)
 
@@ -143,7 +144,7 @@ def bad_messaging_report_by_period_for_account(
             if test_from_prod:
                 report_cost = 0
 
-            balance_enought = await payment.check_balance_enought(
+            balance_enought = await payment.async_check_balance_enought(
                 user=account.created_by,
                 required_amount=payment.REPORT_DEFAULT_COST,
                 raise_exception=False,

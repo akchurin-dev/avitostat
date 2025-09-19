@@ -87,7 +87,7 @@ def send_report_for_account(account_id: int, campaign_id: int, auto_generated: b
         error_message = None
 
         try:
-            await payments.check_balance_enought(
+            await payments.async_check_balance_enought(
                 user=account.created_by,
                 required_amount=payments.REPORT_DEFAULT_COST,
             )

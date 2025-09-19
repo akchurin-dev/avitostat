@@ -26,7 +26,7 @@ def history_pdf_sender_task(
     tlogger.info("History pdf sending is started")
 
     add_from_bot_flag(chat)
-    async_to_sync(chats_timestamp_to_datetime)({"chats": [chat]})
+    chats_timestamp_to_datetime({"chats": [chat]})
     avito_account = AvitoAccount.objects.get(id=avito_account_id)
     statistics = {"avito_account_name": avito_account.name, "avito_account_id": avito_account.pk, }
     html_content = get_history_html(
