@@ -98,9 +98,9 @@ def add_header(headers: dict | None, key: str, value) -> dict:
 
 
 def log_about_not_success_response(response: httpx.Response, tlogger: TraceLogger) -> None:
-    tlogger.info("Not success response")
-    tlogger.info({
-        "url": response.url,
-        "status_code": response.status_code,
-        "data": response.text[:500],
-    })
+    tlogger.info({"Not success response": [
+        ("url", response.url),
+        ("status_code", response.status_code),
+        ("response_data", response.text[:500]),
+        ("request_data", response.request.content.decode()),
+    ]})

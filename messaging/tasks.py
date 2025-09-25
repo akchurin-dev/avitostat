@@ -66,6 +66,7 @@ def get_accounts_for_pdf_reports(only_for_users: list[int] | None, test_from_pro
     all_avito_accounts_qs = AvitoAccount.objects.filter(
         created_by__is_active=True,
         telegram_id__isnull=False,
+        weekly_pdf_report=True,
     ).select_related("created_by")
 
     if only_for_users:
@@ -151,7 +152,7 @@ def bad_messaging_report_by_period_for_account(
             )
 
             if not balance_enought:
-                error = "Balance isn't enoght"
+                error = "Balance isn't enought"
                 tlogger.info(error)
                 raise Exception(error)
 

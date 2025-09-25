@@ -253,7 +253,7 @@ if ENVIRONMENT == 'PRODUCTION':
     CELERY_BEAT_SCHEDULE = {
         'bad_messaging_week_report_task': {
             'task': 'messaging.tasks.bad_messaging_week_report_async_task_auto_generated',
-            'schedule': crontab(hour='6', minute='0', day_of_week='5'),
+            'schedule': crontab(day_of_week='5', hour='6', minute='0'),
         },
 
         'send_text_report_all_async_task': {

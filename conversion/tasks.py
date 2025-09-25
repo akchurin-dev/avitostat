@@ -52,7 +52,11 @@ async def send_text_report_all_async(
     if settings.ENVIRONMENT == 'DEVELOPMENT':
         test_from_prod = True
 
-    avito_accounts_qs = AvitoAccount.objects.filter(created_by__is_active=True)
+    avito_accounts_qs = AvitoAccount.objects.filter(
+        created_by__is_active=True,
+        telegram_id__isnull=False,
+        weekly_text_report=True,
+    )
 
     if only_for_users:
         avito_accounts_qs = avito_accounts_qs.filter(id__in=only_for_users)

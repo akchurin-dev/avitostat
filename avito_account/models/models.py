@@ -83,6 +83,8 @@ class AvitoAccount(BaseModel):
     analytic_schema = models.ForeignKey(AnalyticSchema, on_delete=models.SET_NULL, null=True, blank=True,
                                         verbose_name="Схема аналитики")
     balance_alerting = models.BooleanField(default=True, verbose_name="Уведомления о заканчивающемся балансе")
+    weekly_text_report = models.BooleanField("Еженедельный текстовый отчет", default=True)
+    weekly_pdf_report = models.BooleanField("Еженедельный PDF отчет", default=True)
 
     def update_refresh_token(self):
         url = 'https://api.avito.ru/token/'
