@@ -882,6 +882,14 @@ class AmoCaseType(models.Model):
         choices=HandlingWay.choices,
     )
 
+    pipeline_status = models.ForeignKey(
+        verbose_name="Этап воронки",
+        to=AmoPipelineStatus,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+    )
+
     class Meta:
         verbose_name = "Тип проблемы"
         verbose_name_plural = "Типы проблем"
