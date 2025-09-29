@@ -852,3 +852,36 @@ class AmoPrompt(prompts.PromptBase):
     class Meta:
         verbose_name = "Amo-промпт"
         verbose_name_plural = "Amo-промпты"
+
+
+class AmoCaseType(models.Model):
+    class HandlingWay(models.TextChoices):
+        DEFAULT_PIPELINE = "DEFAULT_PIPELINE", "Стандартный пайплайн"
+        TRANSFER_TO_PIPELINE_STATUS = "TRANSFER_TO_PIPELINE_STATUS", "Переводить на другой этап"
+        IGNORE = "IGNORE", "Игнорировать"
+
+    chatbot = models.ForeignKey(
+        verbose_name="Чат-бот",
+        to=AmoChatBot,
+        on_delete=models.CASCADE,
+    )
+
+    title = models.CharField(
+        verbose_name="Название",
+        max_length=255,
+    )
+
+    description = models.TextField(
+        verbose_name="Описание",
+        blank=True,
+    )
+
+    handling_way = models.CharField(
+        verbose_name="Как обрабатывать",
+        max_length=63,
+        choices=HandlingWay.choices,
+    )
+
+    class Meta:
+        verbose_name = "Тип проблемы"
+        verbose_name_plural = "Типы проблем"

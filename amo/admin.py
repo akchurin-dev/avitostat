@@ -135,6 +135,11 @@ class AmoPromptInline(admin.StackedInline):
     extra = 0
 
 
+class AmoCaseTypeInline(admin.StackedInline):
+    model = amo.models.AmoCaseType
+    extra = 0
+
+
 @admin.register(amo.models.AmoChatBot)
 class AmoChatBotAdmin(admin.ModelAdmin):
     list_display = ["name", "account"]
@@ -143,6 +148,7 @@ class AmoChatBotAdmin(admin.ModelAdmin):
         FillableFieldInline,
         AmoPipelineStatusInline,
         AmoOriginInline,
+        AmoCaseTypeInline,
     ]
 
     def get_queryset(self, request: HttpRequest) -> QuerySet[amo.models.AmoChatBot]:
