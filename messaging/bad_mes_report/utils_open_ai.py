@@ -93,7 +93,7 @@ async def analyze_chat(account: AvitoAccount, chat):
         ],
         temperature=1.0
     )
-    await sync_to_async(ai_requests.create_from_chat_completion)(
+    await sync_to_async(ai_requests.create_from_openai_completion)(
         tag=f"Avito | {account.name} | analyze chat",
         completion=completion,
         tlogger=TraceLogger(),
@@ -177,7 +177,7 @@ async def analyze_by_criteria_chat(chat: dict, test_from_prod: bool, avito_accou
         temperature=1.0,
         tools=[openai.pydantic_function_tool(CriterionAnalyzeSchema)]
     )
-    await sync_to_async(ai_requests.create_from_chat_completion)(
+    await sync_to_async(ai_requests.create_from_openai_completion)(
         tag=f"Avito | {avito_account.name} | analyze by criteria chat",
         completion=response,
         tlogger=TraceLogger(),

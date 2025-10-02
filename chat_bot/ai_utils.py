@@ -20,9 +20,10 @@ from chat_bot.utils import messages_formating
 from base import settings
 from prompts import prompts
 from utils.logging import TraceLogger
+from utils import yandex_gpt_helper
 from utils.openai_helper import MODEL
 from utils.openai_helper import client
-from utils.openai_helper import openai_parse_request
+# from utils.openai_helper import openai_parse_request
 
 
 COMPANY_BRANCH_KEy = "nearest_company_branch"
@@ -95,28 +96,25 @@ def generate_answer_and_parse_contacts(
 
     assert ai_assistant.account
 
-    # response = client.beta.chat.completions.parse(
-    #     model=MODEL,
-    #     messages=_get_messages_for_gpt(ai_assistant, chat, extract_contacts_only=False, tlogger=tlogger),
-    #     response_format=_get_schema(ai_assistant.account, ask_location, ChatBotAnswerSchema),
-    #     max_tokens=2000,
-    #     timeout=30,
-    # )
-    # ai_requests.create_from_chat_completion(
+    # response = openai_parse_request(
+    #     input=_get_messages_for_gpt(ai_assistant, chat, extract_contacts_only=False, tlogger=tlogger),
+    #     text_format=_get_schema(ai_assistant.account, ask_location, ChatBotAnswerSchema),
+    #     max_output_tokens=2000,
     #     tag=f"Avito | {ai_assistant.account.name} | generate answer and parse contacts",
-    #     completion=response,
     #     tlogger=tlogger,
     # )
 
-    response = openai_parse_request(
-        input=_get_messages_for_gpt(ai_assistant, chat, extract_contacts_only=False, tlogger=tlogger),
-        text_format=_get_schema(ai_assistant.account, ask_location, ChatBotAnswerSchema),
-        max_output_tokens=2000,
+    # return parse_response(response)
+
+    response, _ = yandex_gpt_helper.parse_completion(
+        messages=_get_messages_for_gpt(ai_assistant, chat, extract_contacts_only=False, tlogger=tlogger),
+        model=_get_schema(ai_assistant.account, ask_location, ChatBotAnswerSchema),
+        max_tokens=2000,
         tag=f"Avito | {ai_assistant.account.name} | generate answer and parse contacts",
         tlogger=tlogger,
     )
 
-    return parse_response(response)
+    return parse_response(response.alternatives[0].message.text, response.usage.input_text_tokens, response.usage.completion_tokens)
 
 
 def parse_contacts(
@@ -130,30 +128,31 @@ def parse_contacts(
     if not use_gpt_flag():
         return AIAnswerWithContacts.model_validate({})
 
-    # response = client.beta.chat.completions.parse(
-    #     model=MODEL,
-    #     messages=_get_messages_for_gpt(chatbot, chat, extract_contacts_only=True, tlogger=tlogger),
-    #     response_format=_get_schema(chatbot.account, ask_location, ClientContactsSchema),
-    # )
-    # ai_requests.create_from_chat_completion(
+    # response = openai_parse_request(
+    #     input=_get_messages_for_gpt(chatbot, chat, extract_contacts_only=True, tlogger=tlogger),
+    #     text_format=_get_schema(chatbot.account, ask_location, ClientContactsSchema),
     #     tag=f"Avito | {chatbot.account.name} | parse contacts",
-    #     completion=response,
     #     tlogger=tlogger,
     # )
 
-    response = openai_parse_request(
-        input=_get_messages_for_gpt(chatbot, chat, extract_contacts_only=True, tlogger=tlogger),
-        text_format=_get_schema(chatbot.account, ask_location, ClientContactsSchema),
+    # return parse_response(response)
+
+    response, _ = yandex_gpt_helper.parse_completion(
+        messages=_get_messages_for_gpt(chatbot, chat, extract_contacts_only=True, tlogger=tlogger),
+        model=_get_schema(chatbot.account, ask_location, ClientContactsSchema),
         tag=f"Avito | {chatbot.account.name} | parse contacts",
         tlogger=tlogger,
     )
 
-    return parse_response(response)
+    return parse_response(
+        json_str=response.alternatives[0].message.text,
+        input_tokens=response.usage.input_text_tokens,
+        output_tokens=response.usage.completion_tokens,
+    )
 
 
-# def parse_response(response: ParsedChatCompletion) -> AIAnswerWithContacts:
-def parse_response(response: Response) -> AIAnswerWithContacts:
-    data: dict = json.loads(response.output_text)
+def parse_response(json_str: str, input_tokens: int, output_tokens: int) -> AIAnswerWithContacts:
+    data: dict = json.loads(json_str)
 
     if data is None:
         raise_gpt_response_is_none()
@@ -172,12 +171,8 @@ def parse_response(response: Response) -> AIAnswerWithContacts:
     if nearest_compant_branch_enum != "":
         result[COMPANY_BRANCH_KEy] = nearest_compant_branch_enum
 
-    result["tokens_completion"] = 0
-    result["tokens_prompt"] = 0
-
-    if response.usage:
-        result["tokens_completion"] = response.usage.output_tokens
-        result["tokens_prompt"] = response.usage.input_tokens
+    result["tokens_completion"] = output_tokens
+    result["tokens_prompt"] = input_tokens
 
     return AIAnswerWithContacts.model_validate(result)
 
@@ -333,7 +328,7 @@ def generate_chat_summary(module: Literal["Avito", "Amo"], account_name: str, ch
         response_format=ChatSummarySchema,
         max_tokens=600,
     )
-    ai_requests.create_from_chat_completion(
+    ai_requests.create_from_openai_completion(
         tag=f"{module} | {account_name} | generate chat summary",
         completion=response,
         tlogger=TraceLogger(),

@@ -68,7 +68,7 @@ def define_prompt(
         input=[{"role": "system", "content": request_prompt}],
         text=response_format,
     )
-    ai_requests.create_from_response(
+    ai_requests.create_from_openai_response(
         tag=f"{module} | {account_name} | define prompt",
         response=response,
         tlogger=tlogger,

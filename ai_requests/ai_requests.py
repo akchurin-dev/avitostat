@@ -1,11 +1,12 @@
-from openai.types.responses import Response
-from openai.types.chat import ChatCompletion
+from openai.types.responses import Response as OpenaiResponse
+from openai.types.chat import ChatCompletion as OpenaiCompletion
 
 from ai_requests.models import AIRequest
 from utils.logging import TraceLogger
+from utils.yandex_gpt_api import CompletionResult as YandexGPTCompletion
 
 
-def create_from_response(tag: str, response: Response, *, tlogger: TraceLogger) -> AIRequest:
+def create_from_openai_response(tag: str, response: OpenaiResponse, *, tlogger: TraceLogger) -> AIRequest:
     tokens_completion = tokens_prompt = 0
 
     completion_detail: str = ""
@@ -28,7 +29,7 @@ def create_from_response(tag: str, response: Response, *, tlogger: TraceLogger) 
     )
 
 
-def create_from_chat_completion(tag: str, completion: ChatCompletion, *, tlogger: TraceLogger) -> AIRequest:
+def create_from_openai_completion(tag: str, completion: OpenaiCompletion, *, tlogger: TraceLogger) -> AIRequest:
     tokens_completion = tokens_prompt = 0
 
     completion_detail: str = ""
@@ -47,6 +48,18 @@ def create_from_chat_completion(tag: str, completion: ChatCompletion, *, tlogger
         tokens_prompt=tokens_prompt,
         completion_detail=completion_detail,
         prompt_detail=prompt_detail,
+        tlogger=tlogger,
+    )
+
+
+def create_from_yandex_gpt_completion(tag: str, model: str, completion: YandexGPTCompletion, *, tlogger: TraceLogger) -> AIRequest:
+    return create(
+        tag=tag,
+        model=model,
+        tokens_completion=completion.usage.completion_tokens,
+        tokens_prompt=completion.usage.input_text_tokens,
+        completion_detail=str(completion.usage.completion_tokens_details),
+        prompt_detail="",
         tlogger=tlogger,
     )
 

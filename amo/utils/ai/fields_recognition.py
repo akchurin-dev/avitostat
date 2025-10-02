@@ -9,8 +9,9 @@ from openai.types.responses import ResponseTextConfigParam
 import amo.models
 from amo.utils import amo_api
 from amo.utils.ai.answers import get_fillable_entity_schema
+from utils import yandex_gpt_helper
 from utils.logging import TraceLogger
-from utils.openai_helper import openai_request
+# from utils.openai_helper import openai_request
 
 
 SYSTEM_PROMPT = """
@@ -42,22 +43,35 @@ def recognize_fields(
     tlogger: TraceLogger,
 ) -> AIAnswer:
 
-    response = openai_request(
-        input=_get_ai_input(messages, fillable_fields),
-        text=_get_text_format(account, fillable_fields, tlogger=tlogger),
-        tag=f"Amo | {account.name} | recognize fields",
+    # response = openai_request(
+    #     input=_get_ai_input(messages, fillable_fields),
+    #     text=_get_text_format(account, fillable_fields, tlogger=tlogger),
+    #     tag=f"Amo | {account.name} | recognize fields",
+    #     tlogger=tlogger,
+    # )
+
+    # tokens_prompt = tokens_completion = 0
+    # if response.usage:
+    #     tokens_prompt = response.usage.input_tokens
+    #     tokens_completion = response.usage.output_tokens
+
+    # return AIAnswer(
+    #     entities_info=json.loads(response.output_text),
+    #     tokens_prompt=tokens_prompt,
+    #     tokens_completion=tokens_completion,
+    # )
+
+    response = yandex_gpt_helper.create_completion(
+        messages=_get_ai_input(messages, fillable_fields),
+        schema=_get_text_format(account, fillable_fields, tlogger=tlogger)["format"]["schema"],
+        tag=f"Amo | {account.domain} | recognize fields",
         tlogger=tlogger,
     )
 
-    tokens_prompt = tokens_completion = 0
-    if response.usage:
-        tokens_prompt = response.usage.input_tokens
-        tokens_completion = response.usage.output_tokens
-
     return AIAnswer(
-        entities_info=json.loads(response.output_text),
-        tokens_prompt=tokens_prompt,
-        tokens_completion=tokens_completion,
+        entities_info=json.loads(response.alternatives[0].message.text),
+        tokens_prompt=response.usage.input_text_tokens,
+        tokens_completion=response.usage.completion_tokens,
     )
 
 

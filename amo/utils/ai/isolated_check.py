@@ -10,8 +10,9 @@ import amo.models
 from amo.utils import amo_api
 from amo.utils import amo_fields
 from amo.utils.ai import answers, fields_recognition
+from utils import yandex_gpt_helper
 from utils.logging import TraceLogger
-from utils.openai_helper import openai_request
+# from utils.openai_helper import openai_request
 
 
 class TokensUsage(NamedTuple):
@@ -80,22 +81,39 @@ def find_value(
     tlogger: TraceLogger,
 ) -> tuple[Any, TokensUsage]:
 
-    response = openai_request(
-        input=get_ai_input(chatbot, messages, fillable_field),
-        text=get_text_format(fillable_field, amo_field),
+    # response = openai_request(
+    #     input=get_ai_input(chatbot, messages, fillable_field),
+    #     text=get_text_format(fillable_field, amo_field),
+    #     tag=f"Amo | {account.domain} | field isolated check",
+    #     tlogger=tlogger,
+    # )
+    # struct = json.loads(response.output_text)
+
+    # tlogger.info({"isolated field checked": {
+    #     "field": fillable_field.name,
+    #     "value": struct[fillable_field.name],
+    # }})
+
+    # usage = TokensUsage(0, 0)
+    # if response.usage:
+    #     usage = TokensUsage(response.usage.input_tokens, response.usage.output_tokens)
+
+    # return struct[fillable_field.name], usage
+
+    response = yandex_gpt_helper.create_completion(
+        messages=get_ai_input(chatbot, messages, fillable_field),
+        schema=get_text_format(fillable_field, amo_field)["format"]["schema"],
         tag=f"Amo | {account.domain} | field isolated check",
         tlogger=tlogger,
     )
-    struct = json.loads(response.output_text)
+    struct = json.loads(response.alternatives[0].message.text)
 
     tlogger.info({"isolated field checked": {
         "field": fillable_field.name,
         "value": struct[fillable_field.name],
     }})
 
-    usage = TokensUsage(0, 0)
-    if response.usage:
-        usage = TokensUsage(response.usage.input_tokens, response.usage.output_tokens)
+    usage = TokensUsage(response.usage.input_text_tokens, response.usage.completion_tokens)
 
     return struct[fillable_field.name], usage
 

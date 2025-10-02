@@ -21,9 +21,10 @@ from amo.utils.amo_transcriptions import TranscriptionsForMessages
 from chat_bot.ai_utils import use_gpt_flag
 from prompts import prompts
 from utils import httpx_helper
+from utils import yandex_gpt_helper
 from utils.logging import TraceLogger
 from utils.miscellaneous import datetime_now_msk
-from utils.openai_helper import openai_request
+# from utils.openai_helper import openai_request
 
 
 PHRASE_AUTHOR_REGEX = re.compile(r"^\s*\w+:\s*")
@@ -73,19 +74,36 @@ def generate_answer(
     #     tlogger=tlogger,
     # )
 
-    response = openai_request(
-        input=_get_ai_input(account, chatbot, messages, known_info, tlogger=tlogger),
+    # response = openai_request(
+    #     input=_get_ai_input(account, chatbot, messages, known_info, tlogger=tlogger),
+    #     tag=f"Amo | {account.domain} | generate answer",
+    #     tlogger=tlogger,
+    # )
+
+    # tokens_prompt = tokens_completion = 0
+    # if response.usage:
+    #     tokens_prompt = response.usage.input_tokens
+    #     tokens_completion = response.usage.output_tokens
+
+    # return AIAnswer(
+    #     answer=_delete_phrase_author_if_exists(response.output_text, tlogger=tlogger),
+    #     tokens_prompt=tokens_prompt,
+    #     tokens_completion=tokens_completion,
+    # )
+
+    response = yandex_gpt_helper.create_completion(
+        messages=_get_ai_input(account, chatbot, messages, known_info, tlogger=tlogger),
         tag=f"Amo | {account.domain} | generate answer",
         tlogger=tlogger,
     )
 
     tokens_prompt = tokens_completion = 0
     if response.usage:
-        tokens_prompt = response.usage.input_tokens
-        tokens_completion = response.usage.output_tokens
+        tokens_prompt = response.usage.input_text_tokens
+        tokens_completion = response.usage.completion_tokens
 
     return AIAnswer(
-        answer=_delete_phrase_author_if_exists(response.output_text, tlogger=tlogger),
+        answer=_delete_phrase_author_if_exists(response.alternatives[0].message.text, tlogger=tlogger),
         tokens_prompt=tokens_prompt,
         tokens_completion=tokens_completion,
     )

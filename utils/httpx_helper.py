@@ -49,6 +49,7 @@ def request(
     json: dict | list | None = None,
     headers: dict | None = None,
     timeout_retries: int = 3,
+    client: httpx.Client | None = None,
     tlogger: TraceLogger | None = None,
 ) -> httpx.Response:
 
@@ -56,12 +57,16 @@ def request(
 
     error = None
 
+    request_func = httpx.request
+    if client is not None:
+        request_func = client.request
+
     for i in range(timeout_retries + 1):
         try:
             if i > 1:
                 tlogger.info(f"Try again request to {url}")
 
-            response = httpx.request(
+            response = request_func(
                 method=method,
                 url=url,
                 params=params,

@@ -6,8 +6,9 @@ from pydantic import BaseModel
 from chat_bot.models import DialogTrigger
 from chat_bot.utils import messages_formating
 from messaging.api import ChatMessage
+from utils import yandex_gpt_helper
 from utils.logging import TraceLogger
-from utils.openai_helper import openai_parse_request
+# from utils.openai_helper import openai_parse_request
 
 
 SYSTEM_PROMPT_BASE = """
@@ -30,14 +31,23 @@ class TriggerConditionCheckResult(BaseModel):
 
 
 def check_trigger_condition(trigger: DialogTrigger, messages: list[ChatMessage], tlogger: TraceLogger) -> TriggerConditionCheckResult:
-    response = openai_parse_request(
-        input=_get_ai_input(trigger, messages, tlogger=tlogger),
-        text_format=TriggerConditionCheckResult,
+    # response = openai_parse_request(
+    #     input=_get_ai_input(trigger, messages, tlogger=tlogger),
+    #     text_format=TriggerConditionCheckResult,
+    #     tag=f"Avito | {trigger.chatbot.account.name} | check trigger condition",
+    #     tlogger=tlogger,
+    # )
+
+    # return TriggerConditionCheckResult.model_validate_json(response.output_text)
+
+    _, trigger_condition_check_result = yandex_gpt_helper.parse_completion(
+        messages=_get_ai_input(trigger, messages, tlogger=tlogger),
+        model=TriggerConditionCheckResult,
         tag=f"Avito | {trigger.chatbot.account.name} | check trigger condition",
         tlogger=tlogger,
     )
 
-    return TriggerConditionCheckResult.model_validate_json(response.output_text)
+    return trigger_condition_check_result
 
 
 def _get_ai_input(trigger: DialogTrigger, messages: list[ChatMessage], *, tlogger: TraceLogger) -> ResponseInputParam:

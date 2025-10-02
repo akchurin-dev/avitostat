@@ -11,9 +11,9 @@ from base import settings
 from utils.logging import TraceLogger
 
 
-AI_RETRIES = 3
 # MODEL = "gpt-4.1-2025-04-14"
 MODEL = "gpt-5-2025-08-07"
+
 
 client = OpenAI(api_key=settings.OPENAI_SECRET_KEY)
 
@@ -29,7 +29,7 @@ def openai_request(
 
     error = None
 
-    for _ in range(AI_RETRIES):
+    for _ in range(settings.AI_RETRIES):
         try:
             response = client.responses.create(
                 model=MODEL,
@@ -37,7 +37,7 @@ def openai_request(
                 text=text,
                 max_output_tokens=max_output_tokens,
             )
-            ai_requests.create_from_response(tag, response, tlogger=tlogger)
+            ai_requests.create_from_openai_response(tag, response, tlogger=tlogger)
             return response
         except pydantic.ValidationError as e:
             error = e
@@ -61,7 +61,7 @@ def openai_parse_request(
 
     error = None
 
-    for _ in range(AI_RETRIES):
+    for _ in range(settings.AI_RETRIES):
         try:
             response = client.responses.parse(
                 model=MODEL,
@@ -69,7 +69,7 @@ def openai_parse_request(
                 text_format=text_format,
                 max_output_tokens=max_output_tokens,
             )
-            ai_requests.create_from_response(tag, response, tlogger=tlogger)
+            ai_requests.create_from_openai_response(tag, response, tlogger=tlogger)
             return response
         except pydantic.ValidationError as e:
             error = e
