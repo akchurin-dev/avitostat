@@ -5,9 +5,11 @@ from typing import Literal
 from django.db import models
 from openai.types.responses.response_text_config_param import ResponseTextConfigParam
 
-from ai_requests import ai_requests
 import chat_bot.ai_utils
+from ai_requests import ai_requests
+from utils import yandex_gpt_helper
 from utils.logging import TraceLogger
+from utils.openai_helper import openai_request
 
 
 class PromptBase(models.Model):
@@ -63,18 +65,22 @@ def define_prompt(
         "Чат:\n" + dialog,
     ])
 
-    response = chat_bot.ai_utils.client.responses.create(
-        model=chat_bot.ai_utils.MODEL,
-        input=[{"role": "system", "content": request_prompt}],
-        text=response_format,
-    )
-    ai_requests.create_from_openai_response(
+    # response = openai_request(
+    #     input=[{"role": "system", "content": request_prompt}],
+    #     text=response_format,
+    #     tag=f"{module} | {account_name} | define prompt",
+    #     tlogger=tlogger,
+    # )
+
+    response = yandex_gpt_helper.create_completion(
+        messages=[{"role": "system", "text": request_prompt}],
+        schema=response_format["format"]["schema"],
         tag=f"{module} | {account_name} | define prompt",
-        response=response,
         tlogger=tlogger,
     )
 
-    titles = set(json.loads(response.output_text)["required_prompts"])
+    # titles = set(json.loads(response.output_text)["required_prompts"])
+    titles = set(json.loads(response.alternatives[0].message.text)["required_prompts"])
     tlogger.info({
         "All prompts": [p.title for p in prompts],
         "Use prompts": titles,
