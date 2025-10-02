@@ -9,6 +9,7 @@ from messaging.api import ChatMessage
 from utils import yandex_gpt_helper
 from utils.logging import TraceLogger
 # from utils.openai_helper import openai_parse_request
+from utils.yandex_gpt_api import YandexGPTMessage
 
 
 SYSTEM_PROMPT_BASE = """
@@ -41,7 +42,7 @@ def check_trigger_condition(trigger: DialogTrigger, messages: list[ChatMessage],
     # return TriggerConditionCheckResult.model_validate_json(response.output_text)
 
     _, trigger_condition_check_result = yandex_gpt_helper.parse_completion(
-        messages=_get_ai_input(trigger, messages, tlogger=tlogger),
+        messages=_get_yandex_gpt_input(trigger, messages, tlogger=tlogger),
         model=TriggerConditionCheckResult,
         tag=f"Avito | {trigger.chatbot.account.name} | check trigger condition",
         tlogger=tlogger,
@@ -50,7 +51,7 @@ def check_trigger_condition(trigger: DialogTrigger, messages: list[ChatMessage],
     return trigger_condition_check_result
 
 
-def _get_ai_input(trigger: DialogTrigger, messages: list[ChatMessage], *, tlogger: TraceLogger) -> ResponseInputParam:
+def _get_openai_input(trigger: DialogTrigger, messages: list[ChatMessage], *, tlogger: TraceLogger) -> ResponseInputParam:
     messages_gpt_fmt = messages_formating.avito_chat_to_gpt_format(messages, transcriptions=None)
 
     ai_input: ResponseInputParam = [
@@ -61,6 +62,25 @@ def _get_ai_input(trigger: DialogTrigger, messages: list[ChatMessage], *, tlogge
         {
             "role": "user",
             "content": "Чат с клиентом:\n" + messages_formating.gpt_format_to_str(messages_gpt_fmt),
+        },
+    ]
+
+    # tlogger.info({"ai input": ai_input})
+
+    return ai_input
+
+
+def _get_yandex_gpt_input(trigger: DialogTrigger, messages: list[ChatMessage], *, tlogger: TraceLogger) -> list[YandexGPTMessage]:
+    messages_gpt_fmt = messages_formating.avito_chat_to_gpt_format(messages, transcriptions=None)
+
+    ai_input: list[YandexGPTMessage] = [
+        {
+            "role": "system",
+            "text": SYSTEM_PROMPT_BASE + trigger.additional_condition,
+        },
+        {
+            "role": "user",
+            "text": "Чат с клиентом:\n" + messages_formating.gpt_format_to_str(messages_gpt_fmt),
         },
     ]
 

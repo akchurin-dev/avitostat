@@ -101,7 +101,7 @@ def find_value(
     # return struct[fillable_field.name], usage
 
     response = yandex_gpt_helper.create_completion(
-        messages=get_ai_input(chatbot, messages, fillable_field),
+        messages=get_yandex_gpt_input(chatbot, messages, fillable_field),
         schema=get_text_format(fillable_field, amo_field)["format"]["schema"],
         tag=f"Amo | {account.domain} | field isolated check",
         tlogger=tlogger,
@@ -118,7 +118,7 @@ def find_value(
     return struct[fillable_field.name], usage
 
 
-def get_ai_input(
+def get_openai_input(
     chatbot: amo.models.AmoChatBot,
     messages: list[ResponseInputItemParam],
     fillable_field: amo.models.FillableField,
@@ -138,6 +138,17 @@ def get_ai_input(
     ai_input.extend(messages)
 
     return ai_input
+
+
+def get_yandex_gpt_input(
+    chatbot: amo.models.AmoChatBot,
+    messages: list[ResponseInputItemParam],
+    fillable_field: amo.models.FillableField,
+):
+    openai_input = get_openai_input(chatbot, messages, fillable_field)
+    yandex_gpt_input = [yandex_gpt_helper.openai_input_message_to_yandex_gpt_message(msg) for msg in openai_input]
+
+    return yandex_gpt_input
 
 
 def get_text_format(fillable_field: amo.models.FillableField, amo_field: amo.models.AmoField | None) -> ResponseTextConfigParam:

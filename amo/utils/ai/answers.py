@@ -92,7 +92,7 @@ def generate_answer(
     # )
 
     response = yandex_gpt_helper.create_completion(
-        messages=_get_ai_input(account, chatbot, messages, known_info, tlogger=tlogger),
+        messages=_get_yandex_gpt_input(account, chatbot, messages, known_info, tlogger=tlogger),
         tag=f"Amo | {account.domain} | generate answer",
         tlogger=tlogger,
     )
@@ -148,7 +148,7 @@ def generate_answer(
 #     return gpt_messages
 
 
-def _get_ai_input(
+def _get_openai_input(
     account: amo.models.AmoAccount,
     chatbot: amo.models.AmoChatBot,
     messages: list[ResponseInputItemParam],
@@ -184,6 +184,20 @@ def _get_ai_input(
     ]
 
     return ai_input
+
+
+def _get_yandex_gpt_input(
+    account: amo.models.AmoAccount,
+    chatbot: amo.models.AmoChatBot,
+    messages: list[ResponseInputItemParam],
+    known_info: dict[str, list[str]] | None = None,
+    *,
+    tlogger: TraceLogger,
+):
+    openai_input = _get_openai_input(account, chatbot, messages, known_info, tlogger=tlogger)
+    yandex_gpt_input = [yandex_gpt_helper.openai_input_message_to_yandex_gpt_message(msg) for msg in openai_input]
+
+    return yandex_gpt_input
 
 
 # def known_lead_contact_info(

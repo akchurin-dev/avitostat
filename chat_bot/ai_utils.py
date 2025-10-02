@@ -24,6 +24,7 @@ from utils import yandex_gpt_helper
 from utils.openai_helper import MODEL
 from utils.openai_helper import client
 # from utils.openai_helper import openai_parse_request
+from utils.yandex_gpt_api import YandexGPTMessage
 
 
 COMPANY_BRANCH_KEy = "nearest_company_branch"
@@ -107,7 +108,7 @@ def generate_answer_and_parse_contacts(
     # return parse_response(response)
 
     response, _ = yandex_gpt_helper.parse_completion(
-        messages=_get_messages_for_gpt(ai_assistant, chat, extract_contacts_only=False, tlogger=tlogger),
+        messages=_get_yandex_gpt_input(ai_assistant, chat, extract_contacts_only=False, tlogger=tlogger),
         model=_get_schema(ai_assistant.account, ask_location, ChatBotAnswerSchema),
         max_tokens=2000,
         tag=f"Avito | {ai_assistant.account.name} | generate answer and parse contacts",
@@ -138,7 +139,7 @@ def parse_contacts(
     # return parse_response(response)
 
     response, _ = yandex_gpt_helper.parse_completion(
-        messages=_get_messages_for_gpt(chatbot, chat, extract_contacts_only=True, tlogger=tlogger),
+        messages=_get_yandex_gpt_input(chatbot, chat, extract_contacts_only=True, tlogger=tlogger),
         model=_get_schema(chatbot.account, ask_location, ClientContactsSchema),
         tag=f"Avito | {chatbot.account.name} | parse contacts",
         tlogger=tlogger,
@@ -177,7 +178,7 @@ def parse_response(json_str: str, input_tokens: int, output_tokens: int) -> AIAn
     return AIAnswerWithContacts.model_validate(result)
 
 
-def _get_messages_for_gpt(
+def _get_openai_input(
     aichatbot: chat_bot.models.AiChatBot,
     chat: messaging.api.Chat,
     extract_contacts_only: bool,
@@ -195,6 +196,20 @@ def _get_messages_for_gpt(
     messages.extend(chat_gpt_format)
 
     return messages
+
+
+def _get_yandex_gpt_input(
+    aichatbot: chat_bot.models.AiChatBot,
+    chat: messaging.api.Chat,
+    extract_contacts_only: bool,
+    *,
+    tlogger: TraceLogger,
+) -> list[YandexGPTMessage]:
+
+    ai_input = _get_openai_input(aichatbot, chat, extract_contacts_only, tlogger=tlogger)
+    yandex_gpt_input = [yandex_gpt_helper.openai_input_message_to_yandex_gpt_message(msg) for msg in ai_input]
+
+    return yandex_gpt_input
 
 
 def _get_system_message(

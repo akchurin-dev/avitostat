@@ -92,3 +92,19 @@ def parse_completion(
 
     assert error
     raise error
+
+
+def openai_input_message_to_yandex_gpt_message(message: dict) -> yandex_gpt_api.YandexGPTMessage:
+    role = message["role"]
+
+    if isinstance(message["content"], str):
+        text = message["content"]
+    elif "image_url" in message["content"]:
+        text = "<Изображение>"
+    else:
+        text = "<Сообщение неизвестного типа>"
+
+    return {
+        "role": role,
+        "text": text,
+    }

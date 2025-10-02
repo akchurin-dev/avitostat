@@ -62,7 +62,7 @@ def recognize_fields(
     # )
 
     response = yandex_gpt_helper.create_completion(
-        messages=_get_ai_input(messages, fillable_fields),
+        messages=_get_yandex_gpt_input(messages, fillable_fields),
         schema=_get_text_format(account, fillable_fields, tlogger=tlogger)["format"]["schema"],
         tag=f"Amo | {account.domain} | recognize fields",
         tlogger=tlogger,
@@ -75,7 +75,7 @@ def recognize_fields(
     )
 
 
-def _get_ai_input(messages: list[ResponseInputItemParam], fillable_fields: list[amo.models.FillableField]) -> ResponseInputParam:
+def _get_openai_input(messages: list[ResponseInputItemParam], fillable_fields: list[amo.models.FillableField]) -> ResponseInputParam:
     ai_input: ResponseInputParam = [{"role": "system", "content": SYSTEM_PROMPT}]
 
     ai_input.append({
@@ -88,6 +88,13 @@ def _get_ai_input(messages: list[ResponseInputItemParam], fillable_fields: list[
     })
 
     return ai_input
+
+
+def _get_yandex_gpt_input(messages: list[ResponseInputItemParam], fillable_fields: list[amo.models.FillableField]):
+    openai_input = _get_openai_input(messages, fillable_fields)
+    yandex_gpt_input = [yandex_gpt_helper.openai_input_message_to_yandex_gpt_message(msg) for msg in openai_input]
+
+    return yandex_gpt_input
 
 
 def _get_text_format(
