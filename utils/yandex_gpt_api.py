@@ -62,7 +62,6 @@ client = httpx.Client(
     headers={
         "Authorization": "Api-Key " + settings.YANDEX_GPT_API_KEY,
     },
-    timeout=1,
 )
 
 
