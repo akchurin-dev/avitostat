@@ -64,7 +64,7 @@ def define_prompt(
 
 
     response = ai_helper.create_completion(
-        openai_input=[{"role": "system", "text": request_prompt}],
+        openai_input=[{"role": "system", "content": request_prompt}],
         text_format=response_format,
         tag=f"{module} | {account_name} | define prompt",
         tlogger=tlogger,

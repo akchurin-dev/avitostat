@@ -100,11 +100,13 @@ def openai_input_message_to_yandex_gpt_message(message: ResponseInputItemParam) 
     assert role == "user" or role == "assistant" or role == "system", f"Unexpected role, got {role}"
 
     content = message.get("content")
-    assert isinstance(content, (str, dict)), f"Unxecpected type of content, got type: {type(content)}, message: {message}"
+    assert isinstance(content, (str, dict, list)), f"Unxecpected type of content, got type: {type(content)}, message: {message}"
 
     if isinstance(content, str):
         text = content
-    elif "image_url" in content:
+    elif isinstance(content, dict) and "image_url" in content:
+        text = "<Изображение>"
+    elif isinstance(content, list) and any("image_url" in content_item for content_item in content):
         text = "<Изображение>"
     else:
         text = "<Сообщение неизвестного типа>"
