@@ -97,7 +97,7 @@ def parse_completion(
 
 def openai_input_message_to_yandex_gpt_message(message: ResponseInputItemParam) -> yandex_gpt_api.YandexGPTMessage:
     role = message.get("role")
-    assert role == "user" or role == "assistant"
+    assert role == "user" or role == "assistant", f"Unexpected role, got {role}"
 
     content = message.get("content")
     assert isinstance(content, (str, dict))
