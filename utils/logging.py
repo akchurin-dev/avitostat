@@ -1,6 +1,7 @@
 import pprint
 import random
 import string
+import traceback
 from typing import Callable
 
 from loguru import logger
@@ -17,7 +18,10 @@ class TraceLogger:
         self._log(logger.warning, msg)
 
     def error(self, msg) -> None:
-        self._log(logger.error, msg)
+        if isinstance(msg, Exception):
+            self._log(logger.error, traceback.format_exc())
+        else:
+            self._log(logger.error, msg)
 
     def _log(self, log_method: Callable[[str], None], msg) -> None:
         if not isinstance(msg, str):
