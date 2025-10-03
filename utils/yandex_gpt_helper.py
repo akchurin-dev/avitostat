@@ -100,7 +100,7 @@ def openai_input_message_to_yandex_gpt_message(message: ResponseInputItemParam) 
     assert role == "user" or role == "assistant" or role == "system", f"Unexpected role, got {role}"
 
     content = message.get("content")
-    assert isinstance(content, (str, dict))
+    assert isinstance(content, (str, dict)), f"Unxecpected type of content, got {type(content)}"
 
     if isinstance(content, str):
         text = content
