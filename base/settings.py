@@ -3,10 +3,9 @@ import os
 from pathlib import Path
 from typing import Literal
 
+import pytz
 from celery.schedules import crontab, schedule
 from dotenv import load_dotenv
-from loguru import logger
-import pytz
 from sentry_sdk.integrations.celery import CeleryIntegration
 from sentry_sdk.integrations.django import DjangoIntegration
 
@@ -47,6 +46,7 @@ AVITOSTATA_ALIVE_REPORTS_CHAT_ID = os.getenv("AVITOSTATA_ALIVE_REPORTS_CHAT_ID",
 
 AI_RETRIES: int = 3
 OPENAI_SECRET_KEY = os.getenv('OPENAI_SECRET_KEY')
+OPENAI_PROXY_URL = os.getenv('OPENAI_PROXY_URL', '')
 YANDEX_GPT_API_KEY = os.getenv('YANDEX_GPT_API_KEY', '')
 
 YOOKASSA_TEST_SHOP_ID = os.getenv('YOOKASSA_TEST_SHOP_ID')

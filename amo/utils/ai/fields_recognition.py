@@ -8,10 +8,10 @@ from openai.types.responses import ResponseTextConfigParam
 
 import amo.models
 from amo.utils import amo_api
+from amo.utils.ai.answers import get_dialog_str
 from amo.utils.ai.answers import get_fillable_entity_schema
-from utils import yandex_gpt_helper
+from utils import ai_helper
 from utils.logging import TraceLogger
-# from utils.openai_helper import openai_request
 
 
 SYSTEM_PROMPT = """
@@ -43,35 +43,17 @@ def recognize_fields(
     tlogger: TraceLogger,
 ) -> AIAnswer:
 
-    # response = openai_request(
-    #     input=_get_ai_input(messages, fillable_fields),
-    #     text=_get_text_format(account, fillable_fields, tlogger=tlogger),
-    #     tag=f"Amo | {account.name} | recognize fields",
-    #     tlogger=tlogger,
-    # )
-
-    # tokens_prompt = tokens_completion = 0
-    # if response.usage:
-    #     tokens_prompt = response.usage.input_tokens
-    #     tokens_completion = response.usage.output_tokens
-
-    # return AIAnswer(
-    #     entities_info=json.loads(response.output_text),
-    #     tokens_prompt=tokens_prompt,
-    #     tokens_completion=tokens_completion,
-    # )
-
-    response = yandex_gpt_helper.create_completion(
-        messages=_get_yandex_gpt_input(messages, fillable_fields),
-        schema=_get_text_format(account, fillable_fields, tlogger=tlogger)["format"]["schema"],
+    response = ai_helper.create_completion(
+        openai_input=_get_openai_input(messages, fillable_fields),
+        text_format=_get_text_format(account, fillable_fields, tlogger=tlogger)["format"]["schema"],
         tag=f"Amo | {account.domain} | recognize fields",
         tlogger=tlogger,
     )
 
     return AIAnswer(
-        entities_info=json.loads(response.alternatives[0].message.text),
-        tokens_prompt=response.usage.input_text_tokens,
-        tokens_completion=response.usage.completion_tokens,
+        entities_info=json.loads(response.answer_text),
+        tokens_prompt=response.input_tokens,
+        tokens_completion=response.output_tokens,
     )
 
 
@@ -83,18 +65,11 @@ def _get_openai_input(messages: list[ResponseInputItemParam], fillable_fields: l
         "content": (
             "Поля которые нужно распознать:\n" + _get_fillable_fields_str(fillable_fields)
             + "\n\n\n"
-            + "Чат с клиентом:\n" + _get_dialog_str(messages)
+            + "Чат с клиентом:\n" + get_dialog_str(messages)
         ),
     })
 
     return ai_input
-
-
-def _get_yandex_gpt_input(messages: list[ResponseInputItemParam], fillable_fields: list[amo.models.FillableField]):
-    openai_input = _get_openai_input(messages, fillable_fields)
-    yandex_gpt_input = [yandex_gpt_helper.openai_input_message_to_yandex_gpt_message(msg) for msg in openai_input]
-
-    return yandex_gpt_input
 
 
 def _get_text_format(
@@ -120,29 +95,6 @@ def _get_text_format(
     }}
 
     return text_format
-
-
-def _get_dialog_str(messages: list[ResponseInputItemParam]) -> str:
-    replics: list[str] = []
-
-    for msg in messages:
-        role = msg.get("role")
-
-        if not isinstance(role, str):
-            continue
-
-        author = {"assistant": "Менеджер", "user": "Клиент"}.get(role)
-        if author is None:
-            continue
-
-        text = "<Не текстовое сообщение>"
-        content = msg.get("content")
-        if isinstance(content, str):
-            text = content
-
-        replics.append(author + ": " + text)
-
-    return "\n\n".join(replics)
 
 
 def _get_fillable_fields_str(fillable_fields: list[amo.models.FillableField]) -> str:

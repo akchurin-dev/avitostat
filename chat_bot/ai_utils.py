@@ -6,9 +6,6 @@ from typing import Any
 from typing import Literal
 
 import httpx
-from openai import OpenAI
-# from openai.types.chat.parsed_chat_completion import ParsedChatCompletion
-from openai.types.responses import Response
 from openai.types.responses import ResponseInputItemParam
 from pydantic import BaseModel
 
@@ -19,12 +16,10 @@ from avito_account.models.models import AvitoAccount
 from chat_bot.utils import messages_formating
 from base import settings
 from prompts import prompts
+from utils import ai_helper
 from utils.logging import TraceLogger
-from utils import yandex_gpt_helper
 from utils.openai_helper import MODEL
 from utils.openai_helper import client
-# from utils.openai_helper import openai_parse_request
-from utils.yandex_gpt_api import YandexGPTMessage
 
 
 COMPANY_BRANCH_KEy = "nearest_company_branch"
@@ -97,25 +92,14 @@ def generate_answer_and_parse_contacts(
 
     assert ai_assistant.account
 
-    # response = openai_parse_request(
-    #     input=_get_messages_for_gpt(ai_assistant, chat, extract_contacts_only=False, tlogger=tlogger),
-    #     text_format=_get_schema(ai_assistant.account, ask_location, ChatBotAnswerSchema),
-    #     max_output_tokens=2000,
-    #     tag=f"Avito | {ai_assistant.account.name} | generate answer and parse contacts",
-    #     tlogger=tlogger,
-    # )
-
-    # return parse_response(response)
-
-    response, _ = yandex_gpt_helper.parse_completion(
-        messages=_get_yandex_gpt_input(ai_assistant, chat, extract_contacts_only=False, tlogger=tlogger),
+    response, _ = ai_helper.parse_completion(
+        openai_input=_get_openai_input(ai_assistant, chat, extract_contacts_only=False, tlogger=tlogger),
         model=_get_schema(ai_assistant.account, ask_location, ChatBotAnswerSchema),
-        max_tokens=2000,
         tag=f"Avito | {ai_assistant.account.name} | generate answer and parse contacts",
         tlogger=tlogger,
     )
 
-    return parse_response(response.alternatives[0].message.text, response.usage.input_text_tokens, response.usage.completion_tokens)
+    return parse_response(response.answer_text, response.input_tokens, response.output_tokens)
 
 
 def parse_contacts(
@@ -129,26 +113,17 @@ def parse_contacts(
     if not use_gpt_flag():
         return AIAnswerWithContacts.model_validate({})
 
-    # response = openai_parse_request(
-    #     input=_get_messages_for_gpt(chatbot, chat, extract_contacts_only=True, tlogger=tlogger),
-    #     text_format=_get_schema(chatbot.account, ask_location, ClientContactsSchema),
-    #     tag=f"Avito | {chatbot.account.name} | parse contacts",
-    #     tlogger=tlogger,
-    # )
-
-    # return parse_response(response)
-
-    response, _ = yandex_gpt_helper.parse_completion(
-        messages=_get_yandex_gpt_input(chatbot, chat, extract_contacts_only=True, tlogger=tlogger),
+    response, _ = ai_helper.parse_completion(
+        openai_input=_get_openai_input(chatbot, chat, extract_contacts_only=True, tlogger=tlogger),
         model=_get_schema(chatbot.account, ask_location, ClientContactsSchema),
         tag=f"Avito | {chatbot.account.name} | parse contacts",
         tlogger=tlogger,
     )
 
     return parse_response(
-        json_str=response.alternatives[0].message.text,
-        input_tokens=response.usage.input_text_tokens,
-        output_tokens=response.usage.completion_tokens,
+        json_str=response.answer_text,
+        input_tokens=response.input_tokens,
+        output_tokens=response.output_tokens,
     )
 
 
@@ -196,20 +171,6 @@ def _get_openai_input(
     messages.extend(chat_gpt_format)
 
     return messages
-
-
-def _get_yandex_gpt_input(
-    aichatbot: chat_bot.models.AiChatBot,
-    chat: messaging.api.Chat,
-    extract_contacts_only: bool,
-    *,
-    tlogger: TraceLogger,
-) -> list[YandexGPTMessage]:
-
-    ai_input = _get_openai_input(aichatbot, chat, extract_contacts_only, tlogger=tlogger)
-    yandex_gpt_input = [yandex_gpt_helper.openai_input_message_to_yandex_gpt_message(msg) for msg in ai_input]
-
-    return yandex_gpt_input
 
 
 def _get_system_message(

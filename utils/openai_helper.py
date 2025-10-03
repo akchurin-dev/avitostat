@@ -1,3 +1,4 @@
+import httpx
 import pydantic
 from openai import NOT_GIVEN
 from openai import NotGiven
@@ -8,6 +9,7 @@ from openai.types.responses import ResponseTextConfigParam
 
 from ai_requests import ai_requests
 from base import settings
+from utils.httpx_helper import DEFAULT_TIMEOUT
 from utils.logging import TraceLogger
 
 
@@ -15,7 +17,13 @@ from utils.logging import TraceLogger
 MODEL = "gpt-5-2025-08-07"
 
 
-client = OpenAI(api_key=settings.OPENAI_SECRET_KEY)
+client = OpenAI(
+    api_key=settings.OPENAI_SECRET_KEY,
+    http_client=httpx.Client(
+        timeout=DEFAULT_TIMEOUT,
+        proxy=settings.OPENAI_PROXY_URL,
+    ),
+)
 
 
 def openai_request(

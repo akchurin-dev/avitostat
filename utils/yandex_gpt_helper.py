@@ -1,6 +1,7 @@
 from typing import NamedTuple
 
 import pydantic
+from openai.types.responses import ResponseInputItemParam
 from pydantic import BaseModel
 
 from ai_requests import ai_requests
@@ -94,12 +95,16 @@ def parse_completion(
     raise error
 
 
-def openai_input_message_to_yandex_gpt_message(message: dict) -> yandex_gpt_api.YandexGPTMessage:
-    role = message["role"]
+def openai_input_message_to_yandex_gpt_message(message: ResponseInputItemParam) -> yandex_gpt_api.YandexGPTMessage:
+    role = message.get("role")
+    assert role == "user" or role == "assistant"
 
-    if isinstance(message["content"], str):
-        text = message["content"]
-    elif "image_url" in message["content"]:
+    content = message.get("content")
+    assert isinstance(content, (str, dict))
+
+    if isinstance(content, str):
+        text = content
+    elif "image_url" in content:
         text = "<Изображение>"
     else:
         text = "<Сообщение неизвестного типа>"

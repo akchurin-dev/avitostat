@@ -9,22 +9,19 @@ from openai.types.responses import EasyInputMessageParam
 from openai.types.responses import ResponseInputParam
 from openai.types.responses import ResponseInputItemParam
 from openai.types.responses import ResponseTextConfigParam
-# from pydantic import BaseModel
 
 import amo.models
 from amo.utils import amo_api
 from amo.utils import amo_fields
-# from amo.utils import amo_leads
 from amo.utils.amo_messages import Message
 from amo.utils.amo_messages import MessageTypeEnum
 from amo.utils.amo_transcriptions import TranscriptionsForMessages
 from chat_bot.ai_utils import use_gpt_flag
 from prompts import prompts
+from utils import ai_helper
 from utils import httpx_helper
-from utils import yandex_gpt_helper
 from utils.logging import TraceLogger
 from utils.miscellaneous import datetime_now_msk
-# from utils.openai_helper import openai_request
 
 
 PHRASE_AUTHOR_REGEX = re.compile(r"^\s*\w+:\s*")
@@ -41,7 +38,6 @@ def generate_answer(
     chatbot: amo.models.AmoChatBot,
     messages: list[ResponseInputItemParam],
     known_info: dict[str, list[str]],
-    # lead_id: int,
     *,
     tlogger: TraceLogger,
 ) -> AIAnswer:
@@ -49,103 +45,17 @@ def generate_answer(
     if not use_gpt_flag():
         return AIAnswer(answer="mock answer", tokens_prompt=0, tokens_completion=0)
 
-    # lead, contact = amo_leads.get_lead_contact_pair(chatbot.account, lead_id, tlogger=tlogger)
-    # all_fillable_fields = amo.models.FillableField.objects.filter(chatbot=chatbot, isolated_check=False)
-    # unknown_fillable_fields = get_unknown_fillable_fields(account, all_fillable_fields, lead, contact, tlogger=tlogger)
-    # available_pipeline_statuses = amo_api.get_pipeline_statuses(account, lead.pipeline_id, tlogger=tlogger)
-
-    # gpt_messages = _get_gpt_messages(
-    #     account=account,
-    #     chatbot=chatbot,
-    #     messages=messages,
-    #     all_fillable_fields=all_fillable_fields,
-    #     unknown_fillable_fields=unknown_fillable_fields,
-    #     available_pipeline_statuses=available_pipeline_statuses,
-    #     lead=lead,
-    #     contact=contact,
-    #     tlogger=tlogger,
-    # )
-
-    # text_format = get_text_format(
-    #     chatbot=chatbot,
-    #     fields=unknown_fillable_fields,
-    #     field_for_answer=True,
-    #     available_pipeline_statuses=available_pipeline_statuses,
-    #     tlogger=tlogger,
-    # )
-
-    # response = openai_request(
-    #     input=_get_ai_input(account, chatbot, messages, known_info, tlogger=tlogger),
-    #     tag=f"Amo | {account.domain} | generate answer",
-    #     tlogger=tlogger,
-    # )
-
-    # tokens_prompt = tokens_completion = 0
-    # if response.usage:
-    #     tokens_prompt = response.usage.input_tokens
-    #     tokens_completion = response.usage.output_tokens
-
-    # return AIAnswer(
-    #     answer=_delete_phrase_author_if_exists(response.output_text, tlogger=tlogger),
-    #     tokens_prompt=tokens_prompt,
-    #     tokens_completion=tokens_completion,
-    # )
-
-    response = yandex_gpt_helper.create_completion(
-        messages=_get_yandex_gpt_input(account, chatbot, messages, known_info, tlogger=tlogger),
+    response = ai_helper.create_completion(
+        openai_input=_get_openai_input(account, chatbot, messages, known_info, tlogger=tlogger),
         tag=f"Amo | {account.domain} | generate answer",
         tlogger=tlogger,
     )
 
-    tokens_prompt = tokens_completion = 0
-    if response.usage:
-        tokens_prompt = response.usage.input_text_tokens
-        tokens_completion = response.usage.completion_tokens
-
     return AIAnswer(
-        answer=_delete_phrase_author_if_exists(response.alternatives[0].message.text, tlogger=tlogger),
-        tokens_prompt=tokens_prompt,
-        tokens_completion=tokens_completion,
+        answer=_delete_phrase_author_if_exists(response.answer_text, tlogger=tlogger),
+        tokens_prompt=response.input_tokens,
+        tokens_completion=response.output_tokens,
     )
-
-
-# def _get_gpt_messages(
-#     account: amo.models.AmoAccount,
-#     chatbot: amo.models.AmoChatBot,
-#     messages: list[ResponseInputItemParam],
-#     all_fillable_fields: Iterable[amo.models.FillableField],
-#     unknown_fillable_fields: Iterable[amo.models.FillableField],
-#     available_pipeline_statuses: list[amo_api.PipelineStatus],
-#     lead: amo_api.Lead,
-#     contact: amo_api.Contact,
-#     *,
-#     tlogger: TraceLogger,
-# ) -> ResponseInputParam:
-
-#     current_status = None
-
-#     for status in available_pipeline_statuses:
-#         if status.id == lead.status_id:
-#             current_status = status
-#             break
-
-#     if current_status is None:
-#         raise Exception(f"Status (id={lead.status_id}) not found in pipeline (id={lead.pipeline_id})")
-
-#     prompt = _get_prompt(account, chatbot, messages, unknown_fillable_fields, available_pipeline_statuses, current_status, tlogger=tlogger)
-
-#     gpt_messages: ResponseInputParam = [{"role": "system", "content": prompt}]
-
-#     if chatbot.duplicate_instructions:
-#         gpt_messages.append({"role": "user", "content": chatbot.duplicate_instructions})
-
-#     lead_contact_info = known_lead_contact_info(all_fillable_fields, lead, contact)
-#     if lead_contact_info:
-#         gpt_messages.append({"role": "user", "content": lead_contact_info})
-
-#     gpt_messages.extend(messages)
-
-#     return gpt_messages
 
 
 def _get_openai_input(
@@ -164,7 +74,7 @@ def _get_openai_input(
         "Поле с ответом НЕ должно быть пустым. "
     )
 
-    user_prompt = "Переписка с клиентом:\n" + _get_dialog_str(messages)
+    user_prompt = "Переписка с клиентом:\n" + get_dialog_str(messages)
     if known_info:
         user_prompt = "\n".join(
             ["Что известно о клиенте и сделке, не переспрашивай о заполненных полях и не дублируй эти значения в ответном сообщении."]
@@ -184,72 +94,6 @@ def _get_openai_input(
     ]
 
     return ai_input
-
-
-def _get_yandex_gpt_input(
-    account: amo.models.AmoAccount,
-    chatbot: amo.models.AmoChatBot,
-    messages: list[ResponseInputItemParam],
-    known_info: dict[str, list[str]] | None = None,
-    *,
-    tlogger: TraceLogger,
-):
-    openai_input = _get_openai_input(account, chatbot, messages, known_info, tlogger=tlogger)
-    yandex_gpt_input = [yandex_gpt_helper.openai_input_message_to_yandex_gpt_message(msg) for msg in openai_input]
-
-    return yandex_gpt_input
-
-
-# def known_lead_contact_info(
-#     fillable_fields: Iterable[amo.models.FillableField],
-#     lead: amo_api.Lead,
-#     contact: amo_api.Contact,
-# ) -> str | None:
-
-#     known_lead_fields = amo_fields.get_filled_fields(lead)
-#     known_contact_fields = amo_fields.get_filled_fields(contact)
-
-#     fillable_fieds_names_descriptions = {field.name: field.description for field in fillable_fields}
-
-#     known_lead_fields = [field for field in known_lead_fields if field.field_name in fillable_fieds_names_descriptions]
-#     known_contact_fields = [field for field in known_contact_fields if field.field_name in fillable_fieds_names_descriptions]
-
-#     if len(known_lead_fields) + len(known_contact_fields) == 0:
-#         return None
-
-#     paragraphs = ["О сделке и о контакте уже известна некоторая информация. Не спращивай о том, что уже извество."]
-
-#     if known_lead_fields:
-#         paragraphs.append(_get_entity_info_str("Информация о сделке", known_lead_fields, fillable_fieds_names_descriptions))
-
-#     if known_contact_fields:
-#         paragraphs.append(_get_entity_info_str("Информация о контакте", known_contact_fields, fillable_fieds_names_descriptions))
-
-#     return "\n\n".join(paragraphs)
-
-
-def _get_entity_info_str(
-    title: str,
-    known_fields: list[amo_api.CustomFieldValue],
-    fillable_fields_names_descriptions: dict[str, str],
-) -> str:
-
-    assert known_fields
-
-    lines = [title]
-
-    for field_value in known_fields:
-        line = ["-", field_value.field_name]
-
-        description = fillable_fields_names_descriptions.get(field_value.field_name)
-        if description:
-            line.append("(" + description + ")")
-
-        line.extend(["=", str(field_value.values[0].value)])
-
-        lines.append(" ".join(line))
-
-    return "\n".join(lines)
 
 
 def amo_message_to_gpt_format(message: Message, transcriptions: TranscriptionsForMessages) -> ResponseInputItemParam:
@@ -449,7 +293,7 @@ def _add_chatbot_prompt(
 
     chatbot_prompt = prompts.define_prompt(
         prompts_qs,
-        _get_dialog_str(messages),
+        get_dialog_str(messages),
         module="Amo",
         account_name=account.domain,
         tlogger=tlogger,
@@ -503,7 +347,7 @@ def _get_images_ai_input(messages: list[ResponseInputItemParam]) -> list[Respons
     return images_ai_input
 
 
-def _get_dialog_str(messages: list[ResponseInputItemParam]) -> str:
+def get_dialog_str(messages: list[ResponseInputItemParam]) -> str:
     replics: list[str] = []
     images_count = 0
 

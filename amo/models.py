@@ -882,6 +882,7 @@ class AmoCaseType(models.Model):
         choices=HandlingWay.choices,
     )
 
+    pipeline_status_pk: int
     pipeline_status = models.ForeignKey(
         verbose_name="Этап воронки",
         to=AmoPipelineStatus,
@@ -893,3 +894,7 @@ class AmoCaseType(models.Model):
     class Meta:
         verbose_name = "Тип проблемы"
         verbose_name_plural = "Типы проблем"
+
+    @staticmethod
+    def get_by_chatbot(chatbot_id: int) -> QuerySet[AmoCaseType]:
+        return AmoCaseType.objects.filter(chatbot_id=chatbot_id).select_related("pipeline_status")
