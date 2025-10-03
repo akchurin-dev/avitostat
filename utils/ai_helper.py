@@ -63,6 +63,7 @@ def parse_completion(
         return UniversalCompletion.from_openai_response(openai_response), model.model_validate_json(openai_response.output_text)
     except Exception as e:
         tlogger.error(e)
+        raise
 
     try:
         yandex_response, parsed = yandex_gpt_helper.parse_completion(
@@ -99,6 +100,7 @@ def create_completion(
         return UniversalCompletion.from_openai_response(openai_response)
     except Exception as e:
         tlogger.error(e)
+        raise
 
     try:
         yandex_response = yandex_gpt_helper.create_completion(

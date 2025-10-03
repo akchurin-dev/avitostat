@@ -60,7 +60,7 @@ def openai_request(
 
 def openai_parse_request(
     input: ResponseInputParam,
-    text_format: type[pydantic.BaseModel],
+    text_format: type[pydantic.BaseModel] | NotGiven = NOT_GIVEN,
     max_output_tokens: int = 2000,
     *,
     tag: str,
