@@ -82,7 +82,7 @@ def find_value(
 
     response = ai_helper.create_completion(
         openai_input=get_openai_input(chatbot, messages, fillable_field),
-        text_format=get_text_format(fillable_field, amo_field)["format"]["schema"],
+        text_format=get_text_format(fillable_field, amo_field),
         tag=f"Amo | {account.domain} | field isolated check",
         tlogger=tlogger,
     )

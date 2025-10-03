@@ -3,6 +3,7 @@ from __future__ import annotations
 from typing import NamedTuple
 
 from openai import NOT_GIVEN
+from openai import NotGiven
 from openai.types.responses import Response as OpenAIResponse
 from openai.types.responses import ResponseInputItemParam
 from openai.types.responses import ResponseTextConfigParam
@@ -80,7 +81,7 @@ def parse_completion(
 
 def create_completion(
     openai_input: list[ResponseInputItemParam],
-    text_format: ResponseTextConfigParam | None = None,
+    text_format: ResponseTextConfigParam | NotGiven = NOT_GIVEN,
     max_output_tokens: int = 2000,
     *,
     tag: str,
@@ -90,7 +91,7 @@ def create_completion(
     try:
         openai_response = openai_helper.openai_request(
             input=openai_input,
-            text=text_format or NOT_GIVEN,
+            text=text_format,
             max_output_tokens=max_output_tokens,
             tag=tag,
             tlogger=tlogger,

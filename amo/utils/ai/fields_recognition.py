@@ -45,7 +45,7 @@ def recognize_fields(
 
     response = ai_helper.create_completion(
         openai_input=_get_openai_input(messages, fillable_fields),
-        text_format=_get_text_format(account, fillable_fields, tlogger=tlogger)["format"]["schema"],
+        text_format=_get_text_format(account, fillable_fields, tlogger=tlogger),
         tag=f"Amo | {account.domain} | recognize fields",
         tlogger=tlogger,
     )
