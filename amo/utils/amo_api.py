@@ -5,13 +5,18 @@ from enum import Enum
 from typing import Any
 from typing import NamedTuple
 
+import httpx
 import pydantic
 from pydantic import BaseModel
 
 import amo.models
 from amo.utils import amo_tokens
+from base import settings
 from utils.logging import TraceLogger
 from utils import httpx_helper
+
+
+domains_to_clients: dict[str, httpx.Client] = {}
 
 
 class EntityEnum(Enum):
@@ -449,21 +454,23 @@ def _request_with_token(
     tlogger: TraceLogger,
 ):
     account = amo.models.AmoAccount.objects.get(domain=domain)
+    client = _get_or_create_client("https://" + domain)
     headers = httpx_helper.add_bearer(headers, account.access_token)
 
     response = httpx_helper.request(
         method=method,
-        url="https://" + domain + action,
+        url=action,
         params=params,
         data=data,
         json=json,
         headers=headers,
+        client=client,
         tlogger=tlogger,
     )
     time.sleep(0.05)
 
     if not retry and response.status_code in [401, 403]:
-        amo_tokens.update_tokens(
+        amo_tokens.update_openapi_tokens(
             domain=domain,
             refresh_token=account.refresh_token,
         )
@@ -496,7 +503,7 @@ def _request_with_csrf(
 ):
     account = amo.models.AmoAccount.objects.get(amo_id=account_id)
 
-    url = "https://" + account.domain + action
+    client = _get_or_create_client("https://" + account.domain)
 
     cookies_data = {
         "session_id": account.cookies_session_id or "",
@@ -519,11 +526,12 @@ def _request_with_csrf(
 
     response = httpx_helper.request(
         method=method,
-        url=url,
+        url=action,
         params=params,
         data=data,
         json=json,
         headers=headers,
+        client=client,
         tlogger=tlogger,
     )
     time.sleep(0.05)
@@ -557,6 +565,7 @@ def _amojo_request(
     *,
     tlogger: TraceLogger,
 ):
+
     amojo_token = account.amojo_access_token
     headers = httpx_helper.add_header(headers, key="X-Auth-Token", value=amojo_token)
 
@@ -567,6 +576,7 @@ def _amojo_request(
         data=data,
         json=json,
         headers=headers,
+        proxies=settings.AMO_PROXY_URL,
         tlogger=tlogger,
     )
     time.sleep(0.05)
@@ -586,3 +596,13 @@ def _amojo_request(
         )
 
     return response
+
+
+def _get_or_create_client(base_url: str) -> httpx.Client:
+    if base_url not in domains_to_clients:
+        domains_to_clients[base_url] = httpx_helper.create_client(
+            base_url=base_url,
+            proxies=settings.AMO_PROXY_URL,
+        )
+
+    return domains_to_clients[base_url]

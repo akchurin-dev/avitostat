@@ -18,6 +18,7 @@ def create_client(
     max_keepalive_connections: int | None = 20,
     keepalive_expiry: float | None = 5,
     retries: int = 20,
+    proxies: str | None = None,
 ) -> httpx.Client:
 
     limits = httpx.Limits(
@@ -38,6 +39,7 @@ def create_client(
         limits=limits,
         base_url=base_url,
         transport=transport,
+        proxies=proxies,
     )
 
 
@@ -49,6 +51,7 @@ def request(
     json: dict | list | None = None,
     headers: dict | None = None,
     timeout_retries: int = 3,
+    proxies: str | None = None,
     client: httpx.Client | None = None,
     tlogger: TraceLogger | None = None,
 ) -> httpx.Response:
@@ -57,23 +60,31 @@ def request(
 
     error = None
 
-    request_func = httpx.request
-    if client is not None:
-        request_func = client.request
-
     for i in range(timeout_retries + 1):
         try:
             if i > 1:
                 tlogger.info(f"Try again request to {url}")
 
-            response = request_func(
-                method=method,
-                url=url,
-                params=params,
-                data=data,
-                json=json,
-                headers=headers,
-            )
+            if client is None:
+                response = httpx.request(
+                    method=method,
+                    url=url,
+                    params=params,
+                    data=data,
+                    json=json,
+                    headers=headers,
+                    proxies=proxies,
+                )
+            else:
+                response = client.request(
+                    method=method,
+                    url=url,
+                    params=params,
+                    data=data,
+                    json=json,
+                    headers=headers,
+                )
+
             break
         except httpx.TimeoutException as e:
             error = e

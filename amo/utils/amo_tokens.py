@@ -35,7 +35,7 @@ def get_tokens(domain: str, code: str, *, tlogger: TraceLogger) -> Tokens:
     )
 
 
-def update_tokens(domain: str, refresh_token: str | None = None) -> None:
+def update_openapi_tokens(domain: str, refresh_token: str | None = None) -> None:
     """ https://www.amocrm.ru/developers/content/oauth/step-by-step#Получение-нового-access-token-по-его-истечении """
 
     url = f"https://{domain}/oauth2/access_token"
