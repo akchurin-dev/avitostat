@@ -9,6 +9,7 @@ from django.db.models import Manager
 from django.db.models import QuerySet
 
 import chat_bot.base_models
+import sandbox_chats.models
 import transcriptions.models
 from amo.utils import amo_chatbottasks
 from amo.utils import amo_webhooks
@@ -898,3 +899,106 @@ class AmoCaseType(models.Model):
     @staticmethod
     def get_by_chatbot(chatbot_id: int) -> QuerySet[AmoCaseType]:
         return AmoCaseType.objects.filter(chatbot_id=chatbot_id).select_related("pipeline_status")
+
+
+class AmoChatbotSandboxInputChatLink(models.Model):
+    chatbot_id: int
+    chatbot = models.ForeignKey(
+        verbose_name="Чат-бот",
+        to=AmoChatBot,
+        on_delete=models.CASCADE,
+    )
+
+    chat_id: int
+    chat = models.ForeignKey(
+        verbose_name="Тестовый чат",
+        to=sandbox_chats.models.InputChat,
+        on_delete=models.CASCADE,
+    )
+
+    @staticmethod
+    def get_input_chats_by_chatbot(chatbot_id: int) -> list[sandbox_chats.models.InputChat]:
+        links = (
+            AmoChatbotSandboxInputChatLink.objects
+            .filter(chatbot_id=chatbot_id)
+            .select_related("chat")
+        )
+        return [link.chat for link in links]
+
+
+class AmoSandboxSession(models.Model):
+    chatbot_id: int
+    chatbot = models.ForeignKey(
+        verbose_name="Чат-бот",
+        to=AmoChatBot,
+        on_delete=models.CASCADE,
+    )
+
+    created_at = models.DateTimeField(
+        verbose_name="Создано",
+        auto_now_add=True,
+    )
+
+    @staticmethod
+    def instantiate(chatbot_id: int) -> AmoSandboxSession:
+        session = AmoSandboxSession()
+        session.chatbot_id = chatbot_id
+
+        return session
+
+
+class AmoSandboxSessionChat(models.Model):
+    session_id: int
+    session = models.ForeignKey(
+        verbose_name="запуск песочницы",
+        to=AmoSandboxSession,
+        on_delete=models.CASCADE,
+    )
+
+    @staticmethod
+    def instantiate(session_id: int) -> AmoSandboxSessionChat:
+        chat = AmoSandboxSessionChat()
+        chat.session_id = session_id
+
+        return chat
+
+
+class AmoSandboxOutputChatMessage(sandbox_chats.models.BaseMessage):
+    chat_id: int
+    chat = models.ForeignKey(
+        verbose_name="Чат",
+        to=AmoSandboxSessionChat,
+        on_delete=models.CASCADE,
+    )
+
+    @staticmethod
+    def instantiate(
+        chat_id: int,
+        from_customer: bool,
+        text: str = "",
+        image_url: str = "",
+    ) -> AmoSandboxOutputChatMessage:
+
+        message = AmoSandboxOutputChatMessage()
+
+        message.chat_id = chat_id
+        message.text = text
+        message.image_url = image_url
+
+        message.author = sandbox_chats.models.MessageRole.MANAGER
+        if from_customer:
+            message.author = sandbox_chats.models.MessageRole.CUSTOMER
+
+        return message
+
+    @staticmethod
+    def from_input_chat_message(input_chat_message: sandbox_chats.models.InputChatMessage, chat_id: int) -> AmoSandboxOutputChatMessage:
+        message = AmoSandboxOutputChatMessage()
+
+        message.chat_id = chat_id
+        message.author = input_chat_message.author
+        message.text = input_chat_message.text
+        message.image_url = input_chat_message.image_url
+        message.created_at = input_chat_message.created_at
+
+        return message

@@ -9,6 +9,7 @@ import amo.models
 import amo.schemas
 import amo.tasks
 import amo_a5client.models
+from amo.utils import amo_sandbox
 from base import settings
 
 
@@ -140,6 +141,11 @@ class AmoCaseTypeInline(admin.StackedInline):
     extra = 0
 
 
+class SandboxChatInline(admin.TabularInline):
+    model = amo.models.AmoChatbotSandboxInputChatLink
+    extra = 0
+
+
 @admin.register(amo.models.AmoChatBot)
 class AmoChatBotAdmin(admin.ModelAdmin):
     list_display = ["name", "account"]
@@ -149,6 +155,7 @@ class AmoChatBotAdmin(admin.ModelAdmin):
         AmoPipelineStatusInline,
         AmoOriginInline,
         AmoCaseTypeInline,
+        SandboxChatInline,
     ]
 
     def get_queryset(self, request: HttpRequest) -> QuerySet[amo.models.AmoChatBot]:
@@ -158,6 +165,15 @@ class AmoChatBotAdmin(admin.ModelAdmin):
             qs = qs.filter(account__created_by=request.user)
 
         return qs
+
+    def run_sandbox_session(self, request, queryset: QuerySet[amo.models.AmoChatBot]) -> None:
+        for chatbot in queryset:
+            amo_sandbox.run_sandbox_session.delay(chatbot.pk)
+
+        self.message_user(request, "Операция запущена", level="success")
+    actualize_amo_fields.short_description = "Запустить в песочнице"  # type: ignore
+
+    actions = [run_sandbox_session]
 
 
 @admin.register(amo.models.AmoChatBotTask)
