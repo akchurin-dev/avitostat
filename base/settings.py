@@ -128,6 +128,7 @@ INSTALLED_APPS = [
     'ai_requests',
     'amo_a5client',
     'work_reports',
+    'sandbox_chats',
 ]
 
 if DEBUG:
