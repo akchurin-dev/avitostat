@@ -64,9 +64,11 @@ def handle_chat(
             tlogger=tlogger,
         )
 
+        new_message = universal_messages.Message(author="manager", text=answer.answer, image_url=None)
+
         evaluation = answer_evaluation.evaluate_answer(
             account=chatbot.account,
-            messages=messages,
+            messages=messages + [new_message],
             requirements=input_chat.answer_requirements,
             tlogger=tlogger,
         )
