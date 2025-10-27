@@ -3,6 +3,8 @@ from __future__ import annotations
 from django.db import models
 from django.db.models.query import QuerySet
 
+from utils import universal_messages
+
 
 class InputChat(models.Model):
     title = models.CharField(
@@ -25,12 +27,6 @@ class InputChat(models.Model):
 
 
 class BaseSandboxSessionChat(models.Model):
-    mark = models.SmallIntegerField(
-        verbose_name="Оценка",
-        null=True,
-        default=None,
-    )
-
     template_chat_id: int
     template_chat = models.ForeignKey(
         verbose_name="Основано на чате",
@@ -38,6 +34,23 @@ class BaseSandboxSessionChat(models.Model):
         on_delete=models.CASCADE,
         null=True,
         default=None,
+    )
+
+    class Meta:
+        abstract = True
+
+
+class BaseSandboxAnswer(models.Model):
+    text = models.TextField(
+        verbose_name="Текст",
+    )
+
+    rate = models.SmallIntegerField(
+        verbose_name="Оценка",
+    )
+
+    rate_explanation = models.TextField(
+        verbose_name="Пояснение к оценке",
     )
 
     class Meta:
@@ -81,6 +94,13 @@ class BaseMessage(models.Model):
     @property
     def from_manager(self) -> bool:
         return not self.from_customer
+
+    def as_universal_format(self) -> universal_messages.Message:
+        return universal_messages.Message(
+            author="manager" if self.from_manager else "client",
+            text=self.text,
+            image_url=self.image_url,
+        )
 
 
 class InputChatMessage(BaseMessage):

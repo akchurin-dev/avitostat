@@ -1001,7 +1001,11 @@ class AmoSandboxOutputChatMessage(sandbox_chats.models.BaseMessage):
         return message
 
     @staticmethod
-    def create_instance_from_input_chat_message(input_chat_message: sandbox_chats.models.InputChatMessage, chat_id: int) -> AmoSandboxOutputChatMessage:
+    def create_instance_from_input_chat_message(
+        input_chat_message: sandbox_chats.models.InputChatMessage,
+        chat_id: int,
+    ) -> AmoSandboxOutputChatMessage:
+
         message = AmoSandboxOutputChatMessage()
 
         message.chat_id = chat_id
@@ -1011,3 +1015,23 @@ class AmoSandboxOutputChatMessage(sandbox_chats.models.BaseMessage):
         message.created_at = input_chat_message.created_at
 
         return message
+
+
+class AmoSandboxAnswer(sandbox_chats.models.BaseSandboxAnswer):
+    chat_id: int
+    chat = models.ForeignKey(
+        verbose_name="Тестовый ответ",
+        to=AmoSandboxSessionChat,
+        on_delete=models.CASCADE,
+    )
+
+    @staticmethod
+    def instantiate(chat_id: int, text: str, rate: int, rate_explanation: str) -> AmoSandboxAnswer:
+        answer = AmoSandboxAnswer()
+
+        answer.chat_id = chat_id
+        answer.text = text
+        answer.rate = rate
+        answer.rate_explanation = rate_explanation
+
+        return answer

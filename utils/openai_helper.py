@@ -13,8 +13,8 @@ from utils.httpx_helper import DEFAULT_TIMEOUT
 from utils.logging import TraceLogger
 
 
-MODEL = "gpt-4.1-2025-04-14"
-# MODEL = "gpt-5-2025-08-07"
+# MODEL = "gpt-4.1-2025-04-14"
+MODEL = "gpt-5-2025-08-07"
 
 
 client = OpenAI(

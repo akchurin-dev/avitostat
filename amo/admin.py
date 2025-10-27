@@ -215,12 +215,21 @@ class AmoSandboxSessionAdmin(admin.ModelAdmin):
     inlines = [AmoSandboxSessionChatInline]
 
 
-class AmoSandInline(admin.TabularInline):
+class AmoSandboxOutputChatMessageInline(admin.TabularInline):
     model = amo.models.AmoSandboxOutputChatMessage
+    extra = 0
+    ordering = ["created_at"]
+
+
+class AmoSandboxAnswerInline(admin.TabularInline):
+    model = amo.models.AmoSandboxAnswer
     extra = 0
     ordering = ["created_at"]
 
 
 @admin.register(amo.models.AmoSandboxSessionChat)
 class AmoSandboxSessionChat(admin.ModelAdmin):
-    inlines = [AmoSandInline]
+    inlines = [
+        AmoSandboxOutputChatMessageInline,
+        AmoSandboxAnswerInline,
+    ]

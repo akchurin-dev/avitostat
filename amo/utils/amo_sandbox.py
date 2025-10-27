@@ -1,13 +1,14 @@
-from typing import Literal
-
 from celery import shared_task
-from openai.types.responses import EasyInputMessageParam
-from openai.types.responses import ResponseInputItemParam
 
 import amo.models
 import sandbox_chats.models
+from amo.utils.ai import answer_evaluation
 from amo.utils.ai import answers as amo_answers
+from utils import universal_messages
 from utils.logging import TraceLogger
+
+
+REPEATS_PER_CHAT = 3
 
 
 @shared_task
@@ -32,7 +33,13 @@ def run_sandbox_session(chatbot_id: int) -> None:
             output_chat_message = amo.models.AmoSandboxOutputChatMessage.create_instance_from_input_chat_message(message, output_chat.pk)
             output_chat_message.save()
 
-        handle_chat(chatbot, output_chat, list(input_chat_messages), tlogger=tlogger)
+        handle_chat(
+            chatbot=chatbot,
+            input_chat=input_chat,
+            output_chat=output_chat,
+            messages=[message.as_universal_format() for message in input_chat_messages],
+            tlogger=tlogger,
+        )
 
     session.finished = True
     session.save()
@@ -40,60 +47,34 @@ def run_sandbox_session(chatbot_id: int) -> None:
 
 def handle_chat(
     chatbot: amo.models.AmoChatBot,
+    input_chat: sandbox_chats.models.InputChat,
     output_chat: amo.models.AmoSandboxSessionChat,
-    messages: list[sandbox_chats.models.BaseMessage],
+    messages: list[universal_messages.Message],
     *,
     tlogger: TraceLogger,
 ) -> None:
 
-    formatted_messages = _format_messages(messages, tlogger=tlogger)
-    answer = amo_answers.generate_answer(
-        account=chatbot.account,
-        chatbot=chatbot,
-        messages=formatted_messages,
-        known_info={},
-        from_sandbox=True,
-        tlogger=tlogger,
-    )
+    for _ in range(REPEATS_PER_CHAT):
+        answer = amo_answers.generate_answer(
+            account=chatbot.account,
+            chatbot=chatbot,
+            messages=[message.as_openai_format() for message in messages],
+            known_info={},
+            from_sandbox=True,
+            tlogger=tlogger,
+        )
 
-    new_message = amo.models.AmoSandboxOutputChatMessage.instantiate(
-        chat_id=output_chat.pk,
-        from_customer=False,
-        text=answer.answer,
-    )
-    new_message.save()
+        evaluation = answer_evaluation.evaluate_answer(
+            account=chatbot.account,
+            messages=messages,
+            requirements=input_chat.answer_requirements,
+            tlogger=tlogger,
+        )
 
-
-def _format_messages(messages: list[sandbox_chats.models.BaseMessage], *, tlogger: TraceLogger) -> list[ResponseInputItemParam]:
-    formatted_messages: list[ResponseInputItemParam] = []
-
-    for message in messages:
-        role: Literal["assistant", "user"] = "assistant"
-        if message.from_customer:
-            role = "user"
-
-        formatted_message: EasyInputMessageParam
-
-        if message.text:
-            formatted_message = {
-                "role": role,
-                "content": message.text,
-            }
-        elif message.image_url:
-            formatted_message = {
-                "role": role,
-                "content": [
-                    {
-                        "type": "input_image",
-                        "image_url": message.image_url,
-                        "detail": "low",
-                    },
-                ],
-            }
-        else:
-            tlogger.error("Empty message")
-            continue
-
-        formatted_messages.append(formatted_message)
-
-    return formatted_messages
+        new_answer = amo.models.AmoSandboxAnswer.instantiate(
+            chat_id=output_chat.pk,
+            text=answer.answer,
+            rate=evaluation.rate,
+            rate_explanation=evaluation.explanation,
+        )
+        new_answer.save()
