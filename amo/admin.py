@@ -210,5 +210,6 @@ class AmoSandboxSessionAdmin(admin.ModelAdmin):
     list_display = [
         "chatbot",
         "created_at",
+        "finished",
     ]
     inlines = [AmoSandboxSessionChatInline]
