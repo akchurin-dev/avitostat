@@ -171,7 +171,7 @@ class AmoChatBotAdmin(admin.ModelAdmin):
             amo_sandbox.run_sandbox_session.delay(chatbot.pk)
 
         self.message_user(request, "Операция запущена", level="success")
-    actualize_amo_fields.short_description = "Запустить в песочнице"  # type: ignore
+    run_sandbox_session.short_description = "Запустить в песочнице"  # type: ignore
 
     actions = [run_sandbox_session]
 
