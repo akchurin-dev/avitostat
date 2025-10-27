@@ -215,6 +215,10 @@ class AmoSandboxSessionAdmin(admin.ModelAdmin):
     inlines = [AmoSandboxSessionChatInline]
 
 
+class AmoSandInline(admin.TabularInline):
+    model = amo.models.AmoSandboxOutputChatMessage
+
+
 @admin.register(amo.models.AmoSandboxSessionChat)
 class AmoSandboxSessionChat(admin.ModelAdmin):
-    pass
+    inlines = [AmoSandInline]
