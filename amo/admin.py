@@ -198,3 +198,17 @@ class AmoChatBotTaskAdmin(admin.ModelAdmin):
             qs = qs.filter(account__created_by=request.user)
 
         return qs
+
+
+class AmoSandboxSessionChatInline(admin.TabularInline):
+    model = amo.models.AmoSandboxSessionChat
+    extra = 0
+
+
+@admin.register(amo.models.AmoSandboxSession)
+class AmoSandboxSessionAdmin(admin.ModelAdmin):
+    list_display = [
+        "chatbot",
+        "created_at",
+    ]
+    inlines = [AmoSandboxSessionChatInline]

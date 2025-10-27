@@ -20,12 +20,3 @@ class InputChatModel(admin.ModelAdmin):
         InputChatMessageInline,
         AmoChatbotInline,
     ]
-
-
-class AmoSandboxSessionChatInline(admin.TabularInline):
-    model = amo.models.AmoSandboxSessionChat
-
-
-@admin.register(amo.models.AmoSandboxSession)
-class AmoSandboxSessionAdmin(admin.ModelAdmin):
-    inlines = [AmoSandboxSessionChatInline]
