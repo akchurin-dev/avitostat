@@ -945,9 +945,11 @@ class AmoSandboxSession(models.Model):
     )
 
     @staticmethod
-    def instantiate(chatbot_id: int) -> AmoSandboxSession:
+    def instantiate(chatbot_id: int, finished: bool = False) -> AmoSandboxSession:
         session = AmoSandboxSession()
+
         session.chatbot_id = chatbot_id
+        session.finished = finished
 
         return session
 
