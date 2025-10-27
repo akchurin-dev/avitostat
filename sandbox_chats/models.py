@@ -11,12 +11,37 @@ class InputChat(models.Model):
         blank=True,
     )
 
+    answer_requirements = models.TextField(
+        verbose_name="Требования к ответу",
+        blank=True,
+    )
+
     class Meta:
         verbose_name = "Тестовый чат"
         verbose_name_plural = "Тестовые чаты"
 
     def __str__(self) -> str:
         return self.title or f"Тестовый чат ({self.pk})"
+
+
+class BaseSandboxSessionChat(models.Model):
+    mark = models.SmallIntegerField(
+        verbose_name="Оценка",
+        null=True,
+        default=None,
+    )
+
+    template_chat_id: int
+    template_chat = models.ForeignKey(
+        verbose_name="Основано на чате",
+        to=InputChat,
+        on_delete=models.CASCADE,
+        null=True,
+        default=None,
+    )
+
+    class Meta:
+        abstract = True
 
 
 class MessageRole(models.TextChoices):

@@ -934,6 +934,11 @@ class AmoSandboxSession(models.Model):
         on_delete=models.CASCADE,
     )
 
+    finished = models.BooleanField(
+        verbose_name="Завершена",
+        default=False,
+    )
+
     created_at = models.DateTimeField(
         verbose_name="Создано",
         auto_now_add=True,
@@ -947,7 +952,7 @@ class AmoSandboxSession(models.Model):
         return session
 
 
-class AmoSandboxSessionChat(models.Model):
+class AmoSandboxSessionChat(sandbox_chats.models.BaseSandboxSessionChat):
     session_id: int
     session = models.ForeignKey(
         verbose_name="запуск песочницы",
@@ -956,9 +961,11 @@ class AmoSandboxSessionChat(models.Model):
     )
 
     @staticmethod
-    def instantiate(session_id: int) -> AmoSandboxSessionChat:
+    def instantiate(session_id: int, template_chat_id: int) -> AmoSandboxSessionChat:
         chat = AmoSandboxSessionChat()
+
         chat.session_id = session_id
+        chat.template_chat_id = template_chat_id
 
         return chat
 

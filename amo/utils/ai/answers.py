@@ -38,6 +38,7 @@ def generate_answer(
     chatbot: amo.models.AmoChatBot,
     messages: list[ResponseInputItemParam],
     known_info: dict[str, list[str]],
+    from_sandbox: bool = False,
     *,
     tlogger: TraceLogger,
 ) -> AIAnswer:
@@ -45,9 +46,13 @@ def generate_answer(
     if not use_gpt_flag():
         return AIAnswer(answer="mock answer", tokens_prompt=0, tokens_completion=0)
 
+    tag = f"Amo | {account.domain} | generate answer"
+    if from_sandbox:
+        tag += " [sandbox]"
+
     response = ai_helper.create_completion(
         openai_input=_get_openai_input(account, chatbot, messages, known_info, tlogger=tlogger),
-        tag=f"Amo | {account.domain} | generate answer",
+        tag=tag,
         tlogger=tlogger,
     )
 
