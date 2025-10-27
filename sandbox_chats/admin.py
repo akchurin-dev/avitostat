@@ -7,6 +7,7 @@ import sandbox_chats.models
 class InputChatMessageInline(admin.StackedInline):
     model = sandbox_chats.models.InputChatMessage
     extra = 0
+    ordering = ["created_at"]
 
 
 class AmoChatbotInline(admin.TabularInline):

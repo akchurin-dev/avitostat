@@ -93,4 +93,4 @@ class InputChatMessage(BaseMessage):
 
     @staticmethod
     def get_messages_by_chat(chat_id: int) -> QuerySet[InputChatMessage]:
-        return InputChatMessage.objects.filter(chat_id=chat_id)
+        return InputChatMessage.objects.filter(chat_id=chat_id).order_by("created_at")

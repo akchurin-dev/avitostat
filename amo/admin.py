@@ -217,6 +217,8 @@ class AmoSandboxSessionAdmin(admin.ModelAdmin):
 
 class AmoSandInline(admin.TabularInline):
     model = amo.models.AmoSandboxOutputChatMessage
+    extra = 0
+    ordering = ["created_at"]
 
 
 @admin.register(amo.models.AmoSandboxSessionChat)
