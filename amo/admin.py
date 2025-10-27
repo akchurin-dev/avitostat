@@ -224,7 +224,6 @@ class AmoSandboxOutputChatMessageInline(admin.TabularInline):
 class AmoSandboxAnswerInline(admin.TabularInline):
     model = amo.models.AmoSandboxAnswer
     extra = 0
-    ordering = ["created_at"]
 
 
 @admin.register(amo.models.AmoSandboxSessionChat)
