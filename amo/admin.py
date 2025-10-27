@@ -213,3 +213,8 @@ class AmoSandboxSessionAdmin(admin.ModelAdmin):
         "finished",
     ]
     inlines = [AmoSandboxSessionChatInline]
+
+
+@admin.register(amo.models.AmoSandboxSessionChat)
+class AmoSandboxSessionChat(admin.ModelAdmin):
+    pass
