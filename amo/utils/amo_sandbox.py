@@ -29,7 +29,8 @@ def run_sandbox_session(chatbot_id: int) -> None:
 
         input_chat_messages = sandbox_chats.models.InputChatMessage.get_messages_by_chat(input_chat.pk)
         for message in input_chat_messages:
-            amo.models.AmoSandboxOutputChatMessage.from_input_chat_message(message, output_chat.pk)
+            output_chat_message = amo.models.AmoSandboxOutputChatMessage.create_instance_from_input_chat_message(message, output_chat.pk)
+            output_chat_message.save()
 
         handle_chat(chatbot, output_chat, list(input_chat_messages), tlogger=tlogger)
 

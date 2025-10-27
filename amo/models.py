@@ -1001,7 +1001,7 @@ class AmoSandboxOutputChatMessage(sandbox_chats.models.BaseMessage):
         return message
 
     @staticmethod
-    def from_input_chat_message(input_chat_message: sandbox_chats.models.InputChatMessage, chat_id: int) -> AmoSandboxOutputChatMessage:
+    def create_instance_from_input_chat_message(input_chat_message: sandbox_chats.models.InputChatMessage, chat_id: int) -> AmoSandboxOutputChatMessage:
         message = AmoSandboxOutputChatMessage()
 
         message.chat_id = chat_id
