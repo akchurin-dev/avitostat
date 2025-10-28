@@ -207,6 +207,7 @@ class ChatMessage(models.Model):
         verbose_name="Входной чат",
         to=SandboxInputChat,
         on_delete=models.CASCADE,
+        null=True,
     )
 
     output_chat_id: int
@@ -214,6 +215,7 @@ class ChatMessage(models.Model):
         verbose_name="Выходной чат",
         to=SandboxOutputChat,
         on_delete=models.CASCADE,
+        null=True,
     )
 
     author = models.CharField(
