@@ -22,15 +22,16 @@ class OutputChatInline(admin.StackedInline):
 @admin.register(sandbox_chats.models.SandboxSession)
 class SandboxSessionAdmin(admin.ModelAdmin):
     list_display = [
-        "id",
         "created_at",
         "status",
     ]
 
-    readonly_fields = [
+    fields = [
         "status",
         "created_at",
     ]
+
+    readonly_fields = fields
 
     inlines = [
         SandboxSessionInputChatLinkInline,
@@ -58,10 +59,17 @@ class ChatMessageInline(admin.TabularInline):
 @admin.register(sandbox_chats.models.SandboxInputChat)
 class InputChatAdmin(admin.ModelAdmin):
     list_display = [
-        "id",
         "title",
         "created_at",
     ]
+
+    fields = [
+        "title",
+        "answer_requirements",
+        "created_at",
+    ]
+
+    readonly_fields = ["created_at"]
 
     inlines = [
         ChatMessageInline,
@@ -74,6 +82,12 @@ class InputChatAdmin(admin.ModelAdmin):
 class TextAnswerInline(admin.StackedInline):
     model = sandbox_chats.models.SandboxTextAnswer
     extra = 0
+
+    fields = [
+        "text",
+        "rate",
+        "rate_explanation",
+    ]
 
     readonly_fields = [
         "text",
@@ -99,7 +113,17 @@ class OutputChatAdmin(admin.ModelAdmin):
         "created_at",
     ]
 
-    readonly_fields = "__all__"
+    fields = [
+        "session",
+        "answer_requirements",
+        "avg_rate",
+        "min_rate",
+        "max_rate",
+        "input_chat",
+        "created_at",
+    ]
+
+    readonly_fields = fields
 
     inlines = [
         OutputChatMessageInline,
