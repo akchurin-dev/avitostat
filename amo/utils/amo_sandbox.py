@@ -85,6 +85,7 @@ def handle_chat(
     output_chat.avg_rate = round(statistics.mean(rates), 2)
     output_chat.min_rate = min(rates)
     output_chat.max_rate = max(rates)
+    output_chat.save()
 
 
 def _create_sandbox_session(
