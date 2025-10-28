@@ -122,6 +122,9 @@ class OutputChatAdmin(admin.ModelAdmin):
     list_display = [
         "session",
         "input_chat",
+        "avg_rate",
+        "min_rate",
+        "max_rate",
         "created_at",
     ]
 
