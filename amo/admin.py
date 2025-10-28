@@ -149,7 +149,11 @@ class AmoChatbotSandboxInputChatLinkInline(admin.TabularInline):
 class AmoChatbotSandboxSessionLinkInline(admin.TabularInline):
     model = amo.models.AmoChatbotSandboxSessionLink
     extra = 0
-    readonly_fields = "__all__"
+
+    readonly_fields = [
+        "chatbot",
+        "session",
+    ]
 
 
 @admin.register(amo.models.AmoChatBot)

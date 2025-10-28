@@ -4,10 +4,14 @@ import amo.admin
 import sandbox_chats.models
 
 
-class InputChatInline(admin.TabularInline):
-    model = sandbox_chats.models.SandboxInputChat
+class SandboxSessionInputChatLinkInline(admin.TabularInline):
+    model = sandbox_chats.models.SandboxSessionInputChatLink
     extra = 0
-    readonly_fields = "__all__"
+
+    readonly_fields = [
+        "session",
+        "chat",
+    ]
 
 
 class OutputChatInline(admin.StackedInline):
@@ -23,10 +27,13 @@ class SandboxSessionAdmin(admin.ModelAdmin):
         "status",
     ]
 
-    readonly_fields = "__all__"
+    readonly_fields = [
+        "status",
+        "created_at",
+    ]
 
     inlines = [
-        InputChatInline,
+        SandboxSessionInputChatLinkInline,
         amo.admin.AmoChatbotSandboxSessionLinkInline,
         OutputChatInline,
     ]
@@ -45,7 +52,6 @@ class ChatMessageInline(admin.TabularInline):
         "created_at",
     ]
 
-    readonly_fields = ["created_at"]
     ordering = ["created_at", "id"]
 
 
@@ -68,7 +74,21 @@ class InputChatAdmin(admin.ModelAdmin):
 class TextAnswerInline(admin.StackedInline):
     model = sandbox_chats.models.SandboxTextAnswer
     extra = 0
-    readonly_fields = "__all__"
+
+    readonly_fields = [
+        "text",
+        "rate",
+        "rate_explanation",
+    ]
+
+
+class OutputChatMessageInline(ChatMessageInline):
+    readonly_fields = [
+        "author",
+        "text",
+        "image_url",
+        "created_at",
+    ]
 
 
 @admin.register(sandbox_chats.models.SandboxOutputChat)
@@ -82,7 +102,7 @@ class OutputChatAdmin(admin.ModelAdmin):
     readonly_fields = "__all__"
 
     inlines = [
-        ChatMessageInline,
+        OutputChatMessageInline,
         TextAnswerInline,
     ]
 
