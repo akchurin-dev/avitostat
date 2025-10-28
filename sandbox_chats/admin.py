@@ -18,6 +18,18 @@ class OutputChatInline(admin.StackedInline):
     model = sandbox_chats.models.SandboxOutputChat
     extra = 0
 
+    fields = [
+        "session",
+        "input_chat",
+        "answer_requirements",
+        "avg_rate",
+        "min_rate",
+        "max_rate",
+        "created_at",
+    ]
+
+    readonly_fields = fields
+
 
 @admin.register(sandbox_chats.models.SandboxSession)
 class SandboxSessionAdmin(admin.ModelAdmin):
