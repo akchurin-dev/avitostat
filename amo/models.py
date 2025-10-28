@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import datetime
-from typing import Iterable
 
 from django.contrib.auth.models import User
 from django.db import models
@@ -912,12 +911,16 @@ class AmoChatbotSandboxInputChatLink(models.Model):
     chat_id: int
     chat = models.ForeignKey(
         verbose_name="Тестовый чат",
-        to=sandbox_chats.models.InputChat,
+        to=sandbox_chats.models.SandboxInputChat,
         on_delete=models.CASCADE,
     )
 
+    class Meta:
+        verbose_name = "Связь Амо-чатбот - Тестовый чат"
+        verbose_name_plural = "Связи Амо-чатбот - Тестовый чат"
+
     @staticmethod
-    def get_input_chats_by_chatbot(chatbot_id: int) -> list[sandbox_chats.models.InputChat]:
+    def get_input_chats_by_chatbot(chatbot_id: int) -> list[sandbox_chats.models.SandboxInputChat]:
         links = (
             AmoChatbotSandboxInputChatLink.objects
             .filter(chatbot_id=chatbot_id)
@@ -926,7 +929,7 @@ class AmoChatbotSandboxInputChatLink(models.Model):
         return [link.chat for link in links]
 
 
-class AmoSandboxSession(models.Model):
+class AmoChatbotSandboxSessionLink(models.Model):
     chatbot_id: int
     chatbot = models.ForeignKey(
         verbose_name="Чат-бот",
@@ -934,104 +937,22 @@ class AmoSandboxSession(models.Model):
         on_delete=models.CASCADE,
     )
 
-    finished = models.BooleanField(
-        verbose_name="Завершена",
-        default=False,
-    )
-
-    created_at = models.DateTimeField(
-        verbose_name="Создано",
-        auto_now_add=True,
-    )
-
-    @staticmethod
-    def instantiate(chatbot_id: int, finished: bool = False) -> AmoSandboxSession:
-        session = AmoSandboxSession()
-
-        session.chatbot_id = chatbot_id
-        session.finished = finished
-
-        return session
-
-
-class AmoSandboxSessionChat(sandbox_chats.models.BaseSandboxSessionChat):
     session_id: int
     session = models.ForeignKey(
-        verbose_name="запуск песочницы",
-        to=AmoSandboxSession,
+        verbose_name="Тестовая сессия",
+        to=sandbox_chats.models.SandboxSession,
         on_delete=models.CASCADE,
     )
 
-    @staticmethod
-    def instantiate(session_id: int, template_chat_id: int) -> AmoSandboxSessionChat:
-        chat = AmoSandboxSessionChat()
-
-        chat.session_id = session_id
-        chat.template_chat_id = template_chat_id
-
-        return chat
-
-
-class AmoSandboxOutputChatMessage(sandbox_chats.models.BaseMessage):
-    chat_id: int
-    chat = models.ForeignKey(
-        verbose_name="Чат",
-        to=AmoSandboxSessionChat,
-        on_delete=models.CASCADE,
-    )
+    class Meta:
+        verbose_name = "Связь Амо-чат-бот - Тестовая сессия"
+        verbose_name_plural = "Связи Амо-чат-бот - Тестовая сессия"
 
     @staticmethod
-    def instantiate(
-        chat_id: int,
-        from_customer: bool,
-        text: str = "",
-        image_url: str = "",
-    ) -> AmoSandboxOutputChatMessage:
+    def instantiate(chatbot_id: int, session_id: int) -> AmoChatbotSandboxSessionLink:
+        link = AmoChatbotSandboxSessionLink()
 
-        message = AmoSandboxOutputChatMessage()
+        link.chatbot_id = chatbot_id
+        link.session_id = session_id
 
-        message.chat_id = chat_id
-        message.text = text
-        message.image_url = image_url
-
-        message.author = sandbox_chats.models.MessageRole.MANAGER
-        if from_customer:
-            message.author = sandbox_chats.models.MessageRole.CUSTOMER
-
-        return message
-
-    @staticmethod
-    def create_instance_from_input_chat_message(
-        input_chat_message: sandbox_chats.models.InputChatMessage,
-        chat_id: int,
-    ) -> AmoSandboxOutputChatMessage:
-
-        message = AmoSandboxOutputChatMessage()
-
-        message.chat_id = chat_id
-        message.author = input_chat_message.author
-        message.text = input_chat_message.text
-        message.image_url = input_chat_message.image_url
-        message.created_at = input_chat_message.created_at
-
-        return message
-
-
-class AmoSandboxAnswer(sandbox_chats.models.BaseSandboxAnswer):
-    chat_id: int
-    chat = models.ForeignKey(
-        verbose_name="Тестовый ответ",
-        to=AmoSandboxSessionChat,
-        on_delete=models.CASCADE,
-    )
-
-    @staticmethod
-    def instantiate(chat_id: int, text: str, rate: int, rate_explanation: str) -> AmoSandboxAnswer:
-        answer = AmoSandboxAnswer()
-
-        answer.chat_id = chat_id
-        answer.text = text
-        answer.rate = rate
-        answer.rate_explanation = rate_explanation
-
-        return answer
+        return link

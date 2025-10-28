@@ -141,9 +141,15 @@ class AmoCaseTypeInline(admin.StackedInline):
     extra = 0
 
 
-class SandboxChatInline(admin.TabularInline):
+class AmoChatbotSandboxInputChatLinkInline(admin.TabularInline):
     model = amo.models.AmoChatbotSandboxInputChatLink
     extra = 0
+
+
+class AmoChatbotSandboxSessionLinkInline(admin.TabularInline):
+    model = amo.models.AmoChatbotSandboxSessionLink
+    extra = 0
+    readonly_fields = "__all__"
 
 
 @admin.register(amo.models.AmoChatBot)
@@ -155,7 +161,8 @@ class AmoChatBotAdmin(admin.ModelAdmin):
         AmoPipelineStatusInline,
         AmoOriginInline,
         AmoCaseTypeInline,
-        SandboxChatInline,
+        AmoChatbotSandboxInputChatLinkInline,
+        AmoChatbotSandboxSessionLinkInline,
     ]
 
     def get_queryset(self, request: HttpRequest) -> QuerySet[amo.models.AmoChatBot]:
@@ -198,37 +205,3 @@ class AmoChatBotTaskAdmin(admin.ModelAdmin):
             qs = qs.filter(account__created_by=request.user)
 
         return qs
-
-
-class AmoSandboxSessionChatInline(admin.TabularInline):
-    model = amo.models.AmoSandboxSessionChat
-    extra = 0
-
-
-@admin.register(amo.models.AmoSandboxSession)
-class AmoSandboxSessionAdmin(admin.ModelAdmin):
-    list_display = [
-        "chatbot",
-        "created_at",
-        "finished",
-    ]
-    inlines = [AmoSandboxSessionChatInline]
-
-
-class AmoSandboxOutputChatMessageInline(admin.TabularInline):
-    model = amo.models.AmoSandboxOutputChatMessage
-    extra = 0
-    ordering = ["created_at"]
-
-
-class AmoSandboxAnswerInline(admin.TabularInline):
-    model = amo.models.AmoSandboxAnswer
-    extra = 0
-
-
-@admin.register(amo.models.AmoSandboxSessionChat)
-class AmoSandboxSessionChat(admin.ModelAdmin):
-    inlines = [
-        AmoSandboxOutputChatMessageInline,
-        AmoSandboxAnswerInline,
-    ]
