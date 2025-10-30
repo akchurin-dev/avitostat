@@ -1,9 +1,10 @@
+import urllib.parse
 from django.contrib import admin
 from django.db.models.query import QuerySet
 from django.http import HttpRequest
 from django.http.response import HttpResponse
 from django.shortcuts import redirect
-import urllib.parse
+from django.utils.text import Truncator
 
 import amo.models
 import amo.schemas
@@ -212,13 +213,13 @@ class AmoChatBotTaskAdmin(admin.ModelAdmin):
     ]
 
     def text_preview(self, obj: amo.models.AmoChatBotTask) -> str:
-        return obj.text[:MAX_STR_LENGTH_IN_LIST_DISPLAY]
+        return Truncator(obj.text).chars(MAX_STR_LENGTH_IN_LIST_DISPLAY)
 
     def answer_text_preview(self, obj: amo.models.AmoChatBotTask) -> str | None:
         if obj.answer_text is None:
             return None
 
-        return obj.answer_text[:MAX_STR_LENGTH_IN_LIST_DISPLAY]
+        return Truncator(obj.answer_text).chars(MAX_STR_LENGTH_IN_LIST_DISPLAY)
 
     def get_queryset(self, request: HttpRequest) -> QuerySet:
         qs = super().get_queryset(request)
