@@ -189,17 +189,23 @@ class AmoChatBotAdmin(admin.ModelAdmin):
 
 @admin.register(amo.models.AmoChatBotTask)
 class AmoChatBotTaskAdmin(admin.ModelAdmin):
-    ordering = ["-created_at"]
     list_display = [
-        "id",
+        "created_at",
+        "lead_id",
         "status",
         "account",
         "text",
         "answer_text",
         "tokens_completion",
         "tokens_prompt",
-        "created_at",
         "updated_at",
+    ]
+
+    ordering = ["-created_at"]
+
+    search_fields = [
+        "text",
+        "answer_text",
     ]
 
     def get_queryset(self, request: HttpRequest) -> QuerySet:
