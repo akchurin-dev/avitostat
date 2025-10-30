@@ -779,8 +779,9 @@ class AmoChatBotTask(chat_bot.base_models.AIResultContainer, chatbottasks.Task):
         """ Cancel task if newer tasks exist. Return True if canceled """
 
         if self.get_newer_tasks().exists():
-            tlogger.info("Newer tasks found")
-            self.cancel(tlogger=tlogger)
+            reason = "Newer tasks found"
+            tlogger.info(reason)
+            self.cancel(reason, tlogger=tlogger)
             return True
 
         return False

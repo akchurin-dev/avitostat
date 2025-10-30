@@ -149,8 +149,9 @@ def prepare_message_handling_data(task_id: int, avito_account_id: int, *, trace_
         messages = chat.get("messages", [])[-10:]
 
         if not amo_a5_messages.is_message_actual(task, messages, tlogger=tlogger):
-            task.cancel(tlogger=tlogger)
-            tlogger.info(f"Stop handling. Message (id='{task.message_id}') is not actual")
+            reason = f"Message (id='{task.message_id}') is not actual"
+            task.cancel(reason, tlogger=tlogger)
+            tlogger.info(f"Stop handling. " + reason)
             return
 
         incoming = False
@@ -160,15 +161,17 @@ def prepare_message_handling_data(task_id: int, avito_account_id: int, *, trace_
                 break
 
         if not incoming:
-            task.cancel(tlogger=tlogger)
-            tlogger.info(f"Stop handling. Message (id='{task.message_id}') is outgoing")
+            reason = "Message (id='{task.message_id}') is outgoing"
+            task.cancel(reason, tlogger=tlogger)
+            tlogger.info(f"Stop handling. " + reason)
             return
 
         manager_interfere = amo_a5_messages.manager_interfere(task.account.pk, task.lead_id, messages)
         assert task.chatbot
         if manager_interfere and task.chatbot.shutdown_after_manager:
-            task.cancel(tlogger=tlogger)
-            tlogger.info("Stop handling. Shutdown after manager")
+            reason = "Shutdown after manager"
+            task.cancel(reason, tlogger=tlogger)
+            tlogger.info("Stop handling. " + reason)
             return
 
         lead = amo_api.get_lead(task.account, task.lead_id, tlogger=tlogger)

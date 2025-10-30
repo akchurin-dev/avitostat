@@ -229,8 +229,9 @@ def prepare_message_handling_data(*, task_id: int, trace_id: str):
         #     return
 
         if not amo_messages.is_message_actual(task, messages, tlogger=tlogger):
-            task.cancel(tlogger=tlogger)
-            tlogger.info(f"Stop handling. Message is not actual")
+            reason = "Message is not actual"
+            task.cancel(reason, tlogger=tlogger)
+            tlogger.info(f"Stop handling. " + reason)
             return
 
         manager_interfere = amo_messages.manager_interfere(
@@ -240,8 +241,9 @@ def prepare_message_handling_data(*, task_id: int, trace_id: str):
         )
         assert task.chatbot is not None
         if manager_interfere and task.chatbot.shutdown_after_manager:
-            task.cancel(tlogger=tlogger)
-            tlogger.info("Stop handling. Shutdown after manager")
+            reason = "Shutdown after manager"
+            task.cancel(reason, tlogger=tlogger)
+            tlogger.info("Stop handling. " + reason)
             return
 
         lead = amo_api.get_lead(task.account, task.lead_id, tlogger=tlogger)
@@ -250,8 +252,9 @@ def prepare_message_handling_data(*, task_id: int, trace_id: str):
             tlogger.info("A5Client pipeline")
             ok = a5client.fill_chatbot_task_with_avito_data(task, lead, tlogger=tlogger)
             if not ok:
-                tlogger.info("Stop handling. Task filling with avito data not success")
-                task.cancel(tlogger)
+                reason = "Task filling with avito data not success"
+                tlogger.info("Stop handling. " + reason)
+                task.cancel(reason, tlogger=tlogger)
                 return
 
         contact = amo_leads.get_lead_contact(task.account, lead, tlogger=tlogger)
@@ -395,8 +398,9 @@ def finish_handling(
                 tlogger=tlogger,
             )
         else:
-            tlogger.error(f"Unexpected pipeline type, got '{task.pipeline_type}'")
-            task.cancel(tlogger)
+            reason = f"Unexpected pipeline type, got '{task.pipeline_type}'"
+            tlogger.error(reason)
+            task.cancel(reason, tlogger=tlogger)
             return
 
         task.answered_at = datetime_now_msk()

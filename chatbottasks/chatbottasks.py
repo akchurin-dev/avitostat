@@ -49,6 +49,13 @@ class Task(models.Model):
         db_index=True,
     )
 
+    cancel_reason = models.CharField(
+        verbose_name="Причина отмены",
+        max_length=255,
+        null=True,
+        default=None,
+    )
+
     created_at = models.DateTimeField(
         verbose_name="Когда создана задача",
         auto_now_add=True,
@@ -86,7 +93,10 @@ class Task(models.Model):
 
             tasks_to_cancel = object_tasks.filter(status__in=cls.CANCELABLE_STATUSES).exclude(pk=except_task_id)
             canceled_ids = [task.pk for task in tasks_to_cancel]
-            tasks_to_cancel.update(status=Task.Status.CANCELED)
+            tasks_to_cancel.update(
+                status=Task.Status.CANCELED,
+                cancel_reason="Newer task was created",
+            )
 
             tlogger.info(f"Tasks with id in {canceled_ids} was canceled")
 
@@ -120,27 +130,6 @@ class Task(models.Model):
         )
 
     @classmethod
-    def wait_for_permission_to_start(cls, task_id: int) -> None:
-        while True:
-            task = cls.objects.get(pk=task_id)
-
-            if task.status == Task.Status.CANCELED:
-                return
-
-            active_tasks = (
-                cls.objects
-                .filter(object_id=task.object_id)
-                .exclude(pk=task_id)
-                .exclude(status__in=cls.NOT_CHANGABLE_STATUSES)
-                .exclude(status=Task.Status.PENDING)
-            )
-
-            if not active_tasks.exists():
-                return
-
-            time.sleep(3)
-
-    @classmethod
     def interrupt_task_if_error(cls, func):
         def f(*args, task_id: int, **kwargs):
             try:
@@ -169,8 +158,16 @@ class Task(models.Model):
             tlogger=tlogger,
         )
 
-    def cancel(self, tlogger: TraceLogger):
-        return self.change_status(
+    def cancel(self, reason: str | None = None, *, tlogger: TraceLogger) -> bool:
+        ok = self.change_status(
             new_status=self.Status.CANCELED,
             tlogger=tlogger,
         )
+
+        if not ok:
+            return False
+
+        self.cancel_reason = reason
+        self.save()
+
+        return True
