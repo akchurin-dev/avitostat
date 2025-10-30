@@ -217,20 +217,23 @@ def define_message_type(text: str, attachment_type: str | None) -> MessageTypeEn
 
 
 def manager_interfere(account_id: str, lead_id: str, messages: list[Message]) -> bool:
+    chat_id = messages[0].chat_id
     chatbot_answers = amo.models.AmoChatBotTask.objects.filter(
         account_id=account_id,
-        lead_id=lead_id,
+        # lead_id=lead_id,
+        chat_id=chat_id,
     )
-    first_message_at = min([chatbot_answer.message_created_at for chatbot_answer in chatbot_answers])
-    outgoing_messages = [msg for msg in messages if not msg.incoming and msg.created_at >= first_message_at]
+    # first_message_at = min([chatbot_answer.message_created_at for chatbot_answer in chatbot_answers])
+    # outgoing_messages = [msg for msg in messages if not msg.incoming and msg.created_at >= first_message_at]
+    outgoing_messages = [msg for msg in messages if not msg.incoming]
 
     for message in outgoing_messages:
         for chatbot_answer in chatbot_answers:
-            ts_diff = timedelta()
+            created_diff = timedelta()
             if chatbot_answer.answered_at is not None:
-                ts_diff = chatbot_answer.answered_at - message.created_at
+                created_diff = chatbot_answer.answered_at - message.created_at
 
-            if ts_diff < timedelta(seconds=5) and chatbot_answer.answer_text == message.text:
+            if created_diff < timedelta(seconds=5) and chatbot_answer.answer_text == message.text:
                 break
         else:
             return True
