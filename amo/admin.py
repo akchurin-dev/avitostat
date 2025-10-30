@@ -13,6 +13,9 @@ from amo.utils import amo_sandbox
 from base import settings
 
 
+MAX_STR_LENGTH_IN_LIST_DISPLAY = 100
+
+
 class AvitoAccountInline(admin.TabularInline):
     model = amo_a5client.models.AmoAvitoAccountsLink
     fields = ["avito_account", "is_active"]
@@ -194,8 +197,8 @@ class AmoChatBotTaskAdmin(admin.ModelAdmin):
         "lead_id",
         "status",
         "account",
-        "text",
-        "answer_text",
+        "text_preview",
+        "answer_text_preview",
         "tokens_completion",
         "tokens_prompt",
         "updated_at",
@@ -207,6 +210,15 @@ class AmoChatBotTaskAdmin(admin.ModelAdmin):
         "text",
         "answer_text",
     ]
+
+    def text_preview(self, obj: amo.models.AmoChatBotTask) -> str:
+        return obj.text[:MAX_STR_LENGTH_IN_LIST_DISPLAY]
+
+    def answer_text_preview(self, obj: amo.models.AmoChatBotTask) -> str | None:
+        if obj.answer_text is None:
+            return None
+
+        return obj.answer_text[:MAX_STR_LENGTH_IN_LIST_DISPLAY]
 
     def get_queryset(self, request: HttpRequest) -> QuerySet:
         qs = super().get_queryset(request)
