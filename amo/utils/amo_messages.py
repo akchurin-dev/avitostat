@@ -224,9 +224,7 @@ def manager_interfere(account_id: str, lead_id: str, messages: list[Message]) ->
     first_message_at = min([chatbot_answer.message_created_at for chatbot_answer in chatbot_answers])
     outgoing_messages = [msg for msg in messages if not msg.incoming and msg.created_at >= first_message_at]
 
-    tlogger = TraceLogger()
     for message in outgoing_messages:
-        tlogger.info(f"message: {message.text}")
         for chatbot_answer in chatbot_answers:
             ts_diff = timedelta()
             if chatbot_answer.answered_at is not None:
@@ -234,8 +232,6 @@ def manager_interfere(account_id: str, lead_id: str, messages: list[Message]) ->
 
             if ts_diff < timedelta(seconds=5) and chatbot_answer.answer_text == message.text:
                 break
-
-            tlogger.info(f"ts_diff: {ts_diff}; text: {chatbot_answer.answer_text}")
         else:
             return True
 
