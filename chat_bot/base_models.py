@@ -61,6 +61,7 @@ class AIChatBotBase(models.Model):
 
 class AIResultContainer(models.Model):
     answer_text = models.TextField(verbose_name="Текст ответа", blank=True, null=True)
+    answered_at = models.DateTimeField(verbose_name="Когда отвечено", null=True, default=None)
     tokens_completion = models.IntegerField(default=0, verbose_name="Токены на вычисления")
     tokens_prompt = models.IntegerField(default=0, verbose_name="Токены на контекст")
 

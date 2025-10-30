@@ -18,6 +18,7 @@ from amo.utils.ai import fields_recognition
 from chat_bot.utils import avito_api
 from utils import increasing_delay
 from utils.logging import TraceLogger
+from utils.miscellaneous import datetime_now_msk
 
 
 RETRY_MESSAGE_HANGLING_DELAY_CONFIG = increasing_delay.IncreasingDelayConfig(
@@ -398,11 +399,14 @@ def finish_handling(
             task.cancel(tlogger)
             return
 
+        task.answered_at = datetime_now_msk()
+
         tlogger.info("Message was sent successfully")
 
         if status_change_result.status_changed_on_qualification:
             task.qualification_achieved = True
-            task.save()
+
+        task.save()
 
         amo.models.AmoChatBotTask.save_ai_result(
             pk=task.pk,

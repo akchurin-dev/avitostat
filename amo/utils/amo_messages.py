@@ -220,12 +220,22 @@ def manager_interfere(account_id: str, lead_id: str, messages: list[Message]) ->
     chatbot_answers = amo.models.AmoChatBotTask.objects.filter(
         account_id=account_id,
         lead_id=lead_id,
+        answered_at__isnull=False,
     )
-    chatbot_answers_id = [task.message_id for task in chatbot_answers]
-    messages_id = {msg.id for msg in messages if not msg.incoming}
+    outgoing_messages = [msg for msg in messages if not msg.incoming]
 
-    manager_answers_id = messages_id.difference(chatbot_answers_id)
-    return len(manager_answers_id) > 0
+    for message in outgoing_messages:
+        for chatbot_answer in chatbot_answers:
+            assert chatbot_answer.answered_at is not None
+            if (
+                chatbot_answer.answered_at - message.created_at < timedelta(seconds=5)
+                and chatbot_answer.text == message.text
+            ):
+                break
+        else:
+            return True
+
+    return False
 
 
 def is_message_actual(task: amo.models.AmoChatBotTask, messages: list[Message], *, tlogger: TraceLogger) -> bool:
