@@ -203,7 +203,7 @@ class AmoChatBotTaskAdmin(admin.ModelAdmin):
         "answer_text_preview",
         "tokens_completion",
         "tokens_prompt",
-        "updated_at",
+        # "updated_at",
     ]
 
     ordering = ["-created_at"]

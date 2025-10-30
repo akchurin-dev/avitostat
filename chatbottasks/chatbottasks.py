@@ -62,7 +62,7 @@ class Task(models.Model):
     )
 
     updated_at = models.DateTimeField(
-        verbose_name="Когда создана задача",
+        verbose_name="Когда обновлена задача",
         auto_now=True,
     )
 
