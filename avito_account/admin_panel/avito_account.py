@@ -59,6 +59,18 @@ class CompanyBranchInline(admin.TabularInline):
 
 class AvitoAccountAdmin(admin.ModelAdmin):
     list_display = ('name', 'telegram_id', 'phone', 'created_by')
+    fields = [
+        'name',
+        'telegram_id',
+        'phone',
+        'profile_url',
+        'analytic_schema',
+        'id',
+        'balance_alerting',
+        'created_by',
+        'weekly_text_report',
+        'weekly_pdf_report',
+    ]
     readonly_fields = ('id',)
     inlines = [WorkScheduleInline, ExcludedItemInline, CompanyBranchInline]
     actions = [
@@ -131,13 +143,13 @@ class AvitoAccountAdmin(admin.ModelAdmin):
             readonly_fields = ['id'] + list(readonly_fields)
         return readonly_fields
 
-    def get_fieldsets(self, request, obj=None):
-        fieldsets = [
-            (None, {
-                'fields': (
-                    'name', 'telegram_id', 'phone',
-                    'profile_url', 'analytic_schema', 'id', 'balance_alerting', 'created_by',
-                ),
-            }),
-        ]
-        return fieldsets
+    # def get_fieldsets(self, request, obj=None):
+    #     fieldsets = [
+    #         (None, {
+    #             'fields': (
+    #                 'name', 'telegram_id', 'phone',
+    #                 'profile_url', 'analytic_schema', 'id', 'balance_alerting', 'created_by',
+    #             ),
+    #         }),
+    #     ]
+    #     return fieldsets
