@@ -190,3 +190,21 @@ def actualize_avito_items(self, request, queryset: QuerySet[AvitoAccount]) -> No
 
 
 actualize_avito_items.short_description = "Обновить список объявлений"  # type: ignore
+
+
+def disable_pdf_reports(self, request, queryset: QuerySet[AvitoAccount]) -> None:
+    for account in queryset:
+        account.weekly_pdf_report = False
+    AvitoAccount.objects.bulk_update(queryset, fields=["weekly_pdf_report"])
+
+
+disable_pdf_reports.short_description = "Отключить пдф отчеты"  # type: ignore
+
+
+def disable_text_reports(self, request, queryset: QuerySet[AvitoAccount]) -> None:
+    for account in queryset:
+        account.weekly_text_report = False
+    AvitoAccount.objects.bulk_update(queryset, fields=["weekly_text_report"])
+
+
+disable_text_reports.short_description = "Отключить текстовые отчеты"  # type: ignore

@@ -9,6 +9,8 @@ from django.shortcuts import redirect
 from avito_account.admin_panel.avito_account_actions import actualize_avito_items
 from avito_account.admin_panel.avito_account_actions import actualize_avito_webhooks_subscriptions
 from avito_account.admin_panel.avito_account_actions import celery_pdf_month_for_api_report
+from avito_account.admin_panel.avito_account_actions import disable_pdf_reports
+from avito_account.admin_panel.avito_account_actions import disable_text_reports
 from avito_account.admin_panel.avito_account_actions import run_daily_pdf_report
 from avito_account.admin_panel.avito_account_actions import run_pdf_all_report
 from avito_account.admin_panel.avito_account_actions import run_pdf_all_test_from_prod_report
@@ -77,6 +79,8 @@ class AvitoAccountAdmin(admin.ModelAdmin):
         actualize_avito_items,
         actualize_avito_webhooks_subscriptions,
         celery_pdf_month_for_api_report,
+        disable_pdf_reports,
+        disable_text_reports,
         run_daily_pdf_report,
         run_pdf_all_report,
         run_pdf_all_test_from_prod_report,
