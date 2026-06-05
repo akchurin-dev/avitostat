@@ -131,7 +131,7 @@ class ChatBotTask(
     # Core fields
     status = models.CharField(
         verbose_name="Статус",
-        max_length=15,
+        max_length=31,
         db_index=True,
         null=True,
         default=None,
