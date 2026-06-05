@@ -1,4 +1,5 @@
 from __future__ import annotations
+from enum import Enum
 
 from django.db import models
 from django.utils import timezone
@@ -9,6 +10,15 @@ from avito_account.utils import avito_webhooks
 from avito_account.models.models import AvitoAccount
 from chat_bot.utils import companies_branches
 from prompts import prompts
+
+
+class AvitoTaskStatus(str, Enum):
+    CREATED = "created"
+    ANSWER_GENERATION = "answer_generation"
+    SUMMARY_SENDING = "summary_sending"
+    CANCELED = "canceled"
+    INTERRUPTED = "interrupted"
+    FINISHED = "finished"
 
 
 class CompanyBranch(models.Model):
@@ -114,8 +124,19 @@ class AvitoPrompt(prompts.PromptBase):
         unique_together = ["chatbot", "title"]
 
 
-class ChatBotTask(chat_bot.base_models.AIResultContainer, chat_bot.base_models.ClientContactsContainer):
+class ChatBotTask(
+    chat_bot.base_models.AIResultContainer,
+    chat_bot.base_models.ClientContactsContainer,
+):
     # Core fields
+    status = models.CharField(
+        verbose_name="Статус",
+        max_length=15,
+        db_index=True,
+        null=True,
+        default=None,
+    )
+    cancel_reason = models.TextField(verbose_name="Причина отмены", blank=True, null=True, default=None)
     avito_account = models.ForeignKey(AvitoAccount, on_delete=models.CASCADE)
     company_branch = models.ForeignKey(CompanyBranch, on_delete=models.SET_NULL, null=True, blank=True)
     is_incoming = models.BooleanField(default=True, verbose_name="Входящее сообщение")
@@ -132,6 +153,22 @@ class ChatBotTask(chat_bot.base_models.AIResultContainer, chat_bot.base_models.C
     class Meta:
         verbose_name = "Ответ чат бота"
         verbose_name_plural = "Ответы чат бота"
+
+    def get_status(self) -> AvitoTaskStatus:
+        return AvitoTaskStatus(self.status)
+
+    def set_status(self, new_status: AvitoTaskStatus, save: bool = False) -> None:
+        self.status = new_status.value
+        if save:
+            self.save()
+
+    def cancel(self, reason: str, save: bool = False) -> None:
+        self.cancel_reason = reason
+        self.set_status(AvitoTaskStatus.CANCELED, save=save)
+
+    def interrupt(self, error: Exception | str, save: bool = False) -> None:
+        self.cancel_reason = str(error)
+        self.set_status(AvitoTaskStatus.INTERRUPTED, save=save)
 
     @staticmethod
     def get_tasks_by_chat(account: AvitoAccount, chat_id: str) -> models.QuerySet[ChatBotTask]:

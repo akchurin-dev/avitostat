@@ -5,6 +5,7 @@ from avito_account.models.models import AvitoAccount
 from base.celery import celery_logger
 from chat_bot import ai_utils
 from chat_bot.models import AiChatBot
+from chat_bot.models import AvitoTaskStatus
 from chat_bot.models import ChatBotTask
 from chat_bot.models import DialogTrigger
 from chat_bot.models import WorkedTrigger
@@ -45,49 +46,57 @@ def ai_answer_sender_task(
     assert "messages" in chat
 
     new_task = ChatBotTask.objects.get(pk=new_task_id)
+    new_task.set_status(AvitoTaskStatus.ANSWER_GENERATION, save=True)
 
-    if not avito_messages.is_message_actual(new_task, chat["messages"], tlogger=tlogger):
-        tlogger.info(f"Stop handling. Message is not actual (id={message_id})")
-        return
+    try:
+        if not avito_messages.is_message_actual(new_task, chat["messages"], tlogger=tlogger):
+            cancel_message = f"Message is not actual (id={message_id})"
+            new_task.cancel(cancel_message, save=True)
+            tlogger.info(f"Stop handling. " + cancel_message)
+            return
 
-    company_branch = companies_branches.define_company_branch(avito_account, chat_id, tlogger=tlogger)
-    last_message_id = chat["messages"][-1]["id"]
+        company_branch = companies_branches.define_company_branch(avito_account, chat_id, tlogger=tlogger)
+        last_message_id = chat["messages"][-1]["id"]
 
-    if chatbot.read_only:
-        ai_answer = ai_utils.parse_contacts(
-            chatbot=chatbot,
-            chat=chat,
-            ask_location=company_branch is None,
-            tlogger=tlogger,
-        )
-        tlogger.info("Chatbot configured to read only")
-    else:
-        ai_answer = ai_utils.generate_answer_and_parse_contacts(
-            ai_assistant=chatbot,
-            chat=chat,
-            ask_location=company_branch is None,
-            tlogger=tlogger,
-        )
-        ai_answer.answer += "..."
+        if chatbot.read_only:
+            ai_answer = ai_utils.parse_contacts(
+                chatbot=chatbot,
+                chat=chat,
+                ask_location=company_branch is None,
+                tlogger=tlogger,
+            )
+            tlogger.info("Chatbot configured to read only")
+        else:
+            ai_answer = ai_utils.generate_answer_and_parse_contacts(
+                ai_assistant=chatbot,
+                chat=chat,
+                ask_location=company_branch is None,
+                tlogger=tlogger,
+            )
+            ai_answer.answer += "..."
 
-        last_message_id = avito_api.send_message(avito_account, chat_id, ai_answer.answer, tlogger=tlogger).id
-        tlogger.info("Answer was sent to avito successfully")
+            last_message_id = avito_api.send_message(avito_account, chat_id, ai_answer.answer, tlogger=tlogger).id
+            tlogger.info("Answer was sent to avito successfully")
 
-    contacts_saving.task_contacts_save(new_task, ai_answer, is_incoming=True, company_branch=company_branch)
-    tlogger.info("AIChatBotTask was updated successfully")
+        contacts_saving.task_contacts_save(new_task, ai_answer, is_incoming=True, company_branch=company_branch)
+        tlogger.info("AIChatBotTask was updated successfully")
 
-    if summaries.may_send_report(chatbot, ai_answer.contacts, tlogger=tlogger):
-        summary_sending.send_summary(avito_account, chat_id, trace_id=tlogger.trace_id)
+        if summaries.may_send_report(chatbot, ai_answer.contacts, tlogger=tlogger):
+            summary_sending.send_summary(avito_account, chat_id, trace_id=tlogger.trace_id)
 
-    if not chatbot.read_only:
-        dialog_triggers.initiate_trigger_condition_check(
-            chatbot=chatbot,
-            chat_id=new_task.chat_id,
-            last_message_id=last_message_id,
-            tlogger=tlogger,
-        )
+        if not chatbot.read_only:
+            dialog_triggers.initiate_trigger_condition_check(
+                chatbot=chatbot,
+                chat_id=new_task.chat_id,
+                last_message_id=last_message_id,
+                tlogger=tlogger,
+            )
 
-    tlogger.info("Incoming message handling is finished")
+        new_task.set_status(AvitoTaskStatus.FINISHED, save=True)
+        tlogger.info("Incoming message handling is finished")
+    except Exception as error:
+        new_task.interrupt(error, save=True)
+        raise
 
 
 @shared_task
@@ -107,85 +116,99 @@ def outgoing_messages_handler(
     avito_account = AvitoAccount.objects.get(pk=account_id)
     chatbot = AiChatBot.objects.get(pk=chatbot_id)
 
+    new_task.set_status(AvitoTaskStatus.ANSWER_GENERATION, save=False)
     new_task.is_incoming = False
     new_task.save()
 
-    tasks = list(ChatBotTask.objects.filter(chat_id=chat_id, is_incoming=True).order_by("created_at"))
-    answered_from_ai = False
+    try:
+        tasks = list(ChatBotTask.objects.filter(chat_id=chat_id, is_incoming=True).order_by("created_at"))
+        answered_from_ai = False
 
-    tlogger.info(f"Current outgoing message: '{new_task.text}'")
+        tlogger.info(f"Current outgoing message: '{new_task.text}'")
 
-    for task in tasks[-5:]:
-        if task.answer_text and task.answer_text == new_task.text:
-            answered_from_ai = True
-            tlogger.info(f"Last answers: " + str([task.answer_text for task in tasks[-5:]]))
-            break
-
-    if not answered_from_ai:
-        worked_triggers = WorkedTrigger.get_worked_triggers_by_chat(avito_account, chat_id)
-        if len(worked_triggers) != 0:
-            last_worked_trigger = worked_triggers[len(worked_triggers) - 1].trigger
-
-            if new_task.text == last_worked_trigger.message:
+        for task in tasks[-5:]:
+            if task.answer_text and task.answer_text == new_task.text:
                 answered_from_ai = True
-                tlogger.info({"Last worked trigger message": last_worked_trigger.message})
+                tlogger.info(f"Last answers: " + str([task.answer_text for task in tasks[-5:]]))
+                break
 
-    if answered_from_ai:
-        tlogger.info("Stop handling. Message generated by ai")
-        return
+        if not answered_from_ai:
+            worked_triggers = WorkedTrigger.get_worked_triggers_by_chat(avito_account, chat_id)
+            if len(worked_triggers) != 0:
+                last_worked_trigger = worked_triggers[len(worked_triggers) - 1].trigger
 
-    tlogger.info("Message wrote by manager manually")
+                if new_task.text == last_worked_trigger.message:
+                    answered_from_ai = True
+                    tlogger.info({"Last worked trigger message": last_worked_trigger.message})
 
-    if chatbot.shutdown_after_manager:
-        new_task.chat_shutdown_by_user = True
-        new_task.save()
-        tlogger.info("Bot successfully disabled after manager")
+        if answered_from_ai:
+            cancel_message = "Message generated by ai"
+            new_task.cancel(cancel_message, save=True)
+            tlogger.info("Stop handling. " + cancel_message)
+            return
 
-    if not chatbot.send_new_contact_report:
-        tlogger.info("Stop handling. Chatbot configured don't send new contacts reports")
-        return
+        tlogger.info("Message wrote by manager manually")
 
-    if summaries.new_contact_report_sent(avito_account, chat_id):
-        tlogger.info(f"Stop handling. Summary was sent already for chat '{chat_id}'")
-        return
+        if chatbot.shutdown_after_manager:
+            new_task.chat_shutdown_by_user = True
+            new_task.save()
+            tlogger.info("Bot successfully disabled after manager")
 
-    chat = messaging.api.get_chat_last_50_messages_by_chat_id(
-        avito_account=avito_account,
-        chat_id=chat_id,
-        tlogger=tlogger,
-    )
-    assert "messages" in chat
+        if not chatbot.send_new_contact_report:
+            cancel_message = "Chatbot configured don't send new contacts reports"
+            new_task.cancel(cancel_message, save=True)
+            tlogger.info("Stop handling. " + cancel_message)
+            return
 
-    last_message_id = chat["messages"][-1]["id"]
-    if chat["messages"][-1]["type"] == "system":
-        last_message_id = chat["messages"][-2]["id"]
+        if summaries.new_contact_report_sent(avito_account, chat_id):
+            cancel_message = f"Summary was sent already for chat '{chat_id}'"
+            new_task.cancel(cancel_message, save=True)
+            tlogger.info("Stop handling. " + cancel_message)
+            return
 
-    if last_message_id != message_id:
-        tlogger.info(f"Stop handling. Message (id={message_id}) is not actual")
-        return
-
-    company_branch = companies_branches.define_company_branch(avito_account, chat_id, tlogger=tlogger)
-
-    ai_answer = ai_utils.parse_contacts(
-        chatbot=chatbot,
-        chat=chat,
-        ask_location=company_branch is None,
-        tlogger=tlogger,
-    )
-    contacts_saving.task_contacts_save(new_task, ai_answer, is_incoming=False, company_branch=company_branch)
-
-    if summaries.may_send_report(chatbot, ai_answer.contacts, tlogger=tlogger):
-        summary_sending.send_summary(avito_account, chat_id, trace_id=tlogger.trace_id)
-
-    if not chatbot.read_only:
-        dialog_triggers.initiate_trigger_condition_check(
-            chatbot=chatbot,
-            chat_id=new_task.chat_id,
-            last_message_id=last_message_id,
+        chat = messaging.api.get_chat_last_50_messages_by_chat_id(
+            avito_account=avito_account,
+            chat_id=chat_id,
             tlogger=tlogger,
         )
+        assert "messages" in chat
 
-    tlogger.info("Outgoing message handling is finished")
+        last_message_id = chat["messages"][-1]["id"]
+        if chat["messages"][-1]["type"] == "system":
+            last_message_id = chat["messages"][-2]["id"]
+
+        if last_message_id != message_id:
+            cancel_message = f"Message (id={message_id}) is not actual"
+            new_task.cancel(cancel_message, save=True)
+            tlogger.info("Stop handling. " + cancel_message)
+            return
+
+        company_branch = companies_branches.define_company_branch(avito_account, chat_id, tlogger=tlogger)
+
+        ai_answer = ai_utils.parse_contacts(
+            chatbot=chatbot,
+            chat=chat,
+            ask_location=company_branch is None,
+            tlogger=tlogger,
+        )
+        contacts_saving.task_contacts_save(new_task, ai_answer, is_incoming=False, company_branch=company_branch)
+
+        if summaries.may_send_report(chatbot, ai_answer.contacts, tlogger=tlogger):
+            summary_sending.send_summary(avito_account, chat_id, trace_id=tlogger.trace_id)
+
+        if not chatbot.read_only:
+            dialog_triggers.initiate_trigger_condition_check(
+                chatbot=chatbot,
+                chat_id=new_task.chat_id,
+                last_message_id=last_message_id,
+                tlogger=tlogger,
+            )
+
+        new_task.set_status(AvitoTaskStatus.FINISHED, save=True)
+        tlogger.info("Outgoing message handling is finished")
+    except Exception as error:
+        new_task.interrupt(error, save=True)
+        raise
 
 
 @shared_task

@@ -12,7 +12,7 @@ from avito_account.models.models import AvitoAccount
 from base.settings import ENVIRONMENT
 from chat_bot.tasks import ai_answer_sender_task
 from chat_bot.tasks import outgoing_messages_handler
-from chat_bot.models import AiChatBot, ChatBotTask
+from chat_bot.models import AiChatBot, AvitoTaskStatus, ChatBotTask
 from chat_bot.utils import avito_api
 from chat_bot.utils import avito_chatbots
 from utils.logging import new_trace_id, TraceLogger
@@ -78,6 +78,9 @@ class WebhookInboxViewClass(View):
             message_id=message_id,
             message_created_at=datetime.datetime.fromtimestamp(created_at_timestamp, datetime.timezone.utc),
             text=text,
+            defaults={
+                "status": AvitoTaskStatus.CREATED.value,
+            },
         )
         if not created:
             tlogger.info(f"Stop handling. Request already processed: message_id - {new_task.message_id}")
@@ -86,11 +89,15 @@ class WebhookInboxViewClass(View):
         chatbot = AiChatBot.objects.filter(account=avito_account).first()
 
         if chatbot is None:
-            tlogger.info(f"Stop handling. Chatbot not found")
+            cancel_message = "Chatbot not found"
+            new_task.cancel(cancel_message, save=True)
+            tlogger.info("Stop handling. " +cancel_message)
             return
 
         if not chatbot.is_active:
-            tlogger.info("Stop handling. Chatbot is inactive")
+            cancel_message = "Chatbot is inactive"
+            new_task.cancel(cancel_message, save=True)
+            tlogger.info("Stop handling. " + cancel_message)
             return
 
         if ENVIRONMENT != "PRODUCTION":
@@ -100,11 +107,15 @@ class WebhookInboxViewClass(View):
         message_type = request_data["payload"]["value"]["type"]
 
         if request_type != "message":
-            tlogger.info(f"Stop handling. Unexpected request type, got {request_type}")
+            cancel_message = f"Unexpected request type, got {request_type}"
+            new_task.cancel(cancel_message, save=True)
+            tlogger.info(f"Stop handling. " + cancel_message)
             return
 
         if message_type != "text":
-            tlogger.info(f"Stop handling. Unexpected message type, got {message_type}")
+            cancel_message = f"Unexpected message type, got {message_type}"
+            new_task.cancel(cancel_message, save=True)
+            tlogger.info(f"Stop handling. " + cancel_message)
             return
 
         # Исходящие сообщения
@@ -120,11 +131,15 @@ class WebhookInboxViewClass(View):
             return
 
         if not avito_chatbots.check_chatbot_worktime_now(chatbot):
-            tlogger.info(f"Stop handling. It isn't chatbot worktime")
+            cancel_message = "It isn't chatbot worktime"
+            new_task.cancel(cancel_message, save=True)
+            tlogger.info("Stop handling. " + cancel_message)
             return
 
         if avito_chatbots.check_chatbot_shutdown_for_chat(chat_id, chatbot, tlogger=tlogger):
-            tlogger.info("Stop handling. Chatbot is stopped for chat")
+            cancel_message = "Chatbot is stopped for chat"
+            new_task.cancel(cancel_message, save=True)
+            tlogger.info("Stop handling. " + cancel_message)
             return
 
         avito_api.read_chat(avito_account, chat_id, tlogger=tlogger)

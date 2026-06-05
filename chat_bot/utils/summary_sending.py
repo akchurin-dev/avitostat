@@ -1,4 +1,5 @@
 from asgiref.sync import async_to_sync
+from django.db import transaction
 from django.db.models import QuerySet
 
 import messaging.api
@@ -12,10 +13,11 @@ from utils import tg
 from utils.logging import TraceLogger
 
 
+@transaction.atomic
 def send_summary(account: AvitoAccount, chat_id, *, trace_id: str | None = None):
     tlogger = TraceLogger(trace_id)
 
-    all_tasks = ChatBotTask.objects.filter(chat_id=chat_id)
+    all_tasks = ChatBotTask.objects.filter(chat_id=chat_id).select_for_update(no_key=True)
 
     if summaries.new_contact_report_sent(account, chat_id):
         tlogger.info(f"Stop summary sending. Summary report already sent for chat_id {chat_id}.")
