@@ -14,29 +14,35 @@ import chat_bot.models
 @admin.register(chat_bot.models.ChatBotTask)
 class ChatBotTaskAdmin(admin.ModelAdmin):
     ordering = ["-created_at"]
-    list_filter = (ContragentFilter, 'avito_account', ChatIDFilter, ("created_at", DateRangeFilterBuilder()), ContactFilter)
+    list_filter = (
+        ContragentFilter,
+        'avito_account',
+        'status',
+        ChatIDFilter,
+        ("created_at", DateRangeFilterBuilder()),
+        ContactFilter,
+    )
     search_fields = ("chat_id", "message_id", "answer_text", "text")
 
     def get_list_display(self, request):
         # Определяем, какие поля отображать в зависимости от прав пользователя
         base_display = [
+            'created_at',
             'avito_account',
             'status',
+            'cancel_reason',
             'is_incoming',
             'summary_sanded',
             'chat_shutdown_by_user',
-            'message_id',
             'chat_id',
-            'created_at',
+            'message_id',
             'text',
             'answer_text',
-            'cancel_reason',
             'mobile',
             'address',
         ]
         if request.user.is_superuser:
             base_display += ['tokens_completion', 'tokens_prompt']
-        base_display = ['avito_account'] + base_display
         return base_display
 
     def get_queryset(self, request):
