@@ -47,6 +47,10 @@ def summary_sender(
     *,
     tlogger: TraceLogger,
 ):
+    if chat_summary.paragraphs is None or not chat_summary.paragraphs.meta__has_phone_number:
+        tlogger.info(f"Stop summary sending. No phone number in chat summary paragraphs.")
+        return
+
     summary_text = get_chat_summary_text(chat_summary, chat)
     tlogger.info(f"Summary report summary_text {summary_text}.")
 
@@ -91,36 +95,31 @@ def summary_sender(
 
 
 def get_chat_summary_text(chat_summary: ai_utils.ChatSummary, chat: messaging.api.Chat):
-    counter = 1
-    text = ("🎉 <b>Новый клиент из AVITO 🎉 \n\n</b> "
-            "   📋 Сводка по переписке:\n\n")
-
     assert "context" in chat
     chat_context = chat["context"]["value"]
 
     title = chat_context.get("title") or "Без названия"
-    text += f"🔹 {counter}. Название объявления: {title}\n"
-    counter += 1
-
     client_name = chat.get("users", [])[0].get("name") or "Без имени"
-    text += f"🔹 {counter}. Имя клиента: {client_name}\n"
-    counter += 1
-
-    #INFO ниже может быть без локации например через личку
     location = chat_context.get("location", {}).get("title") or "Без локации"
-    text += f"🔸 {counter}. <u><b>Город обращения: {location}</b></u> \n"
-    counter += 1
 
-    paragraphs = {}
+    parts = [
+        "🎉 <b>Новый клиент из AVITO 🎉</b>",
+        "",
+        "   📋 Сводка по переписке:",
+        "",
+        f"🔹 1. Название объявления: {title}",
+        f"🔹 2. Имя клиента: {client_name}",
+        f"🔸 3. <u><b>Город обращения: {location}</b></u>",
+    ]
 
     if chat_summary.paragraphs:
-        paragraphs = chat_summary.paragraphs.model_dump()
+        counter = 4
+        for _, value in chat_summary.paragraphs.model_dump().items():
+            if value:
+                parts.append(f"🔹 {counter}. {value}")
+                counter += 1
 
-    for _, value in paragraphs.items():
-        text += f"🔹 {counter}. {value} \n"
-        counter += 1
-
-    return text
+    return "\n".join(parts)
 
 
 def get_chat_summary_html(chat_summary: ai_utils.ChatSummary, chat: messaging.api.Chat):

@@ -19,11 +19,24 @@ class ChatBotTaskAdmin(admin.ModelAdmin):
 
     def get_list_display(self, request):
         # Определяем, какие поля отображать в зависимости от прав пользователя
-        base_display = ['is_incoming', 'chat_id', 'chat_shutdown_by_user', 'message_id', 'created_at', 'text', 'answer_text', 'mobile',
-                        'address', 'summary_sanded',]
+        base_display = [
+            'avito_account',
+            'status',
+            'is_incoming',
+            'summary_sanded',
+            'chat_shutdown_by_user',
+            'message_id',
+            'chat_id',
+            'created_at',
+            'text',
+            'answer_text',
+            'cancel_reason',
+            'mobile',
+            'address',
+        ]
         if request.user.is_superuser:
             base_display += ['tokens_completion', 'tokens_prompt']
-        base_display += ['avito_account', ]
+        base_display = ['avito_account'] + base_display
         return base_display
 
     def get_queryset(self, request):

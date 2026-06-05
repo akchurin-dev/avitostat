@@ -7,7 +7,7 @@ from typing import Literal
 
 import httpx
 from openai.types.responses import ResponseInputItemParam
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 import chat_bot.models
 import messaging.api
@@ -225,26 +225,6 @@ def _get_schema(avito_account: AvitoAccount, ask_location: bool, base_schema) ->
     return Schema
 
 
-class ChatSummarySchema(BaseModel):
-    paragraph1: str | None
-    paragraph2: str | None
-    paragraph3: str | None
-
-
-def chat_summary_data_prepare(data: ChatSummarySchema) -> dict | None:
-    parahraphs = {key: value for key, value in {
-        "paragraph1": data.paragraph1,
-        "paragraph2": data.paragraph2,
-        "paragraph3": data.paragraph3,
-
-    }.items() if value is not None}
-    if not parahraphs:
-        result = None
-    else:
-        result = parahraphs
-    return result
-
-
 def avito_chat_summary_ai_generator(avito_account: AvitoAccount, chat_id: str, *, tlogger: TraceLogger):
     chat = messaging.api.get_chat_last_50_messages_by_chat_id(
         avito_account=avito_account,
@@ -262,12 +242,27 @@ class ChatSummaryParagraphs(BaseModel):
     paragraph1: str | None = None
     paragraph2: str | None = None
     paragraph3: str | None = None
+    meta__has_phone_number: bool = Field(description="Есть ли в paragraphs номер телефона клиента")
 
 
 class ChatSummary(BaseModel):
     paragraphs: ChatSummaryParagraphs | None = None
     tokens_completion: int
     tokens_prompt: int
+
+
+def chat_summary_data_prepare(data: ChatSummaryParagraphs) -> dict | None:
+    parahraphs = {key: value for key, value in {
+        "paragraph1": data.paragraph1,
+        "paragraph2": data.paragraph2,
+        "paragraph3": data.paragraph3,
+
+    }.items() if value is not None}
+    if not parahraphs:
+        result = None
+    else:
+        result = parahraphs
+    return result
 
 
 def generate_chat_summary(module: Literal["Avito", "Amo"], account_name: str, chat: list) -> ChatSummary:
@@ -301,7 +296,7 @@ def generate_chat_summary(module: Literal["Avito", "Amo"], account_name: str, ch
         messages=[
             {"role": "assistant", "content": prompt},
         ],
-        response_format=ChatSummarySchema,
+        response_format=ChatSummaryParagraphs,
         max_tokens=600,
     )
     ai_requests.create_from_openai_completion(
