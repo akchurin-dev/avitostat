@@ -10,18 +10,14 @@ moscow_tz = pytz.timezone('Europe/Moscow')
 
 
 def check_chatbot_worktime_now(chatbot: chat_bot.models.AiChatBot) -> bool:
-    now = datetime.datetime.now(tz=moscow_tz)
-    start = moscow_tz.localize(datetime.datetime.combine(now.date(), chatbot.work_time_from))
+    now = datetime.datetime.now(tz=moscow_tz).time()
+    since = chatbot.work_time_from
+    until = chatbot.work_time_to
 
-    # Если рабочее время заканчивается на следующий день
-    if chatbot.work_time_to < chatbot.work_time_from:
-        stop = moscow_tz.localize(
-            datetime.datetime.combine(now.date() + datetime.timedelta(days=1), chatbot.work_time_to)
-        )
-    else:
-        stop = moscow_tz.localize(datetime.datetime.combine(now.date(), chatbot.work_time_to))
+    if since > until:
+        return now >= since or now <= until
 
-    return start <= now <= stop
+    return since <= now <= until
 
 
 def check_chatbot_shutdown_for_chat(chat_id, chatbot: chat_bot.models.AiChatBot, *, tlogger: TraceLogger) -> bool:
