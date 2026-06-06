@@ -18,6 +18,7 @@ class ChatBotTaskAdmin(admin.ModelAdmin):
         ContragentFilter,
         'avito_account',
         'status',
+        'summary_sanded',
         ChatIDFilter,
         ("created_at", DateRangeFilterBuilder()),
         ContactFilter,
