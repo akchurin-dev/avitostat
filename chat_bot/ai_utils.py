@@ -22,6 +22,10 @@ from utils.openai_helper import MODEL
 from utils.openai_helper import client
 
 
+class EmptyGPTResponseError(Exception):
+    """GPT response is None"""
+
+
 COMPANY_BRANCH_KEy = "nearest_company_branch"
 
 
@@ -131,9 +135,7 @@ def parse_response(json_str: str, input_tokens: int, output_tokens: int) -> AIAn
     data: dict = json.loads(json_str)
 
     if data is None:
-        raise_gpt_response_is_none()
-
-    assert data is not None
+        raise EmptyGPTResponseError()
 
     result: dict[str, Any] = {
         "answer": "",
@@ -246,23 +248,9 @@ class ChatSummaryParagraphs(BaseModel):
 
 
 class ChatSummary(BaseModel):
-    paragraphs: ChatSummaryParagraphs | None = None
+    paragraphs: ChatSummaryParagraphs
     tokens_completion: int
     tokens_prompt: int
-
-
-def chat_summary_data_prepare(data: ChatSummaryParagraphs) -> dict | None:
-    parahraphs = {key: value for key, value in {
-        "paragraph1": data.paragraph1,
-        "paragraph2": data.paragraph2,
-        "paragraph3": data.paragraph3,
-
-    }.items() if value is not None}
-    if not parahraphs:
-        result = None
-    else:
-        result = parahraphs
-    return result
 
 
 def generate_chat_summary(module: Literal["Avito", "Amo"], account_name: str, chat: list) -> ChatSummary:
@@ -272,12 +260,11 @@ def generate_chat_summary(module: Literal["Avito", "Amo"], account_name: str, ch
                 "paragraph1": "paragraph1",
                 "paragraph2": "paragraph2",
                 "paragraph3": "paragraph3",
+                "meta__has_phone_number": True,
             },
             'tokens_completion': 1,
             'tokens_prompt': 2,
         })
-
-    result: dict[str, Any] = {}
 
     prompt = (f"""Твоя задача - проанализировать переписку чата
         И сгенерировать сводку по чату которая должна содержать пункты:
@@ -307,20 +294,20 @@ def generate_chat_summary(module: Literal["Avito", "Amo"], account_name: str, ch
 
     data = response.choices[0].message.parsed
     if data is None:
-        raise_gpt_response_is_none()
+        raise EmptyGPTResponseError()
 
-    assert data is not None
-
-    result['paragraphs'] = chat_summary_data_prepare(data)
-
-    result['tokens_completion'] = 0
-    result['tokens_prompt'] = 0
+    tokens_completion = 0
+    tokens_prompt = 0
 
     if response.usage:
-        result['tokens_completion'] = response.usage.completion_tokens
-        result['tokens_prompt'] = response.usage.prompt_tokens
+        tokens_completion = response.usage.completion_tokens
+        tokens_prompt = response.usage.prompt_tokens
 
-    return ChatSummary.model_validate(result)
+    return ChatSummary(
+        paragraphs=data,
+        tokens_completion=tokens_completion,
+        tokens_prompt=tokens_prompt,
+    )
 
 
 def use_gpt_flag():
@@ -333,7 +320,3 @@ def use_gpt_flag():
     response.raise_for_status()
 
     return response.text == "True"
-
-
-def raise_gpt_response_is_none():
-    raise Exception("GPT response is None")
