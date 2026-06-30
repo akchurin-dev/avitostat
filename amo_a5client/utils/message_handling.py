@@ -226,17 +226,6 @@ def generate_ai_answer(
         )
         messages_ai_format = avito_chat_to_gpt_format(messages, transcriptions)
 
-        answer, tokens_prompt1, tokens_completion1 = answers.generate_answer(
-            account=task.account,
-            chatbot=task.chatbot,
-            messages=messages_ai_format,
-            # lead_id=int(task.lead_id),
-            known_info=known_info,
-            tlogger=tlogger,
-        )
-
-        # tlogger.info({"ai_answer": ai_answer.model_dump()})
-
         fillable_fields = list(amo.models.FillableField.objects.filter(chatbot=task.chatbot))
         entities_fields_values, tokens_prompt2, tokens_completion2 = fields_recognition.recognize_fields(
             account=task.account,
@@ -246,6 +235,20 @@ def generate_ai_answer(
         )
 
         default_pipeline_message_handling.additional_values_finding(entities_fields_values, messages_ai_format, tlogger=tlogger)
+
+        default_pipeline_message_handling._update_known_fields_values(
+            known_fields_values=known_info,
+            lead_fields_values=entities_fields_values["lead"],
+            contact_fields_values=entities_fields_values["contact"],
+        )
+
+        answer, tokens_prompt1, tokens_completion1 = answers.generate_answer(
+            account=task.account,
+            chatbot=task.chatbot,
+            messages=messages_ai_format,
+            known_info=known_info,
+            tlogger=tlogger,
+        )
 
         finish_handling.delay(
         # finish_handling(

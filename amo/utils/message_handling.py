@@ -306,6 +306,8 @@ def generate_ai_answer(
             tlogger=tlogger,
         )
 
+        additional_values_finding(entities_fields_values, messages_ai_format, tlogger=tlogger)
+
         _update_known_fields_values(
             known_fields_values=known_info,
             lead_fields_values=entities_fields_values["lead"],
@@ -319,8 +321,6 @@ def generate_ai_answer(
             known_info=known_info,
             tlogger=tlogger,
         )
-
-        additional_values_finding(entities_fields_values, messages_ai_format, tlogger=tlogger)
 
         finish_handling.delay(
         # finish_handling(
@@ -438,32 +438,25 @@ def additional_values_finding(
     phone_number_field_name = "Телефон"
     diameter_field_name = "Диаметр диска"
 
-    if "contact" not in fields_values:
+    if fields_values.get("contact") is None:
         fields_values["contact"] = {}
 
-    if fields_values["contact"]:
-        phone = fields_values["contact"].get(phone_number_field_name)
+    phone = fields_values["contact"].get(phone_number_field_name)
+    if phone is None:
+        phone = _find_phone_number(messages)
+        if phone:
+            tlogger.info("Found phone number without ai")
+            fields_values["contact"][phone_number_field_name] = phone
 
-        if phone is None:
-            phone = _find_phone_number(messages)
-            if phone:
-                tlogger.info("Found phone number without ai")
-                fields_values["contact"][phone_number_field_name] = phone
-
-    if "lead" not in fields_values:
+    if fields_values.get("lead") is None:
         fields_values["lead"] = {}
 
-    if fields_values["lead"]:
-        diameter = fields_values["lead"].get(diameter_field_name)
+    diameter = fields_values["lead"].get(diameter_field_name)
+    if diameter is None:
         diameters = _find_diameters(messages)
-
-        # if diameter is not None:
-        #     if not diameters in 
-
-        if diameter is None:
-            if diameter:
-                tlogger.info("Found diameter without ai")
-                fields_values["lead"][diameter_field_name] = diameters[0]
+        if diameters:
+            tlogger.info("Found diameter without ai")
+            fields_values["lead"][diameter_field_name] = diameters[0]
 
 
 import re
