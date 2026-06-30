@@ -103,7 +103,7 @@ class AiChatBot(chat_bot.base_models.AIChatBotBase, DialogTriggerInitiator):
 
     def save(self, *args, **kwargs):
         super().save(*args, **kwargs)
-        avito_webhooks.update_avito_webhook_subscription(self.account)
+        self._webhook_update_succeeded = avito_webhooks.update_avito_webhook_subscription(self.account)
 
     def delete(self, using=None, keep_parents=False):
         avito_webhooks.update_avito_webhook_subscription(self.account)

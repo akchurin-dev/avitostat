@@ -1,3 +1,4 @@
+from django.contrib import messages
 from django.db.models.query import QuerySet
 from django.http import HttpRequest
 from rangefilter.filters import DateRangeFilterBuilder
@@ -108,6 +109,21 @@ class AiChatBotAdmin(admin.ModelAdmin):
     list_display = ["id", "account"]
     list_display_links = ["id", "account"]
     inlines = [ChatBotPromptInline, DialogTriggerInline]
+
+    def save_model(self, request, obj, form, change):
+        super().save_model(request, obj, form, change)
+
+        if getattr(obj, "_webhook_update_succeeded", True):
+            return
+
+        self.message_user(
+            request,
+            (
+                "Чат-бот сохранён, но не удалось обновить webhook в Avito "
+                "(проверьте токен аккаунта или повторите позже)."
+            ),
+            level=messages.WARNING,
+        )
 
     def get_queryset(self, request: HttpRequest) -> QuerySet[chat_bot.models.AiChatBot]:
         qs: QuerySet[chat_bot.models.AiChatBot] = super().get_queryset(request)

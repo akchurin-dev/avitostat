@@ -5,9 +5,28 @@ from chat_bot.utils import avito_api
 from utils.logging import TraceLogger
 
 
-def update_avito_webhook_subscription(account: AvitoAccount) -> None:
+def update_avito_webhook_subscription(account: AvitoAccount) -> bool:
     tlogger = TraceLogger()
 
+    try:
+        _apply_avito_webhook_subscription(account, tlogger=tlogger)
+        return True
+    except Exception as error:
+        tlogger.error(f"Error when update avito subscription for '{account.name}', got '{error}'")
+
+        try:
+            account.update_refresh_token()
+            _apply_avito_webhook_subscription(account, tlogger=tlogger)
+            return True
+        except Exception as retry_error:
+            tlogger.error(
+                f"Error when update avito subscription for '{account.name}' after token refresh, "
+                f"got '{retry_error}'"
+            )
+            return False
+
+
+def _apply_avito_webhook_subscription(account: AvitoAccount, *, tlogger: TraceLogger) -> None:
     has_active_chatbots = chat_bot.models.AiChatBot.objects.filter(
         account=account,
         is_active=True,
