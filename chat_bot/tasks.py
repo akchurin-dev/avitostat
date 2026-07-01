@@ -12,6 +12,7 @@ from chat_bot.models import WorkedTrigger
 from chat_bot.utils import avito_api
 from chat_bot.utils import avito_messages
 from chat_bot.utils import companies_branches
+from chat_bot.utils import contacts_detection
 from chat_bot.utils import contacts_saving
 from chat_bot.utils import daily_report
 from chat_bot.utils import dialog_triggers
@@ -254,6 +255,10 @@ def dialog_trigger_launcher(trigger_id: int, chat_id: str, last_message_id: str,
 
     if trigger.only_when_client_is_silent and last_message["direction"] == "in":
         tlogger.info("Stop handling. Trigger work only when client is silent, but last message is incoming")
+        return
+
+    if contacts_detection.chat_has_contact(trigger.chatbot.account, chat_id, messages):
+        tlogger.info("Stop handling. Contact already collected")
         return
 
     condition_matched = True

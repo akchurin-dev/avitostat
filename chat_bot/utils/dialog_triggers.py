@@ -1,5 +1,6 @@
 import chat_bot.models
 import chat_bot.tasks
+from chat_bot.utils import contacts_detection
 from utils.logging import TraceLogger
 
 
@@ -10,6 +11,10 @@ def initiate_trigger_condition_check(
     *,
     tlogger: TraceLogger,
 ) -> None:
+
+    if contacts_detection.chat_has_contact(chatbot.account, chat_id):
+        tlogger.info("Stop handling. Contact already collected, triggers are not needed")
+        return
 
     worked_triggers = chat_bot.models.WorkedTrigger.get_worked_triggers_by_chat(chatbot.account, chat_id)
 
