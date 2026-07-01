@@ -127,7 +127,7 @@ class WebhookInboxViewClass(View):
                 chatbot_id=chatbot.pk,
                 task_id=new_task.pk,
                 trace_id=tlogger.trace_id,
-            ).apply_async(coundown=30)
+            ).apply_async(countdown=30)
             return
 
         if not avito_chatbots.check_chatbot_worktime_now(chatbot):

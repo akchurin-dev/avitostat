@@ -82,7 +82,10 @@ def ai_answer_sender_task(
         contacts_saving.task_contacts_save(new_task, ai_answer, is_incoming=True, company_branch=company_branch)
         tlogger.info("AIChatBotTask was updated successfully")
 
-        if summaries.may_send_report(chatbot, ai_answer.contacts, tlogger=tlogger):
+        if (
+            not summaries.new_contact_report_sent(avito_account, chat_id)
+            and summaries.may_send_report(chatbot, ai_answer.contacts, tlogger=tlogger)
+        ):
             summary_sending.send_summary(avito_account, chat_id, trace_id=tlogger.trace_id)
 
         if not chatbot.read_only:

@@ -1,10 +1,8 @@
-from asgiref.sync import async_to_sync
 from django.db import transaction
 from django.db.models import QuerySet
 
 import messaging.api
 from avito_account.models.models import AvitoAccount
-from base import settings
 from chat_bot import ai_utils
 from chat_bot.models import ChatBotTask
 from chat_bot.utils import history_pdf
@@ -17,9 +15,14 @@ from utils.logging import TraceLogger
 def send_summary(account: AvitoAccount, chat_id, *, trace_id: str | None = None):
     tlogger = TraceLogger(trace_id)
 
-    all_tasks = ChatBotTask.objects.filter(chat_id=chat_id).select_for_update(no_key=True)
+    locked_tasks = list(
+        ChatBotTask.objects
+        .filter(avito_account=account, chat_id=chat_id)
+        .select_for_update(no_key=True)
+        .order_by("created_at")
+    )
 
-    if summaries.new_contact_report_sent(account, chat_id):
+    if summaries.any_contact_report_sent(locked_tasks):
         tlogger.info(f"Stop summary sending. Summary report already sent for chat_id {chat_id}.")
         return
 
@@ -32,32 +35,38 @@ def send_summary(account: AvitoAccount, chat_id, *, trace_id: str | None = None)
     chat = messaging.api.get_chat_by_id(account, chat_id, tlogger=tlogger)
     chat["messages"] = messages
 
-    chat_summary = ai_utils.avito_chat_summary_ai_generator(account, chat_id, tlogger=tlogger)
-    if chat_summary:
-        summary_sender(account, chat_summary, chat, all_tasks, tlogger=tlogger)
-    else:
-        tlogger.info(f"Chat summary is empty, got {chat_summary}")
+    chat_summary = ai_utils.generate_chat_summary("Avito", account.name or "", messages)
+    if not _summary_has_phone(chat_summary):
+        tlogger.info(f"Stop summary sending. No phone number in chat summary, got {chat_summary}")
+        return
+
+    ChatBotTask.objects.filter(avito_account=account, chat_id=chat_id).update(summary_sanded=True)
+
+    summary_sender(account, chat_summary, chat, locked_tasks, tlogger=tlogger)
 
 
 def summary_sender(
     avito_account: AvitoAccount,
     chat_summary: ai_utils.ChatSummary,
     chat: messaging.api.Chat,
-    all_tasks: QuerySet[ChatBotTask],
+    all_tasks: QuerySet[ChatBotTask] | list[ChatBotTask],
     *,
     tlogger: TraceLogger,
 ):
-    if chat_summary.paragraphs is None or not chat_summary.paragraphs.meta__has_phone_number:
-        tlogger.info(f"Stop summary sending. No phone number in chat summary paragraphs.")
-        return
-
     summary_text = get_chat_summary_text(chat_summary, chat)
     tlogger.info(f"Summary report summary_text {summary_text}.")
 
     telegram_id = avito_account.telegram_id
     location = "Location not defined"
 
-    task_with_company_branch = all_tasks.filter(company_branch__isnull=False).order_by("created_at").last()
+    tasks_qs = all_tasks
+    if isinstance(all_tasks, list):
+        task_with_company_branch = next(
+            (task for task in reversed(all_tasks) if task.company_branch_id),
+            None,
+        )
+    else:
+        task_with_company_branch = tasks_qs.filter(company_branch__isnull=False).order_by("created_at").last()
     if task_with_company_branch:
         assert task_with_company_branch.company_branch
         telegram_id = task_with_company_branch.company_branch.telegram_id
@@ -68,19 +77,17 @@ def summary_sender(
         tlogger.error(error)
         raise Exception(error)
 
-    if summary_text and len(summary_text) > 20:  # 20 is random value)
+    if summary_text and len(summary_text) > 20:
         tlogger.info(f"Send summary report to chat (tg_id={telegram_id}) of '{avito_account.name}' ({location})")
-        # ChatBotSummaryReportClass.text_sender_to_tg(text=summary_text, telegram_id=telegram_id)
         tg.send_message(telegram_id, summary_text)
-        tlogger.info(f"Summary report was sent successfully")
+        tlogger.info("Summary report was sent successfully")
     else:
-        tlogger.info(f"Summary text is empty or not enought long")
+        tlogger.info("Summary text is empty or not enought long")
 
     summary_html = get_chat_summary_html(chat_summary, chat)
     tlogger.info(f"Send history pdf to chat (tg_id={telegram_id}) of '{avito_account.name}' ({location})")
 
     history_pdf.history_pdf_sender_task.delay(
-    # history_pdf.history_pdf_sender_task(
         avito_account_id=avito_account.pk,
         chat=chat,
         summary_html=summary_html,
@@ -88,10 +95,13 @@ def summary_sender(
         trace_id=tlogger.trace_id,
     )
 
-    last_chat_bot_task = all_tasks.last()
-    if last_chat_bot_task is not None:
-        last_chat_bot_task.summary_sanded = True
-        last_chat_bot_task.save()
+
+def _summary_has_phone(chat_summary: ai_utils.ChatSummary | None) -> bool:
+    return (
+        chat_summary is not None
+        and chat_summary.paragraphs is not None
+        and chat_summary.paragraphs.meta__has_phone_number
+    )
 
 
 def get_chat_summary_text(chat_summary: ai_utils.ChatSummary, chat: messaging.api.Chat):

@@ -127,10 +127,10 @@ Seller/manager message — enqueue `outgoing_messages_handler` with `task_id=new
                 chatbot_id=chatbot.pk,
                 task_id=new_task.pk,
                 trace_id=tlogger.trace_id,
-            ).apply_async(coundown=30)
+            ).apply_async(countdown=30)
 ```
 
-The keyword is spelled `coundown`, not Celery’s `countdown`. As written, this does **not** apply a 30-second delay (invalid argument to `apply_async`). The intended behavior is a **30s** wait before handling outgoing messages.
+Outgoing handler is delayed **30s** so the bot’s own reply can be classified before treating the message as manual manager input.
 
 #### `outgoing_messages_handler` sequence
 
@@ -181,12 +181,12 @@ Requires `chatbot.send_new_contact_report` and at least one of `mobile`, `whatsa
 
 | Step | Behavior |
 |------|----------|
-| Guard | `new_contact_report_sent` again inside `send_summary` |
+| Guard | Lock chat tasks with `select_for_update`, check `summary_sanded` on locked rows, set flag on all tasks before Telegram send |
 | Data | Last 50 messages + `get_chat_by_id`; `avito_chat_summary_ai_generator` |
 | Telegram | HTML summary via `utils.tg.send_message` if text length > 20 |
 | Target chat | `company_branch.telegram_id` if branch set on latest task with branch, else `avito_account.telegram_id` |
 | PDF | `history_pdf.history_pdf_sender_task.delay` → PDF to same `telegram_id` |
-| Flag | `summary_sanded=True` on `all_tasks.last()` for that `chat_id` (not necessarily the triggering row) |
+| Flag | `summary_sanded=True` on **all** `ChatBotTask` rows for that `chat_id` before send |
 
 ---
 
@@ -224,7 +224,7 @@ sequenceDiagram
             Worker->>TG: summary + PDF task
         end
     else outgoing text
-        Note over Worker: outgoing_messages_handler (see coundown note)
+        Note over Worker: outgoing_messages_handler (30s delay)
         Worker->>API: get messages, parse_contacts
         opt may_send_report
             Worker->>TG: summary + PDF task
@@ -270,7 +270,7 @@ Voice/image on the **standard** branch are dropped at the text-only gate. They a
 | Stops at type | Not `text` on standard branch |
 | No AI reply | Outside worktime, chat shutdown, or `is_message_actual` false |
 | AMO only | `AmoAvitoAccountsLink` — uses `amo_a5client`, not `AiChatBot` |
-| Outgoing runs immediately | `coundown` typo on `apply_async` (see Step 4) |
+| Outgoing runs too early | `countdown=30` missing or too low on `apply_async` |
 
 ---
 

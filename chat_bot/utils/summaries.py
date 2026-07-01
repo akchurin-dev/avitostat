@@ -12,6 +12,10 @@ def new_contact_report_sent(account: AvitoAccount, chat_id: str) -> bool:
     ).exists()
 
 
+def any_contact_report_sent(tasks: list[chat_bot.models.ChatBotTask]) -> bool:
+    return any(task.summary_sanded for task in tasks)
+
+
 def may_send_report(chatbot: chat_bot.models.AiChatBot, contacts: ai_utils.AIAnswerContacts | None, *, tlogger: TraceLogger) -> bool:
     if not chatbot.send_new_contact_report:
         tlogger.info("Chatbot configured don't send new contacts reports")
