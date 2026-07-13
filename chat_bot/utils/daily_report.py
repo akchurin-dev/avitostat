@@ -111,43 +111,55 @@ def get_raw_data(
         return None
 
     last_24_hours = timezone.now() - datetime.timedelta(days=1)
-    chat_bot_tasks = ChatBotTask.objects.filter(
+    report_date = last_24_hours.date()
+    base_tasks = ChatBotTask.objects.filter(
         avito_account=avito_account,
-        company_branch=company_branch,
-        created_at__date=last_24_hours.date(),
+        created_at__date=report_date,
         tokens_completion__gt=0,
     )
 
-    if not chat_bot_tasks.exists():
+    if company_branch is not None:
+        stats_tasks = base_tasks.filter(company_branch=company_branch)
+        pdf_tasks = stats_tasks
+    else:
+        stats_tasks = base_tasks
+        pdf_tasks = base_tasks.filter(company_branch__isnull=True)
+
+    if not stats_tasks.exists():
         tlogger.info("Tasks not found")
         return None
 
-    bot_answered_mes_ids = list(chat_bot_tasks.values_list("message_id", flat=True).distinct())
-    unique_bot_chat_ids = chat_bot_tasks.values_list("chat_id", flat=True).distinct()
-    tasks_with_contact = chat_bot_tasks.filter(
+    contact_filter = (
         Q(address__isnull=False) & ~Q(address="") |
         Q(mobile__isnull=False) & ~Q(mobile="") |
         Q(whatsapp__isnull=False) & ~Q(whatsapp="") |
         Q(telegram__isnull=False) & ~Q(telegram="") |
         Q(email__isnull=False) & ~Q(email="")
-    ).values("chat_id").distinct()
-    contacts_count = len(tasks_with_contact)
-    # Chats with messages getting
+    )
+
+    stats_chat_ids = stats_tasks.values_list("chat_id", flat=True).distinct()
+    stats_contacts_count = stats_tasks.filter(contact_filter).values("chat_id").distinct().count()
+
+    pdf_chat_ids = pdf_tasks.values_list("chat_id", flat=True).distinct()
+    bot_answered_mes_ids = list(pdf_tasks.values_list("message_id", flat=True).distinct())
+    pdf_contacts_ids = list(pdf_tasks.filter(contact_filter).values_list("chat_id", flat=True).distinct())
+
     actual_chats = filter_chats_for_last_period(chats, period=period)
     messaging.api.add_messages_to_chats(avito_account, actual_chats, raise_if_payment_required_error=False, tlogger=tlogger)
     only_with_text = filter_chats_only_with_text(actual_chats)
-    bot_chats_with_messages = filter_by_bot_answered_chat_ids(only_with_text, unique_bot_chat_ids)
+    stats_bot_chats = filter_by_bot_answered_chat_ids(only_with_text, stats_chat_ids)
+    pdf_chats = filter_by_bot_answered_chat_ids(only_with_text, pdf_chat_ids)
 
     return Statistic(
         avito_account_id=avito_account.pk,
         avito_account_name=avito_account.name,
         company_branch_location=company_branch.location if company_branch else None,
         total_chats_count=len(only_with_text),
-        bot_chats_count=len(bot_chats_with_messages),
-        contacts_count=contacts_count,
-        chats=bot_chats_with_messages,
+        bot_chats_count=len(stats_bot_chats),
+        contacts_count=stats_contacts_count,
+        chats=pdf_chats,
         bot_answered_mes_ids=bot_answered_mes_ids,
-        chats_with_contacts_ids=list(tasks_with_contact.values_list("chat_id", flat=True)),
+        chats_with_contacts_ids=pdf_contacts_ids,
     )
 
 
@@ -168,6 +180,8 @@ def statistics_txt_sender(telegram_id: str, statistics: Statistic):
 
     if statistics.company_branch_location:
         lines.append(f"📍 <b>Город:</b> <code> {statistics.company_branch_location}</code>")
+    else:
+        lines.append("📍 <b>Все филиалы</b>")
 
     lines.extend([
         f"💬 <b>Всего чатов:</b> <code> {total_chats_count}</code>",
@@ -202,12 +216,9 @@ def history_main_sender(avito_account: AvitoAccount, telegram_id: str, statistic
 
     if len(chats) != 0 and have_closed_chats and aichatbot.histories_closed:
         message_title = f"✅ <b>История закрытых переписок ({len(chats_with_contacts_ids)} шт) :</b>"
-        # PdfReportBaseClass.text_sender_to_tg(f"✅ <b>История закрытых переписок"
-        #                                         f" ({len(chats_with_contacts_ids)} шт) :</b>",
-        #                                         telegram_id)
         tg.send_message(telegram_id, message_title)
         for chat in chats:
-            if chat.get("id") in chats_with_contacts_ids:  # ДУМАЮ МОЖНО УБРАТЬ, НО НАДО ПРОВЕРЯТЬ
+            if chat.get("id") in chats_with_contacts_ids:
                 history_pdf.history_pdf_sender_task(
                     avito_account_id=avito_account.pk,
                     chat=chat,
@@ -216,9 +227,6 @@ def history_main_sender(avito_account: AvitoAccount, telegram_id: str, statistic
 
     if chats and have_open_chats and aichatbot.histories_open:
         message_title = f"❌ <b>История НЕ закрытых переписок ({len(chats) - len(chats_with_contacts_ids)} шт)  :</b>"
-        # PdfReportBaseClass.text_sender_to_tg(f"❌ <b>История НЕ закрытых переписок"
-        #                                         f" ({len(chats) - len(chats_with_contacts_ids)} шт)  :</b>",
-        #                                         telegram_id)
         tg.send_message(telegram_id, message_title)
         for chat in chats:
             if chat.get("id") not in chats_with_contacts_ids:
