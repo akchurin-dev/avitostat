@@ -5,6 +5,7 @@ import messaging.api
 from avito_account.models.models import AvitoAccount
 from chat_bot import ai_utils
 from chat_bot.models import ChatBotTask
+from chat_bot.utils import contacts_detection
 from chat_bot.utils import history_pdf
 from chat_bot.utils import summaries
 from utils import tg
@@ -35,10 +36,11 @@ def send_summary(account: AvitoAccount, chat_id, *, trace_id: str | None = None)
     chat = messaging.api.get_chat_by_id(account, chat_id, tlogger=tlogger)
     chat["messages"] = messages
 
-    chat_summary = ai_utils.generate_chat_summary("Avito", account.name or "", messages)
-    if not _summary_has_phone(chat_summary):
-        tlogger.info(f"Stop summary sending. No phone number in chat summary, got {chat_summary}")
+    if not contacts_detection.chat_has_contact(account, chat_id, messages):
+        tlogger.info(f"Stop summary sending. No phone/contact in chat tasks or messages for chat_id {chat_id}")
         return
+
+    chat_summary = ai_utils.generate_chat_summary("Avito", account.name or "", messages)
 
     ChatBotTask.objects.filter(avito_account=account, chat_id=chat_id).update(summary_sanded=True)
 
@@ -96,12 +98,15 @@ def summary_sender(
     )
 
 
-def _summary_has_phone(chat_summary: ai_utils.ChatSummary | None) -> bool:
-    return (
-        chat_summary is not None
-        and chat_summary.paragraphs is not None
-        and chat_summary.paragraphs.meta__has_phone_number
-    )
+def _summary_paragraph_items(chat_summary: ai_utils.ChatSummary) -> list[tuple[str, str]]:
+    if not chat_summary.paragraphs:
+        return []
+
+    return [
+        (key, value)
+        for key, value in chat_summary.paragraphs.model_dump().items()
+        if value and not key.startswith("meta__")
+    ]
 
 
 def get_chat_summary_text(chat_summary: ai_utils.ChatSummary, chat: messaging.api.Chat):
@@ -122,12 +127,10 @@ def get_chat_summary_text(chat_summary: ai_utils.ChatSummary, chat: messaging.ap
         f"🔸 3. <u><b>Город обращения: {location}</b></u>",
     ]
 
-    if chat_summary.paragraphs:
-        counter = 4
-        for _, value in chat_summary.paragraphs.model_dump().items():
-            if value:
-                parts.append(f"🔹 {counter}. {value}")
-                counter += 1
+    counter = 4
+    for _, value in _summary_paragraph_items(chat_summary):
+        parts.append(f"🔹 {counter}. {value}")
+        counter += 1
 
     return "\n".join(parts)
 
@@ -159,12 +162,7 @@ def get_chat_summary_html(chat_summary: ai_utils.ChatSummary, chat: messaging.ap
         text += f"<p style='margin-left: 20px;'><b>{counter}. <u>Город обращения: {city_name_from_item}</u></b></p>"
         counter += 1
 
-    paragraphs = {}
-
-    if chat_summary.paragraphs:
-        paragraphs = chat_summary.paragraphs.model_dump()
-
-    for _, value in paragraphs.items():
+    for _, value in _summary_paragraph_items(chat_summary):
         text += f"<p style='margin-left: 20px;'>{counter}. {value}</p>"
         counter += 1
 

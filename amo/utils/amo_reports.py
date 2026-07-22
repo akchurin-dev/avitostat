@@ -46,6 +46,7 @@ def _get_summary_text(ai_report: ai_utils.ChatSummary, lead: amo_api.Lead, conta
             ai_report.paragraphs.paragraph1,
             ai_report.paragraphs.paragraph2,
             ai_report.paragraphs.paragraph3,
+            ai_report.paragraphs.paragraph4,
         ]
 
     if paragraphs:

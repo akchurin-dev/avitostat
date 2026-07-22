@@ -244,6 +244,10 @@ class ChatSummaryParagraphs(BaseModel):
     paragraph1: str | None = None
     paragraph2: str | None = None
     paragraph3: str | None = None
+    paragraph4: str | None = Field(
+        default=None,
+        description="Озвученные в переписке цены. Если несколько — вилка «от … до …». Если цен не было — null.",
+    )
     meta__has_phone_number: bool = Field(description="Есть ли в paragraphs номер телефона клиента")
 
 
@@ -260,6 +264,7 @@ def generate_chat_summary(module: Literal["Avito", "Amo"], account_name: str, ch
                 "paragraph1": "paragraph1",
                 "paragraph2": "paragraph2",
                 "paragraph3": "paragraph3",
+                "paragraph4": "paragraph4",
                 "meta__has_phone_number": True,
             },
             'tokens_completion': 1,
@@ -271,6 +276,11 @@ def generate_chat_summary(module: Literal["Avito", "Amo"], account_name: str, ch
             1) Суть обращения.
             2) Полный адрес для выезда при наличии(указывать ПОСЛЕДНИЙ УПОМЯНУТЫЙ В ПЕРЕПИСКЕ).
             3) Контакты клиента и назначенное время при наличии.
+            4) Озвученные в переписке цены при наличии (любое упоминание суммы, не только после согласия клиента).
+               Если названо несколько сумм — писать вилкой: «Озвученные цены: от X до Y».
+               Если одна сумма — «Озвученная цена: X».
+               Цену из объявления Avito без упоминания в переписке не указывать.
+               Если цены в переписке не озвучивались — пункт не заполнять (null).
          - какждый пункт расписать кратко, не более 200 символов каждый.
          
          ВАЖНО - нумеровать пункты пожалуйста ненадо.

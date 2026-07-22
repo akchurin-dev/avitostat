@@ -181,7 +181,7 @@ Requires `chatbot.send_new_contact_report` and at least one of `mobile`, `whatsa
 
 | Step | Behavior |
 |------|----------|
-| Guard | Lock chat tasks with `select_for_update`, check `summary_sanded` on locked rows, set flag on all tasks before Telegram send |
+| Guard | Lock chat tasks with `select_for_update`, check `summary_sanded` on locked rows; require phone/contact via `contacts_detection.chat_has_contact` (tasks DB + message regex), not GPT `meta__has_phone_number` |
 | Data | Last 50 messages + `get_chat_by_id`; `avito_chat_summary_ai_generator` |
 | Telegram | HTML summary via `utils.tg.send_message` if text length > 20 |
 | Target chat | `company_branch.telegram_id` if branch set on latest task with branch, else `avito_account.telegram_id` |
