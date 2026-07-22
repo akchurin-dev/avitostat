@@ -50,13 +50,10 @@ def statistics_for_avito_account(account_id: int, *, trace_id: str | None = None
         tlogger.info(f"Skip daily report for {account.name}. Daily reports are turned off")
         return
 
-    company_branches_id: list[int | None] = [None]
-    company_branches_id.extend(CompanyBranch.objects.filter(account=account).values_list("pk", flat=True))
+    # Only the account-level report ("Все филиалы") — not per-branch chats
+    statistics_for_company_branch.delay(account.pk, None)
 
-    for company_branch_id in company_branches_id:
-        statistics_for_company_branch.delay(account.pk, company_branch_id)
-
-    tlogger.info(f"Daily report launched for {len(company_branches_id)} branches of {account.name}")
+    tlogger.info(f"Daily report launched for {account.name}")
 
 
 @shared_task
