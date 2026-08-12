@@ -1,27 +1,35 @@
-import shutil
+import asyncio
+import os
+from datetime import datetime
+
 import sentry_sdk
-from celery import shared_task
+import shutil
+import subprocess
 from asgiref.sync import async_to_sync, sync_to_async
+from celery import shared_task
 from django.utils import timezone
+from pathlib import Path
+
+import payments.utils as payment
 from avito_account.models.models import AvitoAccount
-from telegram_bot import bot
-from aiogram import types
 from avito_account.models.sending_report import SendingCampaign, SendingReport
 from base import settings
 from base.celery import celery_app
 from messaging.bad_mes_report.utils_bad_messaging_report import get_messaging_report_data
-import subprocess
-import os
-from datetime import datetime
-from payments.utils import waste_of_balance, check_balance
+from utils import tg
+from utils.logging import TraceLogger
 
 
 @celery_app.task(name='messaging.tasks.get_messaging_report_data')
 def get_messaging_report_data_async_task(test_from_prod: bool, avito_account_id,
                                          for_api: bool = False, period: str = "week"):
-    async_to_sync(get_messaging_report_data)(test_from_prod=test_from_prod,
-                                             avito_account_id=avito_account_id,
-                                             for_api=for_api, period=period)
+    async_to_sync(get_messaging_report_data)(
+        test_from_prod=test_from_prod,
+        avito_account_id=avito_account_id,
+        for_api=for_api,
+        period=period,
+        tlogger=TraceLogger(),
+    )
 
 
 @celery_app.task(name='messaging.tasks.month_report_json_getting')
@@ -30,102 +38,173 @@ def month_report_json_getting_async_task():
     for avito_account in all_avito_accounts:
         get_messaging_report_data_async_task.delay(
             test_from_prod=False,
-            avito_account_id=avito_account.id,
+            avito_account_id=avito_account.pk,
             for_api=True,
             period="month"
         )
 
 
 @celery_app.task(name='messaging.tasks.bad_messaging_week_report_async_task')
-def bad_messaging_week_report_async_task(only_for_users=None, test_from_prod=False, period: str = "week"):
-    async_to_sync(bad_messaging_report_by_period)(only_for_users=only_for_users, test_from_prod=test_from_prod,
-                                                  period=period)
+def bad_messaging_week_report_async_task(only_for_users: list[int] | None = None, test_from_prod=False, period: str = "week"):
+    bad_messaging_report_by_period(
+        only_for_users=only_for_users,
+        test_from_prod=test_from_prod,
+        period=period,
+    )
 
 
 @celery_app.task(name='messaging.tasks.bad_messaging_week_report_async_task_auto_generated')
-def bad_messaging_week_report_async_task_auto_generated(only_for_users=None, test_from_prod=False, auto_generated=True):
-    async_to_sync(bad_messaging_report_by_period)(only_for_users=only_for_users, test_from_prod=test_from_prod,
-                                                  auto_generated=auto_generated)
+def bad_messaging_week_report_async_task_auto_generated(only_for_users: list[int] | None = None, test_from_prod=False, auto_generated=True):
+    bad_messaging_report_by_period(
+        only_for_users=only_for_users,
+        test_from_prod=test_from_prod,
+        auto_generated=auto_generated,
+    )
 
 
-async def get_accounts_for_pdf_reports(only_for_users: list, test_from_prod: bool):
-    if only_for_users is None:
-        all_avito_accounts = await sync_to_async(list)(AvitoAccount.objects.filter(
-            created_by__is_active=True,
-            telegram_id__isnull=False))
-    else:
-        all_avito_accounts = await sync_to_async(list)(AvitoAccount.objects.filter(
-            created_by__is_active=True,
-            telegram_id__isnull=False,
-            id__in=only_for_users, ))
+def get_accounts_for_pdf_reports(only_for_users: list[int] | None, test_from_prod: bool) -> tuple[list[AvitoAccount], SendingCampaign]:
+    all_avito_accounts_qs = AvitoAccount.objects.filter(
+        created_by__is_active=True,
+        telegram_id__isnull=False,
+        weekly_pdf_report=True,
+    ).select_related("created_by")
 
-    campaign = await SendingCampaign.objects.acreate(
+    if only_for_users:
+        all_avito_accounts_qs = all_avito_accounts_qs.filter(id__in=only_for_users)
+
+    all_avito_accounts = list(all_avito_accounts_qs)
+
+    campaign = SendingCampaign.objects.create(
         name="weekly",
         test_from_prod=test_from_prod,
         sending_type=SendingCampaign.PDF,
         created_at=timezone.now(),
         accounts_presented_count=len(all_avito_accounts),
     )
-    await sync_to_async(campaign.accounts_presented.add)(*all_avito_accounts)
+
+    campaign.accounts_presented.add(*all_avito_accounts)
+
     return all_avito_accounts, campaign
 
 
 # TODO change auto_generated=False by default
-async def bad_messaging_report_by_period(only_for_users=None, test_from_prod: bool = True, auto_generated=True,
-                                         pdf_path=None, balance_decrease=0, period: str = "week"):
+def bad_messaging_report_by_period(
+    only_for_users: list[int] | None = None,
+    test_from_prod: bool = True,
+    auto_generated=True,
+    pdf_path=None,
+    balance_decrease=0,
+    period: str = "week",
+):
+    tlogger = TraceLogger()
+    tlogger.info(f"Bad messaging report for {period} is started")
+
     # TODO change test_from_prod=True
     if settings.ENVIRONMENT == 'DEVELOPMENT':
         test_from_prod = True
 
-    all_avito_accounts, campaign = await get_accounts_for_pdf_reports(only_for_users=only_for_users,
-                                                                      test_from_prod=test_from_prod, )
-    if len(all_avito_accounts) == 0:  # will TRY to cut in get_account_for_pdf_reports with raise exception
-        return None
+    accounts, campaign = get_accounts_for_pdf_reports(
+        only_for_users=only_for_users,
+        test_from_prod=test_from_prod,
+    )
 
-    # CORE logic
-    for avito_account in all_avito_accounts:
-        # await avito_account.update_refresh_token_async()
+    tlogger.info(f"Accounts for report: {[account.name for account in accounts]}")
+
+    for account in accounts:
+        bad_messaging_report_by_period_for_account.delay(account.pk, campaign.pk, period, test_from_prod, auto_generated, pdf_path)
+
+
+@shared_task
+def bad_messaging_report_by_period_for_account(
+    account_id: int,
+    campaign_id: int,
+    period: str,
+    test_from_prod: bool,
+    auto_generated: bool,
+    pdf_path: str | Path | None = None,
+) -> None:
+
+    account = AvitoAccount.objects.filter(pk=account_id).select_related("created_by").get()
+    campaign = SendingCampaign.objects.get(pk=campaign_id)
+
+    async def f():
+        nonlocal pdf_path
+
+        tlogger = TraceLogger()
+        tlogger.info(f"Start bad messaging report sending for {period} for '{account.name}'")
+
         tokens = {"completion": -99, "prompt": -99}
-        print(avito_account.name)
+
         try:
-            await check_balance(avito_account)
-            pdf_path, tokens = await get_messaging_report_data(avito_account_id=avito_account.id,
-                                                               test_from_prod=test_from_prod,
-                                                               period=period)
-            if pdf_path:
-                chat_id = "-4221870448" if test_from_prod else avito_account.telegram_id
-                try:
-                    await sync_to_async(bot.send_raw, thread_sensitive=False)(
-                        chat_id=chat_id,
-                        function="send_document",
-                        document=types.FSInputFile(pdf_path))
-                    success = True
-                    error_message = None
-                    if auto_generated:
-                        campaign.auto_generated = True
-                        await campaign.asave()
-                        if not test_from_prod:
-                            balance_decrease = 500
-                            await waste_of_balance(avito_account, balance_decrease)
-                except Exception as send_error:
-                    sentry_sdk.capture_exception(send_error)
-                    print(send_error)
-                    success = False
-                    error_message = str(send_error)[:255]
-            else:
-                success = False
-                error_message = "Failed to generate PDF"
+            if not account.telegram_id:
+                error = "telegram_id isn't valid"
+                tlogger.info(error)
+                raise Exception(error)
+
+            report_cost = payment.REPORT_DEFAULT_COST
+            if test_from_prod:
+                report_cost = 0
+
+            balance_enought = await payment.async_check_balance_enought(
+                user=account.created_by,
+                required_amount=payment.REPORT_DEFAULT_COST,
+                raise_exception=False,
+            )
+
+            if not balance_enought:
+                error = "Balance isn't enought"
+                tlogger.info(error)
+                raise Exception(error)
+
+            messaging_report = await get_messaging_report_data(
+                avito_account_id=account.pk,
+                test_from_prod=test_from_prod,
+                period=period,
+                tlogger=tlogger,
+            )
+
+            if messaging_report is None:
+                raise Exception("Messaging report is None")
+
+            pdf_path = messaging_report.pdf_path
+
+            if messaging_report.tokens:
+                tokens = messaging_report.tokens
+
+            await tg.asend_document(account.telegram_id, pdf_path)
+
+            success = True
+            error_message = None
+
+            if auto_generated:
+                campaign.auto_generated = True
+                await campaign.asave()
+                await payment.waste_of_balance(
+                    user=account.created_by,
+                    balance_decrease=report_cost,
+                )
+
+            tlogger.info("Finished successfully")
         except Exception as e:
             sentry_sdk.capture_exception(e)
-            print(e)
+            tlogger.error(e)
             success = False
             error_message = str(e)[:255]
+            raise
+        finally:
+            await SendingReport.objects.acreate(
+                avito_account=account,
+                campaign=campaign,
+                success=success,
+                balance_decrease=report_cost,
+                error_message=error_message,
+                pdf_path=pdf_path,
+                timestamp=timezone.now(),
+                tokens_completion=tokens.get("completion"),
+                tokens_prompt=tokens.get("prompt"),
+            )
 
-        await SendingReport.objects.acreate(
-            avito_account=avito_account, campaign=campaign, success=success, balance_decrease=balance_decrease,
-            error_message=error_message, pdf_path=pdf_path, timestamp=timezone.now(),
-            tokens_completion=tokens.get("completion"), tokens_prompt=tokens.get("prompt"),
-        )
+    async_to_sync(f)()
 
 
 @shared_task
@@ -145,6 +224,7 @@ def db_backup_auto_creator_task():
     db_user = settings.DB_USER
     db_name = settings.DB_NAME
     db_password = settings.DB_PASS
+    assert db_password is not None
     backup_dir = '/var/backups/db_backups'
     backup_filename = f"local_db_dump_{datetime.now().strftime('%Y-%m-%d')}.sql"
 

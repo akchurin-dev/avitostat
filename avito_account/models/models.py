@@ -1,19 +1,19 @@
-import logging
-import httpx
-import pytz
-import sentry_sdk
-from asgiref.sync import sync_to_async
-from django.db import models
-from django.contrib.auth.models import User
-import requests
-from base import settings
-from base.exceptions import HTTPException
+from __future__ import annotations
+
 import datetime
+import logging
+import pytz
+
+from django.contrib.auth.models import User
+from django.db import models
+from django.db.models.query import QuerySet
+
+from base import settings
+from utils import httpx_helper
+
 
 logger = logging.getLogger(__name__)
 
-client_id = settings.AVITO_CLIENT_ID
-client_secret = settings.AVITO_CLIENT_SECRET
 MOSCOW_TZ = pytz.timezone('Europe/Moscow')
 
 
@@ -83,49 +83,33 @@ class AvitoAccount(BaseModel):
     analytic_schema = models.ForeignKey(AnalyticSchema, on_delete=models.SET_NULL, null=True, blank=True,
                                         verbose_name="Схема аналитики")
     balance_alerting = models.BooleanField(default=True, verbose_name="Уведомления о заканчивающемся балансе")
+    weekly_text_report = models.BooleanField("Еженедельный текстовый отчет", default=True)
+    weekly_pdf_report = models.BooleanField("Еженедельный PDF отчет", default=True)
 
     def update_refresh_token(self):
         url = 'https://api.avito.ru/token/'
+
         data = {
             'grant_type': 'refresh_token',
-            'client_id': client_id,
-            'client_secret': client_secret,
+            'client_id': settings.AVITO_CLIENT_ID,
+            'client_secret': settings.AVITO_CLIENT_SECRET,
             'refresh_token': self.refresh_token
         }
 
-        response = requests.post(url, data=data)
+        for _ in range(4):
+            response = httpx_helper.request("POST", url, data=data)
+            if response.is_success:
+                break
+
+        response.raise_for_status()
         response_data = response.json()
 
-        if response.status_code != 200:
-            raise HTTPException(status_code=response.status_code, detail=response.text)
-        else:
-            self.access_token = response_data['access_token']
-            self.refresh_token = response_data['refresh_token']
-            self.save()
-            return True
+        self.access_token = response_data['access_token']
+        self.refresh_token = response_data['refresh_token']
 
-    async def update_refresh_token_async(self):
-        url = 'https://api.avito.ru/token/'
-        data = {
-            'grant_type': 'refresh_token',
-            'client_id': client_id,
-            'client_secret': client_secret,
-            'refresh_token': self.refresh_token
-        }
+        self.save()
 
-        for attempt in range(3):  # Not more 3 tries
-            try:
-                async with httpx.AsyncClient() as client:
-                    response = await client.post(url, data=data, timeout=300)
-                    if response.status_code == 200:
-                        response_data = response.json()
-                        self.access_token = response_data['access_token']
-                        self.refresh_token = response_data['refresh_token']
-                        await sync_to_async(self.save)()
-                        return True
-            except HTTPException as e:
-                if attempt == 2:
-                    sentry_sdk.capture_exception(e)
+        return True
 
     def __str__(self):
         return f"{self.name}, {self.telegram_id}"
@@ -158,10 +142,143 @@ class WorkSchedule(models.Model):  # Не BaseModel тк привязываем�
 
     def __str__(self):
         if self.avito_account:
-            return f"Рабочий график для {self.avito_account.name} id-{self.id}"
+            return f"Рабочий график для {self.avito_account.name} id-{self.pk}"
         else:
-            return f"Рабочий график по умолчанию id-{self.id}"
+            return f"Рабочий график по умолчанию id-{self.pk}"
 
     class Meta:
         verbose_name = "Рабочий график (время Московское)"
         verbose_name_plural = "Рабочие графики"
+
+
+class AvitoItem(models.Model):
+    id = models.BigIntegerField(
+        verbose_name="Идентификатор в системе Авито",
+        primary_key=True,
+    )
+
+    account_id: int
+    account = models.ForeignKey(
+        verbose_name="Авито-аккаупт",
+        to=AvitoAccount,
+        on_delete=models.CASCADE,
+    )
+
+    url = models.CharField(
+        verbose_name="URL",
+        max_length=255,
+        null=True,
+    )
+
+    relative_link = models.CharField(
+        verbose_name="Относительная ссылка",
+        max_length=255,
+        null=True,
+        db_index=True,
+    )
+
+    title = models.CharField(
+        verbose_name="Название",
+        max_length=255,
+    )
+
+    address = models.CharField(
+        verbose_name="Адрес",
+        max_length=255,
+    )
+
+    price = models.IntegerField(
+        verbose_name="Цена",
+        null=True,
+    )
+
+    status = models.CharField(
+        verbose_name="Статус",
+    )
+
+    class Meta:
+        verbose_name = "Объявление"
+        verbose_name_plural = "Объявления"
+
+    def set_url(self, url: str | None) -> None:
+        """ Обновляет url и relative_link """
+
+        if url is None:
+            self.url = None
+            self.relative_link = None
+            return
+
+        self.url = url
+        self.relative_link = AvitoItem.item_url_to_relative_link(url)
+
+    @staticmethod
+    def get_by_account(account_id: int) -> QuerySet[AvitoItem]:
+        return AvitoItem.objects.filter(account_id=account_id)
+
+    @staticmethod
+    def delete_non_existing(account_id: int, existing_items_ids: list[int]) -> None:
+        AvitoItem.objects.filter(account_id=account_id).exclude(id__in=existing_items_ids).delete()
+
+    @staticmethod
+    def create_instance(
+        account_id: int,
+        id: int,
+        url: str | None,
+        title: str,
+        address: str,
+        price: int | None,
+        status: str,
+    ) -> AvitoItem:
+
+        item = AvitoItem()
+
+        item.id = id
+        item.account_id = account_id
+        item.title = title
+        item.address = address
+        item.price = price
+        item.status = status
+
+        item.set_url(url)
+
+        return item
+
+    @staticmethod
+    def get_by_url(url: str) -> AvitoItem | None:
+        relative_link = AvitoItem.item_url_to_relative_link(url)
+        return AvitoItem.objects.filter(relative_link=relative_link).select_related("account").first()
+
+    @staticmethod
+    def item_url_to_relative_link(url: str) -> str:
+        """
+            Transfer urls like 
+            https://www.avito.ru/kazan/cars/lexus_lx_470__3313424,
+            http://avito.ru/kazan/cars/lexus_lx_470__3313424 
+            to /kazan/cars/lexus_lx_470__3313424
+        """
+
+        domain = "avito.ru"
+        domain_pos = url.find(domain)
+        assert domain_pos != -1
+        return url[domain_pos + len(domain):]
+
+
+class ExcludedItem(models.Model):
+    avito_account = models.ForeignKey(
+        'AvitoAccount',
+        on_delete=models.CASCADE,
+        related_name='excluded_items',
+        verbose_name="Аккаунт Avito"
+    )
+    id = models.BigIntegerField(
+        verbose_name="ID объявления",
+        primary_key=True
+    )
+
+    class Meta:
+        verbose_name = "Объявление исключённое"
+        verbose_name_plural = "Объявления исключённые"
+        unique_together = (("avito_account", "id"),)
+
+    def __str__(self):
+        return str(self.id)

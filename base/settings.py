@@ -1,24 +1,32 @@
+import datetime
 import os
 from pathlib import Path
 from typing import Literal
 
+import pytz
 from celery.schedules import crontab, schedule
 from dotenv import load_dotenv
-from loguru import logger
-import pytz
 from sentry_sdk.integrations.celery import CeleryIntegration
 from sentry_sdk.integrations.django import DjangoIntegration
 
-# Build paths inside the project like this: BASE_DIR / 'subdir'.
+
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-# SECURITY WARNING: keep the secret key used in production secret!
 load_dotenv()
-ENVIRONMENT: Literal["PRODUCTION", "DEVELOPMENT", "TESTING"]
-ENVIRONMENT = os.getenv('ENVIRONMENT')
-logger.warning(f"ENVIRONMENT: {ENVIRONMENT}")
-if ENVIRONMENT not in ["PRODUCTION", "DEVELOPMENT", "TESTING"]:
-    raise Exception(f"Unexpected ENVIRONMENT value, got {ENVIRONMENT}")
+
+ENVIRONMENT_STR = os.getenv('ENVIRONMENT')
+ENVIRONMENT: Literal["PRODUCTION", "DEVELOPMENT", "TESTING"] | None
+
+if ENVIRONMENT_STR == "PRODUCTION":
+    ENVIRONMENT = "PRODUCTION"
+elif ENVIRONMENT_STR == "DEVELOPMENT":
+    ENVIRONMENT = "DEVELOPMENT"
+elif ENVIRONMENT_STR == "TESTING":
+    ENVIRONMENT = "TESTING"
+else:
+    raise Exception(f"Unexpected ENVIRONMENT value, got {ENVIRONMENT_STR}")
+
+DEBUG = ENVIRONMENT in ["DEVELOPMENT", "TESTING"]
 
 SECRET_KEY = os.getenv('SECRET_KEY')
 GITHUB_TOKEN = os.getenv('GITHUB_TOKEN')
@@ -27,11 +35,19 @@ AVITO_CLIENT_ID = os.getenv('AVITO_CLIENT_ID')
 AVITO_CLIENT_SECRET = os.getenv('AVITO_CLIENT_SECRET')
 
 AVITO_WEBHOOK_HOST = "avitostata.ru"
-if ENVIRONMENT in ["DEVELOPMENT", "TESTING"]:
-    # AVITO_WEBHOOK_HOST = "de9c-144-126-237-4.ngrok-free.app"
-    AVITO_WEBHOOK_HOST = os.getenv('AVITO_WEBHOOK_HOST')
+if DEBUG:
+    AVITO_WEBHOOK_HOST = os.getenv('AVITO_WEBHOOK_HOST', '')
+    assert AVITO_WEBHOOK_HOST != ''
 
+AVITO_WEBHOOK_URL = f"https://{AVITO_WEBHOOK_HOST}/chat_bot/webhook_inbox"
+
+AVITOSTATA_ALIVE_BOT_TOKEN = os.getenv("AVITOSTATA_ALIVE_BOT_TOKEN", "")
+AVITOSTATA_ALIVE_REPORTS_CHAT_ID = os.getenv("AVITOSTATA_ALIVE_REPORTS_CHAT_ID", "")
+
+AI_RETRIES: int = 3
 OPENAI_SECRET_KEY = os.getenv('OPENAI_SECRET_KEY')
+OPENAI_PROXY_URL = os.getenv('OPENAI_PROXY_URL')
+YANDEX_GPT_API_KEY = os.getenv('YANDEX_GPT_API_KEY', '')
 
 YOOKASSA_TEST_SHOP_ID = os.getenv('YOOKASSA_TEST_SHOP_ID')
 YOOKASSA_TEST_SECRET_KEY = os.getenv('YOOKASSA_TEST_SECRET_KEY')
@@ -39,20 +55,30 @@ YOOKASSA_TEST_SECRET_KEY = os.getenv('YOOKASSA_TEST_SECRET_KEY')
 YOOKASSA_PROD_SHOP_ID = os.getenv('YOOKASSA_PROD_SHOP_ID')
 YOOKASSA_PROD_SECRET_KEY = os.getenv('YOOKASSA_PROD_SECRET_KEY')
 
-LOCALHOST_IP = os.getenv('LOCALHOST_IP')
-TELEGRAM_BOT_TOKEN = os.getenv('TELEGRAM_BOT_TOKEN')
-TELEGRAM_BOT_TOKEN_PROD = os.getenv('TELEGRAM_BOT_TOKEN_PROD')
+LOCALHOST_IP = os.getenv('LOCALHOST_IP', '')
+TELEGRAM_BOT_TOKEN = os.getenv('TELEGRAM_BOT_TOKEN', '')
+TELEGRAM_BOT_TOKEN_PROD = os.getenv('TELEGRAM_BOT_TOKEN_PROD', '')
+
+AMO_INTEGRATION_ID = os.getenv('AMO_INTEGRATION_ID')
+AMO_SECRET = os.getenv('AMO_SECRET')
+AMO_WEBHOOK_DOMAIN = os.getenv('AMO_WEBHOOK_DOMAIN', "")
+AMO_REDIRECT_URI = f"https://{AMO_WEBHOOK_DOMAIN}/amo/oauth"
+AMO_PROXY_URL = os.getenv('AMO_PROXY_URL')
 
 USE_GPT = True
-if ENVIRONMENT in ["DEVELOPMENT", "TESTING"]:
-    # USE_GPT = True
+if DEBUG:
     USE_GPT = False
+    USE_GPT = True
 
 DB_HOST = os.getenv('DB_HOST')
 DB_PORT = os.getenv('DB_PORT')
 DB_USER = os.getenv('DB_USER')
 DB_PASS = os.getenv('DB_PASS')
 DB_NAME = os.getenv('DB_NAME')
+
+REDIS_HOST = os.getenv('REDIS_HOST')
+REDIS_PORT = os.getenv('REDIS_PORT')
+REDIS_BASE_URL = f"redis://{REDIS_HOST}:{REDIS_PORT}"
 
 # SECURITY WARNING: don't run with debug turned on in production!
 ALLOWED_HOSTS = [
@@ -64,14 +90,17 @@ ALLOWED_HOSTS = [
     "77.75.156.35", "77.75.154.128/25", "2a02:5180::/32",
 ]
 
-if ENVIRONMENT in ["DEVELOPMENT", "TESTING"]:
-    DEBUG = True
-    ALLOWED_HOSTS = ["*", ]
-else:
-    DEBUG = False
+if DEBUG:
+    ALLOWED_HOSTS = ["*"]
+    INTERNAL_IPS = [
+        'django',
+        '0.0.0.0',
+        '127.0.0.1',
+        'localhost',
+    ]
 
-if ENVIRONMENT == "TESTING":
-    TEST_DJANGO_HOST = os.getenv("TEST_DJANGO_HOST") # Хост, у которого селери спрашивает значения конфигов во время тестов
+DJANGO_BASE_URL = os.getenv("DJANGO_BASE_URL", "https://localhost:8000")
+DJANGO_INNER_API_KEY = os.getenv("DJANGO_INNER_API_KEY", "")
 
 # Application definition
 
@@ -93,7 +122,19 @@ INSTALLED_APPS = [
     'deep_tests',
     'payments',
     'chat_bot',
+    'amo',
+    'chatbottasks',
+    'transcriptions',
+    'ai_requests',
+    'amo_a5client',
+    'work_reports',
+    'sandbox_chats',
 ]
+
+if DEBUG:
+    INSTALLED_APPS.extend([
+        'debug_toolbar',
+    ])
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
@@ -106,6 +147,11 @@ MIDDLEWARE = [
     'payments.middleware.UserProfileMiddleware',
     'rollbar.contrib.django.middleware.RollbarNotifierMiddleware',
 ]
+
+if DEBUG:
+    MIDDLEWARE.extend([
+        'debug_toolbar.middleware.DebugToolbarMiddleware',
+    ])
 
 ROOT_URLCONF = 'base.urls'
 
@@ -190,69 +236,89 @@ SECURE_HSTS_PRELOAD = True
 SESSION_COOKIE_SECURE = True
 CSRF_COOKIE_SECURE = True
 
-if ENVIRONMENT == 'PRODUCTION':
-    TELEGRAM_BOT = {
-        'REDIS_URL': "redis://redis:6379/0",
-        'TOKEN': TELEGRAM_BOT_TOKEN_PROD
-    }
-else:
-    TELEGRAM_BOT = {
-        'REDIS_URL': "redis://redis:6379/0",
-        'TOKEN': TELEGRAM_BOT_TOKEN
-    }
+TELEGRAM_BOT = {
+    'REDIS_URL': REDIS_BASE_URL + "/0",
+    'TOKEN': TELEGRAM_BOT_TOKEN,
+    'RAISE_EXCEPTION': True,
+}
 
-# TODO CELERY settings
+if ENVIRONMENT == 'PRODUCTION':
+    TELEGRAM_BOT['TOKEN'] = TELEGRAM_BOT_TOKEN_PROD
+
 # Добавляем настройки для Celery
-CELERY_BROKER_URL = 'redis://localhost:6379/0'
-CELERY_RESULT_BACKEND = 'redis://localhost:6379/1'
+CELERY_BROKER_URL = REDIS_BASE_URL + "/0"
+CELERY_RESULT_BACKEND = REDIS_BASE_URL + "/1"
 CELERY_ACCEPT_CONTENT = ['json']
 CELERY_TASK_SERIALIZER = 'json'
 CELERY_RESULT_SERIALIZER = 'json'
 CELERY_TIMEZONE = 'UTC'
 
-# TODO CELERY_BEAT_SCHEDULE
 if ENVIRONMENT == 'PRODUCTION':
     CELERY_BEAT_SCHEDULE = {
         'bad_messaging_week_report_task': {
             'task': 'messaging.tasks.bad_messaging_week_report_async_task_auto_generated',
-            'schedule': crontab(hour=6, minute=0, day_of_week=5),
+            'schedule': crontab(day_of_week='5', hour='6', minute='0'),
         },
 
         'send_text_report_all_async_task': {
             'task': 'conversion.tasks.send_text_report_all_async_task_auto_generated',
-            'schedule': crontab(day_of_week='mon', hour=10, minute=0),
+            'schedule': crontab(day_of_week='mon', hour='10', minute='0'),
         },
 
         'month_report_for_api_generation_task': {
             'task': 'messaging.tasks.month_report_json_getting',
-            "schedule": crontab(0, 0, day_of_month=1),
+            "schedule": crontab('0', '0', day_of_month='1'),
         },
 
         'balance_alert_send_task': {
             'task': 'avito_account.tasks.balance_alert_send_task',
-            'schedule': schedule(run_every=259200),  # every 3 days
+            'schedule': schedule(run_every=datetime.timedelta(days=3)),
         },
 
         'bad_messaging_week_report_folder_cleaner_task': {
             'task': 'messaging.tasks.bad_mes_report_pdfs_folder_cleaner_task',
-            'schedule': crontab(0, 0, day_of_month='1', month_of_year='1,4,7,10'),
+            'schedule': crontab('0', '0', day_of_month='1', month_of_year='1,4,7,10'),
             # Раз в три месяца (1 января, 1 апреля, 1 июля, 1 октября)
         },
 
         'db_auto_creator_task': {
             'task': 'messaging.tasks.db_backup_auto_creator_task',
-            'schedule': crontab(hour=0, minute=0),
+            'schedule': crontab(hour='0', minute='0'),
         },
 
         'avito_account_tokens_update_task': {
             'task': 'avito_account.tasks.update_tokens',
-            'schedule': crontab(hour=2, minute=0),
+            'schedule': crontab(hour='2', minute='0'),
         },
 
         'chat_bot_daily_report_task': {
             'task': 'chat_bot.tasks.statistics_sender_main_task',
-            'schedule': crontab(hour=6, minute=0),  # Ежедневно в 11:00 утра
+            'schedule': crontab(hour='6', minute='0'),
         },
+        'daily_work_report': {
+            'task': 'work_reports.tasks.send_daily_report',
+            'schedule': crontab(hour='6', minute='0'),
+        },
+        'weekly_work_report': {
+            'task': 'work_reports.tasks.send_weekly_report',
+            'schedule': crontab(hour='6', minute='30', day_of_week='5'),
+        },
+        'monthly_work_report': {
+            'task': 'work_reports.tasks.send_report_for_last_30_days',
+            'schedule': crontab(day_of_month='1', hour='6', minute='0')
+        },
+        'avito_webhook_subscription_actializing': {
+            'task': 'avito_account.tasks.actualize_avito_webhooks_subscriptions',
+            'schedule': crontab(hour='*/1', minute='0'),
+        },
+        'avito_items_actualizing': {
+            'task': 'avito_account.tasks.actualize_avito_items',
+            'schedule': crontab(hour='0', minute='0'),
+        },
+        'amo_fields_actualizing': {
+            'task': 'amo.tasks.actualize_amo_fields',
+            'schedule': crontab(hour='0', minute='0'),
+        }
     }
 else:
     CELERY_BEAT_SCHEDULE = {
@@ -272,7 +338,7 @@ else:
         #
         'chat_bot_daily_report_task_DEBUG': {
             'task': 'chat_bot.tasks.statistics_sender_main_task',
-            'schedule': 20.0,  #  каждые 100 секунд
+            'schedule': 20,
         },
         # 'chat_bot_daily_report_task': {
         #     'task': 'chat_bot.ChatBotDailyReport.report_sender_via_celery',
@@ -283,6 +349,14 @@ else:
         #     'schedule': crontab(0, 0, day_of_month='1', month_of_year='1,4,7,10'),
         #     # Раз в три месяца (1 января, 1 апреля, 1 июля, 1 октября)
         # },
+        'avito_webhook_subscription_actializing': {
+            'task': 'avito_account.tasks.actualize_avito_webhooks_subscriptions',
+            'schedule': crontab(minute='*/1'),
+        },
+        'avito_items_actualizing': {
+            'task': 'avito_account.tasks.actualize_avito_items',
+            'schedule': crontab(minute='*/1'),
+        },
     }
 
 # TODO OTHER THINGS

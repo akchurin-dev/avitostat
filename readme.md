@@ -174,7 +174,7 @@ py manage.py createsuperuser
 
 Установи в env var AVITO_WEBHOOK_HOST твой ngrok url
 
-Установи в env var TEST_DJANGO_HOST http:localhost:8000 или твой ngrok url,
+Установи в env var DJANGO_BASE_URL http:localhost:8000 или твой ngrok url,
 если запускаешь с впн и запросы на локалхост не проходят
 
 py manage.py runserver

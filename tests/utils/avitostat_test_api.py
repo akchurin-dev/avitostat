@@ -1,4 +1,5 @@
 import datetime
+from typing import Callable
 from typing import Literal
 
 import httpx
@@ -26,7 +27,7 @@ class AIChatBot(BaseModel):
     id: int
 
 
-_avitostat_client = httpx_helper.create_client(base_url=config.TEST_DJANGO_HOST)
+_avitostat_client = httpx_helper.create_client(base_url=config.DJANGO_BASE_URL)
 
 
 def create_user() -> User:
@@ -186,7 +187,7 @@ def _request(
     json: dict | None = None,
 ) -> httpx.Response:
 
-    methods = {
+    methods: dict[str, Callable] = {
         "GET": _avitostat_client.get,
         "POST": _avitostat_client.post,
         "PUT": _avitostat_client.put,

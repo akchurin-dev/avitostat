@@ -62,7 +62,7 @@ class SendingReportAdmin(admin.ModelAdmin):
     def tokens_price(self, obj):
         return round(obj.tokens_prompt * 0.000125 + obj.tokens_completion * 0.0005, 1)
 
-    tokens_price.short_description = 'стоимость токенов'
+    tokens_price.short_description = 'стоимость токенов'  # type: ignore
 
     def changelist_view(self, request, extra_context=None):
         response = super().changelist_view(request, extra_context=extra_context)

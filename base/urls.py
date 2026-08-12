@@ -6,7 +6,7 @@ from base import settings
 
 
 def trigger_error(request):
-    division_by_zero = 1 / 0
+    raise Exception()
 
 
 from django.http import HttpRequest
@@ -26,7 +26,12 @@ urlpatterns = [
     path('sentry-debug/', trigger_error),
     path('payments/', include('payments.urls')),
     path('chat_bot/', include('chat_bot.urls')),
+    path('amo/', include('amo.urls')),
+    path('a5client/', include('amo_a5client.urls')),
 ]
 
-if settings.ENVIRONMENT in ["DEVELOPMENT", "TESTING"]:
+if settings.DEBUG:
+    from debug_toolbar.toolbar import debug_toolbar_urls
+    urlpatterns += debug_toolbar_urls()
+
     urlpatterns.append(path('', redirect_to_avito_oauth))

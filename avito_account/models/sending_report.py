@@ -35,6 +35,7 @@ class SendingCampaign(models.Model):  # Не BaseModel тк рассылки о�
 
 class SendingReport(models.Model):  # Не BaseModel тк репорпты должны привязываться к аккаунту а не к юзеру
     avito_account = models.ForeignKey('AvitoAccount', on_delete=models.CASCADE, verbose_name="Авито аккаунт")
+    avito_account_name = models.CharField('Название Avito-аккаунт', max_length=255)
     campaign = models.ForeignKey('SendingCampaign', on_delete=models.CASCADE, related_name='reports',
                                  verbose_name="Рассылка")
     success = models.BooleanField(default=False, verbose_name="Успешно")
@@ -52,9 +53,10 @@ class SendingReport(models.Model):  # Не BaseModel тк репорпты до�
         verbose_name_plural = "отчёты о рассылках"
 
     def __str__(self):
-        return f"Отчёт о рассылке для {self.avito_account.name} в {self.timestamp}"
+        return f"Отчёт о рассылке для {self.avito_account_name} в {self.timestamp}"
 
     def save(self, force_insert=False, force_update=False, using=None, update_fields=None):
+        self.avito_account_name = self.avito_account.name
         super().save(force_insert, force_update, using, update_fields)
 
         current_user_profile, _ = UserProfile.objects.get_or_create(user_id=self.avito_account.created_by_id)

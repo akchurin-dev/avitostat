@@ -1,4 +1,13 @@
+from typing import Literal
+
 import httpx
+
+from utils.logging import TraceLogger
+
+
+MethodType = Literal["GET", "POST", "PATCH", "DELETE", "HEAD"]
+
+DEFAULT_TIMEOUT = httpx.Timeout(15, pool=None)
 
 
 def create_client(
@@ -9,6 +18,7 @@ def create_client(
     max_keepalive_connections: int | None = 20,
     keepalive_expiry: float | None = 5,
     retries: int = 20,
+    proxies: str | None = None,
 ) -> httpx.Client:
 
     limits = httpx.Limits(
@@ -29,7 +39,84 @@ def create_client(
         limits=limits,
         base_url=base_url,
         transport=transport,
+        proxies=proxies,
     )
 
 
-DEFAULT_TIMEOUT = httpx.Timeout(15, pool=None)
+def request(
+    method: MethodType,
+    url: str,
+    params: dict | None = None,
+    data: dict | None = None,
+    json: dict | list | None = None,
+    headers: dict | None = None,
+    timeout_retries: int = 3,
+    proxies: str | None = None,
+    client: httpx.Client | None = None,
+    tlogger: TraceLogger | None = None,
+) -> httpx.Response:
+
+    tlogger = tlogger or TraceLogger()
+
+    error = None
+
+    for i in range(timeout_retries + 1):
+        try:
+            if i > 1:
+                tlogger.info(f"Try again request to {url}")
+
+            if client is None:
+                response = httpx.request(
+                    method=method,
+                    url=url,
+                    params=params,
+                    data=data,
+                    json=json,
+                    headers=headers,
+                    proxies=proxies,
+                )
+            else:
+                response = client.request(
+                    method=method,
+                    url=url,
+                    params=params,
+                    data=data,
+                    json=json,
+                    headers=headers,
+                )
+
+            break
+        except httpx.TimeoutException as e:
+            error = e
+            tlogger.info(f"Timeout exception when request to {url}")
+    else:
+        assert error is not None
+        raise error
+
+    if not response.is_success:
+        log_about_not_success_response(response, tlogger)
+
+    return response
+
+
+def add_bearer(headers: dict | None, token: str) -> dict:
+    return add_header(headers, key="Authorization", value="Bearer " + token)
+
+
+def add_header(headers: dict | None, key: str, value) -> dict:
+    if headers is None:
+        headers = {}
+    else:
+        headers = headers.copy()
+
+    headers[key] = value
+    return headers
+
+
+def log_about_not_success_response(response: httpx.Response, tlogger: TraceLogger) -> None:
+    tlogger.info({"Not success response": [
+        ("url", response.url),
+        ("status_code", response.status_code),
+        ("response_data", response.text[:500]),
+        ("request_data", response.request.content.decode()),
+    ]})

@@ -77,14 +77,14 @@ def get_color_first_touches_average(rounded_average: int,
     return color
 
 
-def get_color_second_touches_average(rounded_average: int,
-                                     color: str = '#C04D3D') -> str:  # default color - red
-    if rounded_average >= 420:
-        color = '#C04D3D'  # red
+def get_color_second_touches_average(rounded_average: float) -> str:
+    if 1 <= rounded_average < 240:
+        color = '#73C356'  # green
     elif 240 <= rounded_average < 420:
         color = '#E4A03B'  # yellow
-    elif 1 <= rounded_average < 240:
-        color = '#73C356'  # green
+    else:
+        color = '#C04D3D'  # red
+
     return color
 
 
@@ -100,7 +100,7 @@ def get_color_touches_count_in_chat_average(messages_count_in_chat_average: floa
 
 
 async def get_statistics_total(filtered_chats_only_with_text: list):
-    statistics = {}
+    statistics: dict[str, dict[str, str | float]] = {}
     #TODO First touch
     total_first_touches = []
 
@@ -113,7 +113,7 @@ async def get_statistics_total(filtered_chats_only_with_text: list):
         first_incoming_time = None
         first_outgoing_time = None
 
-        for message in chat.get("messages", None):
+        for message in chat.get("messages", []):
             if message['direction'] == 'in' and first_incoming_time is None:
                 first_incoming_time = message['created']
             elif message['direction'] == 'out' and first_incoming_time is not None:
@@ -161,7 +161,7 @@ async def get_statistics_total(filtered_chats_only_with_text: list):
         color = get_color_second_touches_average(average_duration)
         statistics["second_touches_duration_average"] = {
             "value": average_duration_formatted,
-            "color": color
+            "color": color,
         }
     elif total_sum == 0:  # Если небыло второго касания вообще -
         statistics["second_touches_duration_average"] = {
@@ -170,7 +170,7 @@ async def get_statistics_total(filtered_chats_only_with_text: list):
         }
 
     #TODO Touches in chat count average
-    counts = [len([chat for chat in chat.get("messages") if chat.get("direction") == "out"]) for chat in
+    counts = [len([chat for chat in chat.get("messages", []) if chat.get("direction") == "out"]) for chat in
               filtered_chats_only_with_text]
     touches_in_chat_average = sum(counts) / len(counts)
     color = get_color_touches_count_in_chat_average(round(touches_in_chat_average, 1))

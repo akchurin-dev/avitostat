@@ -3,13 +3,14 @@ from typing import Dict, Any, List
 
 from avito_account.models.models import AvitoAccount
 from messaging.api import get_calls_statistic_last_week
+from utils.logging import TraceLogger
 
 
 async def get_durations_seconds(chats: List[Dict[str, Any]]):
     duration_times = []
 
     for chat in chats:
-        messages = chat.get("messages")
+        messages = chat.get("messages", [])
         last_in_message = None
 
         for message in messages:
@@ -30,10 +31,6 @@ async def get_durations_seconds(chats: List[Dict[str, Any]]):
     return duration_times
 
 
-async def get_calls_count_unique_numbers_last_week(avito_account: AvitoAccount) -> int:
-    calls_statictic = await get_calls_statistic_last_week(avito_account=avito_account)
-    if calls_statictic:
-        total_new_calls = sum(day['new'] for day in calls_statictic['result']['items'][0]['days'])
-    else:
-        total_new_calls = 0
-    return total_new_calls
+def get_calls_count_unique_numbers_last_week(avito_account: AvitoAccount, *, tlogger: TraceLogger) -> int:
+    calls_statictic = get_calls_statistic_last_week(avito_account, tlogger=tlogger)
+    return sum(day.new for item in calls_statictic for day in item.days)

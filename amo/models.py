@@ -1,0 +1,959 @@
+from __future__ import annotations
+
+import datetime
+
+from django.contrib.auth.models import User
+from django.db import models
+from django.db.models import Manager
+from django.db.models import QuerySet
+
+import chat_bot.base_models
+import sandbox_chats.models
+import transcriptions.models
+from amo.utils import amo_chatbottasks
+from amo.utils import amo_webhooks
+from avito_account.models.models import AvitoAccount
+from chatbottasks import chatbottasks
+from prompts import prompts
+from utils import miscellaneous
+from utils.logging import TraceLogger
+
+
+class AmoAccount(models.Model):
+    amo_id = models.BigIntegerField(
+        verbose_name="Идентификатор в системе amo",
+        primary_key=True,
+    )
+
+    telegram_id = models.CharField(
+        verbose_name="ID телеграм-чата",
+        max_length=255,
+        null=True,
+        blank=True,
+    )
+
+    domain = models.CharField(
+        verbose_name="Домен",
+        unique=True,
+        max_length=255,
+    )
+
+    amojo_id = models.CharField(
+        verbose_name="Идентификатор в системе amojo",
+        unique=True,
+        max_length=255,
+    )
+
+    name = models.CharField(
+        verbose_name="Название",
+        max_length=255,
+    )
+
+    amo_login = models.CharField(
+        verbose_name="Логин",
+        max_length=255,
+    )
+
+    amo_password = models.TextField(
+        verbose_name="Пароль",
+    )
+
+    access_token = models.TextField(
+        verbose_name="Access-токен",
+    )
+
+    refresh_token = models.TextField(
+        verbose_name="Refresh-токен",
+    )
+
+    amojo_access_token = models.TextField(
+        verbose_name="Access-токен для amojo сервиса",
+        null=True,
+    )
+
+    cookies_session_id = models.TextField(
+        verbose_name="Id сессии для ajax запросов",
+        null=True,
+    )
+
+    cookies_csrf_token = models.TextField(
+        verbose_name="CSRF-токен для ajax запросов",
+        null=True,
+    )
+
+    cookies_access_token = models.TextField(
+        verbose_name="Access-токен для ajax запросов",
+        null=True,
+    )
+
+    cookies_refresh_token = models.TextField(
+        verbose_name="Refresh-токен для ajax запросов",
+        null=True,
+    )
+
+    created_by = models.ForeignKey(
+        verbose_name="Кем создан",
+        to=User,
+        on_delete=models.PROTECT,
+    )
+
+    created_at = models.DateTimeField(
+        verbose_name="Когда создан",
+        auto_now_add=True,
+    )
+
+    updated_at = models.DateTimeField(
+        verbose_name="Когда обновлен",
+        auto_now=True,
+    )
+
+    class Meta:
+        verbose_name = "Amo-аккаунт"
+        verbose_name_plural = "Amo-аккаунты"
+
+    def __str__(self):
+        return self.domain
+
+
+class AmoPipelineStatus(models.Model):
+    account = models.ForeignKey(
+        verbose_name="Amo-аккаунт",
+        to=AmoAccount,
+        on_delete=models.CASCADE,
+    )
+
+    account_name = models.CharField(
+        verbose_name="Название Amo-аккаунта",
+        max_length=255,
+    )
+
+    pipeline_id = models.BigIntegerField(
+        verbose_name="Идентификатор воронки в системе Amo",
+        db_index=True,
+    )
+
+    pipeline_name = models.CharField(
+        verbose_name="Название воронки",
+        max_length=255,
+    )
+
+    amo_id = models.BigIntegerField(
+        verbose_name="Идентификатор этапа в системе Amo",
+        db_index=True,
+    )
+
+    name = models.CharField(
+        verbose_name="Название этапа",
+        max_length=255,
+    )
+
+    class Meta:
+        verbose_name = "Этап Amo-воронки"
+        verbose_name_plural = "Этапы Amo-воронок"
+
+        unique_together = ["account", "pipeline_id", "amo_id"]
+
+    def save(self, *args, **kwargs) -> None:
+        self.account_name = self.account.name
+        super().save(*args, **kwargs)
+
+    def __str__(self):
+        return f"{self.pipeline_name} -> {self.name} ({self.account_name})"
+
+
+class AmoChatBot(chat_bot.base_models.AIChatBotBase):
+    account = models.ForeignKey(
+        verbose_name="Amo-аккаунт",
+        to=AmoAccount,
+        on_delete=models.CASCADE,
+    )
+
+    change_status_only_when_qualification = models.BooleanField(
+        verbose_name="Менять статус только при достижении квалификации",
+        default=True,
+    )
+
+    new_status_when_qualification = models.ForeignKey(
+        verbose_name="Этап воронки при достижении квалификации",
+        to=AmoPipelineStatus,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+    )
+
+    message_when_qualification = models.TextField(
+        verbose_name="Сообщение при достижении квалификации",
+        blank=True,
+    )
+
+    message_when_note_received = models.TextField(
+        verbose_name="Сообщение при получении заявки с сайта",
+        blank=True,
+    )
+
+    role_and_tasks = models.TextField(
+        verbose_name="Роль и задачи",
+        blank=True,
+    )
+
+    behaviour_style = models.TextField(
+        verbose_name="Стиль поведения во время общения",
+        blank=True,
+    )
+
+    company_and_products = models.TextField(
+        verbose_name="Описание компании и продуктов",
+        blank=True,
+    )
+
+    important_conditions = models.TextField(
+        verbose_name="На какие важные условия боту обратить внимание",
+        blank=True,
+    )
+
+    links_and_contacts = models.TextField(
+        verbose_name="Полезные ссылки и контакты",
+        blank=True,
+    )
+
+    duplicate_instructions = models.TextField(
+        verbose_name="Важные команды еще раз",
+        blank=True,
+    )
+
+    pipeline_status_update_rules = models.TextField(
+        verbose_name="Правила обновления этапа воронки",
+        blank=True,
+    )
+
+    message_prefix = models.TextField(
+        verbose_name="Префикс сгенерированного сообщения",
+        blank=True,
+    )
+
+    message_postfix = models.TextField(
+        verbose_name="Постфикс сгенерированного сообщения",
+        default="...",
+        blank=True,
+    )
+
+    work_on_mon = models.BooleanField("Работает в пн", default=True)
+    work_on_tue = models.BooleanField("Работает во вт", default=True)
+    work_on_wed = models.BooleanField("Работает в ср", default=True)
+    work_on_thu = models.BooleanField("Работает в чт", default=True)
+    work_on_fri = models.BooleanField("Работает в пт", default=True)
+    work_on_sat = models.BooleanField("Работает в сб", default=True)
+    work_on_sun = models.BooleanField("Работает в вскр", default=True)
+
+    class Meta:
+        verbose_name = "Amo чат-бот"
+        verbose_name_plural = "Amo чат-боты"
+
+    @classmethod
+    def get_available_chatbots(cls):
+        day_of_week = miscellaneous.datetime_now_with_tz(utc_offset_hours=3).weekday()
+
+        if day_of_week == 0:
+            field = "work_on_mon"
+        elif day_of_week == 1:
+            field = "work_on_tue"
+        elif day_of_week == 2:
+            field = "work_on_wed"
+        elif day_of_week == 3:
+            field = "work_on_thu"
+        elif day_of_week == 4:
+            field = "work_on_fri"
+        elif day_of_week == 5:
+            field = "work_on_sat"
+        elif day_of_week == 6:
+            field = "work_on_sun"
+        else:
+            raise Exception("Unreacheble")
+
+        kwargs = {field: True}
+
+        return super().get_available_chatbots().filter(**kwargs)
+
+    def get_default_name(self) -> str:
+        return self.account.name
+
+    def save(self, *args, **kwargs) -> None:
+        super().save(*args, **kwargs)
+
+        active_chatbots_exists = AmoChatBot.objects.filter(
+            account=self.account,
+            is_active=True,
+        ).exists()
+
+        if active_chatbots_exists:
+            amo_webhooks.subscribe_for_webhooks(self.account, tlogger=TraceLogger())
+
+        if not active_chatbots_exists:
+            try:
+                amo_webhooks.unsubscribe_from_webhooks(self.account, tlogger=TraceLogger())
+            except:
+                pass
+
+    def delete(self, *args, **kwargs) -> tuple[int, dict[str, int]]:
+        res = super().delete(*args, **kwargs)
+
+        active_chatbots_exists = AmoChatBot.objects.filter(
+            account=self.account,
+            is_active=True,
+        ).exists()
+
+        if not active_chatbots_exists:
+            try:
+                amo_webhooks.unsubscribe_from_webhooks(self.account, tlogger=TraceLogger())
+            except:
+                pass
+
+        return res
+
+    def __str__(self):
+        return f"{self.name} ({self.pk})"
+
+
+class AmoPipelineStatusChatbotLink(models.Model):
+    chatbot = models.ForeignKey(
+        verbose_name="Чат-бот",
+        to=AmoChatBot,
+        on_delete=models.CASCADE,
+    )
+
+    status = models.OneToOneField(
+        verbose_name="Этап воронки",
+        to=AmoPipelineStatus,
+        on_delete=models.CASCADE,
+    )
+
+    check_qualification = models.BooleanField(
+        verbose_name="Проверять квалификацию",
+        default=False,
+    )
+
+    class Meta:
+        verbose_name = "Связь бот-воронка"
+        verbose_name_plural = "Связи бот-воронка"
+
+
+class AmoOrigin(models.Model):
+    account = models.ForeignKey(
+        verbose_name="Amo-аккаунт",
+        to=AmoAccount,
+        on_delete=models.CASCADE,
+    )
+
+    amo_id = models.CharField(
+        verbose_name="Идентификатор в системе Amo",
+        max_length=64,
+        primary_key=True,
+    )
+
+    name = models.CharField(
+        verbose_name="Название",
+        max_length=255,
+    )
+
+    origin_title = models.CharField(
+        verbose_name="Заголовок источника",
+        max_length=255,
+        blank=True,
+    )
+
+    source_name = models.CharField(
+        verbose_name="Название источника",
+        max_length=255,
+        blank=True,
+    )
+
+    origin = models.CharField(
+        verbose_name="Источник",
+        max_length=255,
+        db_index=True,
+    )
+
+    class Meta:
+        verbose_name = "Amo-источник"
+        verbose_name_plural = "Amo-источники"
+
+    def __str__(self):
+        return " | ".join([
+            self.name or "-",
+            self.origin_title or "-",
+            self.source_name or "-",
+            self.origin or "-",
+        ])
+
+
+class AmoChatbotOriginLink(models.Model):
+    chatbot = models.ForeignKey(
+        verbose_name="Чат-бот",
+        to=AmoChatBot,
+        on_delete=models.CASCADE,
+    )
+
+    origin = models.ForeignKey(
+        verbose_name="Источник",
+        to=AmoOrigin,
+        on_delete=models.CASCADE,
+    )
+
+    class Meta:
+        verbose_name = "Связь бот-источник"
+        verbose_name_plural = "Связи бот-источник"
+
+        unique_together = ["chatbot", "origin"]
+
+
+class AmoEntity(models.TextChoices):
+    CONTACT = "CONTACT", "Контакт"
+    LEAD = "LEAD", "Сделка"
+
+
+class AmoField(models.Model):
+    account_id: int
+    account = models.ForeignKey(
+        verbose_name="Amo-аккаунт",
+        to=AmoAccount,
+        on_delete=models.CASCADE,
+    )
+
+    amo_id = models.BigIntegerField(
+        verbose_name="Идентификатор в системе Amo",
+    )
+
+    entity = models.CharField(
+        verbose_name="Сущность",
+        max_length=255,
+        choices=AmoEntity,
+        db_index=True,
+    )
+
+    name = models.CharField(
+        verbose_name="Название",
+        max_length=255,
+    )
+
+    type = models.CharField(
+        verbose_name="Тип",
+        max_length=255,
+    )
+
+    code = models.CharField(
+        verbose_name="Кодовое имя",
+        max_length=255,
+        null=True,
+    )
+
+    amofieldenum_set: Manager[AmoFieldEnum]
+    enum = models.BooleanField(
+        verbose_name="Является справочником",
+    )
+
+    class Meta:
+        verbose_name = "Амо-поле"
+        verbose_name_plural = "Амо-поля"
+
+        unique_together = ["account", "amo_id"]
+
+    @property
+    def enums(self) -> list[AmoFieldEnum]:
+        return list(self.amofieldenum_set.all())
+
+    def __str__(self):
+        return self.entity + "." + self.name + f" ({self.type})"
+
+    @staticmethod
+    def create_instance(
+        account_id: int,
+        amo_id: int,
+        entity: str,
+        name: str,
+        type: str,
+        code: str | None,
+        enum: bool,
+    ) -> AmoField:
+
+        amo_field = AmoField()
+
+        amo_field.account_id = account_id
+        amo_field.amo_id = amo_id
+        amo_field.entity = entity
+        amo_field.name = name
+        amo_field.type = type
+        amo_field.code = code
+        amo_field.enum = enum
+
+        return amo_field
+
+    @staticmethod
+    def get_fields_by_account(account_id: int, entity: str) -> QuerySet[AmoField]:
+        return AmoField.objects.filter(account_id=account_id, entity=entity).prefetch_related("amofieldenum_set")
+
+
+class AmoFieldEnum(models.Model):
+    field_id: int
+    field = models.ForeignKey(
+        verbose_name="Поле",
+        to=AmoField,
+        on_delete=models.CASCADE,
+    )
+
+    amo_id = models.BigIntegerField(
+        verbose_name="Идентфикатор в системе Amo",
+    )
+
+    sort = models.IntegerField(
+        verbose_name="Порядковый номер",
+    )
+
+    value = models.CharField(
+        verbose_name="Значение",
+        max_length=255,
+    )
+
+    class Meta:
+        verbose_name = "Значение справочника"
+        verbose_name = "Значения справочников"
+
+    @staticmethod
+    def create_instance(
+        field_id: int,
+        amo_id: int,
+        sort: int,
+        value: str,
+    ) -> AmoFieldEnum:
+
+        amo_field_enum = AmoFieldEnum()
+
+        amo_field_enum.field_id = field_id
+        amo_field_enum.amo_id = amo_id
+        amo_field_enum.sort = sort
+        amo_field_enum.value = value
+
+        return amo_field_enum
+
+
+class FillableField(models.Model):
+    chatbot = models.ForeignKey(
+        verbose_name="Чат-бот заполнитель поля",
+        to=AmoChatBot,
+        on_delete=models.CASCADE,
+    )
+
+    name = models.CharField(
+        verbose_name="Название",
+        max_length=255,
+    )
+
+    entity = models.CharField(
+        verbose_name="К чему относится",
+        choices=AmoEntity.choices,
+    )
+
+    description = models.TextField(
+        verbose_name="Описание для промпта",
+    )
+
+    required_for_qualification = models.BooleanField(
+        verbose_name="Нужно для квалификации",
+        default=False,
+    )
+
+    isolated_check = models.BooleanField(
+        verbose_name="Проверять отдельно",
+        default=False,
+    )
+
+    class Meta:
+        verbose_name = "Заполняемое поле"
+        verbose_name_plural = "Заполняемые поля"
+
+    @staticmethod
+    def get_by_chatbot(chatbot_id: int) -> QuerySet[FillableField]:
+        return FillableField.objects.filter(chatbot_id=chatbot_id)
+
+
+class AmoChatCreateConfig(models.Model):
+    account = models.ForeignKey(
+        verbose_name="Amo-аккаунт",
+        to=AmoAccount,
+        on_delete=models.CASCADE,
+    )
+
+    source = models.ForeignKey(
+        verbose_name="Источник",
+        to=AmoOrigin,
+        on_delete=models.CASCADE,
+    )
+
+    phone_number_field = models.CharField(
+        verbose_name="Поле с номером телефона",
+        max_length=255,
+    )
+
+    channel_id = models.CharField(
+        verbose_name="Идентификатор канала",
+        max_length=63,
+        help_text=(
+            "При инициации общения с пользователем, "
+            "AmoCRM делает запрос '/ajax/v1/chats/create', "
+            "создающий чат, и передает туда scope_id, "
+            "состоящий из <channel_id>_<amojo_id>"
+        ),
+    )
+
+    class Meta:
+        verbose_name = "Конфиг для создания чата"
+        verbose_name_plural = "Конфиги для создания чата"
+
+
+class AmoTalkLeadLink(models.Model):
+    account = models.ForeignKey(
+        verbose_name="Amo-аккаунт",
+        to=AmoAccount,
+        on_delete=models.CASCADE,
+    )
+
+    talk_id = models.BigIntegerField(
+        verbose_name="Идентификатор разговора в системе амо",
+        db_index=True,
+    )
+
+    lead_id = models.BigIntegerField(
+        verbose_name="Идентификатор сделки в системе амо",
+        db_index=True,
+    )
+
+    class Meta:
+        verbose_name = "Связь разговор-сделка"
+        verbose_name = "Связи разговор-сделка"
+
+        unique_together = ["talk_id", "lead_id"]
+
+
+class AmoChatBotTask(chat_bot.base_models.AIResultContainer, chatbottasks.Task):
+    class MessageType(models.TextChoices):
+        TEXT = "text"
+        VOICE = "voice"
+        PICTURE = "picture"
+
+    class PipelineType(models.TextChoices):
+        DEFAULT = "DEFAULT"
+        A5CLIENT = "A5CLIENT"
+
+    account = models.ForeignKey(
+        verbose_name="Amo-аккаунт",
+        to=AmoAccount,
+        on_delete=models.CASCADE,
+    )
+
+    chatbot = models.ForeignKey(
+        verbose_name="чат-бот",
+        to=AmoChatBot,
+        on_delete=models.SET_NULL,
+        null=True,
+    )
+
+    avito_account_id: int
+    avito_account = models.ForeignKey(
+        verbose_name="Авито-аккаунт",
+        to=AvitoAccount,
+        on_delete=models.SET_NULL,
+        null=True,
+        default=None,
+    )
+
+    pipeline_type = models.CharField(
+        verbose_name="Тип пайплайна",
+        max_length=255,
+        choices=PipelineType.choices,
+        default=PipelineType.DEFAULT.value,  # type: ignore
+    )
+
+    lead_id = models.CharField(
+        verbose_name="Идентификатор сделки",
+        max_length=15,
+        db_index=True,
+    )
+
+    chat_id = models.CharField(
+        verbose_name="Идентификатор чата",
+        max_length=255,
+        db_index=True,
+    )
+
+    avito_chat_id = models.CharField(
+        verbose_name="Иеднтификатор чата в системе Авито",
+        max_length=255,
+        null=True,
+        default=None,
+    )
+
+    # В рамках одной сделки может быть много разговоров
+    talk_id = models.IntegerField(
+        verbose_name="Идентификатор разговора",
+        db_index=True,
+        null=True,
+        blank=True,
+    )
+
+    message_id = models.CharField(
+        verbose_name="Идентификатор сообщения",
+        max_length=255,
+        db_index=True,
+    )
+
+    message_created_at = models.DateTimeField(
+        verbose_name="Когда создано сообщение",
+    )
+
+    message_type = models.CharField(
+        verbose_name="Тип сообщения",
+        choices=MessageType.choices,
+        default=MessageType.TEXT.value,  # type: ignore
+    )
+
+    text = models.TextField(
+        verbose_name="Текст сообщения",
+        blank=True,
+    )
+
+    file_link = models.TextField(
+        verbose_name="Прикрепленный файл",
+        blank=True,
+    )
+
+    qualification_achieved = models.BooleanField(
+        verbose_name="Квалификация достигнута",
+        default=False,
+    )
+
+    class Meta:
+        verbose_name = "Amo-задача"
+        verbose_name_plural = "Amo-задачи"
+
+        unique_together = ["account", "chat_id", "message_id"]
+
+    @property
+    def default_pipeline(self) -> bool:
+        return self.pipeline_type == AmoChatBotTask.PipelineType.DEFAULT
+
+    @property
+    def a5client_pipeline(self) -> bool:
+        return self.pipeline_type == AmoChatBotTask.PipelineType.A5CLIENT
+
+    @staticmethod
+    def get_or_create(
+        account_id: int,
+        chat_id: str,
+        message_id: str,
+        chatbot_id: int,
+        pipeline_type: str,
+        lead_id: int,
+        talk_id: int,
+        message_created_at: datetime.datetime,
+        message_type: str,
+        text: str | None,
+        file_link: str | None,
+    ) -> tuple[AmoChatBotTask, bool]:
+
+        return AmoChatBotTask.objects.get_or_create(
+            account_id=account_id,
+            chat_id=chat_id,
+            message_id=message_id,
+            defaults={
+                "chatbot_id": chatbot_id,
+                "pipeline_type": pipeline_type,
+                "lead_id": str(lead_id),
+                "talk_id": talk_id,
+                "message_created_at": message_created_at,
+                "message_type": message_type,
+                "text": text or "",
+                "file_link": file_link or "",
+            },
+        )
+
+    def cancel_if_not_newest(self, *, tlogger: TraceLogger) -> bool:
+        """ Cancel task if newer tasks exist. Return True if canceled """
+
+        if self.get_newer_tasks().exists():
+            reason = "Newer tasks found"
+            tlogger.info(reason)
+            self.cancel(reason, tlogger=tlogger)
+            return True
+
+        return False
+
+    def get_newer_tasks(self) -> QuerySet:
+        return AmoChatBotTask.objects.filter(
+            message_created_at__gt=self.message_created_at,
+            object_id=amo_chatbottasks.get_object_id(
+                domain=self.account.domain,
+                chat_id=self.chat_id,
+            ),
+        )
+
+    @classmethod
+    def get_tasks_by_chat(cls, account: AmoAccount, chat_id: str) -> QuerySet[AmoChatBotTask]:
+        return AmoChatBotTask.objects.filter(account=account, chat_id=chat_id).order_by("message_created_at")
+
+    def save(self, **kwargs):
+        self.object_id = amo_chatbottasks.get_object_id(
+            domain=self.account.domain,
+            chat_id=self.chat_id,
+        )
+        super().save()
+
+
+class AmoTranscription(models.Model):
+    account = models.ForeignKey(
+        verbose_name="Амо-аккаунт",
+        to=AmoAccount,
+        on_delete=models.CASCADE,
+    )
+
+    chat_id = models.CharField(
+        verbose_name="Идентификатор чата",
+        max_length=255,
+        db_index=True,
+    )
+
+    message_id = models.CharField(
+        verbose_name="Идентификатор сообщения",
+        max_length=255,
+        db_index=True,
+    )
+
+    transcription = models.ForeignKey(
+        verbose_name="Транскрипция",
+        to=transcriptions.models.Transcription,
+        on_delete=models.CASCADE,
+    )
+
+
+class AmoPrompt(prompts.PromptBase):
+    chatbot = models.ForeignKey(
+        verbose_name="Чат-бот",
+        to=AmoChatBot,
+        on_delete=models.CASCADE,
+    )
+
+    available_since = models.TimeField(
+        verbose_name="Актуально с",
+        default=datetime.time.fromisoformat("00:00:00"),
+    )
+
+    available_until = models.TimeField(
+        verbose_name="Актуально до",
+        default=datetime.time.fromisoformat("23:59:59"),
+    )
+
+    class Meta:
+        verbose_name = "Amo-промпт"
+        verbose_name_plural = "Amo-промпты"
+
+
+class AmoCaseType(models.Model):
+    class HandlingWay(models.TextChoices):
+        DEFAULT_PIPELINE = "DEFAULT_PIPELINE", "Стандартный пайплайн"
+        TRANSFER_TO_PIPELINE_STATUS = "TRANSFER_TO_PIPELINE_STATUS", "Переводить на другой этап"
+        IGNORE = "IGNORE", "Игнорировать"
+
+    chatbot = models.ForeignKey(
+        verbose_name="Чат-бот",
+        to=AmoChatBot,
+        on_delete=models.CASCADE,
+    )
+
+    title = models.CharField(
+        verbose_name="Название",
+        max_length=255,
+    )
+
+    description = models.TextField(
+        verbose_name="Описание",
+        blank=True,
+    )
+
+    handling_way = models.CharField(
+        verbose_name="Как обрабатывать",
+        max_length=63,
+        choices=HandlingWay.choices,
+    )
+
+    pipeline_status_pk: int
+    pipeline_status = models.ForeignKey(
+        verbose_name="Этап воронки",
+        to=AmoPipelineStatus,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+    )
+
+    class Meta:
+        verbose_name = "Тип проблемы"
+        verbose_name_plural = "Типы проблем"
+
+    @staticmethod
+    def get_by_chatbot(chatbot_id: int) -> QuerySet[AmoCaseType]:
+        return AmoCaseType.objects.filter(chatbot_id=chatbot_id).select_related("pipeline_status")
+
+
+class AmoChatbotSandboxInputChatLink(models.Model):
+    chatbot_id: int
+    chatbot = models.ForeignKey(
+        verbose_name="Чат-бот",
+        to=AmoChatBot,
+        on_delete=models.CASCADE,
+    )
+
+    chat_id: int
+    chat = models.ForeignKey(
+        verbose_name="Тестовый чат",
+        to=sandbox_chats.models.SandboxInputChat,
+        on_delete=models.CASCADE,
+    )
+
+    class Meta:
+        verbose_name = "Связь Амо-чатбот - Тестовый чат"
+        verbose_name_plural = "Связи Амо-чатбот - Тестовый чат"
+
+    @staticmethod
+    def get_input_chats_by_chatbot(chatbot_id: int) -> list[sandbox_chats.models.SandboxInputChat]:
+        links = (
+            AmoChatbotSandboxInputChatLink.objects
+            .filter(chatbot_id=chatbot_id)
+            .select_related("chat")
+        )
+        return [link.chat for link in links]
+
+
+class AmoChatbotSandboxSessionLink(models.Model):
+    chatbot_id: int
+    chatbot = models.ForeignKey(
+        verbose_name="Чат-бот",
+        to=AmoChatBot,
+        on_delete=models.CASCADE,
+    )
+
+    session_id: int
+    session = models.ForeignKey(
+        verbose_name="Тестовая сессия",
+        to=sandbox_chats.models.SandboxSession,
+        on_delete=models.CASCADE,
+    )
+
+    class Meta:
+        verbose_name = "Связь Амо-чат-бот - Тестовая сессия"
+        verbose_name_plural = "Связи Амо-чат-бот - Тестовая сессия"
+
+    @staticmethod
+    def instantiate(chatbot_id: int, session_id: int) -> AmoChatbotSandboxSessionLink:
+        link = AmoChatbotSandboxSessionLink()
+
+        link.chatbot_id = chatbot_id
+        link.session_id = session_id
+
+        return link

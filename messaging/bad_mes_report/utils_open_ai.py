@@ -1,17 +1,21 @@
 import asyncio
-import openai
+import json
+
 from asgiref.sync import sync_to_async
+import openai
 from openai import AsyncOpenAI
 from pydantic import BaseModel
-import json
+
+from ai_requests import ai_requests
 from avito_account.models.models import AvitoAccount, Criterion
 from base import settings
+from utils.logging import TraceLogger
 
 MODEL = "gpt-4o-2024-08-06"
 client = AsyncOpenAI(api_key=settings.OPENAI_SECRET_KEY)
 
 
-async def analyze_chat(chat):
+async def analyze_chat(account: AvitoAccount, chat):
     chat_text = "\n".join(
         [message.get('direction') + ": " + message.get('content').get("text") for message in chat.get('messages') if
          message.get('type', None) == 'text'])
@@ -89,15 +93,29 @@ async def analyze_chat(chat):
         ],
         temperature=1.0
     )
+    await sync_to_async(ai_requests.create_from_openai_completion)(
+        tag=f"Avito | {account.name} | analyze chat",
+        completion=completion,
+        tlogger=TraceLogger(),
+    )
+
     chat["analyze"] = completion.choices[0].message.content
+
     chat["tokens_total_analyze"] = {
-        "prompt_tokens": completion.usage.prompt_tokens,
-        "completion_tokens": completion.usage.completion_tokens
+        "prompt_tokens": -99,
+        "completion_tokens": -99,
     }
+
+    if completion.usage:
+        chat["tokens_total_analyze"] = {
+            "prompt_tokens": completion.usage.prompt_tokens,
+            "completion_tokens": completion.usage.completion_tokens
+        }
+
     return chat
 
 
-async def messaging_total_analyze(ready_chats: list, period: str = "week"):
+async def messaging_total_analyze(account: AvitoAccount, ready_chats: list, period: str = "week"):
     if period == "week":
         ready_chats = ready_chats[:15]
     elif period == "month":
@@ -106,7 +124,7 @@ async def messaging_total_analyze(ready_chats: list, period: str = "week"):
     tasks = []
 
     for chat in ready_chats:
-        tasks.append(analyze_chat(chat))
+        tasks.append(analyze_chat(account, chat))
 
     # Выполняем все задачи параллельно
     analyzed_chats = await asyncio.gather(*tasks)
@@ -121,19 +139,22 @@ class CriterionAnalyzeSchema(BaseModel):
     criterion: str
 
 
-async def analyze_by_criteria_chat(chat: list, test_from_prod: bool, avito_account: AvitoAccount):
-    if avito_account.analytic_schema_id:
-        criteria = await sync_to_async(list)(Criterion.objects.filter(schema_id=avito_account.analytic_schema_id))
-    else:
-        criteria = await sync_to_async(list)(Criterion.objects.filter(schema_id=1))
-    if not criteria:  # Проверяем, есть ли критерии
-        criteria = await sync_to_async(list)(Criterion.objects.filter(schema_id=1))
+async def analyze_by_criteria_chat(chat: dict, test_from_prod: bool, avito_account: AvitoAccount):
+    criteria: list[Criterion] | None = None
+    analytic_schema_id = getattr(avito_account, "analytic_schema_id")
 
-    criteria_dict = {criterion.id: criterion.name for criterion in criteria}
-    chat_text = "\n".join(
-        [message.get('direction') + ": " + message.get('content').get("text") for message in
-         chat.get('messages') if
-         message.get('type', None) == 'text'])
+    if analytic_schema_id:
+        criteria = [c async for c in Criterion.objects.filter(schema_id=analytic_schema_id)]
+
+    if not criteria:
+        criteria = [c async for c in Criterion.objects.filter(schema_id=1)]
+
+    criteria_dict = {criterion.pk: criterion.name for criterion in criteria}
+    chat_text = "\n".join([
+        message['direction'] + ": " + message['content'].get("text") 
+            for message in chat.get('messages', [])
+                if message['type'] == 'text'
+    ])
 
     prompt = (
             f"Here is a conversation between a call center operator and a client: {chat_text}"
@@ -156,7 +177,13 @@ async def analyze_by_criteria_chat(chat: list, test_from_prod: bool, avito_accou
         temperature=1.0,
         tools=[openai.pydantic_function_tool(CriterionAnalyzeSchema)]
     )
-    raw_result = [x.function.arguments for x in response.choices[0].message.tool_calls]
+    await sync_to_async(ai_requests.create_from_openai_completion)(
+        tag=f"Avito | {avito_account.name} | analyze by criteria chat",
+        completion=response,
+        tlogger=TraceLogger(),
+    )
+    tool_calls = response.choices[0].message.tool_calls or []
+    raw_result = [x.function.arguments for x in tool_calls]
 
     # Converting raw_result do usable DICT
     result = {}
@@ -169,15 +196,26 @@ async def analyze_by_criteria_chat(chat: list, test_from_prod: bool, avito_accou
         }
 
     chat["analyze_by_criteria"] = result
+
     chat["tokens_by_criteria_analyze"] = {
-        "prompt_tokens": response.usage.prompt_tokens,
-        "completion_tokens": response.usage.completion_tokens
+        "prompt_tokens": -99,
+        "completion_tokens": -99,
     }
+
+    if response.usage:
+        chat["tokens_by_criteria_analyze"] = {
+            "prompt_tokens": response.usage.prompt_tokens,
+            "completion_tokens": response.usage.completion_tokens
+        }
+
     return chat
 
 
-async def analyze_by_criteria(chats_with_compared_messages: list, test_from_prod: bool,
-                              avito_account: AvitoAccount):
+async def analyze_by_criteria(
+    chats_with_compared_messages: list,
+    test_from_prod: bool,
+    avito_account: AvitoAccount,
+):
     tasks = []
 
     for chat in chats_with_compared_messages:

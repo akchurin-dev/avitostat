@@ -10,7 +10,7 @@ services:
       - POSTGRES_PASSWORD=postgres
       - POSTGRES_DB=postgres
     ports:
-      - "5432:5432"
+      - "${DB_PORT}:5432"
     networks:
       - custom
     volumes:
@@ -21,11 +21,58 @@ services:
     image: redis:latest
     restart: always
     ports:
-      - "6379:6379"
+      - "${REDIS_PORT}:6379"
     networks:
       - custom
     volumes:
       - redis_data:/data
+
+  django:
+    build:
+      context: .
+    depends_on:
+      - db
+      - redis
+    command: "python3 manage.py runserver 0.0.0.0:8000"
+    restart: always
+    ports:
+      - "8000:8000"
+    networks:
+      - custom
+    env_file: ".env"
+    volumes:
+      - .:/avitostat
+      - .:/var/www/avitostat
+
+  celery-worker:
+    build:
+      context: .
+    depends_on:
+      - db
+      - redis
+    command: "celery -A base worker -l info --pool solo"
+    restart: always
+    networks:
+      - custom
+    env_file: ".env"
+    volumes:
+      - .:/avitostat
+      - .:/var/www/avitostat
+
+  celery-beat:
+    build:
+      context: .
+    depends_on:
+      - db
+      - redis
+    command: "celery -A base beat -l info"
+    restart: always
+    networks:
+      - custom
+    env_file: ".env"
+    volumes:
+      - .:/avitostat
+      - .:/var/www/avitostat
 
 networks:
   custom:

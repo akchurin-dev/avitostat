@@ -1,8 +1,8 @@
 import datetime
-import sentry_sdk
-from aiogram import Bot
+
 from asgiref.sync import sync_to_async
-from telegram_bot import bot
+import sentry_sdk
+
 from avito_account.models.models import AvitoAccount
 from base import settings
 from conversion.utils_week_report import get_text_statistics_report
@@ -10,6 +10,7 @@ from base.exceptions import HTTPException
 from messaging.bad_mes_report.statistics.total_statistics_utils import get_duration_statistics
 from messaging.bad_mes_report.utils_chats import get_ready_chats
 from messaging.utils_duration import get_durations_seconds
+from utils import tg
 
 
 async def get_all_telegram_ids():
@@ -52,32 +53,30 @@ async def get_duration_report_by_avito_id(avito_id):
         raise HTTPException(status_code=404, detail="Авито аккаунт не найден")
 
 
-async def handle_avito_account_not_found(telegram_chat_id: str, bot: Bot):
-    await bot.send_message(
-        chat_id=telegram_chat_id,
-        text=(
-            "⚠️ Ошибка: Ваша телеграм группа не найдена.\n"
-            "🛠️ Пожалуйста, проверьте настройки и повторите попытку."
-        )
+async def handle_avito_account_not_found(chat_id: str):
+    text=(
+        "⚠️ Ошибка: Ваша телеграм группа не найдена.\n"
+        "🛠️ Пожалуйста, проверьте настройки и повторите попытку."
     )
+
+    tg.send_message(chat_id, text)
+
     raise HTTPException(status_code=404, detail="Avito account not found")
 
 
-async def handle_avito_account_have_not_active_items_for_period(telegram_chat_id: str, bot: Bot):
-    await bot.send_message(
-        chat_id=telegram_chat_id,
-        text=(
-            "⚠️ Ошибка: Для данного Авито аккаунта нет активных объявлений за отчётный период \n"
-        )
-    )
+async def handle_avito_account_have_not_active_items_for_period(chat_id: str):
+    text = "⚠️ Ошибка: Для данного Авито аккаунта нет активных объявлений за отчётный период \n"
+
+    tg.send_message(chat_id, text)
+
     raise HTTPException(status_code=404, detail="Avito account does not have active items in period")
 
 
 async def get_chat_bot_text(week_report_data: dict) -> str:
     if week_report_data.get("chat_bot") is not None:
-        chat_bot_chats_count = week_report_data.get("chat_bot").get("chats_count", 0)
-        chat_bot_messages_count = week_report_data.get("chat_bot").get("messages_count", 0)
-        chat_bot_contacts_count = week_report_data.get("chat_bot").get("contacts_count", 0)
+        chat_bot_chats_count = week_report_data["chat_bot"].get("chats_count", 0)
+        chat_bot_messages_count = week_report_data["chat_bot"].get("messages_count", 0)
+        chat_bot_contacts_count = week_report_data["chat_bot"].get("contacts_count", 0)
 
         chat_bot_text = (
             f"\n<><><><><><><><><><><><><><><><><><>\n"
@@ -157,23 +156,17 @@ async def generate_duration_report_text(duration_report_data):
 
 
 async def get_week_report_text(avito_account: AvitoAccount):
-    avito_id = avito_account.id
-    telegram_chat_id = avito_account.telegram_id
+    assert avito_account.telegram_id
+    avito_id = avito_account.pk
 
     try:
-        if settings.ENVIRONMENT == 'DEVELOPMENT':
-            await sync_to_async(bot.send_raw, thread_sensitive=False)(
-                chat_id="-4221870448",
-                function="send_message",
-                text="📊 Ожидайте, формируется отчёт...",
-            )
-
         week_report_data = await get_week_report_by_avito_id(avito_id=avito_id)
+
         if week_report_data.get("error") == "Avito account not found":
-            await handle_avito_account_not_found(telegram_chat_id, bot)
+            await handle_avito_account_not_found(avito_account.telegram_id)
             return
         elif week_report_data.get("error") == "Avito account does not have active items in period":
-            await handle_avito_account_have_not_active_items_for_period(telegram_chat_id, bot)
+            await handle_avito_account_have_not_active_items_for_period(avito_account.telegram_id)
             return
 
         report_text = await generate_week_report_text(week_report_data)

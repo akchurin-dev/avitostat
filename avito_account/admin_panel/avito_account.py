@@ -1,17 +1,31 @@
 import json
+import logging
+
 from django import forms
 from django.contrib import admin
 from django.db.models import Q
 from django.shortcuts import redirect
-from avito_account.admin_panel.avito_account_actions import run_txt_all_test_from_prod_report, run_txt_report, \
-    run_pdf_week_report, run_txt_all_report, run_pdf_all_report, run_pdf_all_test_from_prod_report, \
-    run_pdf_month_report, celery_pdf_month_for_api_report
-from avito_account.models.excluded_items import ExcludedItem
-from avito_account.models.models import AnalyticSchema, WorkSchedule
-import logging
 
+from avito_account.admin_panel.avito_account_actions import actualize_avito_items
+from avito_account.admin_panel.avito_account_actions import actualize_avito_webhooks_subscriptions
+from avito_account.admin_panel.avito_account_actions import celery_pdf_month_for_api_report
+from avito_account.admin_panel.avito_account_actions import disable_pdf_reports
+from avito_account.admin_panel.avito_account_actions import disable_text_reports
+from avito_account.admin_panel.avito_account_actions import run_daily_pdf_report
+from avito_account.admin_panel.avito_account_actions import run_pdf_all_report
+from avito_account.admin_panel.avito_account_actions import run_pdf_all_test_from_prod_report
+from avito_account.admin_panel.avito_account_actions import run_pdf_month_report
+from avito_account.admin_panel.avito_account_actions import run_pdf_week_report
+from avito_account.admin_panel.avito_account_actions import run_txt_all_report
+from avito_account.admin_panel.avito_account_actions import run_txt_all_test_from_prod_report
+from avito_account.admin_panel.avito_account_actions import run_txt_report
+from avito_account.admin_panel.avito_account_actions import update_avito_accounts_tokens
+from avito_account.models.models import AnalyticSchema
+from avito_account.models.models import ExcludedItem
+from avito_account.models.models import WorkSchedule
 from base import settings
-from chat_bot.models import AiChatBot
+from chat_bot.models import CompanyBranch
+
 
 logger = logging.getLogger(__name__)
 
@@ -33,29 +47,50 @@ class ExcludedItemInline(admin.TabularInline):
     verbose_name_plural = "Объявления исключённые "
 
 
-class AiChatBotInline(admin.StackedInline):
-    model = AiChatBot
-    extra = 0
-
-
 class WorkScheduleInline(admin.StackedInline):
     model = WorkSchedule
     can_delete = False
     extra = 0
 
 
+class CompanyBranchInline(admin.TabularInline):
+    model = CompanyBranch
+    readonly_fields = ["location_slug"]
+    extra = 0
+
+
 class AvitoAccountAdmin(admin.ModelAdmin):
     list_display = ('name', 'telegram_id', 'phone', 'created_by')
+    fields = [
+        'name',
+        'telegram_id',
+        'phone',
+        'profile_url',
+        'analytic_schema',
+        'id',
+        'balance_alerting',
+        'created_by',
+        'weekly_text_report',
+        'weekly_pdf_report',
+    ]
     readonly_fields = ('id',)
-    inlines = [WorkScheduleInline, ExcludedItemInline, AiChatBotInline]
-    actions = [celery_pdf_month_for_api_report,
-               run_txt_all_test_from_prod_report,
-               run_pdf_all_test_from_prod_report,
-               run_txt_report,
-               run_pdf_week_report,
-               run_pdf_month_report,
-               run_txt_all_report,
-               run_pdf_all_report]
+    inlines = [WorkScheduleInline, ExcludedItemInline, CompanyBranchInline]
+    actions = [
+        actualize_avito_items,
+        actualize_avito_webhooks_subscriptions,
+        celery_pdf_month_for_api_report,
+        disable_pdf_reports,
+        disable_text_reports,
+        run_daily_pdf_report,
+        run_pdf_all_report,
+        run_pdf_all_test_from_prod_report,
+        run_pdf_month_report,
+        run_pdf_week_report,
+        run_txt_all_report,
+        run_txt_all_test_from_prod_report,
+        run_txt_report,
+        update_avito_accounts_tokens,
+    ]
     exclude = ('access_token', 'refresh_token')
 
     def get_actions(self, request):
@@ -88,13 +123,13 @@ class AvitoAccountAdmin(admin.ModelAdmin):
 
     def formfield_for_foreignkey(self, db_field, request, **kwargs):  #  Фильтрует выпадающие связанные списки
         if db_field.name == "analytic_schema":
-            if not request.user.is_superuser:
+            if request and not request.user.is_superuser:
                 kwargs["queryset"] = AnalyticSchema.objects.filter(created_by=request.user)
         return super().formfield_for_foreignkey(db_field, request, **kwargs)
 
     def add_view(self, request, form_url="", extra_context=None):
         state = {
-            "created_by_id": request.user.id,
+            "created_by_id": request.user.pk,
         }
         return redirect(f"https://www.avito.ru/oauth?response_type=code&client_id={settings.AVITO_CLIENT_ID}&scope=messenger"
                         ":read,messenger:write,user_balance:read,user_operations:read,user:read,autoload:reports,"
@@ -112,13 +147,13 @@ class AvitoAccountAdmin(admin.ModelAdmin):
             readonly_fields = ['id'] + list(readonly_fields)
         return readonly_fields
 
-    def get_fieldsets(self, request, obj=None):
-        fieldsets = [
-            (None, {
-                'fields': (
-                    'name', 'telegram_id', 'phone',
-                    'profile_url', 'analytic_schema', 'id', 'balance_alerting', 'created_by',
-                ),
-            }),
-        ]
-        return fieldsets
+    # def get_fieldsets(self, request, obj=None):
+    #     fieldsets = [
+    #         (None, {
+    #             'fields': (
+    #                 'name', 'telegram_id', 'phone',
+    #                 'profile_url', 'analytic_schema', 'id', 'balance_alerting', 'created_by',
+    #             ),
+    #         }),
+    #     ]
+    #     return fieldsets

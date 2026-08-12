@@ -1,24 +1,50 @@
+from django.contrib import messages
+from django.db.models.query import QuerySet
+from django.http import HttpRequest
 from rangefilter.filters import DateRangeFilterBuilder
 
-from chat_bot.filters import ChatIDFilter, ContactFilter
-from chat_bot.models import ChatBotTask
-from django.db.models import Sum, F, ExpressionWrapper, FloatField
 from django.contrib import admin
+from django.db.models import Sum, F, ExpressionWrapper, FloatField
 from django.template.response import TemplateResponse
+
 from avito_account.admin_panel.filters import ContragentFilter
+from chat_bot.filters import ChatIDFilter, ContactFilter
+import chat_bot.models
 
 
+@admin.register(chat_bot.models.ChatBotTask)
 class ChatBotTaskAdmin(admin.ModelAdmin):
-    list_filter = (ContragentFilter, 'avito_account', ChatIDFilter, ("created_at", DateRangeFilterBuilder()), ContactFilter)
+    ordering = ["-created_at"]
+    list_filter = (
+        ContragentFilter,
+        'avito_account',
+        'status',
+        'summary_sanded',
+        ChatIDFilter,
+        ("created_at", DateRangeFilterBuilder()),
+        ContactFilter,
+    )
     search_fields = ("chat_id", "message_id", "answer_text", "text")
 
     def get_list_display(self, request):
         # Определяем, какие поля отображать в зависимости от прав пользователя
-        base_display = ['is_incoming', 'chat_id', 'chat_shutdown_by_user', 'message_id', 'created_at', 'text', 'answer_text', 'mobile',
-                        'address', 'summary_sanded',]
+        base_display = [
+            'created_at',
+            'avito_account',
+            'status',
+            'cancel_reason',
+            'is_incoming',
+            'summary_sanded',
+            'chat_shutdown_by_user',
+            'chat_id',
+            'message_id',
+            'text',
+            'answer_text',
+            'mobile',
+            'address',
+        ]
         if request.user.is_superuser:
             base_display += ['tokens_completion', 'tokens_prompt']
-        base_display += ['avito_account', ]
         return base_display
 
     def get_queryset(self, request):
@@ -30,19 +56,19 @@ class ChatBotTaskAdmin(admin.ModelAdmin):
                 output_field=FloatField()
             )
         )
-        return queryset.filter(tokens_completion__gt=0).order_by('-created_at__date','created_at__time', 'chat_id')
+        return queryset.order_by('-created_at__date','created_at__time', 'chat_id')
 
     def tokens_price(self, obj):
         tokens_price = round(obj.tokens_prompt * 0.000125 + obj.tokens_completion * 0.0005, 1)
         return tokens_price
 
-    tokens_price.short_description = 'стоимость токенов'
+    tokens_price.short_description = 'стоимость токенов'  # type: ignore
 
     def changelist_view(self, request, extra_context=None):
         response = super().changelist_view(request, extra_context=extra_context)
 
         # Убедимся, что response — это TemplateResponse
-        if isinstance(response, TemplateResponse) and 'cl' in response.context_data:
+        if isinstance(response, TemplateResponse) and response.context_data and 'cl' in response.context_data:
             # Получаем отфильтрованный queryset
             qs = response.context_data['cl'].queryset
 
@@ -59,4 +85,50 @@ class ChatBotTaskAdmin(admin.ModelAdmin):
         return response
 
 
-admin.site.register(ChatBotTask, ChatBotTaskAdmin)
+class ChatBotPromptInline(admin.StackedInline):
+    model = chat_bot.models.AvitoPrompt
+    extra = 0
+
+
+class DialogTriggerInline(admin.StackedInline):
+    model = chat_bot.models.DialogTrigger
+    fields = [
+        "title",
+        "only_when_client_is_silent",
+        "additional_condition",
+        "message",
+        "trigger",
+        "delay_before_launch_trigger_sec",
+    ]
+    ordering = ["title"]
+    extra = 0
+
+
+@admin.register(chat_bot.models.AiChatBot)
+class AiChatBotAdmin(admin.ModelAdmin):
+    list_display = ["id", "account"]
+    list_display_links = ["id", "account"]
+    inlines = [ChatBotPromptInline, DialogTriggerInline]
+
+    def save_model(self, request, obj, form, change):
+        super().save_model(request, obj, form, change)
+
+        if getattr(obj, "_webhook_update_succeeded", True):
+            return
+
+        self.message_user(
+            request,
+            (
+                "Чат-бот сохранён, но не удалось обновить webhook в Avito "
+                "(проверьте токен аккаунта или повторите позже)."
+            ),
+            level=messages.WARNING,
+        )
+
+    def get_queryset(self, request: HttpRequest) -> QuerySet[chat_bot.models.AiChatBot]:
+        qs: QuerySet[chat_bot.models.AiChatBot] = super().get_queryset(request)
+
+        if not request.user.is_superuser:
+            qs = qs.filter(account__created_by=request.user)
+
+        return qs

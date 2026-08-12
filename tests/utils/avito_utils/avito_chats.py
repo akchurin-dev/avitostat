@@ -103,11 +103,11 @@ def get_new_messages(last_message_id: str | None) -> list[AvitoMessage]:
     offset = 0
 
     while True:
-        new_messages = get_messages(limit, offset)
-        messages.extend(new_messages)
+        messages_partition = get_messages(limit, offset)
+        messages.extend(messages_partition)
         offset += limit
 
-        if len(new_messages) == 0 or last_message_id in [msg.id for msg in new_messages]:
+        if len(messages_partition) == 0 or last_message_id in [msg.id for msg in messages_partition]:
             break
 
     new_messages: list[AvitoMessage] = []

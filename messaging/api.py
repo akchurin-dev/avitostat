@@ -1,24 +1,92 @@
-import datetime
-import json
+from __future__ import annotations
+
+from datetime import date
+from datetime import datetime
+from typing import Literal
+from typing import NamedTuple
+# from typing import TypedDict
+from typing_extensions import TypedDict
 
 import httpx
-from httpx import HTTPStatusError
-from loguru import logger
+from pydantic import BaseModel
+from pydantic import Field
+from pydantic import TypeAdapter
 
 from avito_account.models.models import AvitoAccount
 from base import settings
-from base.exceptions import HTTPException
-from conversion.utils import dates_for_period_without_extra_reserve
+from conversion.utils import iso_dates_for_period_without_extra_reserve
+from utils import httpx_helper
 from utils.logging import TraceLogger
 
 
-# TODO ДОБАВИТЬ ПРОВЕРКУ НА ПРОСРОЧЕННОСТЬ и обновление токена
-# статистика по последним 100 чатам не отличается если даже все чаты вытаскивать имей ввиду, возможно
-# можно убрать цикл уайл и просто один запрос отправлять если будут сложности или будет медленно
+MAX_MESSAGES_ON_DEBUG = 5
 
-async def timestamp_in_period(timestamp: int, period: str = "week") -> bool:
-    start = datetime.datetime.fromtimestamp(timestamp)
-    end = datetime.datetime.now()
+
+class ChatMessageContent(TypedDict, total=False):
+    text: str | None
+    voice: dict[Literal["voice_id"], str] | None
+    image: dict[Literal["sizes"], dict[str, str]] | None
+
+
+class ChatMessage(TypedDict):
+    id: str
+    author_id: int
+    direction: Literal["in", "out"]
+    type: Literal["text", "image", "link", "item", "location", "call", "deleted", "voice", "system"]
+    content: ChatMessageContent
+    created: int
+
+
+class ChatContextValueLocation(TypedDict):
+    title: str
+
+
+class ChatContextValue(TypedDict, total=False):
+    id: int
+    title: str
+    location: ChatContextValueLocation
+
+
+class ChatContext(TypedDict):
+    value: ChatContextValue
+
+
+class ChatUser(TypedDict):
+    id: int
+    name: str
+
+
+class Chat(TypedDict, total=False):
+    id: str
+    created: int
+    updated: int
+    context: ChatContext
+    messages: list[ChatMessage]
+    users: list[ChatUser]
+
+
+class ChatListPage(NamedTuple):
+    chats: list[Chat]
+    has_more: bool
+
+
+class CallsStatisticsItem(BaseModel):
+    employee_id: int = Field(alias="employeeId")
+    item_id: int = Field(alias="itemId")
+    days: list[CallsStatisticsItemDay]
+
+
+class CallsStatisticsItemDay(BaseModel):
+    answered: int
+    calls: int
+    date: date
+    new: int
+    new_answered: int = Field(alias="newAnswered")
+
+
+def timestamp_in_period(timestamp: int, period: str = "week") -> bool:
+    start = datetime.fromtimestamp(timestamp)
+    end = datetime.now()
     delta = end - start
     if period == "day":
         if delta.days <= 1:
@@ -32,169 +100,202 @@ async def timestamp_in_period(timestamp: int, period: str = "week") -> bool:
     return False
 
 
-async def get_chats(avito_account: AvitoAccount, period: str = "week", max_retries: int = 3) -> list:
-    url = f"https://api.avito.ru/messenger/v2/accounts/{avito_account.id}/chats"
-    headers = {
-        'authorization': f"Bearer {avito_account.access_token}"
-    }
+def get_chats(account: AvitoAccount, period: str = "week"):
+    limit = 50
+    offset = 0
+
+    while offset < 1000:
+        current_page, has_more = get_chat_list_page(account, offset, limit, tlogger=TraceLogger())
+
+        for chat in current_page:
+            yield chat
+
+        if not has_more:
+            return
+
+        if len(current_page) == 0:
+            return
+
+        last_chat_timestamp = current_page[-1].get("updated", -1)
+        last_chat_in_period = timestamp_in_period(last_chat_timestamp, period)
+
+        if not last_chat_in_period:
+            return
+
+        offset += 50
+
+
+def get_chat_list_page(account: AvitoAccount, offset: int, limit: int = 50, *, tlogger: TraceLogger) -> ChatListPage:
+    action = f"/messenger/v2/accounts/{account.pk}/chats"
 
     params = {
         "unread_only": False,
-        "limit": 50,
+        "limit": limit,
+        "offset": offset,
+    }
+
+    response = avito_api_request("GET", action, account, params=params, tlogger=tlogger)
+    response.raise_for_status()
+
+    response_data: dict = response.json()
+
+    return ChatListPage(
+        chats=response_data["chats"],
+        has_more=response_data.get("meta", {}).get("has_more", False)
+    )
+
+
+def add_messages_to_chats(
+    avito_account: AvitoAccount,
+    chats: list[Chat],
+    raise_if_payment_required_error: bool = True,
+    *,
+    tlogger: TraceLogger,
+) -> None:
+
+    for chat in chats:
+        chat_id = chat.get("id", "")
+        chat_with_messages = get_chat_last_50_messages_by_chat_id(avito_account, chat_id, raise_if_payment_required_error, tlogger=tlogger)
+        messages = chat_with_messages.get("messages", None)
+        if messages is not None:
+            chat["messages"] = messages
+
+
+def get_chat_by_id(avito_account: AvitoAccount, chat_id: str, tlogger: TraceLogger) -> Chat:
+    action = f"/messenger/v2/accounts/{avito_account.pk}/chats/{chat_id}"
+
+    params = {
+        "unread_only": False,
+        "limit": 1,
         "offset": 0,
     }
-    chats = []
-    retries = 0
 
-    async with httpx.AsyncClient() as client:
-        while params.get("offset") < 1000:
-            response = await client.get(url, headers=headers, params=params, timeout=180)
-            if response.status_code == 200:
-                data = response.json()
-                chats.extend(data.get("chats", []))
-                has_more = data.get("meta", {}).get("has_more", False)
-                last_chat_in_period = await timestamp_in_period(timestamp=chats[-1].get("updated"), period=period)
-                if not has_more or not last_chat_in_period:
-                    break
-                params["offset"] += 50
-            elif response.status_code == 403:
-                retries += 1
-                if retries > max_retries:
-                    logger.error((
-                        "Not success response in get_chats function. "
-                        f"Got status=403, data={response.text}"
-                    ))
-                    raise HTTPStatusError("Превышено максимальное количество попыток обновления токена",
-                                          request=response.request, response=response)
-                print(
-                    f"Attempt {retries}: {response.status_code}, {response.text}")  # Удалить если нет необходимости в коде, была нужда когда разбирался в ошибкой 403 бесконечно
-            else:
-                raise HTTPException(status_code=response.status_code, detail=response.text)
-    return chats
+    response = avito_api_request("GET", action, avito_account, params=params, tlogger=tlogger)
+    response.raise_for_status()
+
+    return response.json()
 
 
-async def check_timestamp_in_period(timestamp: int, period: str = "week") -> bool:
-    timestamp_in_period = False
-    now = datetime.datetime.now()
+def get_chat_last_50_messages_by_chat_id(
+    avito_account: AvitoAccount,
+    chat_id: str,
+    raise_if_payment_required_error: bool = True,
+    *,
+    tlogger: TraceLogger,
+) -> Chat:
 
-    created_or_updated = datetime.datetime.fromtimestamp(timestamp)
-    timedelta = now - created_or_updated
+    action = f"/messenger/v3/accounts/{avito_account.pk}/chats/{chat_id}/messages/"
 
-    if period == "week":
-        if 7 >= timedelta.days >= 0:
-            timestamp_in_period = True
-    if period == "month":
-        if 30 >= timedelta.days >= 0:
-            timestamp_in_period = True
-    return timestamp_in_period
+    params = {"limit": 50, "offset": 0}
 
+    response = avito_api_request(
+        method="GET",
+        action=action,
+        account=avito_account,
+        params=params,
+        tlogger=tlogger,
+    )
 
-async def get_chats_last_50_messages(avito_account: AvitoAccount, chats: list, *, trace_id: str | None = None) -> list:
-    tlogger = TraceLogger(trace_id)
-    if len(chats) > 0:
-        async with httpx.AsyncClient() as client:
-            for chat in chats:
-                chat_id = chat.get("id")
-                url = f"https://api.avito.ru/messenger/v3/accounts/{avito_account.id}/chats/{chat_id}/messages/"
-                headers = {'authorization': f"Bearer {avito_account.access_token}"}
-                params = {"limit": 50, "offset": 0}
-                response = await client.get(url, headers=headers, params=params, timeout=300)
-                if response.status_code == 200:
-                    new_messages = response.json().get("messages")[::-1]
-                    if len(new_messages) == 0:
-                        break
-                    new_messages = _filter_messages(new_messages)
-                    _print_chat(new_messages, tlogger=tlogger)
-                    chat["messages"] = new_messages
-                else:
-                    raise HTTPException(status_code=response.status_code, detail=response.text)
-    return chats
+    if response.status_code != 402 or raise_if_payment_required_error:
+        response.raise_for_status()
+
+    if response.is_error:
+        return {"id": chat_id}
+
+    messages = response.json().get("messages")[::-1]
+    messages = _filter_messages(messages)
+    _print_chat(messages, tlogger=tlogger)
+
+    return {
+        "id": chat_id,
+        "messages": messages,
+    }
 
 
-import requests
-class MessagingAPISync:
-    @staticmethod
-    def get_chats_last_50_messages(avito_account: AvitoAccount, chats: list, *, trace_id: str | None = None) -> list:
-        tlogger = TraceLogger(trace_id)
-        if len(chats) > 0:
-            with httpx.Client() as client:
-                for chat in chats:
-                    chat_id = chat.get("id")
-                    url = f"https://api.avito.ru/messenger/v3/accounts/{avito_account.id}/chats/{chat_id}/messages/"
-                    headers = {'authorization': f"Bearer {avito_account.access_token}"}
-                    params = {"limit": 50, "offset": 0}
-                    response = client.get(url, headers=headers, params=params, timeout=300)
-                    if response.status_code == 200:
-                        new_messages = response.json().get("messages")[::-1]
-                        if len(new_messages) == 0:
-                            break
-                        new_messages = _filter_messages(new_messages)
-                        _print_chat(new_messages, tlogger=tlogger)
-                        chat["messages"] = new_messages
-                    else:
-                        raise HTTPException(status_code=response.status_code, detail=response.text)
-        return chats
+def get_calls_statistic_last_week(account: AvitoAccount, *, tlogger: TraceLogger) -> list[CallsStatisticsItem]:
+    action = f"/core/v1/accounts/{account.pk}/calls/stats/"
 
-    @staticmethod
-    def get_chat_by_id(avito_account: AvitoAccount, chat_id: str):
-        url = f"https://api.avito.ru/messenger/v2/accounts/{avito_account.id}/chats/{chat_id}"
-        headers = {
-            'authorization': f"Bearer {avito_account.access_token}"
-        }
-        params = {
-            "unread_only": False,
-            "limit": 1,
-            "offset": 0,
-        }
-        response = requests.get(url, headers=headers, params=params, timeout=180)
+    iso_date_from, iso_date_to = iso_dates_for_period_without_extra_reserve(period="week")
+    request_data = {
+        "dateFrom": f"{iso_date_from}",
+        "dateTo": f"{iso_date_to}",
+    }
 
-        if response.status_code == 200:
-            chat = response.json()
-            return chat
-        else:
-            raise HTTPException(status_code=response.status_code, detail=response.text)
+    response = avito_api_request("POST", action, account, json=request_data, tlogger=tlogger)
+    response.raise_for_status()
+    response_data = response.json()
+
+    result: dict = response_data["result"]
+    items: list[dict] = result.get("items", [])
+
+    return TypeAdapter(list[CallsStatisticsItem]).validate_python(items)
 
 
-    @staticmethod
-    def get_chat_last_50_messages_by_chat_id(avito_account: AvitoAccount, chat_id: str, *, trace_id: str | None = None):
-        tlogger = TraceLogger(trace_id)
-        url = f"https://api.avito.ru/messenger/v3/accounts/{avito_account.id}/chats/{chat_id}/messages/"
-        headers = {'authorization': f"Bearer {avito_account.access_token}"}
-        params = {"limit": 50, "offset": 0}
-        response = requests.get(url, headers=headers, params=params)
-        if response.status_code == 200:
-            messages = response.json().get("messages")[::-1]
-            messages = _filter_messages(messages)
-            _print_chat(messages, tlogger=tlogger)
-            return messages
-        else:
-            raise HTTPException(status_code=response.status_code, detail=response.text)
+def get_voice_id_url_pairs(
+    account: AvitoAccount,
+    voices_ids: list[str],
+    *,
+    tlogger: TraceLogger,
+) -> dict[str, str]:
+    """ https://developers.avito.ru/api-catalog/messenger/documentation#operation/getVoiceFiles """
+
+    action = f"/messenger/v1/accounts/{account.pk}/getVoiceFiles"
+    params = {"voice_ids": voices_ids}
+
+    response = avito_api_request(
+        method="GET",
+        action=action,
+        account=account,
+        params=params,
+        tlogger=tlogger,
+    )
+    response.raise_for_status()
+
+    return response.json()["voices_urls"]
 
 
-async def get_calls_statistic_last_week(avito_account: AvitoAccount):
-    # await avito_account.update_refresh_token_async()
-    date_from, date_to = await dates_for_period_without_extra_reserve(period="week", date_type="str")
+def avito_api_request(
+    method: httpx_helper.MethodType,
+    action: str,
+    account: AvitoAccount,
+    params: dict | None = None,
+    data: dict | None = None,
+    json: dict | list | None = None,
+    headers: dict | None = None,
+    *,
+    tlogger: TraceLogger,
+):
+    url = "https://api.avito.ru" + action
 
-    async with httpx.AsyncClient() as client:
-        url = f"https://api.avito.ru/core/v1/accounts/{avito_account.id}/calls/stats/"
-        headers = {'authorization': f"Bearer {avito_account.access_token}",
-                   "Content-Type": "application/json", }
-        params = {"dateFrom": f"{date_from}", "dateTo": f"{date_to}"}
+    assert account.access_token
+    headers = httpx_helper.add_bearer(headers, account.access_token)
+    headers = httpx_helper.add_header(headers, "Content-Type", "application/json")
 
-        response = await client.post(url, headers=headers, json=params)
-        if response.status_code == 200:
-            data = json.loads(response.text)
-            if data['result']:
-                return data
-        else:
-            raise HTTPException(status_code=response.status_code, detail=response.text)
+    response = httpx_helper.request(
+        method=method,
+        url=url,
+        params=params,
+        data=data,
+        json=json,
+        headers=headers,
+        tlogger=tlogger,
+    )
+
+    # if token expired:
+    #   update token
+    #   retry request
+
+    return response
 
 
 def _filter_messages(messages: list) -> list:
+    if settings.ENVIRONMENT == "DEVELOPMENT":
+        return messages[-MAX_MESSAGES_ON_DEBUG:]
+
     if settings.ENVIRONMENT != "TESTING":
         return messages
 
-    url = f"{settings.TEST_DJANGO_HOST}/deep_tests/prev-session-last-avito-message"
+    url = settings.DJANGO_BASE_URL + "/deep_tests/prev-session-last-avito-message"
 
     response = httpx.get(url)
     response.raise_for_status()

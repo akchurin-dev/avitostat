@@ -1,0 +1,94 @@
+from typing import NamedTuple
+
+import amo.models
+from amo.utils import amo_api
+from amo.utils import amo_fields
+# from amo.utils import amo_leads
+# from amo.utils import amo_pipelines
+from amo.utils import qualification
+# from amo.utils.ai import answers
+from amo.utils.ai import fields_recognition
+from utils.logging import TraceLogger
+
+
+class StatusChangeResult(NamedTuple):
+    status_changed: bool
+    status_changed_on_qualification: bool
+
+
+def update_lead_and_contact(
+    account: amo.models.AmoAccount,
+    # ai_answer: answers.AIAnswer,
+    entities_fields_values: fields_recognition.EntitiesFieldsValues,
+    lead: amo_api.Lead,
+    contact: amo_api.Contact,
+    *,
+    tlogger: TraceLogger,
+) -> None:
+
+    if entities_fields_values["lead"]:
+        amo_fields.update_entity_fields(
+            account=account,
+            entity=amo_api.EntityEnum.LEADS,
+            instance_id=lead.id,
+            fields_values=entities_fields_values["lead"],
+            tlogger=tlogger,
+        )
+    else:
+        tlogger.info("Lead info wasn't recognized by AI")
+
+    if entities_fields_values["contact"]:
+        amo_fields.update_entity_fields(
+            account=account,
+            entity=amo_api.EntityEnum.CONTACTS,
+            instance_id=contact.id,
+            fields_values=entities_fields_values["contact"],
+            tlogger=tlogger,
+        )
+    else:
+        tlogger.info("Contact info wasn't recognized by AI")
+
+
+def change_lead_status(
+    chatbot: amo.models.AmoChatBot,
+    # ai_answer: answers.AIAnswer,
+    lead: amo_api.Lead,
+    *,
+    tlogger: TraceLogger,
+) -> StatusChangeResult:
+
+    status_changed_on_qualification = qualification.change_status_if_qualification(
+        chatbot=chatbot,
+        lead_id=lead.id,
+        tlogger=tlogger,
+    )
+
+    if status_changed_on_qualification:
+        return StatusChangeResult(status_changed=True, status_changed_on_qualification=True)
+
+    return StatusChangeResult(status_changed=False, status_changed_on_qualification=False)
+
+    # if (
+    #     chatbot.change_status_only_when_qualification
+    #     or not ai_answer.payload.new_status
+    # ):
+    #     return StatusChangeResult(status_changed=False, status_changed_on_qualification=False)
+
+    # status = amo_pipelines.get_status_by_name(
+    #     account=chatbot.account,
+    #     pipeline_id=lead.pipeline_id,
+    #     status_name=ai_answer.payload.new_status,
+    #     tlogger=tlogger,
+    # )
+
+    # if lead.status_id == status.id:
+    #     return StatusChangeResult(status_changed=False, status_changed_on_qualification=False)
+
+    # amo_leads.change_lead_status(
+    #     account=chatbot.account,
+    #     lead_id=lead.id,
+    #     status_id=status.id,
+    #     tlogger=tlogger,
+    # )
+
+    # return StatusChangeResult(status_changed=True, status_changed_on_qualification=False)

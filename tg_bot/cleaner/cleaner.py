@@ -9,7 +9,6 @@ logger = logging.getLogger(__name__)
 
 class Cleaner:
     bot: Bot
-    chat_id: str
 
     def __init__(self, limit: int = 10):
         """
@@ -24,7 +23,7 @@ class Cleaner:
 
     def __str__(self) -> str:
         """Get string representation of the object."""
-        return f"<{__class__.__name__} limit:{self.limit}>"
+        return f"<{__class__.__name__} limit:{self.limit}>"  # type: ignore
 
     def __repr__(self) -> str:
         """Get string representation of the object."""
@@ -40,7 +39,7 @@ class Cleaner:
         """Set the chat id."""
         self._chat_id = str(value)
         if value is not None:
-            self._messages[self._chat_id]: list[int] = self._messages.get(self._chat_id, [])
+            self._messages[self._chat_id] = self._messages.get(self._chat_id, [])
 
     @property
     def messages_for_chat(self) -> list:

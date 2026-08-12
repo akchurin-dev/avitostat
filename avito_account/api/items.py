@@ -1,51 +1,56 @@
-import httpx
-import requests
-
 from avito_account.models.models import AvitoAccount
 from base.exceptions import HTTPException
+from utils import httpx_helper
+from utils.logging import TraceLogger
 
 
 class ItemsApiSync:
-
     @staticmethod
     def get_item_info(avito_account: AvitoAccount, item_id: str) -> dict:
-        url = f"https://api.avito.ru/core/v1/accounts/{avito_account.id}/items/{item_id}/"
-        headers = {
-            'authorization': f"Bearer {avito_account.access_token}"
-        }
+        url = f"https://api.avito.ru/core/v1/accounts/{avito_account.pk}/items/{item_id}/"
 
-        response = requests.get(url, headers=headers)
-        if response.status_code == 200:
-            return response.json()
-        else:
-            raise HTTPException(status_code=response.status_code, detail=response.json())
+        response = httpx_helper.request(
+            method="GET",
+            url=url,
+            headers=httpx_helper.add_bearer(None, avito_account.access_token or ""),
+        )
+        response.raise_for_status()
+
+        return response.json()
 
 
 async def get_items_list(avito_account: AvitoAccount):
+    tlogger = TraceLogger()
+
     url = f"https://api.avito.ru/core/v1/items"
     headers = {
         'authorization': f"Bearer {avito_account.access_token}"
     }
 
-    params = {
-        'per_page': 100,
-        'status': 'active',
-        'page': 1
-    }
+    page = 1
+    all_items = []
 
-    async with httpx.AsyncClient() as client:
-        response = await client.get(url, headers=headers, params=params)
+    while True:
+        params = {
+            'per_page': 100,
+            'status': 'active',
+            'page': page,
+        }
 
-        if response.status_code != 200:
-            raise HTTPException(status_code=response.status_code, detail=response.json())
+        response = httpx_helper.request("GET", url, headers=headers, params=params, tlogger=tlogger)
 
-        all_items = []
-        while response.status_code == 200 and response.json().get('resources'):
-            all_items += response.json().get('resources')
-            params['page'] += 1
-            response = await client.get(url, headers=headers, params=params)
+        if not response.is_success:
+            break
 
-        if len(all_items) == 0:
-            raise HTTPException(status_code=404, detail="Avito account does not have active items in period")
-        else:
-            return all_items
+        resources: list | None = response.json().get("resources")
+
+        if resources is None or len(resources) == 0:
+            break
+
+        all_items.extend(resources)
+        page += 1
+
+    if len(all_items) == 0:
+        raise HTTPException(status_code=404, detail="Avito account does not have active items in period")
+
+    return all_items

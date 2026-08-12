@@ -18,33 +18,38 @@ async def dates_for_period_with_extra_reserve(period: str):
     return date_from, date_to
 
 
-async def dates_for_period_without_extra_reserve(period: str, date_type: str = "datetime"):
+def dates_for_period_without_extra_reserve(period: str) -> tuple[datetime, datetime]:
     date_types = ["str", "datetime"]
     valid_periods = ['month', 'week', 'day']
     if period not in valid_periods:
         raise ValueError("Invalid period. Please choose from 'month', 'week', or 'day'.")
-
-    if date_type not in date_types:
-        raise ValueError("Invalid type. Please choose from 'datetime', or 'str'.")
 
     date_to = datetime.now()
     if period == 'month':
         date_from = (date_to - timedelta(days=30))
     elif period == 'week':
         date_from = (date_to - timedelta(days=7))
-    else:  # Period is 'day'
+    elif period == 'day':
         date_from = (date_to - timedelta(days=1))
+    else:
+        raise ValueError(f"Unexpected period, got '{period}'")
 
-    if date_type == "str":
-        date_from = date_from.strftime("%Y-%m-%d")
-        date_to -= timedelta(hours=12)  # поправка для синхронизации значений статистики со значениями авито
-        date_to = date_to.strftime("%Y-%m-%d")
     return date_from, date_to
+
+
+def iso_dates_for_period_without_extra_reserve(period: str) -> tuple[str, str]:
+    date_from, date_to = dates_for_period_without_extra_reserve(period)
+
+    iso_date_from = date_from.strftime("%Y-%m-%d")
+    date_to -= timedelta(hours=12)  # поправка для синхронизации значений статистики со значениями авито
+    iso_date_to = date_to.strftime("%Y-%m-%d")
+
+    return iso_date_from, iso_date_to
 
 
 async def active_services_for_period_filtering(period: str, operations: list) -> list:
     active_services = []
-    date_from, date_to = await dates_for_period_without_extra_reserve(period=period, date_type="datetime")
+    date_from, date_to = dates_for_period_without_extra_reserve(period=period)
 
     for operation in operations:
         service_start = operation.get("updatedAt")
