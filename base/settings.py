@@ -43,6 +43,7 @@ AVITO_WEBHOOK_URL = f"https://{AVITO_WEBHOOK_HOST}/chat_bot/webhook_inbox"
 
 AVITOSTATA_ALIVE_BOT_TOKEN = os.getenv("AVITOSTATA_ALIVE_BOT_TOKEN", "")
 AVITOSTATA_ALIVE_REPORTS_CHAT_ID = os.getenv("AVITOSTATA_ALIVE_REPORTS_CHAT_ID", "")
+AVITOSTATA_ALIVE_WEEKLY_REPORTS_CHAT_ID = os.getenv("AVITOSTATA_ALIVE_WEEKLY_REPORTS_CHAT_ID", "")
 
 AI_RETRIES: int = 3
 OPENAI_SECRET_KEY = os.getenv('OPENAI_SECRET_KEY')
@@ -301,7 +302,7 @@ if ENVIRONMENT == 'PRODUCTION':
         },
         'weekly_work_report': {
             'task': 'work_reports.tasks.send_weekly_report',
-            'schedule': crontab(hour='6', minute='30', day_of_week='5'),
+            'schedule': crontab(hour='4', minute='0', day_of_week='5'),  # 07:00 МСК
         },
         'monthly_work_report': {
             'task': 'work_reports.tasks.send_report_for_last_30_days',

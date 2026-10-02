@@ -6,6 +6,7 @@ from celery import shared_task
 
 from base.settings import AVITOSTATA_ALIVE_BOT_TOKEN
 from base.settings import AVITOSTATA_ALIVE_REPORTS_CHAT_ID
+from base.settings import AVITOSTATA_ALIVE_WEEKLY_REPORTS_CHAT_ID
 from utils.logging import TraceLogger
 from utils.miscellaneous import datetime_now_msk
 from utils.tg import send_message
@@ -38,7 +39,7 @@ def send_weekly_report() -> None:
     since = until - timedelta(days=7)
     report = weekly_report.make_weekly_report(since, until, last_juma)
     text = weekly_report.get_weekly_report_message_text(report)
-    send_message(AVITOSTATA_ALIVE_REPORTS_CHAT_ID, text, bot=reports_bot)
+    send_message(AVITOSTATA_ALIVE_WEEKLY_REPORTS_CHAT_ID, text, bot=reports_bot)
 
 
 @shared_task
